@@ -239,7 +239,10 @@ import {
   type DurableFiscalNotificationEmptyHistoryRepairResultV1,
 } from "@/lib/fiscal-notifications/empty-history-repair.v1";
 import { reportAppError } from "@/lib/monitoring/client";
-import { isCloudEnabled } from "@/lib/supabase/config";
+import {
+  isCloudEnabled,
+  isCloudSyncTemporarilyPaused,
+} from "@/lib/supabase/config";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -264,7 +267,9 @@ const CLOUD_SYNC_PREFLIGHT_WRITE_BLOCK: AppWriteBlock = {
 };
 
 function initialCloudSyncWriteBlock(): AppWriteBlock | null {
-  return isCloudEnabled() ? CLOUD_SYNC_PREFLIGHT_WRITE_BLOCK : null;
+  return isCloudEnabled() && !isCloudSyncTemporarilyPaused()
+    ? CLOUD_SYNC_PREFLIGHT_WRITE_BLOCK
+    : null;
 }
 
 type RecurringExpenseChangeBlockedReason = Extract<

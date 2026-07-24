@@ -25,6 +25,11 @@ evidencia verificable.
 PITR mejora la recuperacion, pero no bloquea esta arquitectura. Lo que si
 bloquea es no poder demostrar una restauracion satisfactoria.
 
+La activacion con escrituras fiscales queda fail-closed hasta que las flags
+privadas de sincronizacion operativa, baseline reconciliada, copia restaurable
+y ensayo aislado esten confirmadas. Estas flags no son publicas y no reactivan
+la sincronizacion actual por si solas.
+
 ## Bloqueos actuales
 
 - Baseline de produccion no reconciliado con Git.

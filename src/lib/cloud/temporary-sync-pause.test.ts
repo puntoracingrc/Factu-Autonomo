@@ -36,6 +36,7 @@ describe("temporary cloud sync pause", () => {
 
   it("keeps writes local and clears the desync write block while paused", () => {
     const cloudSyncContext = source("src/context/CloudSyncContext.tsx");
+    const appStore = source("src/context/AppStore.tsx");
 
     expect(cloudSyncContext).toContain("cloudSyncPaused: boolean");
     expect(cloudSyncContext).toContain("TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE");
@@ -48,11 +49,13 @@ describe("temporary cloud sync pause", () => {
     expect(cloudSyncContext).toContain(
       "if (cloudSyncPaused || demoMode || !ready || !user) return;",
     );
+    expect(appStore).toContain("!isCloudSyncTemporarilyPaused()");
   });
 
   it("presents the paused state as local-only work instead of a repair flow", () => {
     const accountCard = source("src/components/cloud/CloudAccountCard.tsx");
     const indicator = source("src/components/cloud/CloudSyncIndicator.tsx");
+    const documentForm = source("src/components/forms/DocumentForm.tsx");
 
     expect(accountCard).toContain("cloudSyncPaused");
     expect(accountCard).toContain("Pausada temporalmente");
@@ -67,5 +70,9 @@ describe("temporary cloud sync pause", () => {
     expect(indicator).toContain(
       "este dispositivo y se subiran cuando reactivemos la nube.",
     );
+
+    expect(documentForm).toContain("cloudSyncPaused");
+    expect(documentForm).toContain("!cloudSyncPaused");
+    expect(documentForm).toContain("requiresFreshCloudBeforeEmission");
   });
 });

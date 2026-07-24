@@ -49,6 +49,10 @@ dispone todavia de esas tablas ni de una transaccion de emision autoritativa.
 13. La activacion se hace por modos `off`, `shadow`, `canary` y `required`.
     `shadow` no escribe identidades fiscales. `canary` exige allowlist y
     aprobacion explicita en produccion.
+    Los modos con escrituras fiscales exigen ademas que la sincronizacion
+    operativa este marcada como lista, que la baseline de produccion este
+    reconciliada con Git y que exista copia restaurable con ensayo aislado
+    superado.
 14. Una vez activada la autoridad central para una serie, un incidente puede
     pausar nuevas emisiones, pero nunca devolver esa serie a numeracion local.
 15. PITR es recomendable, no obligatorio. La puerta operativa exige una copia
