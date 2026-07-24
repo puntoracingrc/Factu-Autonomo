@@ -1,0 +1,1348 @@
+{
+  "tables": [
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "accumulator_memberships",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "closed_week_promotion_batches",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "closed_week_supported_metrics",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "contribution_claims",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "contributor_week_limits",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "learning_consent_decisions",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "protected_accumulators",
+      "schema": "expense_learning_private",
+      "forceRls": true,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    }
+  ],
+  "columns": [
+    {
+      "table": "accumulator_memberships",
+      "column": "contribution_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "observation_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "engine_version",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "privacy_policy_version",
+      "schema": "expense_learning_private",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "week_start",
+      "schema": "expense_learning_private",
+      "ordinal": 5,
+      "udtName": "date",
+      "dataType": "date",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "structural_archetype_group",
+      "schema": "expense_learning_private",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "metric_family",
+      "schema": "expense_learning_private",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "comparison_scope",
+      "schema": "expense_learning_private",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "metric_key",
+      "schema": "expense_learning_private",
+      "ordinal": 9,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "bucket_kind",
+      "schema": "expense_learning_private",
+      "ordinal": 10,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "bucket_value",
+      "schema": "expense_learning_private",
+      "ordinal": 11,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "contributor_coordinate_hmac",
+      "schema": "expense_learning_private",
+      "ordinal": 12,
+      "udtName": "bytea",
+      "dataType": "bytea",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "accumulator_memberships",
+      "column": "expires_at",
+      "schema": "expense_learning_private",
+      "ordinal": 14,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "contribution_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "observation_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "engine_version",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "privacy_policy_version",
+      "schema": "expense_learning_private",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "week_start",
+      "schema": "expense_learning_private",
+      "ordinal": 5,
+      "udtName": "date",
+      "dataType": "date",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "structural_archetype_group",
+      "schema": "expense_learning_private",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "privacy_evaluation_version",
+      "schema": "expense_learning_private",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_promotion_batches",
+      "column": "batch_state",
+      "schema": "expense_learning_private",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "contribution_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "observation_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "engine_version",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "privacy_policy_version",
+      "schema": "expense_learning_private",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "week_start",
+      "schema": "expense_learning_private",
+      "ordinal": 5,
+      "udtName": "date",
+      "dataType": "date",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "structural_archetype_group",
+      "schema": "expense_learning_private",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "metric_family",
+      "schema": "expense_learning_private",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "comparison_scope",
+      "schema": "expense_learning_private",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "metric_key",
+      "schema": "expense_learning_private",
+      "ordinal": 9,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "bucket_kind",
+      "schema": "expense_learning_private",
+      "ordinal": 10,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "bucket_value",
+      "schema": "expense_learning_private",
+      "ordinal": 11,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "promoted_at",
+      "schema": "expense_learning_private",
+      "ordinal": 13,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "expires_at",
+      "schema": "expense_learning_private",
+      "ordinal": 14,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "closed_week_supported_metrics",
+      "column": "support_band",
+      "schema": "expense_learning_private",
+      "ordinal": 15,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contribution_claims",
+      "column": "claim_token_digest",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "bytea",
+      "dataType": "bytea",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contribution_claims",
+      "column": "claimed_at",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "contribution_claims",
+      "column": "expires_at",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contribution_claims",
+      "column": "week_start",
+      "schema": "expense_learning_private",
+      "ordinal": 4,
+      "udtName": "date",
+      "dataType": "date",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contribution_claims",
+      "column": "contributor_week_hmac",
+      "schema": "expense_learning_private",
+      "ordinal": 5,
+      "udtName": "bytea",
+      "dataType": "bytea",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contributor_revocation_links",
+      "column": "user_id",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contributor_revocation_links",
+      "column": "week_start",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "date",
+      "dataType": "date",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contributor_revocation_links",
+      "column": "contributor_week_hmac",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "bytea",
+      "dataType": "bytea",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contributor_revocation_links",
+      "column": "expires_at",
+      "schema": "expense_learning_private",
+      "ordinal": 4,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contributor_week_limits",
+      "column": "week_start",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "date",
+      "dataType": "date",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contributor_week_limits",
+      "column": "contributor_week_hmac",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "bytea",
+      "dataType": "bytea",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "contributor_week_limits",
+      "column": "accepted_learning_contributions",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "int2",
+      "dataType": "smallint",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "contributor_week_limits",
+      "column": "expires_at",
+      "schema": "expense_learning_private",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "decision_id",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "int8",
+      "dataType": "bigint",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "user_id",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "notice_version",
+      "schema": "expense_learning_private",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "purpose",
+      "schema": "expense_learning_private",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "privacy_policy_version",
+      "schema": "expense_learning_private",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "granted",
+      "schema": "expense_learning_private",
+      "ordinal": 7,
+      "udtName": "bool",
+      "dataType": "boolean",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "learning_consent_decisions",
+      "column": "decided_at",
+      "schema": "expense_learning_private",
+      "ordinal": 8,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "contribution_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "observation_schema_version",
+      "schema": "expense_learning_private",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "engine_version",
+      "schema": "expense_learning_private",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "privacy_policy_version",
+      "schema": "expense_learning_private",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "week_start",
+      "schema": "expense_learning_private",
+      "ordinal": 5,
+      "udtName": "date",
+      "dataType": "date",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "structural_archetype_group",
+      "schema": "expense_learning_private",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "metric_family",
+      "schema": "expense_learning_private",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "comparison_scope",
+      "schema": "expense_learning_private",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "metric_key",
+      "schema": "expense_learning_private",
+      "ordinal": 9,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "bucket_kind",
+      "schema": "expense_learning_private",
+      "ordinal": 10,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "bucket_value",
+      "schema": "expense_learning_private",
+      "ordinal": 11,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "supporting_contributors",
+      "schema": "expense_learning_private",
+      "ordinal": 12,
+      "udtName": "int2",
+      "dataType": "smallint",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "protected_accumulators",
+      "column": "expires_at",
+      "schema": "expense_learning_private",
+      "ordinal": 14,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    }
+  ],
+  "indexes": [
+    {
+      "name": "accumulator_memberships_pkey",
+      "table": "accumulator_memberships",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "closed_week_promotion_batches_pkey",
+      "table": "closed_week_promotion_batches",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "closed_week_supported_metrics_pkey",
+      "table": "closed_week_supported_metrics",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "contribution_claims_pkey",
+      "table": "contribution_claims",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "contributor_revocation_links_pkey",
+      "table": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "contributor_revocation_links_week_hmac_v1",
+      "table": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "contributor_week_limits_pkey",
+      "table": "contributor_week_limits",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "learning_consent_decisions_current_v1_idx",
+      "table": "learning_consent_decisions",
+      "schema": "expense_learning_private",
+      "unique": false
+    },
+    {
+      "name": "learning_consent_decisions_pkey",
+      "table": "learning_consent_decisions",
+      "schema": "expense_learning_private",
+      "unique": true
+    },
+    {
+      "name": "protected_accumulators_pkey",
+      "table": "protected_accumulators",
+      "schema": "expense_learning_private",
+      "unique": true
+    }
+  ],
+  "schemas": [
+    "expense_learning_private"
+  ],
+  "policies": [
+    {
+      "cmd": "DELETE",
+      "name": "expense_learning_memberships_owner_delete_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "accumulator_memberships",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_memberships_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "accumulator_memberships",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_memberships_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "accumulator_memberships",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "DELETE",
+      "name": "expense_learning_promotion_batches_owner_delete_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "closed_week_promotion_batches",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_promotion_batches_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "closed_week_promotion_batches",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_promotion_batches_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "closed_week_promotion_batches",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "DELETE",
+      "name": "expense_learning_closed_metrics_owner_delete_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "closed_week_supported_metrics",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_closed_metrics_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "closed_week_supported_metrics",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_closed_metrics_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "closed_week_supported_metrics",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "DELETE",
+      "name": "expense_learning_claims_owner_delete_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contribution_claims",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_claims_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contribution_claims",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_claims_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contribution_claims",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "DELETE",
+      "name": "expense_learning_revocation_links_owner_delete_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_revocation_links_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "UPDATE",
+      "name": "expense_learning_revocation_links_owner_lock_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_revocation_links_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "DELETE",
+      "name": "expense_learning_week_limits_owner_delete_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_week_limits",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_week_limits_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_week_limits",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_week_limits_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_week_limits",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "UPDATE",
+      "name": "expense_learning_week_limits_owner_update_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "contributor_week_limits",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_consent_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "learning_consent_decisions",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_consent_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "learning_consent_decisions",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "DELETE",
+      "name": "expense_learning_accumulators_owner_delete_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "protected_accumulators",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "INSERT",
+      "name": "expense_learning_accumulators_owner_insert_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "protected_accumulators",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "expense_learning_accumulators_owner_select_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "protected_accumulators",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "UPDATE",
+      "name": "expense_learning_accumulators_owner_update_v1",
+      "roles": [
+        "expense_learning_storage_owner"
+      ],
+      "table": "protected_accumulators",
+      "schema": "expense_learning_private",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": true
+    }
+  ],
+  "triggers": [
+    {
+      "name": "expense_learning_revocation_link_purge_v1",
+      "event": "DELETE",
+      "table": "contributor_revocation_links",
+      "schema": "expense_learning_private",
+      "timing": "BEFORE"
+    }
+  ],
+  "functions": [
+    {
+      "name": "attempt_expense_learning_link_cleanup_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_user_id uuid, p_week_start date, p_now timestamp with time zone",
+      "returnType": "boolean",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "expense_learning_cell_lock_key_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_contribution_schema_version text, p_observation_schema_version text, p_engine_version text, p_privacy_policy_version text, p_week_start date, p_structural_archetype_group text, p_metric_family text, p_comparison_scope text, p_metric_key text, p_bucket_kind text, p_bucket_value text",
+      "returnType": "bigint",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "expense_learning_coordinate_hmac_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_contributor_week_hmac bytea, p_contribution_schema_version text, p_observation_schema_version text, p_engine_version text, p_privacy_policy_version text, p_week_start date, p_structural_archetype_group text, p_metric_family text, p_comparison_scope text, p_metric_key text",
+      "returnType": "bytea",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "expense_learning_retention_lookahead_v1",
+      "schema": "expense_learning_private",
+      "arguments": "",
+      "returnType": "interval",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "expense_learning_support_band_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_contributors integer",
+      "returnType": "text",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "expense_learning_week_expiry_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_week_start date",
+      "returnType": "timestamp with time zone",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "has_canonical_versions_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_contribution_schema_version text, p_observation_schema_version text, p_engine_version text, p_privacy_policy_version text",
+      "returnType": "boolean",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_canonical_contribution_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_contribution jsonb",
+      "returnType": "boolean",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_canonical_metric_bucket_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_family text, p_comparison_scope text, p_metric_key text, p_bucket_kind text, p_bucket_value text",
+      "returnType": "boolean",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_canonical_metric_coordinate_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_family text, p_comparison_scope text, p_metric_key text",
+      "returnType": "boolean",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_expense_learning_link_cleanup_eligible_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_user_id uuid, p_week_start date, p_now timestamp with time zone",
+      "returnType": "boolean",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_expense_learning_link_source_canonical_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_user_id uuid, p_week_start date",
+      "returnType": "boolean",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_expense_learning_promotion_source_safe_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_contribution_schema_version text, p_observation_schema_version text, p_engine_version text, p_privacy_policy_version text, p_week_start date, p_structural_archetype_group text",
+      "returnType": "boolean",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_expense_learning_week_accumulator_consistent_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_week_start date",
+      "returnType": "boolean",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_expense_learning_week_source_canonical_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_week_start date",
+      "returnType": "boolean",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "is_service_role_request_v1",
+      "schema": "expense_learning_private",
+      "arguments": "",
+      "returnType": "boolean",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "lock_expense_learning_cells_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_contribution jsonb, p_week_start date",
+      "returnType": "void",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "lock_expense_learning_week_cells_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_week_start date",
+      "returnType": "void",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "purge_expense_learning_link_v1",
+      "schema": "expense_learning_private",
+      "arguments": "",
+      "returnType": "trigger",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "reconcile_expense_learning_week_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_week_start date",
+      "returnType": "boolean",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "run_expense_learning_promotion_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_now timestamp with time zone",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "run_expense_learning_retention_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_now timestamp with time zone",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "stage_expense_learning_contribution_v1",
+      "schema": "expense_learning_private",
+      "arguments": "p_user_id uuid, p_contribution jsonb, p_claim_token_digest bytea, p_contributor_week_hmac bytea",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": false
+    }
+  ],
+  "queryMode": "read-only-private-catalog-only-no-business-rows",
+  "capturedAt": "2026-07-24T04:41:56+00",
+  "projectRef": "rnbmkkzptxbvtchluqrx",
+  "environment": "production",
+  "schemaExists": true,
+  "schemaVersion": "factu-supabase-production-private-schema-inventory-v1"
+}

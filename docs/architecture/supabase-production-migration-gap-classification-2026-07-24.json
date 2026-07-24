@@ -2,19 +2,20 @@
   "schemaVersion": "supabase-production-migration-gap-classification-v1",
   "basedOn": {
     "inventoryFile": "docs/architecture/supabase-production-schema-inventory-2026-07-24.json",
+    "privateInventoryFile": "docs/architecture/supabase-production-expense-learning-private-inventory-2026-07-24.json",
     "reconciliationFile": "docs/architecture/central-invoice-authority-supabase-reconciliation-2026-07-24.json",
     "productionProjectRef": "rnbmkkzptxbvtchluqrx",
-    "capturedAt": "2026-07-24T04:01:14+00"
+    "capturedAt": "2026-07-24T04:01:14+00",
+    "privateCapturedAt": "2026-07-24T04:41:56+00"
   },
   "scope": {
     "mode": "read-only-derived-from-versioned-catalog-inventory",
     "inventoriedSchemas": [
+      "expense_learning_private",
       "public",
       "storage"
     ],
-    "excludedSchemasRequireSeparateReadOnlyInventory": [
-      "expense_learning_private"
-    ],
+    "excludedSchemasRequireSeparateReadOnlyInventory": [],
     "productionVisibleVersions": [
       "20260720133000",
       "20260721190000",
@@ -66,11 +67,10 @@
   },
   "summary": {
     "totalGapVersions": 41,
-    "partially_covered_by_public_storage_inventory": 1,
-    "production_catalog_covered_not_recorded": 17,
-    "not_present_in_public_storage_inventory": 11,
+    "partially_covered_by_catalog_inventory": 1,
+    "production_catalog_covered_not_recorded": 23,
+    "not_present_in_catalog_inventory": 11,
     "catalog_limited_hardening_or_alter_only": 6,
-    "requires_private_schema_inventory": 6,
     "baselineReconciledWithGit": false,
     "decision": "blocked-before-production-sql"
   },
@@ -78,7 +78,7 @@
     {
       "version": "20260623000000",
       "file": "20260623000000_base_schema.sql",
-      "status": "partially_covered_by_public_storage_inventory",
+      "status": "partially_covered_by_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.payment_receipts",
@@ -163,7 +163,7 @@
     {
       "version": "20260624220000",
       "file": "20260624220000_phase2b_server_schema_local_staging.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.document_conflicts",
@@ -203,7 +203,7 @@
     {
       "version": "20260625070000",
       "file": "20260625070000_phase2b4d_fiscal_operation_transaction_rpc.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.reserve_fiscal_operation"
@@ -218,7 +218,7 @@
     {
       "version": "20260625093000",
       "file": "20260625093000_phase2b4f_fiscal_operation_processing_rpc.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.mark_fiscal_operation_processing"
@@ -233,7 +233,7 @@
     {
       "version": "20260625133500",
       "file": "20260625133500_phase2b4l_fiscal_record_local_persistence.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.create_fiscal_record_local_staging"
@@ -250,7 +250,7 @@
     {
       "version": "20260625142000",
       "file": "20260625142000_phase2b4m_fiscal_record_chain_atomicity.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.create_fiscal_record_with_chain_local_staging"
@@ -265,7 +265,7 @@
     {
       "version": "20260625153000",
       "file": "20260625153000_phase2b4r_fiscal_evidence_packets_local_staging.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.create_fiscal_evidence_packet_local_staging",
@@ -312,7 +312,7 @@
     {
       "version": "20260701060000",
       "file": "20260701060000_admin_user_controls.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.admin_user_controls"
@@ -346,7 +346,7 @@
     {
       "version": "20260703190000",
       "file": "20260703190000_ai_learning_events.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.ai_learning_events"
@@ -363,7 +363,7 @@
     {
       "version": "20260704092000",
       "file": "20260704092000_expense_email_inbox.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.expense_inbox_aliases",
@@ -383,7 +383,7 @@
     {
       "version": "20260704133000",
       "file": "20260704133000_expense_inbox_alias_history.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.expense_inbox_alias_history"
@@ -609,7 +609,7 @@
     {
       "version": "20260716160000",
       "file": "20260716160000_tax_product_insights.sql",
-      "status": "not_present_in_public_storage_inventory",
+      "status": "not_present_in_catalog_inventory",
       "createdSchemas": [],
       "createdObjects": [
         "public.purge_tax_product_events",
@@ -737,7 +737,7 @@
     {
       "version": "20260721223000",
       "file": "20260721223000_expense_learning_storage_p1b.sql",
-      "status": "requires_private_schema_inventory",
+      "status": "production_catalog_covered_not_recorded",
       "createdSchemas": [
         "expense_learning_private"
       ],
@@ -756,11 +756,6 @@
         "public.submit_expense_learning_contribution_v1"
       ],
       "presentObjects": [
-        "public.promote_expense_learning_closed_weeks_v1",
-        "public.purge_expense_learning_retention_v1",
-        "public.submit_expense_learning_contribution_v1"
-      ],
-      "missingObjectsInInventory": [
         "expense_learning_private.accumulator_memberships",
         "expense_learning_private.closed_week_supported_metrics",
         "expense_learning_private.contribution_claims",
@@ -769,8 +764,12 @@
         "expense_learning_private.is_canonical_metric_bucket_v1",
         "expense_learning_private.is_canonical_metric_coordinate_v1",
         "expense_learning_private.is_service_role_request_v1",
-        "expense_learning_private.protected_accumulators"
+        "expense_learning_private.protected_accumulators",
+        "public.promote_expense_learning_closed_weeks_v1",
+        "public.purge_expense_learning_retention_v1",
+        "public.submit_expense_learning_contribution_v1"
       ],
+      "missingObjectsInInventory": [],
       "alteredTables": [
         "expense_learning_private.accumulator_memberships",
         "expense_learning_private.closed_week_supported_metrics",
@@ -778,12 +777,12 @@
         "expense_learning_private.contributor_week_limits",
         "expense_learning_private.protected_accumulators"
       ],
-      "action": "manual_review_required_before_any_production_sql"
+      "action": "candidate_for_accepted_baseline_marker_after_restore_evidence"
     },
     {
       "version": "20260722050000",
       "file": "20260722050000_expense_learning_consent_p2a.sql",
-      "status": "requires_private_schema_inventory",
+      "status": "production_catalog_covered_not_recorded",
       "createdSchemas": [],
       "createdObjects": [
         "expense_learning_private.learning_consent_decisions",
@@ -791,21 +790,20 @@
         "public.set_expense_learning_consent_v1"
       ],
       "presentObjects": [
+        "expense_learning_private.learning_consent_decisions",
         "public.get_expense_learning_consent_v1",
         "public.set_expense_learning_consent_v1"
       ],
-      "missingObjectsInInventory": [
-        "expense_learning_private.learning_consent_decisions"
-      ],
+      "missingObjectsInInventory": [],
       "alteredTables": [
         "expense_learning_private.learning_consent_decisions"
       ],
-      "action": "manual_review_required_before_any_production_sql"
+      "action": "candidate_for_accepted_baseline_marker_after_restore_evidence"
     },
     {
       "version": "20260722110000",
       "file": "20260722110000_expense_learning_ingestion_p3a.sql",
-      "status": "requires_private_schema_inventory",
+      "status": "production_catalog_covered_not_recorded",
       "createdSchemas": [],
       "createdObjects": [
         "expense_learning_private.contributor_revocation_links",
@@ -820,10 +818,6 @@
         "public.submit_expense_learning_contribution_v1"
       ],
       "presentObjects": [
-        "public.set_expense_learning_consent_v1",
-        "public.submit_expense_learning_contribution_v1"
-      ],
-      "missingObjectsInInventory": [
         "expense_learning_private.contributor_revocation_links",
         "expense_learning_private.expense_learning_cell_lock_key_v1",
         "expense_learning_private.expense_learning_coordinate_hmac_v1",
@@ -831,8 +825,11 @@
         "expense_learning_private.is_canonical_contribution_v1",
         "expense_learning_private.lock_expense_learning_cells_v1",
         "expense_learning_private.purge_expense_learning_link_v1",
-        "expense_learning_private.stage_expense_learning_contribution_v1"
+        "expense_learning_private.stage_expense_learning_contribution_v1",
+        "public.set_expense_learning_consent_v1",
+        "public.submit_expense_learning_contribution_v1"
       ],
+      "missingObjectsInInventory": [],
       "alteredTables": [
         "expense_learning_private.accumulator_memberships",
         "expense_learning_private.contribution_claims",
@@ -840,12 +837,12 @@
         "expense_learning_private.contributor_week_limits",
         "expense_learning_private.protected_accumulators"
       ],
-      "action": "manual_review_required_before_any_production_sql"
+      "action": "candidate_for_accepted_baseline_marker_after_restore_evidence"
     },
     {
       "version": "20260722190000",
       "file": "20260722190000_expense_learning_retention_p4a.sql",
-      "status": "requires_private_schema_inventory",
+      "status": "production_catalog_covered_not_recorded",
       "createdSchemas": [],
       "createdObjects": [
         "expense_learning_private.attempt_expense_learning_link_cleanup_v1",
@@ -861,10 +858,6 @@
         "public.set_expense_learning_consent_v1"
       ],
       "presentObjects": [
-        "public.purge_expense_learning_retention_v1",
-        "public.set_expense_learning_consent_v1"
-      ],
-      "missingObjectsInInventory": [
         "expense_learning_private.attempt_expense_learning_link_cleanup_v1",
         "expense_learning_private.is_expense_learning_link_cleanup_eligible_v1",
         "expense_learning_private.is_expense_learning_link_source_canonical_v1",
@@ -873,15 +866,18 @@
         "expense_learning_private.lock_expense_learning_week_cells_v1",
         "expense_learning_private.purge_expense_learning_link_v1",
         "expense_learning_private.reconcile_expense_learning_week_v1",
-        "expense_learning_private.run_expense_learning_retention_v1"
+        "expense_learning_private.run_expense_learning_retention_v1",
+        "public.purge_expense_learning_retention_v1",
+        "public.set_expense_learning_consent_v1"
       ],
+      "missingObjectsInInventory": [],
       "alteredTables": [],
-      "action": "manual_review_required_before_any_production_sql"
+      "action": "candidate_for_accepted_baseline_marker_after_restore_evidence"
     },
     {
       "version": "20260722230000",
       "file": "20260722230000_expense_learning_promotion_p4b.sql",
-      "status": "requires_private_schema_inventory",
+      "status": "production_catalog_covered_not_recorded",
       "createdSchemas": [],
       "createdObjects": [
         "expense_learning_private.closed_week_promotion_batches",
@@ -892,20 +888,19 @@
         "public.promote_expense_learning_closed_weeks_v1"
       ],
       "presentObjects": [
-        "public.promote_expense_learning_closed_weeks_v1"
-      ],
-      "missingObjectsInInventory": [
         "expense_learning_private.closed_week_promotion_batches",
         "expense_learning_private.expense_learning_support_band_v1",
         "expense_learning_private.is_expense_learning_promotion_source_safe_v1",
         "expense_learning_private.lock_expense_learning_cells_v1",
-        "expense_learning_private.run_expense_learning_promotion_v1"
+        "expense_learning_private.run_expense_learning_promotion_v1",
+        "public.promote_expense_learning_closed_weeks_v1"
       ],
+      "missingObjectsInInventory": [],
       "alteredTables": [
         "expense_learning_private.closed_week_promotion_batches",
         "expense_learning_private.closed_week_supported_metrics"
       ],
-      "action": "manual_review_required_before_any_production_sql"
+      "action": "candidate_for_accepted_baseline_marker_after_restore_evidence"
     },
     {
       "version": "20260722234500",
@@ -927,7 +922,7 @@
     {
       "version": "20260723010000",
       "file": "20260723010000_expense_learning_operations_p4c.sql",
-      "status": "requires_private_schema_inventory",
+      "status": "production_catalog_covered_not_recorded",
       "createdSchemas": [],
       "createdObjects": [
         "expense_learning_private.expense_learning_retention_lookahead_v1",
@@ -935,14 +930,13 @@
         "public.submit_expense_learning_contribution_v1"
       ],
       "presentObjects": [
+        "expense_learning_private.expense_learning_retention_lookahead_v1",
         "public.purge_expense_learning_retention_v1",
         "public.submit_expense_learning_contribution_v1"
       ],
-      "missingObjectsInInventory": [
-        "expense_learning_private.expense_learning_retention_lookahead_v1"
-      ],
+      "missingObjectsInInventory": [],
       "alteredTables": [],
-      "action": "manual_review_required_before_any_production_sql"
+      "action": "candidate_for_accepted_baseline_marker_after_restore_evidence"
     },
     {
       "version": "20260723070000",
