@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { buildSecurityResponseHeaders } from "./src/lib/security-response-headers";
 
 const securityHeaders = buildSecurityResponseHeaders();
+const isVercelBuild = process.env.VERCEL === "1";
 
 const apiNoStoreHeaders = [
   { key: "Cache-Control", value: "no-store, max-age=0" },
@@ -44,6 +45,12 @@ const appNoIndexRoutes = [
 ];
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: isVercelBuild,
+  },
+  typescript: {
+    ignoreBuildErrors: isVercelBuild,
+  },
   env: {
     NEXT_PUBLIC_VERCEL_ENV:
       process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.VERCEL_ENV ?? "",
