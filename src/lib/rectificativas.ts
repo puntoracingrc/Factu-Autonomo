@@ -126,6 +126,8 @@ export function itemsForAnulacion(items: LineItem[]): LineItem[] {
     // Invertir un solo factor mantiene la cancelación algebraica exacta de
     // ventas, descuentos y cantidades negativas de la factura original.
     unitPrice: -item.unitPrice,
+    grossUnitPrice:
+      typeof item.grossUnitPrice === "number" ? -item.grossUnitPrice : undefined,
     ivaPercent: item.ivaPercent,
   }));
 }
@@ -137,6 +139,7 @@ export function cloneItemsForCorreccion(items: LineItem[]): LineItem[] {
     quantity: item.quantity,
     unit: item.unit,
     unitPrice: item.unitPrice,
+    grossUnitPrice: item.grossUnitPrice,
     ivaPercent: item.ivaPercent,
   }));
 }

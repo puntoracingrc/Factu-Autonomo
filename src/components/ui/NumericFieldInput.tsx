@@ -9,6 +9,7 @@ interface NumericFieldInputProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  maxDecimals?: number;
 }
 
 /** Text input for decimals — avoids the stuck leading zero of type="number". */
@@ -18,6 +19,7 @@ export function NumericFieldInput({
   disabled,
   placeholder = "0",
   className,
+  maxDecimals,
 }: NumericFieldInputProps) {
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -34,6 +36,13 @@ export function NumericFieldInput({
       onChange={(e) => {
         const raw = e.target.value.replace(",", ".");
         if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;
+        if (
+          typeof maxDecimals === "number" &&
+          raw.includes(".") &&
+          (raw.split(".")[1]?.length ?? 0) > maxDecimals
+        ) {
+          return;
+        }
         setDraft(raw);
         if (raw === "" || raw === ".") {
           onChange(0);
@@ -42,7 +51,15 @@ export function NumericFieldInput({
         const parsed = parseFloat(raw);
         if (!Number.isNaN(parsed)) onChange(parsed);
       }}
-      onBlur={() => setDraft(null)}
+      onBlur={() => {
+        if (
+          typeof maxDecimals === "number" &&
+          Number.isFinite(value)
+        ) {
+          onChange(Number(value.toFixed(maxDecimals)));
+        }
+        setDraft(null);
+      }}
     />
   );
 }

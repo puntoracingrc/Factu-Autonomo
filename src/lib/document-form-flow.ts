@@ -32,13 +32,19 @@ export function sanitizeDocumentFormLineItem(
   vatExempt = false,
   options: DocumentFormSignedAmountOptions = {},
 ): LineItem {
-  return {
+  const sanitized: LineItem = {
     ...item,
     description: item.description ?? "",
     quantity: safeFinite(item.quantity, options),
     unitPrice: safeFinite(item.unitPrice, options),
     ivaPercent: vatExempt ? 0 : safeFinite(item.ivaPercent),
   };
+  if (typeof item.grossUnitPrice === "number") {
+    sanitized.grossUnitPrice = safeFinite(item.grossUnitPrice, options);
+  } else {
+    delete sanitized.grossUnitPrice;
+  }
+  return sanitized;
 }
 
 export function sanitizeDocumentFormItems(

@@ -22,5 +22,7 @@ describe("DocumentForm line VAT integration", () => {
     expect(source).toContain("lg:overflow-x-auto");
     expect(source).toContain("ariaLabel={`IVA de la línea ${index + 1}`}");
     expect(source).toContain("unitPriceFromGross(gross, item.ivaPercent)");
+    expect(source).toContain("gross,");
+    expect(source).toContain("maxDecimals={2}");
   });
 });

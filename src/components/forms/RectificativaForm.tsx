@@ -16,7 +16,7 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
-import { formatMoney, todayISO } from "@/lib/calculations";
+import { formatMoney, todayISO, unitPriceFromGross } from "@/lib/calculations";
 import {
   documentAmounts,
   isVatExempt,
@@ -167,8 +167,40 @@ export function RectificativaForm({
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, ...patch };
+        if (
+          Object.prototype.hasOwnProperty.call(patch, "grossUnitPrice") &&
+          typeof patch.grossUnitPrice !== "number"
+        ) {
+          delete updated.grossUnitPrice;
+        }
+        return updated;
+      }),
     );
+  }
+
+  function handleLineUnitPriceChange(
+    id: string,
+    unitPrice: number,
+    grossUnitPrice?: number,
+  ) {
+    updateItem(id, {
+      unitPrice,
+      grossUnitPrice:
+        typeof grossUnitPrice === "number" ? grossUnitPrice : undefined,
+    });
+  }
+
+  function handleLineIvaChange(item: LineItem, ivaPercent: number) {
+    updateItem(item.id, {
+      ivaPercent,
+      unitPrice:
+        typeof item.grossUnitPrice === "number"
+          ? unitPriceFromGross(item.grossUnitPrice, ivaPercent)
+          : item.unitPrice,
+    });
   }
 
   function handleLineAreaDraftChange(id: string, patch: Partial<LineAreaDraft>) {
@@ -590,10 +622,15 @@ export function RectificativaForm({
                 </Field>
                 <LineItemPriceFields
                   unitPrice={item.unitPrice}
+                  grossUnitPrice={item.grossUnitPrice}
                   ivaPercent={item.ivaPercent}
                   vatExempt={vatExempt}
-                  onUnitPriceChange={(unitPrice) =>
-                    updateItem(item.id, { unitPrice })
+                  onUnitPriceChange={(unitPrice, grossUnitPrice) =>
+                    handleLineUnitPriceChange(
+                      item.id,
+                      unitPrice,
+                      grossUnitPrice,
+                    )
                   }
                   disabled={rectType === "anulacion"}
                 />
@@ -603,7 +640,7 @@ export function RectificativaForm({
                       value={item.ivaPercent}
                       settings={historicalProfile.iva}
                       onChange={(ivaPercent) =>
-                        updateItem(item.id, { ivaPercent })
+                        handleLineIvaChange(item, ivaPercent)
                       }
                       disabled={rectType === "anulacion"}
                     />
