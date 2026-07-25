@@ -59,6 +59,19 @@ Producción no está marcada como lista hasta validar este procedimiento fuera d
 
 La única instalación soportada para un Supabase limpio o staging nuevo es mediante las migraciones versionadas de `supabase/migrations`, aplicadas en orden automático por Supabase CLI.
 
+## Gate de release antes de autoridad central
+
+Antes de habilitar autoridad central de facturas, aplicar SQL productivo nuevo
+o marcar una migración como reconciliada con producción, el release debe pasar:
+
+- `npm run check:authority-central-release-gate`
+
+Ese comando encadena la convención de migraciones, la clasificación viva del
+gap entre Git y producción y los readiness gates de la autoridad central. Si la
+baseline de producción no está reconciliada, si la clasificación no coincide
+con la evidencia versionada o si aparece una migración central ejecutable antes
+de tiempo, el gate falla.
+
 No ejecutes manualmente `schema.sql`, `billing.sql` ni los scripts históricos en una instalación nueva.
 
 ## Scripts históricos/legacy
