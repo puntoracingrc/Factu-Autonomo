@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "central-invoice-authority-migration-gap-operational-classification-v1",
+  "basedOn": {
+    "migrationGapClassificationFile": "docs/architecture/supabase-production-migration-gap-classification-2026-07-24.json",
+    "productionProjectRef": "rnbmkkzptxbvtchluqrx",
+    "capturedAt": "2026-07-24T04:01:14.000Z"
+  },
+  "decision": "central_authority_sql_blocked_until_baseline_reconciled_and_external_boundary_reviewed",
+  "scope": {
+    "mode": "read-only-operational-classification-no-production-sql",
+    "classifiedStatuses": [
+      "partially_covered_by_catalog_inventory",
+      "not_present_in_catalog_inventory",
+      "catalog_limited_hardening_or_alter_only"
+    ],
+    "excludedStatus": "production_catalog_covered_not_recorded",
+    "classifiedEntries": 18
+  },
+  "operationalClasses": [
+    {
+      "class": "partial_base_schema_blocker",
+      "productionAction": "blocked_until_baseline_reconciled_or_replaced_by_reviewed_central_schema",
+      "centralAuthorityImpact": "blocks_any_production_sql_for_central_invoice_authority"
+    },
+    {
+      "class": "local_staging_fiscal_flow_blocked",
+      "productionAction": "blocked_for_production_until_external_fiscal_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source"
+    },
+    {
+      "class": "local_staging_sync_blocked",
+      "productionAction": "blocked_for_production_until_sync_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source"
+    },
+    {
+      "class": "product_support_absent_from_production",
+      "productionAction": "explicit_product_migration_required_before_use",
+      "centralAuthorityImpact": "not_a_prerequisite_for_central_invoice_authority"
+    },
+    {
+      "class": "target_aware_hardening_or_metadata",
+      "productionAction": "manual_target_aware_review_required_before_apply",
+      "centralAuthorityImpact": "hardening_only_not_a_source_of_invoice_truth"
+    }
+  ],
+  "entries": [
+    {
+      "file": "20260623000000_base_schema.sql",
+      "sourceStatus": "partially_covered_by_catalog_inventory",
+      "operationalClass": "partial_base_schema_blocker",
+      "productionAction": "blocked_until_baseline_reconciled_or_replaced_by_reviewed_central_schema",
+      "centralAuthorityImpact": "blocks_any_production_sql_for_central_invoice_authority",
+      "reason": "Production catalog contains the billing and sync baseline objects but is missing public.verifactu_chain_state and public.verifactu_records from this baseline migration."
+    },
+    {
+      "file": "20260624220000_phase2b_server_schema_local_staging.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "local_staging_fiscal_flow_blocked",
+      "productionAction": "blocked_for_production_until_external_fiscal_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source",
+      "reason": "Migration header declares Supabase local and staging only; it creates candidate server document and fiscal tables outside the production authority cutover."
+    },
+    {
+      "file": "20260625070000_phase2b4d_fiscal_operation_transaction_rpc.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "local_staging_fiscal_flow_blocked",
+      "productionAction": "blocked_for_production_until_external_fiscal_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source",
+      "reason": "Migration header declares local and staging only; it reserves fiscal operations for the dry-run flow and explicitly does not enable production rollout."
+    },
+    {
+      "file": "20260625093000_phase2b4f_fiscal_operation_processing_rpc.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "local_staging_fiscal_flow_blocked",
+      "productionAction": "blocked_for_production_until_external_fiscal_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source",
+      "reason": "Migration header declares local and staging only; it transitions candidate fiscal operations and does not create production fiscal records or AEAT transport."
+    },
+    {
+      "file": "20260625133500_phase2b4l_fiscal_record_local_persistence.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "local_staging_fiscal_flow_blocked",
+      "productionAction": "blocked_for_production_until_external_fiscal_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source",
+      "reason": "Migration header declares local and staging persistence for candidate fiscal records and explicitly avoids final transport or production rollout."
+    },
+    {
+      "file": "20260625142000_phase2b4m_fiscal_record_chain_atomicity.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "local_staging_fiscal_flow_blocked",
+      "productionAction": "blocked_for_production_until_external_fiscal_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source",
+      "reason": "Migration header declares local and staging atomicity for the candidate chain and explicitly does not enable production rollout."
+    },
+    {
+      "file": "20260625153000_phase2b4r_fiscal_evidence_packets_local_staging.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "local_staging_fiscal_flow_blocked",
+      "productionAction": "blocked_for_production_until_external_fiscal_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source",
+      "reason": "Migration stores internal dry-run evidence packets only and explicitly says it is not an AEAT transport queue."
+    },
+    {
+      "file": "20260626212000_phase2c20_document_sync_local_schema.sql",
+      "sourceStatus": "catalog_limited_hardening_or_alter_only",
+      "operationalClass": "local_staging_sync_blocked",
+      "productionAction": "blocked_for_production_until_sync_boundary_review",
+      "centralAuthorityImpact": "not_a_production_authority_source",
+      "reason": "Migration header declares local and staging document sync compatibility only and explicitly does not enable production sync, UI, issuance or external delivery."
+    },
+    {
+      "file": "20260628223000_verifactu_chain_previous_invoice.sql",
+      "sourceStatus": "catalog_limited_hardening_or_alter_only",
+      "operationalClass": "target_aware_hardening_or_metadata",
+      "productionAction": "manual_target_aware_review_required_before_apply",
+      "centralAuthorityImpact": "blocked_by_missing_verifactu_chain_state_baseline_object",
+      "reason": "It alters public.verifactu_chain_state, which the baseline inventory currently marks missing from production."
+    },
+    {
+      "file": "20260701060000_admin_user_controls.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "product_support_absent_from_production",
+      "productionAction": "explicit_product_migration_required_before_use",
+      "centralAuthorityImpact": "not_a_prerequisite_for_central_invoice_authority",
+      "reason": "Admin control table is product support infrastructure, not the central invoice numbering or fiscal chain authority."
+    },
+    {
+      "file": "20260703190000_ai_learning_events.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "product_support_absent_from_production",
+      "productionAction": "explicit_product_migration_required_before_use",
+      "centralAuthorityImpact": "not_a_prerequisite_for_central_invoice_authority",
+      "reason": "AI learning telemetry is product support infrastructure and must not be mixed with the invoice authority cutover."
+    },
+    {
+      "file": "20260704092000_expense_email_inbox.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "product_support_absent_from_production",
+      "productionAction": "explicit_product_migration_required_before_use",
+      "centralAuthorityImpact": "not_a_prerequisite_for_central_invoice_authority",
+      "reason": "Expense email inbox tables support gastos ingestion and are outside invoice issuance authority."
+    },
+    {
+      "file": "20260704133000_expense_inbox_alias_history.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "product_support_absent_from_production",
+      "productionAction": "explicit_product_migration_required_before_use",
+      "centralAuthorityImpact": "not_a_prerequisite_for_central_invoice_authority",
+      "reason": "Expense inbox alias history supports gastos ingestion and depends on the expense inbox feature boundary."
+    },
+    {
+      "file": "20260709060000_phase7_rls_auth_uid_init_plan.sql",
+      "sourceStatus": "catalog_limited_hardening_or_alter_only",
+      "operationalClass": "target_aware_hardening_or_metadata",
+      "productionAction": "manual_target_aware_review_required_before_apply",
+      "centralAuthorityImpact": "hardening_only_not_a_source_of_invoice_truth",
+      "reason": "RLS optimization preserves existing user isolation semantics and should be applied only after target-table and policy review."
+    },
+    {
+      "file": "20260709100000_supabase_advisor_fixes.sql",
+      "sourceStatus": "catalog_limited_hardening_or_alter_only",
+      "operationalClass": "target_aware_hardening_or_metadata",
+      "productionAction": "manual_target_aware_review_required_before_apply",
+      "centralAuthorityImpact": "hardening_only_not_a_source_of_invoice_truth",
+      "reason": "Advisor fixes are low-risk hardening and index changes; they must stay separate from the authority cutover."
+    },
+    {
+      "file": "20260709113000_rls_table_audit_hardening.sql",
+      "sourceStatus": "catalog_limited_hardening_or_alter_only",
+      "operationalClass": "target_aware_hardening_or_metadata",
+      "productionAction": "manual_target_aware_review_required_before_apply",
+      "centralAuthorityImpact": "hardening_only_not_a_source_of_invoice_truth",
+      "reason": "Target-aware RLS audit hardening uses to_regclass guards and spans optional tables; it is not a schema source of truth."
+    },
+    {
+      "file": "20260715131500_expense_inbox_retry_metadata.sql",
+      "sourceStatus": "catalog_limited_hardening_or_alter_only",
+      "operationalClass": "target_aware_hardening_or_metadata",
+      "productionAction": "manual_target_aware_review_required_before_apply",
+      "centralAuthorityImpact": "hardening_only_not_a_source_of_invoice_truth",
+      "reason": "Retry metadata alters the expense inbox table and is outside invoice issuance authority."
+    },
+    {
+      "file": "20260716160000_tax_product_insights.sql",
+      "sourceStatus": "not_present_in_catalog_inventory",
+      "operationalClass": "product_support_absent_from_production",
+      "productionAction": "explicit_product_migration_required_before_use",
+      "centralAuthorityImpact": "not_a_prerequisite_for_central_invoice_authority",
+      "reason": "Tax product analytics are product telemetry and must not be bundled into central invoice authority rollout."
+    }
+  ]
+}

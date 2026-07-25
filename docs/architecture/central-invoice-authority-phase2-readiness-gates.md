@@ -50,6 +50,7 @@ Evidencia capturada:
 - `docs/architecture/supabase-production-expense-learning-private-inventory-2026-07-24.json`
 - `docs/architecture/central-invoice-authority-supabase-reconciliation-2026-07-24.json`
 - `docs/architecture/supabase-production-migration-gap-classification-2026-07-24.json`
+- `docs/architecture/central-invoice-authority-migration-gap-operational-classification-2026-07-25.json`
 
 La evidencia es de catalogo: esquema e historial de migraciones, sin leer filas
 de negocio. Confirma que produccion muestra tres versiones de migracion y que
@@ -60,6 +61,15 @@ catalogo visible, migraciones no presentes en el inventario y migraciones
 limitadas a hardening o alteraciones sin objetos creados detectables. El
 inventario privado de `expense_learning_private` queda incluido para evitar
 clasificar esas migraciones a ciegas.
+
+La clasificacion operativa del 25 jul 2026 convierte los huecos restantes en
+bloqueos explicitos antes de SQL productivo: la baseline parcial bloquea la
+autoridad central porque faltan objetos VeriFactu, las migraciones fiscales y
+de sincronizacion declaradas local/staging no se pueden promocionar como fuente
+productiva, y las migraciones de soporte/hardening requieren revision manual
+por frontera de producto o por tabla destino. El gate
+`validate:central-invoice-authority-migration-gap-operational-classification`
+debe seguir cubriendo cada hueco no cubierto por catalogo.
 
 ## Lo prohibido ahora
 
