@@ -96,6 +96,14 @@ import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
 import { DocumentIntegrityError } from "@/lib/document-integrity";
 import { resolveDocumentFormBusinessProfile } from "@/lib/document-integrity/document-form-profile";
+import {
+  buildCentralInvoiceAuthorityDocumentFormIssueRequest,
+  shouldUseCentralInvoiceAuthorityDocumentFormCanary,
+} from "@/lib/central-invoice-authority/document-form-canary";
+import {
+  isCentralInvoiceAuthorityFormCanaryEnabled,
+  issueCentralInvoiceAuthorityFromBrowser,
+} from "@/lib/central-invoice-authority/form-canary-client";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import {
   applyDocumentProductToLine,
@@ -460,6 +468,7 @@ export function DocumentForm({
     ready,
     updateProfile,
     addDocument,
+    addDocumentWithCentralIdentity,
     updateDocument,
     upsertCustomerForDocument,
     registerVerifactuForDocument,
@@ -478,6 +487,7 @@ export function DocumentForm({
     syncNow,
   } = useCloudSync();
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
+  const centralCanaryEnabled = isCentralInvoiceAuthorityFormCanaryEnabled();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
@@ -1710,7 +1720,39 @@ export function DocumentForm({
         return;
       }
     } else {
-      saved = addDocument(payload);
+      if (
+        centralCanaryEnabled &&
+        shouldUseCentralInvoiceAuthorityDocumentFormCanary({
+          type,
+          existing,
+          payload,
+          resolvedStatus,
+        })
+      ) {
+        const localDocumentId = crypto.randomUUID();
+        const issuedAt = new Date().toISOString();
+        const centralRequest =
+          buildCentralInvoiceAuthorityDocumentFormIssueRequest({
+            localDocumentId,
+            payload,
+            profile: effectiveDocumentProfile,
+            issuedAt,
+          });
+        const centralResult =
+          await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
+
+        if (!centralResult.ok) {
+          setSaveAction("idle");
+          setFormError(centralResult.message);
+          return;
+        }
+
+        saved = addDocumentWithCentralIdentity(payload, centralResult.identity, {
+          localDocumentId,
+        });
+      } else {
+        saved = addDocument(payload);
+      }
       recordDocumentCreated();
     }
 
