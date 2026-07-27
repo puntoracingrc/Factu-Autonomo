@@ -23,6 +23,7 @@ import type {
   UserReminder,
 } from "@/lib/types";
 import type { CentralInvoiceAuthorityFormIssueIdentity } from "@/lib/central-invoice-authority/form-canary-client";
+import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -383,6 +384,10 @@ interface AppStoreValue {
     ownerScope: string;
     confirmedAt: string;
   }) => DurableFiscalNotificationEmptyHistoryRepairResultV1;
+  syncCentralInvoiceAuthorityEvents: (
+    expected: AppData,
+    options?: { limit?: number | null; receivedAt?: string },
+  ) => Promise<AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>>;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
@@ -1208,6 +1213,35 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ...input,
         commit: commitDurableAppData,
       }),
+    [commitDurableAppData],
+  );
+
+  const syncCentralInvoiceAuthorityEvents = useCallback(
+    async (
+      expected: AppData,
+      options: { limit?: number | null; receivedAt?: string } = {},
+    ): Promise<
+      AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>
+    > => {
+      const {
+        buildCentralInvoiceAuthorityEventsAppDataTransition,
+        pullCentralInvoiceAuthorityEventsForAppData,
+      } = await import(
+        "@/lib/central-invoice-authority/events-app-data-sync"
+      );
+      const pulled = await pullCentralInvoiceAuthorityEventsForAppData({
+        data: expected,
+        limit: options.limit,
+        receivedAt: options.receivedAt,
+      });
+      // central authority event sync: rebuild against the durable baseline before writing
+      return commitDurableAppData(expected, (previous) =>
+        buildCentralInvoiceAuthorityEventsAppDataTransition({
+          data: previous,
+          pulled,
+        }),
+      );
+    },
     [commitDurableAppData],
   );
 
@@ -2768,6 +2802,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteFiscalNotificationDocument,
       deleteAllFiscalNotificationDocuments,
       repairFiscalNotificationEmptyHistory,
+      syncCentralInvoiceAuthorityEvents,
       updateProfile,
       addDocument,
       addDocumentWithCentralIdentity,
@@ -2841,6 +2876,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteFiscalNotificationDocument,
       deleteAllFiscalNotificationDocuments,
       repairFiscalNotificationEmptyHistory,
+      syncCentralInvoiceAuthorityEvents,
       updateProfile,
       addDocument,
       addDocumentWithCentralIdentity,
