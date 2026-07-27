@@ -37,6 +37,8 @@ describe("expense inbox reliability contract", () => {
     expect(route).toContain("providerHostname: error.providerHostname");
     expect(route).not.toContain("download_url");
     expect(server).toContain("findExistingAttachment(input.userId, hash)");
+    expect(server).toContain("const id = randomUUID()");
+    expect(server).toContain("entity_id: id");
     expect(server).toContain("claimInboxItemRetry");
     expect(server).toContain('.eq("status", "error")');
     expect(server).toContain("shouldRetryExpenseInboxItem");
@@ -91,6 +93,7 @@ describe("expense inbox reliability contract", () => {
   it("cierra guardados y descartes sin volver a crear el gasto", () => {
     const route = source("src/app/api/expense-inbox/route.ts");
     const form = source("src/app/gastos/nuevo/page.tsx");
+    const card = source("src/components/expenses/ExpenseInboxCard.tsx");
     const types = source("src/lib/types.ts");
 
     expect(route).toContain(
@@ -99,6 +102,15 @@ describe("expense inbox reliability contract", () => {
     expect(route).toContain(
       "getExpenseInboxCopyRecipient(user.id).catch(() => null)",
     );
+    expect(route).toContain('"Cache-Control": "private, no-store, max-age=0"');
+    expect(route).toContain('"Vercel-CDN-Cache-Control": "no-store"');
+    expect(route).toContain('Vary: "Authorization"');
+    expect(route).toContain(
+      "withPrivateHeaders(rateLimitExceededResponse(rateLimit))",
+    );
+    expect(route).toContain("listExpenseInboxItems(user.id)");
+    expect(card).toContain("items.map((item)");
+    expect(card).not.toContain("items.slice(0, 5)");
     expect(form).toContain('updateActiveInboxItemStatus("ignored")');
     expect(form).toContain('sourceInboxItemId: activeInboxItemId ?? undefined');
     expect(form).toContain("expenseAlreadySavedFromInbox");

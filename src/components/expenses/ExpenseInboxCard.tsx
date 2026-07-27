@@ -367,7 +367,7 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
 
       {items.length > 0 ? (
         <div className="space-y-2">
-          {items.slice(0, 5).map((item) => {
+          {items.map((item) => {
             const vatView = expenseInboxItemVatView(item, vatExempt);
             const title =
               item.scanPayload?.expense.description ||
