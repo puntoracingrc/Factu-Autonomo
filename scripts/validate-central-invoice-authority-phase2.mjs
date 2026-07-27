@@ -76,8 +76,14 @@ const centralMigrations = readdirSync("supabase/migrations").filter((file) =>
 );
 const allowedLocalLedgerSchemaMigration =
   "20260727175229_central_invoice_authority_ledger_schema.sql";
+const allowedLocalIssueRpcMigration =
+  "20260727181804_central_invoice_authority_issue_rpc.sql";
+const allowedCentralMigrations = new Set([
+  allowedLocalLedgerSchemaMigration,
+  allowedLocalIssueRpcMigration,
+]);
 const unexpectedCentralMigrations = centralMigrations.filter(
-  (file) => file !== allowedLocalLedgerSchemaMigration,
+  (file) => !allowedCentralMigrations.has(file),
 );
 const migrationVersions = new Set(
   readdirSync("supabase/migrations")
@@ -112,6 +118,31 @@ if (centralMigrations.includes(allowedLocalLedgerSchemaMigration)) {
     /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
   );
   assert.match(localLedgerSchema, /enable row level security/i);
+}
+
+if (centralMigrations.includes(allowedLocalIssueRpcMigration)) {
+  const localIssueRpc = read(`supabase/migrations/${allowedLocalIssueRpcMigration}`);
+  assert.match(localIssueRpc, /CENTRAL_INVOICE_AUTHORITY_ISSUE_RPC_V1/);
+  assert.match(
+    localIssueRpc,
+    /\bcreate\s+or\s+replace\s+function\s+public\.issue_central_invoice_v1\b/i,
+  );
+  assert.match(localIssueRpc, /\bsecurity\s+definer\b/i);
+  assert.match(localIssueRpc, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(localIssueRpc, /auth\.role\(\)\s*<>\s*'service_role'/i);
+  assert.match(localIssueRpc, /\bfor\s+update\b/i);
+  assert.doesNotMatch(
+    localIssueRpc,
+    /\bgrant\s+execute\s+on\s+function\s+public\.issue_central_invoice_v1[\s\S]*\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    localIssueRpc,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(localIssueRpc, /\bupdate\s+public\.(?!central_invoice_)/i);
+  assert.doesNotMatch(localIssueRpc, /\binsert\s+into\s+public\.(?!central_invoice_)/i);
+  assert.doesNotMatch(localIssueRpc, /\buser_backups\b/i);
+  assert.doesNotMatch(localIssueRpc, /\bsync_entities\b/i);
 }
 
 runBin("npx", [
