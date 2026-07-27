@@ -31,6 +31,7 @@ const PROJECTABLE_TEXT_FIELD_CODES_V2 = new Set([
 
 function isProjectableField(item: RealCorpusFieldV2): boolean {
   return (
+    item.evidence.assertionType === "EXPLICIT_IN_DOCUMENT" &&
     (item.kind === "REFERENCE" ||
       item.kind === "DATE" ||
       item.kind === "MONEY" ||

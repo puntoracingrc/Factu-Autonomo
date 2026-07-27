@@ -437,6 +437,69 @@ function publicationEffectiveDate(
   return null;
 }
 
+function addDays(isoDate: string, days: number): string | null {
+  const match = ISO_DATE.exec(isoDate);
+  if (!match) return null;
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  );
+  date.setUTCDate(date.getUTCDate() + days);
+  return validDate(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+  );
+}
+
+function calculatedPublicationPeriodDate(
+  publicationDate: RealCorpusFieldV2 | null,
+  fieldCode: "APPEARANCE_PERIOD_START" | "APPEARANCE_PERIOD_END",
+  label: string,
+  daysAfterPublication: number,
+): RealCorpusFieldV2 | null {
+  if (publicationDate?.kind !== "DATE") return null;
+  const pageNumber = publicationDate.evidence.pageNumbers[0];
+  const value = addDays(publicationDate.value, daysAfterPublication);
+  if (!value || pageNumber === undefined) return null;
+  return field(
+    fieldCode,
+    label,
+    Object.freeze({ value, pageNumber }),
+    "DATE",
+    true,
+  );
+}
+
+function publicationDateValidationDetail(
+  publicationDate: RealCorpusFieldV2 | null,
+  effectiveDate: RealCorpusFieldV2 | null,
+): RealCorpusFieldV2 | null {
+  if (
+    publicationDate?.kind !== "DATE" ||
+    effectiveDate?.kind !== "DATE" ||
+    publicationDate.evidence.assertionType !== "EXPLICIT_IN_DOCUMENT" ||
+    effectiveDate.evidence.assertionType !== "EXPLICIT_IN_DOCUMENT"
+  ) {
+    return null;
+  }
+  const expectedEffective = addDays(publicationDate.value, 16);
+  const pageNumber = effectiveDate.evidence.pageNumbers[0];
+  if (!expectedEffective || pageNumber === undefined) return null;
+  return field(
+    "PUBLICATION_NOTIFICATION_ARITHMETIC_STATUS",
+    "Comprobación de comparecencia",
+    Object.freeze({
+      value:
+        expectedEffective === effectiveDate.value
+          ? "VALIDATED_EXACT"
+          : "INCONSISTENT_PRINTED_VALUES",
+      pageNumber,
+    }),
+    "TEXT",
+    true,
+  );
+}
+
 function validDate(year: number, month: number, day: number): string | null {
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year &&
@@ -591,7 +654,9 @@ function observedDocumentChronologyFields(
       field("SIGNING_DATE", "Fecha de firma", signing, "DATE")!,
     );
   }
-  if (has("ISSUE_DATE")) return Object.freeze(fields);
+  if (has("ISSUE_DATE") || has("CERTIFICATE_ISSUE_DATE")) {
+    return Object.freeze(fields);
+  }
   const explicit = lineValue(index, [
     "Fecha del documento",
     "Fecha de emisión",
@@ -632,6 +697,10 @@ function safeClosedText(fieldCode: string, raw: string): string | null {
     ALLEGATIONS_UNIT: new Set(["BUSINESS_DAYS"]),
     ALLEGATIONS_TRIGGER: new Set(["RECEIPT_DATE"]),
     OFFSET_TYPE: new Set(["REQUESTED", "EX_OFFICIO"]),
+    PUBLICATION_NOTIFICATION_ARITHMETIC_STATUS: new Set([
+      "VALIDATED_EXACT",
+      "INCONSISTENT_PRINTED_VALUES",
+    ]),
     UNDERLYING_ACT_TYPE: new Set([
       "EXECUTIVE_LIQUIDATION",
       "BANK_ACCOUNT_SEIZURE",
@@ -691,6 +760,7 @@ function field(
   label: string,
   source: Readonly<{ value: string; pageNumber: number }> | null,
   kind: "REFERENCE" | "TEXT" | "DATE",
+  calculated = false,
 ): RealCorpusFieldV2 | null {
   if (!source) return null;
   const value =
@@ -705,7 +775,7 @@ function field(
         label,
         kind,
         value,
-        evidence: evidence(source.pageNumber),
+        evidence: evidence(source.pageNumber, calculated),
       })
     : null;
 }
@@ -1505,6 +1575,13 @@ function publication(
         "DATE",
       )
     : null;
+  const publication = field(
+    "PUBLICATION_DATE",
+    "Fecha de publicación",
+    lineValue(index, ["Fecha de publicación"]) ??
+      publicationSentenceDate(index),
+    "DATE",
+  );
   const effectivePrinted = effective?.kind === "DATE";
   const explanation = prepublication
     ? "La comunicación anuncia una futura publicación; todavía no acredita publicación ni notificación efectiva."
@@ -1546,13 +1623,20 @@ function publication(
           publicationUnderlyingActType(index),
         "TEXT",
       ),
-      field(
-        "PUBLICATION_DATE",
-        "Fecha de publicación",
-        lineValue(index, ["Fecha de publicación"]) ??
-          publicationSentenceDate(index),
-        "DATE",
+      publication,
+      calculatedPublicationPeriodDate(
+        publication,
+        "APPEARANCE_PERIOD_START",
+        "Inicio de comparecencia",
+        1,
       ),
+      calculatedPublicationPeriodDate(
+        publication,
+        "APPEARANCE_PERIOD_END",
+        "Fin de comparecencia",
+        15,
+      ),
+      publicationDateValidationDetail(publication, effective),
       field(
         "PUBLICATION_NUMBER",
         "Número de publicación",
@@ -1562,8 +1646,8 @@ function publication(
       ),
       effective,
       field(
-        "ISSUE_DATE",
-        "Fecha de emisión",
+        certificate ? "CERTIFICATE_ISSUE_DATE" : "ISSUE_DATE",
+        certificate ? "Fecha del certificado" : "Fecha de emisión",
         lineValue(index, ["Fecha de emisión"]),
         "DATE",
       ),

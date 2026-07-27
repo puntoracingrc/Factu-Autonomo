@@ -5,6 +5,7 @@ import {
   FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   projectFiscalNotificationDocumentDetailV1,
 } from "./structured-review-document-detail.v1";
+import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
 import type {
   FiscalNotificationDocumentLibraryGroupV1,
   FiscalNotificationDocumentLibraryLinkV1,
@@ -20,6 +21,46 @@ const BASE_EXPLANATION = explainFiscalNotificationDocumentV1({
   facts: [],
   money: [],
 });
+
+function semanticMoneyConflictIntegrity(): FiscalNotificationMathematicalIntegrityV11 {
+  return Object.freeze({
+    schemaVersion: 11,
+    integrityVersion: "11.1.0",
+    catalogReleaseId: "aeat-mathematical-integrity.2026-07-21.v11",
+    familyId: "assessment.final_provisional_assessment",
+    archetypeId: "ASSESSMENT_FINAL",
+    validationMode: "ARITHMETIC_AND_LOGICAL",
+    status: "SEMANTIC_LABEL_INCONSISTENT",
+    passCount: 2,
+    automaticPassLimit: 2,
+    normalizedEvidence: Object.freeze([]),
+    checks: Object.freeze([
+      Object.freeze({
+        ruleId: "v11:assessment-final:semantic-labels:1",
+        checkKind: "STRUCTURAL" as const,
+        status: "SEMANTIC_LABEL_INCONSISTENT" as const,
+        operands: Object.freeze([]),
+        expectedCents: null,
+        observedCents: null,
+        deltaCents: null,
+        toleranceCents: 0,
+        calculation: Object.freeze({ kind: "NONE" as const }),
+        safeMessage:
+          "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+      }),
+    ]),
+    hardFailureCodes: Object.freeze([]),
+    persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    relationSupport: Object.freeze({
+      existingRelationsOnly: true,
+      requiresStrongIdentifier: true,
+      permitsAmountOnlyRelations: false,
+      validatedEvidenceIds: Object.freeze([]),
+    }),
+    originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+    retainedSourceContent: "NONE",
+  });
+}
 
 function document(
   overrides: Partial<FiscalNotificationStructuredHistoryEntryV1> = {},
@@ -397,6 +438,54 @@ describe("structured review document detail v1", () => {
     expect(result.factGroups[0]?.fields).toEqual([
       expect.objectContaining({ label: "Fecha de notificación" }),
     ]);
+  });
+
+  it("muestra publicación y certificado con su etiqueta jurídica propia", () => {
+    const publication = project(
+      document({
+        documentDate: "2015-09-21",
+        documentDateBasis: "Fecha de publicacion",
+        orderedFacts: [
+          {
+            key: "date:publication",
+            semantic: "DATE",
+            label: "Fecha de publicación",
+            value: "21/09/2015",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+        ],
+      }),
+    );
+
+    expect(publication.header.primaryDateLabel).toBe("Fecha de publicación");
+    expect(publication.header.primaryDateProvenance).toMatchObject({
+      fieldLabel: "Fecha de publicación",
+      pageNumber: 1,
+    });
+
+    const certificate = project(
+      document({
+        documentDate: "2015-10-08",
+        documentDateBasis: "Fecha del certificado",
+        orderedFacts: [
+          {
+            key: "date:certificate",
+            semantic: "DATE",
+            label: "Fecha del certificado",
+            value: "08/10/2015",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+        ],
+      }),
+    );
+
+    expect(certificate.header.primaryDateLabel).toBe("Fecha del certificado");
+    expect(certificate.header.primaryDateProvenance).toMatchObject({
+      fieldLabel: "Fecha del certificado",
+      pageNumber: 1,
+    });
   });
 
   it("no atribuye una página de otra fecha cuando falta la semántica principal", () => {
@@ -799,9 +888,11 @@ describe("structured review document detail v1", () => {
         { key: "money:annual", label: "Retenciones anuales declaradas", kind: "DOCUMENT_TOTAL", amountCents: 68_400, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
         { key: "money:periodic", label: "Pagos periódicos declarados", kind: "DOCUMENT_TOTAL", amountCents: 45_600, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
         { key: "money:quota", label: "Cuota final", kind: "FINAL_QUOTA", amountCents: 22_800, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
+        { key: "money:false-interest", label: "Intereses de demora", kind: "LATE_PAYMENT_INTEREST", amountCents: 22_800, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
         { key: "money:interest", label: "Intereses", kind: "LATE_PAYMENT_INTEREST", amountCents: 307, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
         { key: "money:total", label: "Total del documento", kind: "DOCUMENT_TOTAL", amountCents: 23_107, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
       ],
+      mathematicalIntegrity: semanticMoneyConflictIntegrity(),
     }));
     expect(result.header.metadata).toEqual(expect.arrayContaining([
       { key: "model", label: "Modelo", value: "180" },
@@ -815,6 +906,9 @@ describe("structured review document detail v1", () => {
       expect.objectContaining({ label: "Intereses de demora", value: "3,07 €" }),
       expect.objectContaining({ label: "Total a ingresar", value: "231,07 €" }),
     ]));
+    expect(result.economy?.rows).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Intereses de demora", value: "228,00 €" }),
+    ]));
     expect(result.factGroups.flatMap((group) => group.fields)).toEqual(expect.arrayContaining([
       expect.objectContaining({ label: "Modelo de ingreso", value: "002" }),
       expect.objectContaining({ label: "Número de la carta de pago", value: "SYN-PAYMENT-FORM-24" }),
@@ -825,6 +919,87 @@ describe("structured review document detail v1", () => {
         "se declararon 684,00 € en el resumen anual y constan 456,00 € mediante autoliquidaciones periódicas",
       ),
     });
+  });
+
+  it("mantiene fecha, ejercicio y explicación concreta de compensación entre cónyuges al reabrir", () => {
+    const result = project(
+      document({
+        documentSubtype: "irpf.spouse_refund_suspension",
+        title: "Suspensión de deuda IRPF mediante devolución del cónyuge",
+        documentDate: "2015-09-21",
+        documentDateBasis: "Fecha de emision",
+        orderedFacts: [
+          {
+            key: "date:agreement",
+            semantic: "DATE",
+            label: "Fecha de emisión",
+            value: "21/09/2015",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+          {
+            key: "reference:fiscal-year",
+            semantic: "REFERENCE",
+            label: "Ejercicio",
+            value: "2010",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+          {
+            key: "fact:offset-effect",
+            semantic: "DETAIL",
+            label: "Efecto de la compensación",
+            value: "La devolución del cónyuge se aplica al ingreso suspendido.",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+        ],
+        money: [],
+        explanation: {
+          ...BASE_EXPLANATION,
+          whatItIs:
+            "Es un acuerdo de suspensión del ingreso del IRPF por compensación entre cónyuges.",
+          whyReceived:
+            "Se emite al resolver una solicitud vinculada a declaraciones de IRPF de cónyuges.",
+          result:
+            "La AEAT comunica que la devolución del cónyuge se ha aplicado como compensación del ingreso suspendido.",
+          nextStep: {
+            status: "REVIEW_DOCUMENT_ACTION",
+            title: "Sin actuación inmediata detectada",
+            detail:
+              "No se propone una actuación inmediata con los datos extraídos; revisa la fecha del acuerdo y el ejercicio de IRPF.",
+          },
+          deadline: {
+            status: "NOT_IDENTIFIED",
+            title: "Sin plazo operativo inmediato",
+            detail:
+              "Este acuerdo no crea un plazo operativo inmediato en los datos extraídos.",
+          },
+          keyFacts: [],
+          officialSources: [],
+        },
+      }),
+    );
+
+    expect(result.header).toMatchObject({
+      primaryDateLabel: "Fecha del acuerdo",
+      primaryDateValue: "21/09/2015",
+    });
+    expect(result.economy).toBeNull();
+    expect(result.explanation).toMatchObject({
+      documentSays:
+        "La AEAT comunica que la devolución del cónyuge se ha aplicado como compensación del ingreso suspendido.",
+      reviewDetail:
+        "No se propone una actuación inmediata con los datos extraídos; revisa la fecha del acuerdo y el ejercicio de IRPF.",
+      deadlineDetail:
+        "Este acuerdo no crea un plazo operativo inmediato en los datos extraídos.",
+    });
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain("Puede extinguir");
+    expect(serialized).not.toContain("Comprueba ambos importes");
+    expect(serialized).not.toContain("Persiste solo roles");
+    expect(serialized).not.toContain("Fecha no identificada");
+    expect(serialized).not.toContain("Revisión matemática necesaria");
   });
 
   it("agrupa un recurso por acto impugnado, suspensión, decisión y efectos", () => {

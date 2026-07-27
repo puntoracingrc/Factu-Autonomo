@@ -11,6 +11,7 @@ describe("fiscal notification chronology v2", () => {
       resolveFiscalNotificationChronologyV2({
         issueDate: "2026-04-01",
         signingDate: "2026-04-02",
+        publicationDate: "2026-04-03",
         actionDate: "2026-04-03",
         effectiveNotificationDate: "2026-04-04",
       }),
@@ -23,12 +24,24 @@ describe("fiscal notification chronology v2", () => {
     expect(
       resolveFiscalNotificationChronologyV2({
         signingDate: "2026-04-02",
+        publicationDate: "2026-04-03",
         actionDate: "2026-04-03",
         effectiveNotificationDate: "2026-04-04",
       }),
     ).toMatchObject({
       chronologyDate: "2026-04-02",
       chronologyDateBasis: "SIGNING_DATE",
+    });
+
+    expect(
+      resolveFiscalNotificationChronologyV2({
+        publicationDate: "2026-04-03",
+        actionDate: "2026-04-04",
+        effectiveNotificationDate: "2026-04-05",
+      }),
+    ).toMatchObject({
+      chronologyDate: "2026-04-03",
+      chronologyDateBasis: "PUBLICATION_DATE",
     });
 
     expect(

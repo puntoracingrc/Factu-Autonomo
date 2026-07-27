@@ -9,6 +9,7 @@ import type {
   FiscalNotificationStructuredHistoryOrderedFactV1,
 } from "./structured-review-history-view-model.v1";
 import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
+import { selectCanonicalFiscalNotificationMoneyV1 } from "./canonical-money-projection.v1";
 
 export const FISCAL_NOTIFICATION_DETAIL_PREVIEW_LIMIT_V1 = 8;
 export const FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1 = 12;
@@ -221,6 +222,12 @@ export function fiscalNotificationDetailPrimaryDateLabelV1(
     canDescribePrimaryAct &&
     (familyId === "collection.deferral_grant" ||
       familyId === "collection.deferral_modification")
+  ) {
+    return "Fecha del acuerdo";
+  }
+  if (
+    canDescribePrimaryAct &&
+    familyId === "irpf.spouse_refund_suspension"
   ) {
     return "Fecha del acuerdo";
   }
@@ -778,8 +785,13 @@ function projectEconomy(
     return null;
   }
   const installmentAmounts = projectedInstallmentAmounts(document);
+  const money = selectCanonicalFiscalNotificationMoneyV1({
+    familyId: document.documentSubtype,
+    money: document.money,
+    mathematicalIntegrity: document.mathematicalIntegrity ?? null,
+  });
   const rows = deduplicateAmountRows(
-    document.money.flatMap((fact) => {
+    money.flatMap((fact) => {
       const label = cleanDisplayText(
         fiscalNotificationDetailAmountLabelV1(document.documentSubtype, fact.label),
       );
@@ -1262,6 +1274,10 @@ function dateLabelMatchesBasis(
       return /firma/u.test(normalized);
     case "Fecha del acto":
       return /acto|acuerdo|diligencia|resolucion/u.test(normalized);
+    case "Fecha de publicacion":
+      return /publicacion|boe/u.test(normalized);
+    case "Fecha del certificado":
+      return /certificado|expedicion/u.test(normalized);
     case "Fecha de notificacion":
       return /notificacion|acceso|recepcion/u.test(normalized);
     default:
@@ -1403,6 +1419,10 @@ function formatDocumentDateBasis(
       return "Fecha de firma";
     case "Fecha del acto":
       return "Fecha del acto";
+    case "Fecha de publicacion":
+      return "Fecha de publicación";
+    case "Fecha del certificado":
+      return "Fecha del certificado";
     case "Fecha de notificacion":
       return "Fecha de notificación";
     default:

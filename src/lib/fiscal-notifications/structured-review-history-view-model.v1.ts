@@ -4,6 +4,7 @@ import type {
 } from "./administrative-domain";
 import type { FiscalNotificationAmountReconciliationV1 } from "./amount-reconciliation-contract.v1";
 import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
+import { selectCanonicalFiscalNotificationMoneyV1 } from "./canonical-money-projection.v1";
 import {
   explainFiscalNotificationDocumentV1,
   type FiscalNotificationDocumentExplanationV1,
@@ -99,6 +100,8 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
     | "Fecha de emision"
     | "Fecha de firma"
     | "Fecha del acto"
+    | "Fecha de publicacion"
+    | "Fecha del certificado"
     | "Fecha de notificacion"
     | null;
   readonly createdAt: string;
@@ -333,37 +336,43 @@ export function projectFiscalNotificationStructuredHistoryV1(
             : [];
         }),
       );
+      const rawMoney = (domain?.moneyFacts ?? []).map((fact) => {
+        const sourceReference = fact.sourceActRefId
+          ? references.get(fact.sourceActRefId)
+          : undefined;
+        const protectedSourceReference = sourceReference
+          ? visibleStoredReference(sourceReference, verticalFieldsByEvidence)
+          : null;
+        return Object.freeze({
+          key: fact.id,
+          label:
+            fact.evidenceIds
+              .map((id) => verticalFieldsByEvidence.get(id))
+              .find((metadata) => metadata?.semantic === "MONEY")?.label ??
+            MONEY_LABELS[fact.kind],
+          kind: fact.kind,
+          amountCents: fact.amountCents,
+          currency: fact.currency,
+          sourceReference: protectedSourceReference,
+          sourceReferenceType: sourceReference?.referenceType ?? null,
+          pageNumbers: Object.freeze(
+            [
+              ...new Set(
+                fact.evidenceIds.flatMap((id) => {
+                  const source = evidence.get(id);
+                  return source ? [source.pageNumber] : [];
+                }),
+              ),
+            ].sort((left, right) => left - right),
+          ),
+        });
+      });
       const money = deduplicateHistoryMoney(
-        (domain?.moneyFacts ?? []).map((fact) => {
-          const sourceReference = fact.sourceActRefId
-            ? references.get(fact.sourceActRefId)
-            : undefined;
-          const protectedSourceReference = sourceReference
-            ? visibleStoredReference(sourceReference, verticalFieldsByEvidence)
-            : null;
-          return Object.freeze({
-            key: fact.id,
-            label:
-              fact.evidenceIds
-                .map((id) => verticalFieldsByEvidence.get(id))
-                .find((metadata) => metadata?.semantic === "MONEY")?.label ??
-              MONEY_LABELS[fact.kind],
-            kind: fact.kind,
-            amountCents: fact.amountCents,
-            currency: fact.currency,
-            sourceReference: protectedSourceReference,
-            sourceReferenceType: sourceReference?.referenceType ?? null,
-            pageNumbers: Object.freeze(
-              [
-                ...new Set(
-                  fact.evidenceIds.flatMap((id) => {
-                    const source = evidence.get(id);
-                    return source ? [source.pageNumber] : [];
-                  }),
-                ),
-              ].sort((left, right) => left - right),
-            ),
-          });
+        selectCanonicalFiscalNotificationMoneyV1({
+          familyId: document.documentSubtype ?? null,
+          money: rawMoney,
+          mathematicalIntegrity:
+            snapshot.structuredData.mathematicalIntegrity ?? null,
         }),
       );
       const documentReferences = deduplicateKnownSemanticDuplicates(
@@ -739,10 +748,11 @@ function buildStoredProfileExplanationInputV2(input: {
         evidenceId: source.id,
       });
     } else if (kind === "date") {
-      if (!normalizeCalendarDate(field.valueRaw)) continue;
+      const normalizedDate = normalizeCalendarDate(field.valueRaw);
+      if (!normalizedDate) continue;
       dates.push({
         dateType: code as FiscalNotificationExplanationDateInputV2["dateType"],
-        value: field.valueRaw,
+        value: normalizedDate,
         evidenceId: source.id,
       });
     } else if (kind === "money") {
@@ -1005,6 +1015,8 @@ export interface SelectedDocumentDateV1 {
     | "Fecha de emision"
     | "Fecha de firma"
     | "Fecha del acto"
+    | "Fecha de publicacion"
+    | "Fecha del certificado"
     | "Fecha de notificacion";
 }
 
@@ -1076,6 +1088,8 @@ export function selectExplicitDocumentDate(
       "Fecha de firma",
       [input.documentSignatureDate, storedDate("SIGNING_DATE")],
     ],
+    ["Fecha de publicacion", [storedDate("PUBLICATION_DATE")]],
+    ["Fecha del certificado", [storedDate("CERTIFICATE_ISSUE_DATE")]],
     ["Fecha del acto", actionDateValues],
     [
       "Fecha de notificacion",
@@ -1101,6 +1115,8 @@ type StoredChronologyDateKindV1 =
   | "ISSUE_DATE"
   | "SIGNING_DATE"
   | "ACTION_DATE"
+  | "PUBLICATION_DATE"
+  | "CERTIFICATE_ISSUE_DATE"
   | "SEIZURE_DATE"
   | "RELEASE_DATE"
   | "EFFECTIVE_NOTIFICATION_DATE";
@@ -1111,6 +1127,8 @@ const LEGACY_PRINTED_CHRONOLOGY_LABELS: Readonly<
   ISSUE_DATE: new Set(["PRINTED_ISSUE_DATE"]),
   SIGNING_DATE: new Set(["PRINTED_SIGNING_DATE", "PRINTED_SIGNATURE_DATE"]),
   ACTION_DATE: new Set(["PRINTED_ACTION_DATE"]),
+  PUBLICATION_DATE: new Set<string>(),
+  CERTIFICATE_ISSUE_DATE: new Set<string>(),
   SEIZURE_DATE: new Set<string>(),
   RELEASE_DATE: new Set<string>(),
   EFFECTIVE_NOTIFICATION_DATE: new Set(["PRINTED_EFFECTIVE_NOTIFICATION_DATE"]),
@@ -1136,6 +1154,8 @@ function storedChronologyDateKind(
     case "ISSUE_DATE":
     case "SIGNING_DATE":
     case "ACTION_DATE":
+    case "PUBLICATION_DATE":
+    case "CERTIFICATE_ISSUE_DATE":
     case "EFFECTIVE_NOTIFICATION_DATE":
       return dateCode;
     case "SIGNATURE_DATE":

@@ -3,6 +3,7 @@ export const FISCAL_NOTIFICATION_CHRONOLOGY_SCHEMA_VERSION_V2 = 2 as const;
 export const FISCAL_NOTIFICATION_CHRONOLOGY_DATE_BASES_V2 = Object.freeze([
   "ISSUE_DATE",
   "SIGNING_DATE",
+  "PUBLICATION_DATE",
   "ACTION_DATE",
   "EFFECTIVE_NOTIFICATION_DATE",
 ] as const);
@@ -13,6 +14,7 @@ export type FiscalNotificationChronologyDateBasisV2 =
 export interface FiscalNotificationChronologyInputV2 {
   readonly issueDate?: string | null;
   readonly signingDate?: string | null;
+  readonly publicationDate?: string | null;
   readonly actionDate?: string | null;
   readonly effectiveNotificationDate?: string | null;
 }
@@ -56,6 +58,7 @@ export function resolveFiscalNotificationChronologyV2(
   const candidates = [
     [input.issueDate, "ISSUE_DATE"],
     [input.signingDate, "SIGNING_DATE"],
+    [input.publicationDate, "PUBLICATION_DATE"],
     [input.actionDate, "ACTION_DATE"],
     [input.effectiveNotificationDate, "EFFECTIVE_NOTIFICATION_DATE"],
   ] as const;

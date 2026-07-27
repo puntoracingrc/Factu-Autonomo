@@ -33,6 +33,10 @@ import {
   type FiscalNotificationDocumentDetailViewModelV1,
 } from "./structured-review-document-detail.v1";
 import {
+  fiscalNotificationV11FieldEvidenceIdV1,
+  isRejectedFiscalNotificationSemanticMoneyCandidateV1,
+} from "./canonical-money-projection.v1";
+import {
   explainFiscalNotificationDocumentV2,
   type FiscalNotificationDocumentExplanationV2,
   type FiscalNotificationExplanationSectionIdV2,
@@ -62,6 +66,7 @@ const DATE_PRIORITY = Object.freeze([
   "ISSUE_DATE",
   "SIGNING_DATE",
   "EFFECTIVE_NOTIFICATION_DATE",
+  "PUBLICATION_DATE",
   "ACCESS_DATE",
   "AVAILABILITY_DATE",
   "PAYMENT_FORM_DATE",
@@ -379,6 +384,19 @@ function projectEconomy(
     reconciledAmounts.add(totals.surchargeCents);
     reconciledAmounts.add(totals.totalCents);
   }
+  const allMoney = fields.flatMap((field) =>
+    field.semantic === "MONEY" && field.amountCents !== null
+      ? [
+          Object.freeze({
+            kind: canonicalScanMoneyKind(field),
+            amountCents: field.amountCents,
+            evidenceIds: Object.freeze([
+              fiscalNotificationV11FieldEvidenceIdV1(field.fieldId),
+            ]),
+          }),
+        ]
+      : [],
+  );
   const rows: FiscalNotificationDetailAmountRowV1[] = deduplicateAmountRows(
     fields
       .filter(
@@ -391,7 +409,17 @@ function projectEconomy(
             /principal|base|interes|recargo|cuota|total|plan/u.test(
               normalizeText(field.label),
             )
-          ),
+          ) &&
+          !isRejectedFiscalNotificationSemanticMoneyCandidateV1({
+            familyId: document.familyId,
+            kind: canonicalScanMoneyKind(field),
+            amountCents: field.amountCents,
+            evidenceIds: Object.freeze([
+              fiscalNotificationV11FieldEvidenceIdV1(field.fieldId),
+            ]),
+            allMoney,
+            mathematicalIntegrity: document.mathematicalIntegrity ?? null,
+          }),
       )
       .map((field) =>
         Object.freeze({
@@ -504,6 +532,21 @@ function projectEconomy(
     showSourceReference: false,
     previewLimit: FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   });
+}
+
+function canonicalScanMoneyKind(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): string {
+  switch (field.canonicalType) {
+    case "TAX_QUOTA":
+      return "FINAL_QUOTA";
+    case "LATE_INTEREST":
+      return "LATE_PAYMENT_INTEREST";
+    case "TOTAL_CLAIMED":
+      return "DOCUMENT_TOTAL";
+    default:
+      return field.canonicalType;
+  }
 }
 
 function projectInstallment(

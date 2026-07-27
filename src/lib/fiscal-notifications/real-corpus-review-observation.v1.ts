@@ -84,9 +84,18 @@ export function canonicalRealCorpusDateType(
       return "SIGNING_DATE";
     case "EFFECTIVE_NOTIFICATION_DATE":
       return "EFFECTIVE_NOTIFICATION_DATE";
+    case "PUBLICATION_DATE":
+      return "PUBLICATION_DATE";
+    case "APPEARANCE_PERIOD_START":
+      return "APPEARANCE_PERIOD_START";
+    case "APPEARANCE_PERIOD_END":
+      return "APPEARANCE_PERIOD_END";
+    case "CERTIFICATE_ISSUE_DATE":
+      return "CERTIFICATE_ISSUE_DATE";
+    case "UNDERLYING_ACT_DATE":
+      return "UNDERLYING_ACT_DATE";
     case "ACTION_DATE":
     case "EFFECTIVE_DATE":
-    case "PUBLICATION_DATE":
     case "REGISTRATION_DATE":
       return "ACTION_DATE";
     case "SEIZURE_DATE":

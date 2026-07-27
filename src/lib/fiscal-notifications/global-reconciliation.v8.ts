@@ -623,7 +623,7 @@ function evaluateSeizureGroup(
   const releases = group.filter(isRelease);
   for (const seizure of seizures) {
     for (const release of releases) {
-      if (!isBefore(seizure, release)) continue;
+      if (!canReleaseFollowSeizure(seizure, release)) continue;
       const exact = sharedReference(
         seizure.references.filter((reference) => reference.role === "SEIZURE_ORDER"),
         release.references.filter((reference) => reference.role === "SEIZURE_ORDER"),
@@ -640,6 +640,17 @@ function evaluateSeizureGroup(
       }
     }
   }
+}
+
+function canReleaseFollowSeizure(
+  seizure: GlobalReconciliationDocumentV8,
+  release: GlobalReconciliationDocumentV8,
+): boolean {
+  if (seizure.documentDate && release.documentDate) {
+    return seizure.documentDate <= release.documentDate;
+  }
+  if (!seizure.documentDate && release.documentDate) return false;
+  return true;
 }
 
 function evaluateNotificationGroup(

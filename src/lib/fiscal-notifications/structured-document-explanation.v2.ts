@@ -65,8 +65,12 @@ export type FiscalNotificationDocumentFamilyIdV2 =
   (typeof AEAT_DOCUMENT_PROFILE_IDS_V1)[number];
 export type FiscalNotificationReferenceCodeV2 =
   AeatDocumentProfileV1["mustExtract"]["references"][number];
+export type FiscalNotificationSupplementalDateCodeV2 =
+  | "PUBLICATION_DATE"
+  | "CERTIFICATE_ISSUE_DATE";
 export type FiscalNotificationDateCodeV2 =
-  AeatDocumentProfileV1["mustExtract"]["dates"][number];
+  | AeatDocumentProfileV1["mustExtract"]["dates"][number]
+  | FiscalNotificationSupplementalDateCodeV2;
 export type FiscalNotificationMoneyCodeV2 =
   AeatDocumentProfileV1["mustExtract"]["money"][number];
 export type FiscalNotificationFactCodeV2 =
@@ -321,9 +325,13 @@ const REFERENCE_CODE_SET = new Set<string>(
   ),
 );
 const DATE_CODE_SET = new Set<string>(
-  AEAT_DOCUMENT_KNOWLEDGE_V1.profiles.flatMap(
-    (profile) => profile.mustExtract.dates,
-  ),
+  [
+    ...AEAT_DOCUMENT_KNOWLEDGE_V1.profiles.flatMap(
+      (profile) => profile.mustExtract.dates,
+    ),
+    "PUBLICATION_DATE",
+    "CERTIFICATE_ISSUE_DATE",
+  ],
 );
 const MONEY_CODE_SET = new Set<string>(
   AEAT_DOCUMENT_KNOWLEDGE_V1.profiles.flatMap(
@@ -1427,7 +1435,7 @@ function validateProfileStructuredContract(
   profile: AeatDocumentProfileV1,
 ): void {
   const allowedReferences = new Set<string>(profile.mustExtract.references);
-  const allowedDates = new Set<string>(profile.mustExtract.dates);
+  const allowedDates = allowedDateCodesForProfile(profile);
   const allowedMoney = new Set<string>(profile.mustExtract.money);
   const allowedFacts = new Set<string>(profile.mustExtract.facts);
   const allowedRoles = new Set<string>(profile.mustExtract.participantRoles);
@@ -1495,6 +1503,17 @@ function validateProfileStructuredContract(
   });
 }
 
+function allowedDateCodesForProfile(
+  profile: AeatDocumentProfileV1,
+): ReadonlySet<string> {
+  const allowed = new Set<string>(profile.mustExtract.dates);
+  if (profile.id === "notification.publication_or_appearance") {
+    allowed.add("PUBLICATION_DATE");
+    allowed.add("CERTIFICATE_ISSUE_DATE");
+  }
+  return allowed;
+}
+
 export function explainFiscalNotificationDocumentV2(
   value: FiscalNotificationDocumentExplanationInputV2,
 ): FiscalNotificationDocumentExplanationV2 {
@@ -1540,7 +1559,11 @@ export function explainFiscalNotificationDocumentV2(
   const allowedEffects = (EFFECTS_BY_FAMILY[
     input.familyId as keyof typeof EFFECTS_BY_FAMILY
   ] ?? []) as readonly FiscalNotificationPrintedEffectCodeV2[];
-  if (allowedEffects.length > 0 && !hasEffectEvidence) {
+  if (
+    allowedEffects.length > 0 &&
+    !hasEffectEvidence &&
+    !hasFamilySpecificObservedOutcome(input)
+  ) {
     missingData.push("PRINTED_EFFECT");
   }
   if (
@@ -1739,33 +1762,34 @@ export function explainFiscalNotificationDocumentV2(
           "No hay una relación documental confirmada para mostrar.",
         ),
       ];
+  const familySpecific = familySpecificExplanationAssertionsV2(input);
 
   const sections = Object.freeze([
-    section("WHAT_DOCUMENT_SAYS", [
+    section("WHAT_DOCUMENT_SAYS", familySpecific.WHAT_DOCUMENT_SAYS ?? [
       assertion(
         "PROFILE_WHAT_IT_IS",
         "OFFICIAL_CONTEXT",
         profile.plainLanguage.whatItIs,
       ),
     ]),
-    section("WHY_RECEIVED", [
+    section("WHY_RECEIVED", familySpecific.WHY_RECEIVED ?? [
       assertion(
         "PROFILE_WHY_RECEIVED",
         "OFFICIAL_CONTEXT",
         profile.plainLanguage.whyReceived,
       ),
     ]),
-    section("RESULT", resultAssertions),
-    section("KEY_DATA", keyDataAssertions),
-    section("NEXT_STEP", [
+    section("RESULT", familySpecific.RESULT ?? resultAssertions),
+    section("KEY_DATA", familySpecific.KEY_DATA ?? keyDataAssertions),
+    section("NEXT_STEP", familySpecific.NEXT_STEP ?? [
       assertion(
         "PROFILE_NEXT_STEP",
         "OFFICIAL_CONTEXT",
         profile.plainLanguage.nextStepRule,
       ),
     ]),
-    section("DEADLINE", deadlineAssertions),
-    section("CONSEQUENCE", consequenceAssertions),
+    section("DEADLINE", familySpecific.DEADLINE ?? deadlineAssertions),
+    section("CONSEQUENCE", familySpecific.CONSEQUENCE ?? consequenceAssertions),
     section(
       "NOT_PROVEN",
       profile.plainLanguage.notProvenByThisDocument.map((text, index) =>
@@ -1823,6 +1847,128 @@ export function explainFiscalNotificationDocumentV2(
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
   });
+}
+
+function hasFamilySpecificObservedOutcome(input: NormalizedInput): boolean {
+  return (
+    input.familyId === "irpf.spouse_refund_suspension" &&
+    structuredItemCount(input) > 0
+  );
+}
+
+function familySpecificExplanationAssertionsV2(
+  input: NormalizedInput,
+): Partial<
+  Record<
+    FiscalNotificationExplanationSectionIdV2,
+    readonly FiscalNotificationExplanationAssertionV2[]
+  >
+> {
+  if (
+    input.familyId !== "irpf.spouse_refund_suspension" ||
+    structuredItemCount(input) === 0
+  ) {
+    return Object.freeze({});
+  }
+
+  return Object.freeze({
+    WHAT_DOCUMENT_SAYS: Object.freeze([
+      assertion(
+        "SPOUSE_REFUND_WHAT_IT_IS",
+        "OFFICIAL_CONTEXT",
+        "Es un acuerdo de suspensión del ingreso del IRPF por compensación entre cónyuges.",
+      ),
+    ]),
+    WHY_RECEIVED: Object.freeze([
+      assertion(
+        "SPOUSE_REFUND_WHY_RECEIVED",
+        "OFFICIAL_CONTEXT",
+        "Se emite al resolver una solicitud vinculada a declaraciones de IRPF de cónyuges.",
+      ),
+    ]),
+    RESULT: Object.freeze([
+      assertion(
+        "SPOUSE_REFUND_OFFSET_APPLIED",
+        "EXPLICIT_IN_DOCUMENT",
+        "La AEAT comunica que la devolución del cónyuge se ha aplicado como compensación del ingreso suspendido.",
+      ),
+    ]),
+    KEY_DATA: spouseRefundKeyDataAssertionsV2(input),
+    NEXT_STEP: Object.freeze([
+      assertion(
+        "SPOUSE_REFUND_NO_IMMEDIATE_ACTION",
+        "OFFICIAL_CONTEXT",
+        "No se propone una actuación inmediata con los datos extraídos; revisa la fecha del acuerdo y el ejercicio de IRPF.",
+      ),
+    ]),
+    DEADLINE: Object.freeze([
+      assertion(
+        "SPOUSE_REFUND_NO_OPERATIVE_DEADLINE",
+        "NOT_PROVEN_BY_DOCUMENT",
+        "Este acuerdo no crea un plazo operativo inmediato en los datos extraídos.",
+      ),
+    ]),
+    CONSEQUENCE: Object.freeze([
+      assertion(
+        "SPOUSE_REFUND_NO_AMOUNT_ASSERTION",
+        "NOT_PROVEN_BY_DOCUMENT",
+        "Si no constan importes impresos, la ficha no afirma deuda restante, pago bancario ni devolución neta.",
+      ),
+    ]),
+  });
+}
+
+function spouseRefundKeyDataAssertionsV2(
+  input: NormalizedInput,
+): readonly FiscalNotificationExplanationAssertionV2[] {
+  const assertions: FiscalNotificationExplanationAssertionV2[] = [];
+  const fiscalYear = input.references.find(
+    (reference) => reference.referenceType === "FISCAL_YEAR",
+  );
+  if (fiscalYear) {
+    assertions.push(
+      assertion(
+        "SPOUSE_REFUND_FISCAL_YEAR",
+        "EXPLICIT_IN_DOCUMENT",
+        `Ejercicio IRPF: ${fiscalYear.value}.`,
+      ),
+    );
+  }
+  const agreementDate = input.dates.find((date) =>
+    date.dateType === "ACTION_DATE" ||
+    date.dateType === "ISSUE_DATE" ||
+    date.dateType === "SIGNING_DATE",
+  );
+  if (agreementDate) {
+    assertions.push(
+      assertion(
+        "SPOUSE_REFUND_AGREEMENT_DATE",
+        "EXPLICIT_IN_DOCUMENT",
+        `Fecha del acuerdo: ${formatExplanationDate(agreementDate.value)}.`,
+      ),
+    );
+  }
+  if (
+    input.factCodes.some((fact) => fact.factCode === "OFFSET_EFFECT_MEANING")
+  ) {
+    assertions.push(
+      assertion(
+        "SPOUSE_REFUND_CONFIRMED_OFFSET",
+        "EXPLICIT_IN_DOCUMENT",
+        "Compensación realizada como resultado confirmado.",
+      ),
+    );
+  }
+  if (assertions.length === 0) {
+    assertions.push(
+      assertion(
+        "SPOUSE_REFUND_STRUCTURED_DATA_PRESENT",
+        "EXPLICIT_IN_DOCUMENT",
+        "El documento contiene datos estructurados de la compensación entre cónyuges.",
+      ),
+    );
+  }
+  return Object.freeze(assertions);
 }
 
 function unknownExplanation(): FiscalNotificationDocumentExplanationV2 {

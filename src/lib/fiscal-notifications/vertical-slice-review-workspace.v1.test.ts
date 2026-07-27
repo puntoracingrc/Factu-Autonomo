@@ -4,7 +4,9 @@ import { EMPTY_DATA, type AppData } from "../types";
 import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow";
 import type { BoundedDocumentInput } from "./input-contract";
 import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
+import { fiscalNotificationV11FieldEvidenceIdV1 } from "./canonical-money-projection.v1";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
+import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
 import { projectFiscalNotificationStructuredHistoryV1 } from "./structured-review-history-view-model.v1";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
 import {
@@ -101,6 +103,85 @@ function field(
   return Object.freeze(
     candidate,
   ) as unknown as FiscalNotificationVerticalSliceReviewFieldV1;
+}
+
+function semanticLabelConflictIntegrity(
+  fieldIds: readonly [string, string, string, string],
+): FiscalNotificationMathematicalIntegrityV11 {
+  const [quotaFieldId, falseInterestFieldId, interestFieldId, totalFieldId] =
+    fieldIds;
+  const evidence = (
+    fieldId: string,
+    canonicalType: string,
+    amountCents: number,
+  ) =>
+    Object.freeze({
+      evidenceId: fiscalNotificationV11FieldEvidenceIdV1(fieldId),
+      sourceFieldFingerprint: `sha256:${"c".repeat(64)}` as const,
+      semantic: "MONEY" as const,
+      canonicalType,
+      originalClassification:
+        canonicalType === "LATE_PAYMENT_INTEREST"
+          ? "LATE_INTEREST"
+          : canonicalType,
+      amountCents,
+      dateValue: null,
+      countValue: null,
+      sign: "POSITIVE" as const,
+      currency: "EUR" as const,
+      sourcePart: "MAIN_ADMINISTRATIVE_ACT" as const,
+      pageNumbers: Object.freeze([1]),
+      assertionType: "NORMALIZED" as const,
+      originalConfidence: 0.98,
+    });
+  return Object.freeze({
+    schemaVersion: 11,
+    integrityVersion: "11.1.0",
+    catalogReleaseId: "aeat-mathematical-integrity.2026-07-21.v11",
+    familyId: "assessment.final_provisional_assessment",
+    archetypeId: "ASSESSMENT_FINAL",
+    validationMode: "ARITHMETIC_AND_LOGICAL",
+    status: "SEMANTIC_LABEL_INCONSISTENT",
+    passCount: 2,
+    automaticPassLimit: 2,
+    normalizedEvidence: Object.freeze([
+      evidence(quotaFieldId, "FINAL_QUOTA", 22_800),
+      evidence(falseInterestFieldId, "LATE_PAYMENT_INTEREST", 22_800),
+      evidence(interestFieldId, "LATE_PAYMENT_INTEREST", 307),
+      evidence(totalFieldId, "DOCUMENT_TOTAL", 23_107),
+    ]),
+    checks: Object.freeze([
+      Object.freeze({
+        ruleId: "v11:assessment-final:semantic-labels:1",
+        checkKind: "STRUCTURAL" as const,
+        status: "SEMANTIC_LABEL_INCONSISTENT" as const,
+        operands: Object.freeze(
+          fieldIds.map((fieldId) =>
+            Object.freeze({
+              evidenceId: fiscalNotificationV11FieldEvidenceIdV1(fieldId),
+            }),
+          ),
+        ),
+        expectedCents: null,
+        observedCents: null,
+        deltaCents: null,
+        toleranceCents: 0,
+        calculation: Object.freeze({ kind: "NONE" as const }),
+        safeMessage:
+          "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+      }),
+    ]),
+    hardFailureCodes: Object.freeze([]),
+    persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    relationSupport: Object.freeze({
+      existingRelationsOnly: true,
+      requiresStrongIdentifier: true,
+      permitsAmountOnlyRelations: false,
+      validatedEvidenceIds: Object.freeze([]),
+    }),
+    originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+    retainedSourceContent: "NONE",
+  });
 }
 
 function analysis(sha256 = HASH): FiscalNotificationLocalAnalysisResult {
@@ -638,6 +719,187 @@ describe("vertical slice structured workspace v1", () => {
       issues: [],
     });
 
+  });
+
+  it("guarda la proyección monetaria canónica V11 y conserva el candidato conflictivo solo como evidencia revisable", () => {
+    const source = structuredClone(analysis()) as unknown as {
+      technicalReview: { pageCount: number; byteLength: number };
+      ephemeralVerticalSliceReview: {
+        documents: readonly Record<string, unknown>[];
+      };
+    };
+    const baseDocument = source.ephemeralVerticalSliceReview.documents[0]!;
+    const fields = Object.freeze([
+      field({
+        fieldId: "reference:assessment:model",
+        semantic: "REFERENCE",
+        canonicalType: "MODEL",
+        label: "Modelo tributario",
+        displayValue: "180",
+        normalizedValue: "180",
+        sourcePageNumbers: Object.freeze([1]),
+        sourceLabel: "Modelo",
+      }),
+      field({
+        fieldId: "date:assessment:issue",
+        semantic: "DATE",
+        canonicalType: "ISSUE_DATE",
+        label: "Fecha de emisión",
+        displayValue: "21/05/2025",
+        normalizedValue: "2025-05-21",
+        sourcePageNumbers: Object.freeze([1]),
+        sourceLabel: "Fecha de emisión",
+      }),
+      field({
+        fieldId: "amount:quota",
+        semantic: "MONEY",
+        canonicalType: "TAX_QUOTA",
+        label: "Cuota final",
+        displayValue: "228,00 €",
+        amountCents: 22_800,
+        currency: "EUR",
+        sourcePageNumbers: Object.freeze([1]),
+        sourceLabel: "Cuota final",
+      }),
+      field({
+        fieldId: "amount:false-interest",
+        semantic: "MONEY",
+        canonicalType: "LATE_INTEREST",
+        label: "Intereses de demora",
+        displayValue: "228,00 €",
+        amountCents: 22_800,
+        currency: "EUR",
+        sourcePageNumbers: Object.freeze([1]),
+        sourceLabel: "Intereses de demora",
+      }),
+      field({
+        fieldId: "amount:interest",
+        semantic: "MONEY",
+        canonicalType: "LATE_INTEREST",
+        label: "Intereses de demora",
+        displayValue: "3,07 €",
+        amountCents: 307,
+        currency: "EUR",
+        sourcePageNumbers: Object.freeze([1]),
+        sourceLabel: "Intereses de demora",
+      }),
+      field({
+        fieldId: "amount:total",
+        semantic: "MONEY",
+        canonicalType: "TOTAL_CLAIMED",
+        label: "Total del documento",
+        displayValue: "231,07 €",
+        amountCents: 23_107,
+        currency: "EUR",
+        sourcePageNumbers: Object.freeze([1]),
+        sourceLabel: "Total del documento",
+      }),
+    ]);
+    source.technicalReview.pageCount = 1;
+    source.technicalReview.byteLength = 4_096;
+    source.ephemeralVerticalSliceReview = Object.freeze({
+      schemaVersion: 1,
+      reviewVersion: "1.0.0",
+      status: "REVIEW_REQUIRED",
+      documents: Object.freeze([
+        Object.freeze({
+          ...baseDocument,
+          familyId: "assessment.final_provisional_assessment",
+          pageFrom: 1,
+          pageTo: 1,
+          confidence: 1,
+          fields,
+          warnings: Object.freeze([]),
+          requiresHumanReview: true,
+          mathematicalIntegrity: semanticLabelConflictIntegrity([
+            "amount:quota",
+            "amount:false-interest",
+            "amount:interest",
+            "amount:total",
+          ]),
+        }),
+      ]),
+      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+      retainedSourceContent: "NONE",
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+
+    const saved = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+    const snapshot = saved.workspace.analysisSnapshots[0]!;
+    const moneyFacts =
+      snapshot.structuredData.administrativeDomain?.moneyFacts ?? [];
+
+    expect(moneyFacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "FINAL_QUOTA", amountCents: 22_800 }),
+        expect.objectContaining({
+          kind: "LATE_PAYMENT_INTEREST",
+          amountCents: 307,
+        }),
+        expect.objectContaining({ kind: "DOCUMENT_TOTAL", amountCents: 23_107 }),
+      ]),
+    );
+    expect(moneyFacts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "LATE_PAYMENT_INTEREST",
+          amountCents: 22_800,
+        }),
+      ]),
+    );
+    expect(snapshot.structuredData.unknownFields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          labelRaw: expect.stringContaining("amount:false-interest"),
+          valueRaw: "22800",
+        }),
+      ]),
+    );
+    const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
+      saved.workspace,
+    );
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      envelope,
+      OWNER,
+    );
+    expect(restored).not.toBeNull();
+    if (!restored) return;
+    const history = projectFiscalNotificationStructuredHistoryV1(
+      restored,
+      OWNER,
+    );
+
+    expect(history.status).toBe("READY");
+    if (history.status !== "READY") return;
+    expect(history.entries[0]?.money).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "FINAL_QUOTA", amountCents: 22_800 }),
+        expect.objectContaining({
+          kind: "LATE_PAYMENT_INTEREST",
+          amountCents: 307,
+        }),
+        expect.objectContaining({ kind: "DOCUMENT_TOTAL", amountCents: 23_107 }),
+      ]),
+    );
+    expect(history.entries[0]?.money).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "LATE_PAYMENT_INTEREST",
+          amountCents: 22_800,
+        }),
+      ]),
+    );
   });
 
   it("persiste solo la huella opaca del bien usada por la reconciliación global", async () => {
