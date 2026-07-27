@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "expense-learning-p4c3-production-preflight-v1",
+  "capturedAt": "2026-07-27T22:16:28Z",
+  "mode": "no-pii-operational-preflight",
+  "base": {
+    "originMain": "f81a1e879315793fea6818da96c609de7ac23dd5",
+    "source": "post-880-main"
+  },
+  "production": {
+    "domain": "https://facturacion-autonomos.app",
+    "deployment": "factu-autonomo-kh01n3avt-persianas-almar-web-s-projects.vercel.app",
+    "redeployedForServerSecrets": true
+  },
+  "github": {
+    "mainCiRun": "30309148740",
+    "mainCiConclusion": "success",
+    "codeqlRun": "30309148496",
+    "codeqlConclusion": "success",
+    "maintenanceWorkflowRun": "30310118278",
+    "maintenanceWorkflowHead": "f81a1e879315793fea6818da96c609de7ac23dd5",
+    "maintenanceWorkflowConclusion": "success"
+  },
+  "vercel": {
+    "flags": {
+      "EXPENSE_LEARNING_CONSENT_ENABLED": "true",
+      "EXPENSE_LEARNING_INGESTION_ENABLED": "false",
+      "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED": "false"
+    },
+    "hmacSecrets": {
+      "rotatedAt": "2026-07-27T22:13:00Z",
+      "claimSecret": {
+        "format": "base64url-no-padding",
+        "characters": 43,
+        "decodedBytes": 32,
+        "storedAsSensitive": true
+      },
+      "contributorSecret": {
+        "format": "base64url-no-padding",
+        "characters": 43,
+        "decodedBytes": 32,
+        "storedAsSensitive": true
+      },
+      "distinct": true,
+      "valuesRecorded": false
+    },
+    "cronSecretPresent": true,
+    "serviceRoleSecretPresent": true
+  },
+  "supabase": {
+    "projectRef": "rnbmkkzptxbvtchluqrx",
+    "privateSchemaPresent": true,
+    "runtimeRows": {
+      "claims": 0,
+      "revocationLinks": 0,
+      "weekLimits": 0,
+      "memberships": 0,
+      "accumulators": 0,
+      "promotedMetrics": 0,
+      "promotionBatches": 0
+    },
+    "accessControl": {
+      "anonSchemaUsage": false,
+      "authenticatedSchemaUsage": false,
+      "serviceRoleSchemaUsage": false,
+      "apiTableGrants": 0,
+      "privateFunctionGrantsToApiRoles": 0,
+      "publicLearningRpcGrantsToAnonAuthenticated": 0,
+      "publicLearningRpcGrantsToServiceRole": 6
+    },
+    "objectsPresent": {
+      "learningConsentDecisions": true,
+      "contributionClaims": true,
+      "contributorRevocationLinks": true,
+      "contributorWeekLimits": true,
+      "accumulatorMemberships": true,
+      "protectedAccumulators": true,
+      "closedWeekSupportedMetrics": true,
+      "closedWeekPromotionBatches": true,
+      "publicSubmitRpc": true,
+      "publicPromoteRpc": true,
+      "publicPurgeRpc": true,
+      "publicReadRpc": true
+    },
+    "schemaMigrationsVisibleVersions": [
+      "20260720133000",
+      "20260721190000",
+      "20260721190100"
+    ],
+    "migrationHistoryGate": "blocked_pending_reconciliation_or_explicit_object_level_acceptance"
+  },
+  "httpChecks": {
+    "home": {
+      "method": "GET",
+      "url": "https://facturacion-autonomos.app/",
+      "status": 200,
+      "securityHeadersObserved": [
+        "content-security-policy",
+        "strict-transport-security",
+        "x-frame-options"
+      ]
+    },
+    "learningContributionFlagOff": {
+      "method": "POST",
+      "url": "https://facturacion-autonomos.app/api/expenses/learning-contribution",
+      "status": 404,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    },
+    "learningConsentAnonymous": {
+      "method": "GET",
+      "url": "https://facturacion-autonomos.app/api/expenses/learning-consent",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    },
+    "learningMaintenanceAnonymous": {
+      "method": "POST",
+      "url": "https://facturacion-autonomos.app/api/expenses/learning-maintenance",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0"
+    }
+  },
+  "activationStatus": {
+    "consentPreflight": "enabled",
+    "serverIngestion": "not_enabled",
+    "clientWiring": "not_enabled",
+    "reason": "migration history is not reconciled in Supabase schema_migrations; current public wiring flag is global, not per-account gradual",
+    "nextSafeStep": "resolve migration-history gate or record explicit object-level acceptance; then enable only EXPENSE_LEARNING_INGESTION_ENABLED while keeping NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false and re-run maintenance/http checks"
+  }
+}
