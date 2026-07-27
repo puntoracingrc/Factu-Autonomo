@@ -7,6 +7,7 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Download,
@@ -22,11 +23,8 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
-import { ExpenseInboxCard } from "@/components/expenses/ExpenseInboxCard";
 import { ExpensePurchaseLinesPreview } from "@/components/expenses/ExpensePurchaseLinesPreview";
-import { ExpenseSupplierDonut } from "@/components/expenses/ExpenseSupplierDonut";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import {
   countBlockedExpenseVat,
@@ -41,16 +39,8 @@ import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
 import {
-  buildExpensesExportCsv,
-  downloadExpensesCsv,
-} from "@/lib/billing/export-expenses-csv";
-import {
-  downloadExpenseOriginalExportArchive,
-  ExpenseOriginalExportError,
-  expenseOriginalExportPeriodLabel,
   type ExpenseOriginalExportPeriod,
 } from "@/lib/billing/export-expense-original-archive";
-import { buildExpensePeriodAdvisorEmail } from "@/lib/billing/expense-period-advisor-email";
 import { validateAdvisorContact } from "@/lib/advisor-contact";
 import {
   DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS,
@@ -97,7 +87,6 @@ import {
   planProviderSummaryExpenseImport,
   type ProviderInvoiceSummaryRow,
 } from "@/lib/provider-summary-expenses";
-import { parseProviderSummaryFile } from "@/lib/provider-summary-file";
 import { ensureSupplierForExpense, supplierCompareKey } from "@/lib/suppliers";
 import type { Quarter } from "@/lib/periods";
 import type {
@@ -117,7 +106,96 @@ import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 const EXPENSE_LIST_BATCH_SIZE = 30;
 const FIXED_EXPENSE_OTHER_KEY = "__fixed_otros__";
+const EXPENSE_ORIGINAL_ARCHIVE_MONTH_NAMES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+] as const;
 type ConcreteEmailMethod = Exclude<DocumentEmailSendPreference, "ask">;
+type ExpenseOriginalExportErrorConstructor =
+  typeof import("@/lib/billing/export-expense-original-archive").ExpenseOriginalExportError;
+
+const SendMethodChooserModal = dynamic(
+  () =>
+    import("@/components/documents/SendMethodChooserModal").then(
+      (module) => module.SendMethodChooserModal,
+    ),
+  { ssr: false },
+);
+
+const ExpenseInboxCard = dynamic(
+  () =>
+    import("@/components/expenses/ExpenseInboxCard").then(
+      (module) => module.ExpenseInboxCard,
+    ),
+  {
+    ssr: false,
+    loading: () => <ExpenseInboxCardPlaceholder />,
+  },
+);
+
+const ExpenseSupplierDonut = dynamic(
+  () =>
+    import("@/components/expenses/ExpenseSupplierDonut").then(
+      (module) => module.ExpenseSupplierDonut,
+    ),
+  {
+    ssr: false,
+    loading: () => <ExpenseSupplierDonutPlaceholder />,
+  },
+);
+
+function ExpenseInboxCardPlaceholder() {
+  return (
+    <Card className="border-blue-100 bg-blue-50/60 p-4">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-28 flex-col justify-center gap-3"
+      >
+        <div className="h-4 w-44 rounded-full bg-blue-100 motion-safe:animate-pulse" />
+        <div className="h-3 w-full max-w-md rounded-full bg-blue-100/80 motion-safe:animate-pulse" />
+        <div className="h-10 w-36 rounded-xl bg-white/80 motion-safe:animate-pulse" />
+        <span className="sr-only">Preparando buzón de gastos</span>
+      </div>
+    </Card>
+  );
+}
+
+function ExpenseSupplierDonutPlaceholder() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="grid min-h-44 gap-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center"
+    >
+      <div className="mx-auto h-32 w-32 rounded-full border-[18px] border-slate-200 bg-white motion-safe:animate-pulse" />
+      <div className="space-y-3">
+        <div className="h-3 w-32 rounded-full bg-slate-200 motion-safe:animate-pulse" />
+        <div className="h-3 w-full rounded-full bg-slate-200 motion-safe:animate-pulse" />
+        <div className="h-3 w-5/6 rounded-full bg-slate-200 motion-safe:animate-pulse" />
+        <span className="sr-only">Preparando gráfico de gastos</span>
+      </div>
+    </div>
+  );
+}
+
+function expenseOriginalArchivePeriodLabel(
+  period: ExpenseOriginalExportPeriod,
+): string {
+  return period.kind === "month"
+    ? `${EXPENSE_ORIGINAL_ARCHIVE_MONTH_NAMES[period.month - 1]} ${period.year}`
+    : `Trimestre ${period.quarter} ${period.year}`;
+}
 
 interface ProviderSummaryPreview {
   id: string;
@@ -374,6 +452,7 @@ export default function GastosPage() {
     useState<ProviderSummaryPreview | null>(null);
   const [summaryRemovedInvoiceNumbers, setSummaryRemovedInvoiceNumbers] =
     useState<string[]>([]);
+  const [expenseCsvBusy, setExpenseCsvBusy] = useState(false);
   const [expenseArchiveBusy, setExpenseArchiveBusy] = useState<
     "download" | "advisor" | null
   >(null);
@@ -572,27 +651,41 @@ export default function GastosPage() {
     setExpenseArchiveFeedback(null);
   }
 
-  function handleExportCsv() {
-    if (blockedExportExpenseCount > 0 || expensesForExport.length === 0) return;
-    const periodLabel = formatExpensePeriodLabel(
-      periodKind,
-      year,
-      month,
-      quarter,
-    );
-    const supplierFilterLabel = supplierFilter
-      ? (supplierOptions.find((option) => option.key === supplierFilter)
-          ?.label ?? supplierLabelFromKey(supplierFilter, data.expenses))
-      : undefined;
-    const csv = buildExpensesExportCsv(expensesForExport, data.suppliers, {
-      profile: data.profile,
-      periodLabel,
-      supplierFilterLabel,
-      exportScopeLabel: currentExportScopeLabel,
-    });
-    const stem = expenseExportFilenameStem(periodKind, year, month, quarter);
-    const suffix = supplierFilter ? "-filtrado" : "";
-    downloadExpensesCsv(csv, `${stem}${suffix}`);
+  async function handleExportCsv() {
+    if (
+      expenseCsvBusy ||
+      blockedExportExpenseCount > 0 ||
+      expensesForExport.length === 0
+    ) {
+      return;
+    }
+    setExpenseCsvBusy(true);
+    try {
+      const { buildExpensesExportCsv, downloadExpensesCsv } = await import(
+        "@/lib/billing/export-expenses-csv"
+      );
+      const periodLabel = formatExpensePeriodLabel(
+        periodKind,
+        year,
+        month,
+        quarter,
+      );
+      const supplierFilterLabel = supplierFilter
+        ? (supplierOptions.find((option) => option.key === supplierFilter)
+            ?.label ?? supplierLabelFromKey(supplierFilter, data.expenses))
+        : undefined;
+      const csv = buildExpensesExportCsv(expensesForExport, data.suppliers, {
+        profile: data.profile,
+        periodLabel,
+        supplierFilterLabel,
+        exportScopeLabel: currentExportScopeLabel,
+      });
+      const stem = expenseExportFilenameStem(periodKind, year, month, quarter);
+      const suffix = supplierFilter ? "-filtrado" : "";
+      downloadExpensesCsv(csv, `${stem}${suffix}`);
+    } finally {
+      setExpenseCsvBusy(false);
+    }
   }
 
   function currentExpenseExportPeriod(): ExpenseOriginalExportPeriod | null {
@@ -709,9 +802,18 @@ export default function GastosPage() {
       : null;
     setExpenseArchiveFeedback(null);
     setExpenseArchiveBusy(target ?? "download");
+    let ExpenseOriginalExportErrorClass:
+      | ExpenseOriginalExportErrorConstructor
+      | null = null;
     try {
+      const [archiveModule, advisorEmailModule] = await Promise.all([
+        import("@/lib/billing/export-expense-original-archive"),
+        import("@/lib/billing/expense-period-advisor-email"),
+      ]);
+      ExpenseOriginalExportErrorClass =
+        archiveModule.ExpenseOriginalExportError;
       const supplierFilterLabel = currentSupplierFilterLabel();
-      const result = await downloadExpenseOriginalExportArchive({
+      const result = await archiveModule.downloadExpenseOriginalExportArchive({
         expenses: expensesForExport,
         suppliers: data.suppliers,
         profile: data.profile,
@@ -721,13 +823,13 @@ export default function GastosPage() {
       });
       if (target && emailMethod) {
         const periodLabel = [
-          expenseOriginalExportPeriodLabel(period),
+          expenseOriginalArchivePeriodLabel(period),
           supplierFilterLabel,
           currentExportScopeLabel,
         ]
           .filter(Boolean)
           .join(" · ");
-        const email = buildExpensePeriodAdvisorEmail(
+        const email = advisorEmailModule.buildExpensePeriodAdvisorEmail(
           data.profile,
           periodLabel,
           result.fileName,
@@ -772,7 +874,8 @@ export default function GastosPage() {
       }
       const message = nativeShareUnavailable
         ? "El ZIP se ha descargado, pero Compartir no pudo abrirse. Elige Gmail o Correo del dispositivo."
-        : error instanceof ExpenseOriginalExportError
+        : ExpenseOriginalExportErrorClass &&
+            error instanceof ExpenseOriginalExportErrorClass
           ? error.message
           : "No se pudo preparar el paquete de gastos. No se ha descargado un ZIP incompleto.";
       setExpenseArchiveFeedback({ kind: "error", message });
@@ -795,6 +898,9 @@ export default function GastosPage() {
     setSummaryRemovedInvoiceNumbers([]);
 
     try {
+      const { parseProviderSummaryFile } = await import(
+        "@/lib/provider-summary-file"
+      );
       const payload = await parseProviderSummaryFile(file);
 
       const detectedProviderName = payload.providerName?.trim() || undefined;
@@ -1173,8 +1279,8 @@ export default function GastosPage() {
             {expensesForExport.length > 0 && (
               <button
                 type="button"
-                onClick={handleExportCsv}
-                disabled={blockedExportExpenseCount > 0}
+                onClick={() => void handleExportCsv()}
+                disabled={blockedExportExpenseCount > 0 || expenseCsvBusy}
                 title={
                   blockedExportExpenseCount > 0
                     ? "Revisa los gastos con evidencia fiscal pendiente antes de exportar"
@@ -1183,7 +1289,7 @@ export default function GastosPage() {
                 className="mt-2 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-amber-200 disabled:bg-amber-50 disabled:text-amber-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
                 <Download className="h-3.5 w-3.5" />
-                Exportar CSV
+                {expenseCsvBusy ? "Preparando CSV..." : "Exportar CSV"}
               </button>
             )}
             {blockedExportExpenseCount > 0 && (
@@ -1267,11 +1373,13 @@ export default function GastosPage() {
         <SendMethodChooserModal
           open={expenseEmailMethodOpen}
           title="Enviar gastos al gestor"
-          description={`${currentExpenseExportPeriod() ? expenseOriginalExportPeriodLabel(currentExpenseExportPeriod()!) : "Selecciona un mes o trimestre"} · ${data.profile.advisorContact?.advisorName?.trim() || "Gestor"}`}
+          description={`${currentExpenseExportPeriod() ? expenseOriginalArchivePeriodLabel(currentExpenseExportPeriod()!) : "Selecciona un mes o trimestre"} · ${data.profile.advisorContact?.advisorName?.trim() || "Gestor"}`}
           options={DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS}
           rememberMethod={rememberExpenseEmailMethod}
           onRememberMethodChange={setRememberExpenseEmailMethod}
-          onChoose={(method) => void chooseExpenseEmailMethod(method)}
+          onChoose={(method) =>
+            void chooseExpenseEmailMethod(method as ConcreteEmailMethod)
+          }
           onClose={() => {
             if (!expenseArchiveBusy) setExpenseEmailMethodOpen(false);
           }}
