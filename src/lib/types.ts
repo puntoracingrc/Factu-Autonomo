@@ -41,6 +41,40 @@ export interface DocumentCentralInvoiceAuthorityLinkV1 {
   receivedAt: string;
 }
 
+export interface CentralInvoiceAuthorityEventsCursorV1 {
+  afterCreatedAt: string;
+  afterEventId: string;
+}
+
+export type CentralInvoiceAuthorityEventsSyncLastStatusV1 =
+  | "ok"
+  | "conflict"
+  | "error";
+
+export interface CentralInvoiceAuthorityEventsSyncLastResultV1 {
+  schemaVersion: 1;
+  status: CentralInvoiceAuthorityEventsSyncLastStatusV1;
+  checkedAt: string;
+  pulledEvents: number;
+  appliedEvents: number;
+  skippedEvents: number;
+  conflictEvents: number;
+  code?: string;
+  message?: string;
+  serverNextCursor?: CentralInvoiceAuthorityEventsCursorV1 | null;
+}
+
+export interface CentralInvoiceAuthorityEventsSyncStateV1 {
+  schemaVersion: 1;
+  source: "central_invoice_authority_events";
+  cursor: CentralInvoiceAuthorityEventsCursorV1 | null;
+  lastCheckedAt?: string;
+  lastAppliedAt?: string;
+  lastConflictAt?: string;
+  lastErrorAt?: string;
+  lastResult?: CentralInvoiceAuthorityEventsSyncLastResultV1;
+}
+
 export interface DocumentCollectionStatusOverrideV1 {
   schemaVersion: 1;
   status: "collected" | "pending";
@@ -1385,6 +1419,8 @@ export interface AppData {
   verifactuChain?: VerifactuChainState | null;
   /** Marca que la migración local de presencia obligatoria ya se completó. */
   snapshotIntegrityVersion?: 1;
+  /** Cursor y último resultado del pull de eventos de la autoridad central. */
+  centralInvoiceAuthorityEventsSync?: CentralInvoiceAuthorityEventsSyncStateV1;
   /** Datos persistidos no interpretables, conservados para recuperación manual. */
   workspaceIntegrityQuarantine?: WorkspaceIntegrityQuarantineEntry[];
   meta?: AppMeta;

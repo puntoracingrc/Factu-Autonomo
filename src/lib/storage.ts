@@ -75,6 +75,17 @@ import type {
 } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
 
+type NormalizedCentralInvoiceAuthorityEventsSyncState = NonNullable<
+  AppData["centralInvoiceAuthorityEventsSync"]
+>;
+type NormalizedCentralInvoiceAuthorityEventsSyncLastResult = NonNullable<
+  NormalizedCentralInvoiceAuthorityEventsSyncState["lastResult"]
+>;
+type NormalizedCentralInvoiceAuthorityEventsCursor = Exclude<
+  NormalizedCentralInvoiceAuthorityEventsSyncState["cursor"],
+  null
+>;
+
 function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
   return {
     ...DEFAULT_PROFILE,
@@ -329,8 +340,132 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isOptionalString(value: unknown): boolean {
+function isOptionalString(value: unknown): value is string | undefined {
   return value === undefined || typeof value === "string";
+}
+
+function isCentralInvoiceAuthorityEventsCursor(
+  value: unknown,
+): value is NormalizedCentralInvoiceAuthorityEventsCursor {
+  return (
+    isRecord(value) &&
+    typeof value.afterCreatedAt === "string" &&
+    Number.isFinite(Date.parse(value.afterCreatedAt)) &&
+    typeof value.afterEventId === "string" &&
+    value.afterEventId.trim().length > 0
+  );
+}
+
+function isCentralInvoiceAuthorityEventsLastStatus(value: unknown): boolean {
+  return value === "ok" || value === "conflict" || value === "error";
+}
+
+function optionalStringValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function normalizeCentralInvoiceAuthorityEventsSync(
+  value: unknown,
+  quarantine: WorkspaceIntegrityQuarantineEntry[],
+): AppData["centralInvoiceAuthorityEventsSync"] | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    quarantine.push({
+      collection: "centralInvoiceAuthorityEventsSync",
+      reason: "malformed_record",
+      rawValue: value,
+    });
+    return undefined;
+  }
+
+  const cursorValue = value.cursor;
+  const cursor =
+    cursorValue === null
+      ? null
+      : isCentralInvoiceAuthorityEventsCursor(cursorValue)
+        ? cursorValue
+        : undefined;
+  const lastResult = value.lastResult;
+  let normalizedLastResult:
+    | NormalizedCentralInvoiceAuthorityEventsSyncLastResult
+    | null
+    | undefined;
+  if (lastResult === undefined) {
+    normalizedLastResult = undefined;
+  } else if (
+    isRecord(lastResult) &&
+    lastResult.schemaVersion === 1 &&
+    isCentralInvoiceAuthorityEventsLastStatus(lastResult.status) &&
+    typeof lastResult.checkedAt === "string" &&
+    Number.isFinite(Date.parse(lastResult.checkedAt)) &&
+    Number.isInteger(lastResult.pulledEvents) &&
+    Number.isInteger(lastResult.appliedEvents) &&
+    Number.isInteger(lastResult.skippedEvents) &&
+    Number.isInteger(lastResult.conflictEvents) &&
+    isOptionalString(lastResult.code) &&
+    isOptionalString(lastResult.message) &&
+    (lastResult.serverNextCursor === undefined ||
+      lastResult.serverNextCursor === null ||
+      isCentralInvoiceAuthorityEventsCursor(lastResult.serverNextCursor))
+  ) {
+    const code = optionalStringValue(lastResult.code);
+    const message = optionalStringValue(lastResult.message);
+    const serverNextCursor =
+      lastResult.serverNextCursor === undefined
+        ? undefined
+        : lastResult.serverNextCursor === null
+          ? null
+          : lastResult.serverNextCursor;
+    normalizedLastResult = {
+      schemaVersion: 1,
+      status:
+        lastResult.status as NormalizedCentralInvoiceAuthorityEventsSyncLastResult["status"],
+      checkedAt: lastResult.checkedAt,
+      pulledEvents: lastResult.pulledEvents as number,
+      appliedEvents: lastResult.appliedEvents as number,
+      skippedEvents: lastResult.skippedEvents as number,
+      conflictEvents: lastResult.conflictEvents as number,
+      ...(code ? { code } : {}),
+      ...(message ? { message } : {}),
+      ...(serverNextCursor !== undefined ? { serverNextCursor } : {}),
+    };
+  } else {
+    normalizedLastResult = null;
+  }
+
+  if (
+    value.schemaVersion !== 1 ||
+    value.source !== "central_invoice_authority_events" ||
+    cursor === undefined ||
+    normalizedLastResult === null ||
+    !isOptionalString(value.lastCheckedAt) ||
+    !isOptionalString(value.lastAppliedAt) ||
+    !isOptionalString(value.lastConflictAt) ||
+    !isOptionalString(value.lastErrorAt)
+  ) {
+    quarantine.push({
+      collection: "centralInvoiceAuthorityEventsSync",
+      reason: "malformed_record",
+      rawValue: value,
+    });
+    return undefined;
+  }
+
+  const lastCheckedAt = optionalStringValue(value.lastCheckedAt);
+  const lastAppliedAt = optionalStringValue(value.lastAppliedAt);
+  const lastConflictAt = optionalStringValue(value.lastConflictAt);
+  const lastErrorAt = optionalStringValue(value.lastErrorAt);
+
+  return {
+    schemaVersion: 1,
+    source: "central_invoice_authority_events",
+    cursor,
+    ...(lastCheckedAt ? { lastCheckedAt } : {}),
+    ...(lastAppliedAt ? { lastAppliedAt } : {}),
+    ...(lastConflictAt ? { lastConflictAt } : {}),
+    ...(lastErrorAt ? { lastErrorAt } : {}),
+    ...(normalizedLastResult ? { lastResult: normalizedLastResult } : {}),
+  };
 }
 
 function normalizeRecordCollection<T>(input: {
@@ -825,6 +960,11 @@ export function normalizeLoadedData(
     profile.numbering.year,
     profile.numbering,
   );
+  const centralInvoiceAuthorityEventsSync =
+    normalizeCentralInvoiceAuthorityEventsSync(
+      parsed.centralInvoiceAuthorityEventsSync,
+      workspaceIntegrityQuarantine,
+    );
   const parsedCounters: Record<string, unknown> = isRecord(parsed.counters)
     ? parsed.counters
     : {};
@@ -839,6 +979,7 @@ export function normalizeLoadedData(
     suppliers,
     expenses,
     documents,
+    centralInvoiceAuthorityEventsSync,
     testDocumentRetirementBatches: normalizedRetirementBatches.batches,
     fiscalNotificationsWorkspace,
     snapshotIntegrityVersion: 1,
