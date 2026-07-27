@@ -24,6 +24,11 @@ describe("central invoice authority form store bridge", () => {
     expect(bridge).toContain("identity.kind");
     expect(bridge).toContain("identity.fiscalYear");
     expect(bridge).toContain("identity.sequence");
+    expect(bridge).toContain("centralInvoiceAuthority");
+    expect(bridge).toContain("identity.serverDocumentId");
+    expect(bridge).toContain("identity.identityId");
+    expect(bridge).toContain("identity.outboxEventId");
+    expect(bridge).toContain("identity.documentVersion");
     expect(bridge).toContain("options.localDocumentId");
     expect(bridge).toContain("bumpNumberingAfterAssign");
     expect(bridge).not.toContain("assignNextDocumentNumber");

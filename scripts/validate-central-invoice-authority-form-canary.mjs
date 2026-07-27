@@ -38,6 +38,11 @@ assert.ok(bridgeEnd > bridgeStart, "Cannot isolate central identity bridge");
 const bridge = store.slice(bridgeStart, bridgeEnd);
 
 assert.match(bridge, /identity\.fullNumber/);
+assert.match(bridge, /centralInvoiceAuthority/);
+assert.match(bridge, /identity\.serverDocumentId/);
+assert.match(bridge, /identity\.identityId/);
+assert.match(bridge, /identity\.outboxEventId/);
+assert.match(bridge, /identity\.documentVersion/);
 assert.match(bridge, /options\.localDocumentId/);
 assert.match(bridge, /bumpNumberingAfterAssign/);
 assert.doesNotMatch(bridge, /assignNextDocumentNumber/);
