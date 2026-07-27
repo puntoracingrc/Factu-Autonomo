@@ -17,8 +17,28 @@ import {
 } from "@/lib/server/rate-limit";
 import { readJsonBody } from "@/lib/server/request-body";
 
+const PRIVATE_RESPONSE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+  Pragma: "no-cache",
+  Vary: "Authorization",
+} as const;
+
+function privateJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  return withPrivateHeaders(response);
+}
+
+function withPrivateHeaders(response: NextResponse) {
+  for (const [key, value] of Object.entries(PRIVATE_RESPONSE_HEADERS)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
 function serverError(error: unknown) {
-  return NextResponse.json(
+  return privateJson(
     {
       error:
         error instanceof Error
@@ -34,7 +54,7 @@ export async function GET(request: Request) {
     requireEmailConfirmed: true,
   });
   if (!user) {
-    return NextResponse.json(
+    return privateJson(
       { error: "Inicia sesión para usar el buzón de gastos." },
       { status: 401 },
     );
@@ -48,12 +68,14 @@ export async function GET(request: Request) {
     },
     user.id,
   );
-  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+  if (!rateLimit.allowed) {
+    return withPrivateHeaders(rateLimitExceededResponse(rateLimit));
+  }
 
   try {
     const access = await canUseExpenseInbox(user.id);
     if (!access.allowed) {
-      return NextResponse.json({ error: access.reason }, { status: 402 });
+      return privateJson({ error: access.reason }, { status: 402 });
     }
 
     const url = new URL(request.url);
@@ -67,16 +89,16 @@ export async function GET(request: Request) {
     if (itemId) {
       const item = await getExpenseInboxItem(user.id, itemId);
       if (!item) {
-        return NextResponse.json(
+        return privateJson(
           { error: "No encuentro esa factura del buzón." },
           { status: 404 },
         );
       }
-      return NextResponse.json({ alias, deliveryStatus, copyRecipient, item });
+      return privateJson({ alias, deliveryStatus, copyRecipient, item });
     }
 
     const items = await listExpenseInboxItems(user.id);
-    return NextResponse.json({
+    return privateJson({
       alias,
       deliveryStatus,
       copyRecipient,
@@ -93,7 +115,7 @@ export async function PATCH(request: Request) {
     requireEmailConfirmed: true,
   });
   if (!user) {
-    return NextResponse.json(
+    return privateJson(
       { error: "Inicia sesión para actualizar el buzón de gastos." },
       { status: 401 },
     );
@@ -107,7 +129,9 @@ export async function PATCH(request: Request) {
     },
     user.id,
   );
-  if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
+  if (!rateLimit.allowed) {
+    return withPrivateHeaders(rateLimitExceededResponse(rateLimit));
+  }
 
   const bodyResult = await readJsonBody<{
     action?: unknown;
@@ -117,7 +141,7 @@ export async function PATCH(request: Request) {
     maxBytes: 8 * 1024,
     invalidMessage: "Petición de buzón no válida.",
   });
-  if (!bodyResult.ok) return bodyResult.response;
+  if (!bodyResult.ok) return withPrivateHeaders(bodyResult.response);
 
   try {
     const body = bodyResult.data;
@@ -132,23 +156,23 @@ export async function PATCH(request: Request) {
         user.id,
       );
       if (!rotateRateLimit.allowed) {
-        return rateLimitExceededResponse(rotateRateLimit);
+        return withPrivateHeaders(rateLimitExceededResponse(rotateRateLimit));
       }
 
       const access = await canUseExpenseInbox(user.id);
       if (!access.allowed) {
-        return NextResponse.json({ error: access.reason }, { status: 402 });
+        return privateJson({ error: access.reason }, { status: 402 });
       }
 
       const alias = await rotateExpenseInboxAlias(user.id);
       const deliveryStatus = await getExpenseInboxDeliveryStatus();
-      return NextResponse.json({ alias, deliveryStatus });
+      return privateJson({ alias, deliveryStatus });
     }
 
     if (body.action === "retry") {
       const id = typeof body.id === "string" ? body.id : "";
       if (!id) {
-        return NextResponse.json(
+        return privateJson(
           { error: "Falta el identificador de la factura." },
           { status: 400 },
         );
@@ -163,10 +187,10 @@ export async function PATCH(request: Request) {
         user.id,
       );
       if (!retryRateLimit.allowed) {
-        return rateLimitExceededResponse(retryRateLimit);
+        return withPrivateHeaders(rateLimitExceededResponse(retryRateLimit));
       }
       const item = await retryExpenseInboxItem({ userId: user.id, itemId: id });
-      return NextResponse.json({ item });
+      return privateJson({ item });
     }
 
     const id = typeof body.id === "string" ? body.id : "";
@@ -175,7 +199,7 @@ export async function PATCH(request: Request) {
         ? body.status
         : null;
     if (!id || !status) {
-      return NextResponse.json(
+      return privateJson(
         { error: "Falta el identificador o el estado no es válido." },
         { status: 400 },
       );
@@ -187,7 +211,7 @@ export async function PATCH(request: Request) {
       status,
     });
 
-    return NextResponse.json({ ok: true });
+    return privateJson({ ok: true });
   } catch (error) {
     return serverError(error);
   }
