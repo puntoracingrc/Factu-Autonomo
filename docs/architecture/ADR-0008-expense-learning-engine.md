@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P5 con lectura Admin promoted-only; flags e ingesta real apagados
+- Estado: P5 con lectura Admin promoted-only; consentimiento en preflight; ingesta real apagada
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -84,8 +84,11 @@ La secuencia posterior queda bloqueada en este orden:
 11. P4C2: scheduler, reintentos y observabilidad operativa genérica;
 12. P5: lector y Admin limitados a métricas promovidas, desplegables en vacío
     sin activar ingesta ni wiring;
-13. P4C3: activación gradual bajo los dos kill switches, únicamente después de
-    cerrar secretos, retención, copy y gates de producción.
+13. P4C3: activación gradual bajo los kill switches de ingesta y wiring,
+    únicamente después de cerrar secretos, retención, copy y gates de
+    producción. El consentimiento puede estar visible antes como preflight si
+    no existe envío real y la interfaz declara que la preferencia todavía no
+    contribuye.
 
 ### Alcance actual P1B
 
@@ -565,10 +568,13 @@ banda de cohorte. No presenta estas señales como reglas activas, precisión del
 motor ni anonimización. Un estado vacío es válido mientras ingesta y wiring
 permanezcan apagados.
 
-P5 no modifica los kill switches, el consentimiento, el transporte, la
+P5 no modifica los kill switches de ingesta/wiring, el transporte, la
 promoción, el scheduler ni el resultado visible del escáner. Puede desplegarse
-antes de P4C3 porque no crea datos ni abre la captación. La activación gradual
-continúa bloqueada hasta cerrar secretos, ejecución real verde de mantenimiento,
+antes de P4C3 porque no crea datos ni abre la captación. El consentimiento puede
+mantenerse visible en modo preflight para registrar y retirar la decision V1,
+pero no autoriza envios mientras `EXPENSE_LEARNING_INGESTION_ENABLED` y
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` sigan apagados. La activación
+gradual continúa bloqueada hasta cerrar secretos, ejecución real verde de mantenimiento,
 autorización expresa de producción y el paquete de consentimiento y retención
 [`ADR-0008 - Paquete de aprobación de consentimiento y retención`](ADR-0008-expense-learning-activation-approval.md).
 
