@@ -76,6 +76,46 @@ const p4c3Preflight = JSON.parse(
     nextSafeStep: string;
   };
 };
+const p4c3ServerActivation = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../docs/architecture/expense-learning-p4c3-server-activation-2026-07-28.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as {
+  schemaVersion: string;
+  mainSha: string;
+  decision: {
+    migrationHistoryGate: string;
+    gradualActivationModel: string;
+  };
+  vercel: {
+    flags: Record<string, string>;
+    hmacSecrets: {
+      claimSecret: { characters: number; decodedBytes: number };
+      contributorSecret: { characters: number; decodedBytes: number };
+      distinct: boolean;
+      valuesRecorded: boolean;
+    };
+  };
+  httpReadback: {
+    learningContributionAnonymous: { status: number; cacheControl: string };
+    learningConsentAnonymous: { status: number; cacheControl: string };
+    learningMaintenanceAnonymous: { status: number; cacheControl: string };
+  };
+  supabase: {
+    runtimeRows: Record<string, number>;
+    consentDecisionRows: number;
+    acl: Record<string, number>;
+  };
+  activationStatus: {
+    serverIngestion: string;
+    clientWiring: string;
+    nextSafeStep: string;
+  };
+};
 
 function observation() {
   return {
@@ -303,7 +343,7 @@ describe("expense aggregate learning privacy contract", () => {
     expect(approvalPacket).toContain(
       "consentimiento separado de escaneo, revision, guardado",
     );
-    expect(approvalPacket).toContain("no activa contribuciones");
+    expect(approvalPacket).toContain("no envia");
     expect(approvalPacket).toContain(
       'solo autoriza `EXPENSE_LEARNING_CONSENT_ENABLED === "true"`',
     );
@@ -332,7 +372,10 @@ describe("expense aggregate learning privacy contract", () => {
       "aprobacion explicita de producto/empresa registrada en este paquete",
     );
     expect(approvalPacket).toContain(
-      "puede permanecer encendido solo como\npreflight de consentimiento",
+      "`EXPENSE_LEARNING_CONSENT_ENABLED` puede permanecer encendido como preflight",
+    );
+    expect(approvalPacket).toContain(
+      "`EXPENSE_LEARNING_INGESTION_ENABLED` puede permanecer encendido",
     );
     expect(approvalPacket).toContain("no debe usar casillas premarcadas");
     expect(approvalPacket).not.toMatch(/garantiza anonimato|cumple (?:con )?el RGPD/iu);
@@ -397,6 +440,68 @@ describe("expense aggregate learning privacy contract", () => {
     );
     expect(p4c3Preflight.activationStatus.nextSafeStep).toContain(
       "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false",
+    );
+  });
+
+  it("registra la activacion servidor P4C3 sin encender wiring cliente", () => {
+    expect(approvalPacket).toContain(
+      "Activacion servidor P4C3 del 28 de julio de 2026",
+    );
+    expect(approvalPacket).toContain(
+      "expense-learning-p4c3-server-activation-2026-07-28.json",
+    );
+    expect(approvalPacket).toMatch(
+      /aceptado para este paso por evidencia real\s+de objetos, ACL y runtime/u,
+    );
+    expect(approvalPacket).toContain(
+      "`EXPENSE_LEARNING_INGESTION_ENABLED=true`",
+    );
+    expect(approvalPacket).toContain(
+      "`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false`",
+    );
+    expect(approvalPacket).toContain(
+      "`POST /api/expenses/learning-contribution` anonimo devuelve `401`",
+    );
+
+    expect(p4c3ServerActivation.schemaVersion).toBe(
+      "expense-learning-p4c3-server-activation-v1",
+    );
+    expect(p4c3ServerActivation.vercel.flags).toMatchObject({
+      EXPENSE_LEARNING_CONSENT_ENABLED: "true",
+      EXPENSE_LEARNING_INGESTION_ENABLED: "true",
+      NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED: "false",
+    });
+    expect(p4c3ServerActivation.decision.migrationHistoryGate).toBe(
+      "accepted_by_object_acl_and_runtime_evidence_without_rewriting_schema_migrations",
+    );
+    expect(p4c3ServerActivation.decision.gradualActivationModel).toContain(
+      "server_ingestion_enabled_first",
+    );
+    expect(p4c3ServerActivation.httpReadback.learningContributionAnonymous).toMatchObject({
+      status: 401,
+      cacheControl: "private, no-store, max-age=0",
+    });
+    expect(p4c3ServerActivation.httpReadback.learningConsentAnonymous.status).toBe(
+      401,
+    );
+    expect(p4c3ServerActivation.httpReadback.learningMaintenanceAnonymous.status).toBe(
+      401,
+    );
+    expect(Object.values(p4c3ServerActivation.supabase.runtimeRows)).toEqual(
+      expect.arrayContaining([0]),
+    );
+    expect(
+      Object.values(p4c3ServerActivation.supabase.runtimeRows).every(
+        (count) => count === 0,
+      ),
+    ).toBe(true);
+    expect(p4c3ServerActivation.vercel.hmacSecrets.valuesRecorded).toBe(false);
+    expect(p4c3ServerActivation.activationStatus).toMatchObject({
+      serverIngestion: "enabled_protected",
+      clientWiring: "not_enabled",
+    });
+    expect(p4c3ServerActivation.activationStatus.nextSafeStep).toContain(
+      "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=true",
     );
   });
 });

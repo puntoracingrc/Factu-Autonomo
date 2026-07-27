@@ -28,6 +28,7 @@ interface ConsentControlRuntime {
   ExpenseLearningConsentControl: (props: {
     sessionSubject: string;
   }) => React.ReactNode;
+  isExpenseLearningClientWiringEnabledV1: () => boolean;
   classifyExpenseLearningConsentHttpResultV1: (
     status: number,
     body: unknown,
@@ -364,11 +365,27 @@ describe("ExpenseLearningConsentControl P2C", () => {
     expect(aiNoticeSource).toContain("Para analizar textos, imágenes o PDF");
     expect(aiNoticeSource).not.toContain("correcciones pueden");
     expect(aiNoticeSource).not.toContain("patrones técnicos limpios");
+    expect(runtime.isExpenseLearningClientWiringEnabledV1()).toBe(false);
     expect(controlSource).toContain(
       "Por ahora esta preferencia no envía contribuciones; el aprendizaje",
     );
     expect(controlSource).toContain(
       "Cuando habilitemos las contribuciones, solo se enviarían categorías",
+    );
+  });
+
+  it("keeps active-learning copy distinct from the dormant preflight copy", () => {
+    expect(controlSource).toContain(
+      "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED",
+    );
+    expect(controlSource).toContain(
+      "Si activas esta preferencia, solo se enviarán categorías técnicas",
+    );
+    expect(controlSource).toContain(
+      "El aprendizaje compartido está disponible solo si activas esta",
+    );
+    expect(controlSource).toContain(
+      "Por ahora esta preferencia no envía contribuciones; el aprendizaje",
     );
   });
 });

@@ -12,6 +12,8 @@ import { EXPENSE_ENGINE_PRIVACY_POLICY_VERSION } from "@/lib/expense-engine/cont
 
 const CONSENT_ENDPOINT = "/api/expenses/learning-consent";
 const REQUEST_TIMEOUT_MS = 10_000;
+const EXPENSE_LEARNING_CLIENT_WIRING_ENABLED =
+  process.env.NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED === "true";
 
 const CONSENT_KEYS = [
   "state",
@@ -75,6 +77,10 @@ export function classifyExpenseLearningConsentHttpResultV1(
   return consent
     ? Object.freeze({ kind: "READY", consent })
     : ERROR_RESULT;
+}
+
+export function isExpenseLearningClientWiringEnabledV1() {
+  return EXPENSE_LEARNING_CLIENT_WIRING_ENABLED;
 }
 
 export function normalizeExpenseLearningConsentViewV1(
@@ -458,12 +464,21 @@ export function ExpenseLearningConsentControl({
           Qué se compartiría
         </summary>
         <div className="mt-2 space-y-2 leading-relaxed">
-          <p>
-            Cuando habilitemos las contribuciones, solo se enviarían categorías
-            técnicas acotadas después de que revises y guardes un gasto. Nunca
-            el PDF, el texto OCR, el proveedor, NIF, cuentas, referencias,
-            importes ni porcentajes exactos.
-          </p>
+          {EXPENSE_LEARNING_CLIENT_WIRING_ENABLED ? (
+            <p>
+              Si activas esta preferencia, solo se enviarán categorías técnicas
+              acotadas después de que revises y guardes un gasto. Nunca el PDF,
+              el texto OCR, el proveedor, NIF, cuentas, referencias, importes
+              ni porcentajes exactos.
+            </p>
+          ) : (
+            <p>
+              Cuando habilitemos las contribuciones, solo se enviarían categorías
+              técnicas acotadas después de que revises y guardes un gasto. Nunca
+              el PDF, el texto OCR, el proveedor, NIF, cuentas, referencias,
+              importes ni porcentajes exactos.
+            </p>
+          )}
           <p>
             Durante un máximo de 35 días conservaremos vínculos protegidos para
             deduplicar, limitar abusos y poder retirar lo que siga separable.
@@ -483,10 +498,18 @@ export function ExpenseLearningConsentControl({
             deja de estar disponible en meses futuros si retiras el
             consentimiento.
           </p>
-          <p>
-            Por ahora esta preferencia no envía contribuciones; el aprendizaje
-            compartido sigue desactivado.
-          </p>
+          {EXPENSE_LEARNING_CLIENT_WIRING_ENABLED ? (
+            <p>
+              El aprendizaje compartido está disponible solo si activas esta
+              preferencia. El escaneo, la revisión y el guardado siguen
+              funcionando igual si la dejas desactivada.
+            </p>
+          ) : (
+            <p>
+              Por ahora esta preferencia no envía contribuciones; el aprendizaje
+              compartido sigue desactivado.
+            </p>
+          )}
         </div>
       </details>
     </section>
