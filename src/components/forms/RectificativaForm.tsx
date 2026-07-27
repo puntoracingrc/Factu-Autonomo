@@ -33,7 +33,6 @@ import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
-import { openDocumentPdfPreview } from "@/lib/pdf";
 import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
@@ -303,6 +302,7 @@ export function RectificativaForm({
         buildRectificativaDraft("borrador"),
         historicalProfile,
       );
+      const { openDocumentPdfPreview } = await import("@/lib/pdf");
       await openDocumentPdfPreview(doc, historicalProfile, pdfOptions);
     } catch (error) {
       alert(

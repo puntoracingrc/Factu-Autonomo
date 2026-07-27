@@ -1,6 +1,5 @@
 import { showFactuToast } from "@/lib/factu/occasional";
 import { DRAFT_INVOICE_NUMBER } from "@/lib/documents";
-import { downloadDocumentPdf } from "@/lib/pdf";
 import type { DocumentPdfOptions } from "@/lib/pdf";
 import type { BusinessProfile, Document, DocumentType } from "@/lib/types";
 import type { useRouter } from "next/navigation";
@@ -59,6 +58,7 @@ export async function finishDocumentSave(input: {
 
   if (input.download) {
     try {
+      const { downloadDocumentPdf } = await import("@/lib/pdf");
       await downloadDocumentPdf(
         input.download.doc,
         input.download.profile,

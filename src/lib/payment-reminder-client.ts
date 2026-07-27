@@ -3,7 +3,6 @@ import { hasLegacyImportOrigin } from "./document-integrity/legacy-import-attest
 import { isPendingInvoicePayment } from "./income";
 import { paymentReminderSubject } from "./payment-reminder";
 import { MAX_PAYMENT_REMINDER_MESSAGE_LENGTH } from "./email/payment-reminder-request";
-import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
 import type { DocumentPdfOptions } from "./pdf";
 import {
   buildMailtoUrl,
@@ -77,6 +76,7 @@ async function shareReminderPdfNative(
 ): Promise<boolean> {
   if (typeof navigator === "undefined" || !navigator.share) return false;
 
+  const { buildDocumentPdfBlob } = await import("./pdf");
   const blob = await buildDocumentPdfBlob(doc, profile, pdfOptions);
   const file = new File([blob], `${doc.number}.pdf`, {
     type: "application/pdf",
@@ -158,6 +158,7 @@ export async function sendPaymentReminderByEmail(
   }
 
   try {
+    const { downloadDocumentPdf } = await import("./pdf");
     await downloadDocumentPdf(input.doc, input.profile, input.pdfOptions);
   } catch {
     return {
@@ -202,6 +203,7 @@ export async function sendPaymentReminderByWhatsApp(
 
   if (!sharedNative) {
     try {
+      const { downloadDocumentPdf } = await import("./pdf");
       await downloadDocumentPdf(input.doc, input.profile, input.pdfOptions);
     } catch {
       return {

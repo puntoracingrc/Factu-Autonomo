@@ -90,7 +90,6 @@ import {
 } from "@/lib/business-profile";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
-import { openDocumentPdfPreview } from "@/lib/pdf";
 import { defaultQuoteDueDate } from "@/lib/quote-validity";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
@@ -1520,6 +1519,7 @@ export function DocumentForm({
     setPreviewLoading(true);
     try {
       const doc = attachIssuerSnapshot(previewDoc, effectiveDocumentProfile);
+      const { openDocumentPdfPreview } = await import("@/lib/pdf");
       await openDocumentPdfPreview(doc, effectiveDocumentProfile, pdfOptions);
     } catch (error) {
       alert(

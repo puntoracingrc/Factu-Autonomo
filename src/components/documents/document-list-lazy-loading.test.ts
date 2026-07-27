@@ -21,6 +21,22 @@ const pdfSource = readFileSync(
   new URL("../../lib/pdf.ts", import.meta.url),
   "utf8",
 );
+const documentFormSource = readFileSync(
+  new URL("../forms/DocumentForm.tsx", import.meta.url),
+  "utf8",
+);
+const rectificativaFormSource = readFileSync(
+  new URL("../forms/RectificativaForm.tsx", import.meta.url),
+  "utf8",
+);
+const saveFeedbackSource = readFileSync(
+  new URL("../../lib/documents/save-feedback.ts", import.meta.url),
+  "utf8",
+);
+const paymentReminderClientSource = readFileSync(
+  new URL("../../lib/payment-reminder-client.ts", import.meta.url),
+  "utf8",
+);
 
 describe("carga diferida del listado de documentos", () => {
   it("descarga el workspace de relaciones solo cuando se abre", () => {
@@ -129,6 +145,34 @@ describe("carga diferida del listado de documentos", () => {
     );
     expect(pdfSource).toContain(
       "reservedWindow ?? openPdfWindow(`Imprimir ${documentPdfFilename(doc)}`);",
+    );
+
+    expect(documentFormSource).not.toContain(
+      'import { openDocumentPdfPreview } from "@/lib/pdf";',
+    );
+    expect(documentFormSource).toContain(
+      'const { openDocumentPdfPreview } = await import("@/lib/pdf");',
+    );
+    expect(rectificativaFormSource).not.toContain(
+      'import { openDocumentPdfPreview } from "@/lib/pdf";',
+    );
+    expect(rectificativaFormSource).toContain(
+      'const { openDocumentPdfPreview } = await import("@/lib/pdf");',
+    );
+    expect(saveFeedbackSource).not.toContain(
+      'import { downloadDocumentPdf } from "@/lib/pdf";',
+    );
+    expect(saveFeedbackSource).toContain(
+      'const { downloadDocumentPdf } = await import("@/lib/pdf");',
+    );
+    expect(paymentReminderClientSource).not.toContain(
+      'import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";',
+    );
+    expect(paymentReminderClientSource).toContain(
+      'const { buildDocumentPdfBlob } = await import("./pdf");',
+    );
+    expect(paymentReminderClientSource).toContain(
+      'const { downloadDocumentPdf } = await import("./pdf");',
     );
   });
 });
