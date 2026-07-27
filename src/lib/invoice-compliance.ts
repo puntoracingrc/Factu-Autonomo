@@ -4,7 +4,7 @@ import {
   businessProfileMissingDocumentLabels,
   hasUsualSpanishTaxIdShape,
 } from "./business-profile";
-import { documentTotals, roundMoney } from "./calculations";
+import { documentTotals, lineMoneyAmounts, roundMoney } from "./calculations";
 import { clientAddressToFormFields } from "./customer-address";
 
 export interface EmissionValidationResult {
@@ -40,12 +40,11 @@ export function ivaBreakdownByRate(
   const totals = new Map<number, { base: number; quota: number }>();
 
   for (const item of items) {
-    const base = item.quantity * item.unitPrice;
-    const quota = base * (item.ivaPercent / 100);
+    const amounts = lineMoneyAmounts(item);
     const current = totals.get(item.ivaPercent) ?? { base: 0, quota: 0 };
     totals.set(item.ivaPercent, {
-      base: current.base + base,
-      quota: current.quota + quota,
+      base: roundMoney(current.base + amounts.subtotal),
+      quota: roundMoney(current.quota + amounts.iva),
     });
   }
 

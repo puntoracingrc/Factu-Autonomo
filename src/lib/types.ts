@@ -53,6 +53,8 @@ export interface LineItem {
   /** Identificador de unidad (ud, m, m2, h…) */
   unit?: string;
   unitPrice: number;
+  /** Precio unitario con IVA introducido por el usuario; conserva totales brutos de 2 decimales. */
+  grossUnitPrice?: number;
   ivaPercent: number;
 }
 

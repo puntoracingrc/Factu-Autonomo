@@ -92,6 +92,21 @@ describe("document form totals flow", () => {
     expect(totals.total).toBe(60.5);
   });
 
+  it("mantiene exacto el total introducido con IVA incluido", () => {
+    const grossLine = item({
+      unitPrice: 66.12,
+      grossUnitPrice: 80,
+      ivaPercent: 21,
+    });
+
+    expect(lineItemFormTotal(grossLine)).toBe(80);
+    expect(documentFormAmounts([grossLine])).toEqual({
+      subtotal: 66.12,
+      iva: 13.88,
+      total: 80,
+    });
+  });
+
   it("muestra exactamente la proyección fiscal de líneas fraccionarias", () => {
     const lines = [
       item({ id: "fraction-1", unitPrice: 0.025 }),

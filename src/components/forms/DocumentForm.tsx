@@ -39,10 +39,10 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   formatMoney,
   formatShortDate,
+  lineGrossUnitPrice,
   roundMoney,
   todayISO,
   unitPriceFromGross,
-  unitPriceGross,
 } from "@/lib/calculations";
 import { isVatExempt, zeroIvaItems } from "@/lib/vat-regime";
 import {
@@ -1155,9 +1155,17 @@ export function DocumentForm({
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setFormError(null);
-    const next = itemsRef.current.map((item) =>
-      item.id === id ? { ...item, ...patch } : item,
-    );
+    const next = itemsRef.current.map((item) => {
+      if (item.id !== id) return item;
+      const updated = { ...item, ...patch };
+      if (
+        Object.prototype.hasOwnProperty.call(patch, "grossUnitPrice") &&
+        typeof patch.grossUnitPrice !== "number"
+      ) {
+        delete updated.grossUnitPrice;
+      }
+      return updated;
+    });
     itemsRef.current = next;
     setItems(next);
   }
@@ -1277,6 +1285,7 @@ export function DocumentForm({
       ...applied.line,
       description: nextLine.description,
       unitPrice: nextLine.unitPrice,
+      grossUnitPrice: undefined,
       quantity: nextLine.quantity,
     });
     setLineAreaDrafts((prev) => ({ ...prev, [item.id]: nextMeasureDraft }));
@@ -1375,8 +1384,16 @@ export function DocumentForm({
     router.push(`${destination}?desde=documento`);
   }
 
-  function handleLineUnitPriceChange(id: string, unitPrice: number) {
-    updateItem(id, { unitPrice });
+  function handleLineUnitPriceChange(
+    id: string,
+    unitPrice: number,
+    grossUnitPrice?: number,
+  ) {
+    updateItem(id, {
+      unitPrice,
+      grossUnitPrice:
+        typeof grossUnitPrice === "number" ? grossUnitPrice : undefined,
+    });
     setLineProductPricing((prev) => {
       const current = prev[id];
       if (!current) return prev;
@@ -1405,6 +1422,7 @@ export function DocumentForm({
         current.basePrice,
         markupPercent,
       ),
+      grossUnitPrice: undefined,
     });
   }
 
@@ -1423,6 +1441,16 @@ export function DocumentForm({
     updateItem(id, {
       unit,
       quantity: measured ? measured.quantity : (current?.quantity ?? 0),
+    });
+  }
+
+  function handleLineIvaChange(item: LineItem, ivaPercent: number) {
+    updateItem(item.id, {
+      ivaPercent,
+      unitPrice:
+        typeof item.grossUnitPrice === "number"
+          ? unitPriceFromGross(item.grossUnitPrice, ivaPercent)
+          : item.unitPrice,
     });
   }
 
@@ -1939,10 +1967,7 @@ export function DocumentForm({
               const hasLinkedProduct = Boolean(
                 productPricing?.productKey || productPricing?.productId,
               );
-              const grossPrice = unitPriceGross(
-                displayedItem.unitPrice,
-                displayedItem.ivaPercent,
-              );
+              const grossPrice = lineGrossUnitPrice(displayedItem, vatExempt);
               const lineTotal = lineItemFormTotal(displayedItem, vatExempt, {
                 allowSignedAmounts: isRectificationDraft,
               });
@@ -2260,6 +2285,7 @@ export function DocumentForm({
                         handleLineUnitPriceChange(item.id, unitPrice)
                       }
                       className={compactInputClass}
+                      maxDecimals={2}
                     />
                   </div>
 
@@ -2302,7 +2328,7 @@ export function DocumentForm({
                         settings={effectiveDocumentProfile.iva}
                         ariaLabel={`IVA de la línea ${index + 1}`}
                         onChange={(ivaPercent) =>
-                          updateItem(item.id, { ivaPercent })
+                          handleLineIvaChange(item, ivaPercent)
                         }
                         className={compactInputClass}
                       />
@@ -2320,9 +2346,11 @@ export function DocumentForm({
                           handleLineUnitPriceChange(
                             item.id,
                             unitPriceFromGross(gross, item.ivaPercent),
+                            gross,
                           )
                         }
                         className={compactInputClass}
+                        maxDecimals={2}
                       />
                     </div>
                   )}

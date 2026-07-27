@@ -1,7 +1,12 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { BusinessProfile, Document } from "./types";
-import { formatMoney, formatShortDate, lineSubtotal } from "./calculations";
+import {
+  formatMoney,
+  formatShortDate,
+  lineMoneyAmounts,
+  lineSubtotal,
+} from "./calculations";
 import {
   buildPdfViewModelForDocument,
   documentPdfViewAmounts,
@@ -138,7 +143,7 @@ function drawWebsiteFooter(
 function pdfLineTotal(item: DocumentPdfLineView, vatExempt: boolean): number {
   if (typeof item.total === "number") return item.total;
   if (vatExempt) return lineSubtotal(item);
-  return item.quantity * item.unitPrice * (1 + item.ivaPercent / 100);
+  return lineMoneyAmounts(item, vatExempt).total;
 }
 
 function pdfVatBreakdown(viewModel: DocumentPdfViewModel) {

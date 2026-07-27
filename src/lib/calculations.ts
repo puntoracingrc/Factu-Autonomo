@@ -30,6 +30,22 @@ export function unitPriceFromGross(
   return roundMoney(grossPrice / (1 + ivaPercent / 100));
 }
 
+export function lineGrossUnitPrice(
+  item: Pick<LineItem, "grossUnitPrice" | "unitPrice" | "ivaPercent">,
+  vatExempt = false,
+): number {
+  if (
+    !vatExempt &&
+    typeof item.grossUnitPrice === "number" &&
+    Number.isFinite(item.grossUnitPrice)
+  ) {
+    return roundMoneySymmetric(item.grossUnitPrice);
+  }
+  return vatExempt
+    ? roundMoneySymmetric(item.unitPrice)
+    : unitPriceGross(item.unitPrice, item.ivaPercent);
+}
+
 export function lineSubtotal(item: LineItem): number {
   return item.quantity * item.unitPrice;
 }
@@ -46,6 +62,20 @@ export function lineMoneyAmounts(
   item: LineItem,
   vatExempt = false,
 ): { subtotal: number; iva: number; total: number } {
+  if (
+    !vatExempt &&
+    typeof item.grossUnitPrice === "number" &&
+    Number.isFinite(item.grossUnitPrice)
+  ) {
+    const total = roundMoneySymmetric(item.quantity * item.grossUnitPrice);
+    const subtotal = roundMoneySymmetric(total / (1 + item.ivaPercent / 100));
+    return {
+      subtotal,
+      iva: roundMoneySymmetric(total - subtotal),
+      total,
+    };
+  }
+
   const subtotal = roundMoneySymmetric(lineSubtotal(item));
   const iva = vatExempt ? 0 : roundMoneySymmetric(lineIva(item));
   return {

@@ -3,6 +3,7 @@ import {
   documentTotals,
   expenseTotal,
   lineIva,
+  lineGrossUnitPrice,
   lineMoneyAmounts,
   lineSubtotal,
   lineTotal,
@@ -32,6 +33,23 @@ describe("unit price with/without VAT", () => {
   it("redondea a dos decimales al desglosar IVA", () => {
     expect(unitPriceFromGross(100, 21)).toBeCloseTo(82.64, 2);
     expect(unitPriceGross(82.64, 21)).toBeCloseTo(99.99, 2);
+  });
+
+  it("conserva el precio con IVA introducido cuando la base redondeada no puede reconstruirlo", () => {
+    const line = item({
+      unitPrice: unitPriceFromGross(80, 21),
+      grossUnitPrice: 80,
+      ivaPercent: 21,
+    });
+
+    expect(line.unitPrice).toBe(66.12);
+    expect(unitPriceGross(line.unitPrice, 21)).toBe(80.01);
+    expect(lineGrossUnitPrice(line)).toBe(80);
+    expect(lineMoneyAmounts(line)).toEqual({
+      subtotal: 66.12,
+      iva: 13.88,
+      total: 80,
+    });
   });
 
   it("admite IVA cero", () => {

@@ -390,4 +390,18 @@ describe("invoice compliance", () => {
     expect(breakdown[0].rate).toBe(10);
     expect(breakdown[1].rate).toBe(21);
   });
+
+  it("uses line money amounts for gross-unit-price IVA breakdowns", () => {
+    const breakdown = ivaBreakdownByRate([
+      {
+        ...item,
+        unitPrice: 66.12,
+        grossUnitPrice: 80,
+        quantity: 1,
+        ivaPercent: 21,
+      },
+    ]);
+
+    expect(breakdown).toEqual([{ rate: 21, base: 66.12, quota: 13.88 }]);
+  });
 });
