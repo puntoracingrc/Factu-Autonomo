@@ -46,6 +46,11 @@ import {
   APP_NAV_ITEMS,
   isAppNavItemActive,
 } from "@/components/layout/app-navigation";
+import {
+  APP_NAVIGATION_PREFETCH_DELAY_MS,
+  getNavigationConnectionInfo,
+  shouldPrefetchAppNavigationHref,
+} from "@/components/layout/app-navigation-prefetch";
 import { AppNavigationFeedback } from "@/components/layout/AppNavigationFeedback";
 import type { PendingAppNavigation } from "@/components/layout/app-navigation-feedback";
 import {
@@ -93,6 +98,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
   const mobileNavRef = useRef<HTMLDivElement>(null);
   const previousPathnameRef = useRef(pathname);
+  const prefetchedNavigationHrefsRef = useRef(new Set<string>());
+  const navigationPrefetchTimersRef = useRef(new Map<string, number>());
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
   const appNavItems = APP_NAV_ITEMS;
   const selectedPathname = pendingNavigation?.href ?? pathname;
@@ -130,6 +137,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     setPendingNavigation({ href, label });
+  }
+
+  function scheduleNavigationPrefetch(href: string) {
+    const connection =
+      typeof navigator === "undefined"
+        ? undefined
+        : getNavigationConnectionInfo(navigator);
+    if (
+      !shouldPrefetchAppNavigationHref(href, pathname, connection) ||
+      prefetchedNavigationHrefsRef.current.has(href) ||
+      navigationPrefetchTimersRef.current.has(href)
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      navigationPrefetchTimersRef.current.delete(href);
+      prefetchedNavigationHrefsRef.current.add(href);
+      router.prefetch(href);
+    }, APP_NAVIGATION_PREFETCH_DELAY_MS);
+    navigationPrefetchTimersRef.current.set(href, timer);
+  }
+
+  function cancelNavigationPrefetch(href: string) {
+    const timer = navigationPrefetchTimersRef.current.get(href);
+    if (timer === undefined) return;
+    window.clearTimeout(timer);
+    navigationPrefetchTimersRef.current.delete(href);
   }
 
   function retryNavigation() {
@@ -197,6 +232,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const root = document.documentElement;
       delete root.dataset.appDensity;
       delete root.dataset.reduceMotion;
+      for (const timer of navigationPrefetchTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      navigationPrefetchTimersRef.current.clear();
     },
     [],
   );
@@ -329,7 +368,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   aria-busy={pending || undefined}
+                  prefetch={false}
                   data-navigation-selected={selected ? "true" : undefined}
+                  onFocus={() => scheduleNavigationPrefetch(href)}
+                  onPointerEnter={() => scheduleNavigationPrefetch(href)}
+                  onPointerLeave={() => cancelNavigationPrefetch(href)}
+                  onTouchStart={() => scheduleNavigationPrefetch(href)}
                   onNavigate={() => startNavigation(href, label)}
                   className={`relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                     selected
@@ -633,7 +677,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       href={href}
                       aria-current={active ? "page" : undefined}
                       aria-busy={pending || undefined}
+                      prefetch={false}
                       data-navigation-selected={selected ? "true" : undefined}
+                      onFocus={() => scheduleNavigationPrefetch(href)}
+                      onPointerEnter={() => scheduleNavigationPrefetch(href)}
+                      onPointerLeave={() => cancelNavigationPrefetch(href)}
+                      onTouchStart={() => scheduleNavigationPrefetch(href)}
                       onNavigate={() => startNavigation(href, label)}
                       className={`relative flex h-16 w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                         selected
