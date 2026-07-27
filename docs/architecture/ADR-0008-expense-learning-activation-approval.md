@@ -1,6 +1,6 @@
 # ADR-0008 - Paquete de aprobacion de consentimiento y retencion
 
-- Estado: aprobacion interna registrada para consentimiento y retencion V1; no activa contribuciones
+- Estado: aprobacion interna registrada para consentimiento y retencion V1; servidor P4C3 activado de forma protegida; cliente pendiente
 - Fecha: 2026-07-23
 - Ambito: consentimiento separado, retencion, retirada e incentivo futuro del motor de aprendizaje de gastos
 
@@ -32,9 +32,11 @@ producto/empresa sobre este paquete V1. Esta aprobacion cubre exclusivamente:
   IA cuando esta se agote, sin saldo monetario ni acumulacion;
 - bloqueo de trafico real mientras falte cualquier gate de P4C3.
 
-La aprobacion interna no sustituye una revision legal externa ni autoriza por si
-sola `EXPENSE_LEARNING_INGESTION_ENABLED === "true"` o
-`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED === "true"`.
+La aprobacion interna no sustituye una revision legal externa. El 28 de julio
+de 2026 se autoriza y registra el primer paso operativo: servidor de ingesta
+P4C3 encendido con autenticacion obligatoria y cliente aun apagado. Activar
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED === "true"` requiere redeploy
+posterior y QA de flujo autenticado opt-in.
 
 ## Decision de consentimiento V1
 
@@ -71,6 +73,8 @@ Etiqueta de accion afirmativa:
 Detalle desplegable:
 
 > Cuando habilitemos las contribuciones, solo se enviaran categorias tecnicas acotadas despues de que revises y guardes un gasto. Nunca enviaremos el PDF, imagen, texto OCR, proveedor, NIF, cuenta bancaria, numero de factura, nombre de archivo, importes ni porcentajes exactos.
+>
+> Si las contribuciones ya estan habilitadas, la primera frase cambia a: Si activas esta preferencia, solo se enviaran categorias tecnicas acotadas despues de que revises y guardes un gasto. Nunca enviaremos el PDF, imagen, texto OCR, proveedor, NIF, cuenta bancaria, numero de factura, nombre de archivo, importes ni porcentajes exactos.
 >
 > Durante un maximo de 35 dias conservaremos vinculos protegidos para deduplicar, limitar abusos y poder retirar lo que siga separable. Las metricas semanales que superen los controles de soporte y reidentificacion pueden conservarse hasta 13 meses y no se presentan como anonimas.
 >
@@ -156,12 +160,11 @@ de:
 8. activacion gradual con rollback de flags documentado.
 
 Mientras falte cualquiera de esos puntos, el estado correcto es mantener
-apagados `EXPENSE_LEARNING_INGESTION_ENABLED` y
-`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED`. El flag
-`EXPENSE_LEARNING_CONSENT_ENABLED` puede permanecer encendido solo como
-preflight de consentimiento si el copy anterior esta publicado, la retirada es
-simetrica y las tablas de contribucion, raw, batches y metricas permanecen sin
-trafico real.
+apagado `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED`. El flag
+`EXPENSE_LEARNING_CONSENT_ENABLED` puede permanecer encendido como preflight de
+consentimiento. `EXPENSE_LEARNING_INGESTION_ENABLED` puede permanecer encendido
+solo si el servidor devuelve errores cerrados ante llamadas anonimas o
+malformadas, mantenimiento esta verde y no existe deuda `RETRY_REQUIRED`.
 
 ## Preflight operativo P4C3 del 27 de julio de 2026
 
@@ -210,3 +213,35 @@ Siguiente paso permitido tras cerrar esos dos puntos: habilitar solo
 mantenimiento real, comprobar rutas y confirmar que siguen en cero las tablas
 de raw/promocion salvo trafico de prueba autorizado. El wiring cliente queda
 bloqueado hasta un PR/operacion posterior.
+
+## Activacion servidor P4C3 del 28 de julio de 2026
+
+La evidencia sin PII queda registrada en
+[`expense-learning-p4c3-server-activation-2026-07-28.json`](expense-learning-p4c3-server-activation-2026-07-28.json).
+El gap de `schema_migrations` queda aceptado para este paso por evidencia real
+de objetos, ACL y runtime, sin reescribir historial parcial de migraciones: en
+produccion existen las tablas/RPC P1B-P5, `expense_learning_private` no concede
+acceso directo a roles API y no hay filas runtime protegidas.
+
+Estado operativo despues del redeploy:
+
+- `EXPENSE_LEARNING_CONSENT_ENABLED=true`.
+- `EXPENSE_LEARNING_INGESTION_ENABLED=true`.
+- `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false`.
+- `POST /api/expenses/learning-contribution` anonimo devuelve `401` privado
+  `no-store`, no `404`: la ruta ya esta disponible en servidor pero sigue
+  cerrada por bearer confirmado.
+- `GET /api/expenses/learning-consent` anonimo devuelve `401` privado
+  `no-store`.
+- `POST /api/expenses/learning-maintenance` anonimo devuelve `401` privado
+  `no-store`.
+- El workflow manual `expense-learning-maintenance.yml` paso sobre el mismo
+  `main` y no dejo deuda observable.
+
+El siguiente paso operativo autorizado es corregir/publicar el copy dinamico de
+cliente y, solo despues de merge/checks/QA, poner
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=true`, redeplegar y verificar un
+flujo autenticado opt-in sin PII. Si aparece error, deuda `RETRY_REQUIRED`,
+contadores runtime inesperados o copy incoherente, el rollback es volver a
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false` y redeplegar; si el problema
+esta en servidor, volver tambien `EXPENSE_LEARNING_INGESTION_ENABLED=false`.

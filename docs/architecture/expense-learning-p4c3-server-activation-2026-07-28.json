@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "expense-learning-p4c3-server-activation-v1",
+  "recordedAt": "2026-07-28T00:59:10+02:00",
+  "mainSha": "66bf253804d5b8887031c633b275ce5ac03d8995",
+  "productionDeployment": {
+    "deploymentId": "dpl_6W5sPvT1LoECkkBVoUjaNAWbSpS9",
+    "deploymentUrl": "factu-autonomo-dfinpc2wn-persianas-almar-web-s-projects.vercel.app",
+    "canonicalDomain": "facturacion-autonomos.app",
+    "sourceDeploymentId": "dpl_GHmWujCoQbKwNqwgscZJtHkFhoEK"
+  },
+  "decision": {
+    "migrationHistoryGate": "accepted_by_object_acl_and_runtime_evidence_without_rewriting_schema_migrations",
+    "gradualActivationModel": "server_ingestion_enabled_first_client_wiring_still_global_and_requires_separate_redeploy",
+    "reason": "production schema_migrations is historically partial beyond expense learning; object-level readback confirms P1B-P5 objects, ACL and runtime state"
+  },
+  "vercel": {
+    "flags": {
+      "EXPENSE_LEARNING_CONSENT_ENABLED": "true",
+      "EXPENSE_LEARNING_INGESTION_ENABLED": "true",
+      "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED": "false"
+    },
+    "hmacSecrets": {
+      "claimSecret": {
+        "canonical": true,
+        "characters": 43,
+        "decodedBytes": 32
+      },
+      "contributorSecret": {
+        "canonical": true,
+        "characters": 43,
+        "decodedBytes": 32
+      },
+      "distinct": true,
+      "valuesRecorded": false
+    }
+  },
+  "httpReadback": {
+    "home": {
+      "path": "/",
+      "status": 200,
+      "csp": true,
+      "hsts": true
+    },
+    "learningContributionAnonymous": {
+      "method": "POST",
+      "path": "/api/expenses/learning-contribution",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    },
+    "learningConsentAnonymous": {
+      "method": "GET",
+      "path": "/api/expenses/learning-consent",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    },
+    "learningMaintenanceAnonymous": {
+      "method": "POST",
+      "path": "/api/expenses/learning-maintenance",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    }
+  },
+  "supabase": {
+    "projectId": "rnbmkkzptxbvtchluqrx",
+    "objectsPresent": {
+      "privateSchema": true,
+      "consentTable": true,
+      "claimsTable": true,
+      "linksTable": true,
+      "limitsTable": true,
+      "membershipsTable": true,
+      "accumulatorsTable": true,
+      "promotedTable": true,
+      "batchesTable": true,
+      "consentGetRpc": true,
+      "consentSetRpc": true,
+      "submitRpc": true,
+      "promoteRpc": true,
+      "purgeRpc": true,
+      "readRpc": true
+    },
+    "runtimeRows": {
+      "claims": 0,
+      "links": 0,
+      "limits": 0,
+      "memberships": 0,
+      "accumulators": 0,
+      "promotedMetrics": 0,
+      "promotionBatches": 0
+    },
+    "consentDecisionRows": 2,
+    "acl": {
+      "privateSchemaUsageApiRoles": 0,
+      "privateTableApiGrants": 0,
+      "privateFunctionApiExecGrants": 0,
+      "publicLearningServiceExecuteGrants": 6
+    },
+    "visibleSchemaMigrations": [
+      "20260720133000",
+      "20260721190000",
+      "20260721190100"
+    ]
+  },
+  "workflowReadback": {
+    "mainCi": {
+      "runId": 30311569343,
+      "conclusion": "success"
+    },
+    "codeql": {
+      "runId": 30311568967,
+      "conclusion": "success"
+    },
+    "manualMaintenance": {
+      "runId": 30312041479,
+      "conclusion": "success",
+      "headSha": "66bf253804d5b8887031c633b275ce5ac03d8995"
+    }
+  },
+  "activationStatus": {
+    "consentPreflight": "enabled",
+    "serverIngestion": "enabled_protected",
+    "clientWiring": "not_enabled",
+    "nextSafeStep": "merge copy alignment, set NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=true, redeploy, then verify authenticated opt-in flow without PII"
+  }
+}
