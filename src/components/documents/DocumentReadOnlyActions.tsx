@@ -1,14 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
+import { DocumentActionLoadingPlaceholder } from "@/components/documents/DocumentActionLoadingPlaceholder";
 import { DocumentLinkBadges } from "@/components/documents/DocumentLinkBadges";
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { GenerateReceiptButton } from "@/components/documents/GenerateReceiptButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
-import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
-import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { useAppStore } from "@/context/AppStore";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { getDocumentIntegrityBlockedFeedback } from "@/lib/document-integrity/feedback";
@@ -31,6 +31,30 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   presupuesto: "presupuesto",
   recibo: "recibo",
 };
+
+const DocumentPdfShareActions = dynamic(
+  () =>
+    import("@/components/documents/DocumentPdfShareActions").then(
+      (module) => module.DocumentPdfShareActions,
+    ),
+  {
+    loading: () => (
+      <DocumentActionLoadingPlaceholder label="Preparando acciones de PDF" />
+    ),
+  },
+);
+
+const PaymentReminderButton = dynamic(
+  () =>
+    import("@/components/documents/PaymentReminderButton").then(
+      (module) => module.PaymentReminderButton,
+    ),
+  {
+    loading: () => (
+      <DocumentActionLoadingPlaceholder label="Preparando recordatorio" />
+    ),
+  },
+);
 
 interface DocumentReadOnlyActionsProps {
   doc: Document;

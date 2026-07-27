@@ -18,13 +18,12 @@ import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuote
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { DocumentRelationshipFlow } from "@/components/documents/DocumentRelationshipFlow";
 import { selectDocumentRelationshipPresentationItems } from "@/components/documents/document-relationship-presentation";
-import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { DocumentActionLoadingPlaceholder } from "@/components/documents/DocumentActionLoadingPlaceholder";
 import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { DuplicateDocumentButton } from "@/components/documents/DuplicateDocumentButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { GenerateReceiptButton } from "@/components/documents/GenerateReceiptButton";
-import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Card } from "@/components/ui/Card";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
@@ -145,6 +144,30 @@ const InvoiceRelationshipWorkspace = dynamic(
         />
         <span>Abriendo relaciones...</span>
       </div>
+    ),
+  },
+);
+
+const DocumentPdfShareActions = dynamic(
+  () =>
+    import("@/components/documents/DocumentPdfShareActions").then(
+      (module) => module.DocumentPdfShareActions,
+    ),
+  {
+    loading: () => (
+      <DocumentActionLoadingPlaceholder label="Preparando acciones de PDF" />
+    ),
+  },
+);
+
+const PaymentReminderButton = dynamic(
+  () =>
+    import("@/components/documents/PaymentReminderButton").then(
+      (module) => module.PaymentReminderButton,
+    ),
+  {
+    loading: () => (
+      <DocumentActionLoadingPlaceholder label="Preparando recordatorio" />
     ),
   },
 );

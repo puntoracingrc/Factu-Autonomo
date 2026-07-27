@@ -5,6 +5,14 @@ const source = readFileSync(
   new URL("./DocumentList.tsx", import.meta.url),
   "utf8",
 );
+const readOnlyActionsSource = readFileSync(
+  new URL("./DocumentReadOnlyActions.tsx", import.meta.url),
+  "utf8",
+);
+const loadingPlaceholderSource = readFileSync(
+  new URL("./DocumentActionLoadingPlaceholder.tsx", import.meta.url),
+  "utf8",
+);
 const pdfActionsSource = readFileSync(
   new URL("./DocumentPdfShareActions.tsx", import.meta.url),
   "utf8",
@@ -60,6 +68,37 @@ describe("carga diferida del listado de documentos", () => {
     expect(source).toContain('aria-live="polite"');
     expect(source).toContain("Abriendo relaciones...");
     expect(source).toContain("animate-spin");
+  });
+
+  it("carga acciones secundarias de documentos fuera del bundle inicial", () => {
+    for (const componentSource of [source, readOnlyActionsSource]) {
+      expect(componentSource).toContain('import dynamic from "next/dynamic";');
+      expect(componentSource).not.toContain(
+        'import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";',
+      );
+      expect(componentSource).not.toContain(
+        'import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";',
+      );
+      expect(componentSource).toContain(
+        'import("@/components/documents/DocumentPdfShareActions").then(',
+      );
+      expect(componentSource).toContain(
+        "(module) => module.DocumentPdfShareActions,",
+      );
+      expect(componentSource).toContain(
+        'import("@/components/documents/PaymentReminderButton").then(',
+      );
+      expect(componentSource).toContain(
+        "(module) => module.PaymentReminderButton,",
+      );
+      expect(componentSource).toContain("Preparando acciones de PDF");
+      expect(componentSource).toContain("Preparando recordatorio");
+    }
+
+    expect(loadingPlaceholderSource).toContain('role="status"');
+    expect(loadingPlaceholderSource).toContain("aria-label={label}");
+    expect(loadingPlaceholderSource).toContain("h-11 w-11");
+    expect(loadingPlaceholderSource).toContain("animate-spin");
   });
 
   it("carga el generador ZIP solo después de activar el estado ocupado", () => {
