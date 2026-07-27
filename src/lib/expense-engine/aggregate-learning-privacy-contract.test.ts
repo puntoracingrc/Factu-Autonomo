@@ -264,7 +264,13 @@ describe("expense aggregate learning privacy contract", () => {
       "ADR-0008-expense-learning-activation-approval.md",
     );
     expect(approvalPacket).toContain(
-      "aprobado para preflight de consentimiento",
+      "aprobacion interna registrada para consentimiento y retencion V1",
+    );
+    expect(approvalPacket).toContain(
+      "El 27 de julio de 2026 queda registrada la aprobacion interna",
+    );
+    expect(approvalPacket).toContain(
+      "consentimiento separado de escaneo, revision, guardado",
     );
     expect(approvalPacket).toContain("no activa contribuciones");
     expect(approvalPacket).toContain(
@@ -278,6 +284,7 @@ describe("expense aggregate learning privacy contract", () => {
     );
     expect(approvalPacket).toContain("`privacyPolicyVersion`: `2026-07-21`");
     expect(approvalPacket).toContain("un unico relleno mensual del 100 %");
+    expect(approvalPacket).toContain("sin saldo monetario ni acumulacion");
     expect(approvalPacket).toContain("24 horas");
     expect(approvalPacket).toContain("35 dias");
     expect(approvalPacket).toContain("13 meses");
@@ -289,6 +296,9 @@ describe("expense aggregate learning privacy contract", () => {
     );
     expect(approvalPacket).toContain(
       "ruta de ingesta devolviendo `404` con ingesta apagada",
+    );
+    expect(approvalPacket).toContain(
+      "aprobacion explicita de producto/empresa registrada en este paquete",
     );
     expect(approvalPacket).toContain(
       "puede permanecer encendido solo como\npreflight de consentimiento",

@@ -1,6 +1,6 @@
 # ADR-0008 - Paquete de aprobacion de consentimiento y retencion
 
-- Estado: aprobado para preflight de consentimiento; no activa contribuciones
+- Estado: aprobacion interna registrada para consentimiento y retencion V1; no activa contribuciones
 - Fecha: 2026-07-23
 - Ambito: consentimiento separado, retencion, retirada e incentivo futuro del motor de aprendizaje de gastos
 
@@ -17,6 +17,24 @@ puede presentarse como activacion del aprendizaje compartido. Mientras
 `EXPENSE_LEARNING_INGESTION_ENABLED` y
 `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` sigan apagados, la interfaz debe
 explicar que la preferencia no envia nada todavia.
+
+## Aprobacion interna de producto/empresa
+
+El 27 de julio de 2026 queda registrada la aprobacion interna de
+producto/empresa sobre este paquete V1. Esta aprobacion cubre exclusivamente:
+
+- consentimiento separado de escaneo, revision, guardado, cuota normal de IA,
+  sincronizacion y plan contratado;
+- retirada simetrica desde la misma preferencia o una accion equivalente;
+- texto visible de preflight y detalle desplegable;
+- plazos maximos de 24 horas, 35 dias y 13 meses descritos abajo;
+- incentivo futuro de un unico relleno mensual del 100 % de la cuota normal de
+  IA cuando esta se agote, sin saldo monetario ni acumulacion;
+- bloqueo de trafico real mientras falte cualquier gate de P4C3.
+
+La aprobacion interna no sustituye una revision legal externa ni autoriza por si
+sola `EXPENSE_LEARNING_INGESTION_ENABLED === "true"` o
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED === "true"`.
 
 ## Decision de consentimiento V1
 
@@ -134,7 +152,7 @@ de:
 4. secretos HMAC canonicos presentes y distintos en servidor;
 5. mantenimiento real verde con scheduler y sin `RETRY_REQUIRED`;
 6. texto de consentimiento y politica de privacidad publicados con esta version;
-7. aprobacion explicita de producto/legal sobre este paquete;
+7. aprobacion explicita de producto/empresa registrada en este paquete;
 8. activacion gradual con rollback de flags documentado.
 
 Mientras falte cualquiera de esos puntos, el estado correcto es mantener
