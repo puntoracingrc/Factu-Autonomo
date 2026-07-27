@@ -13,6 +13,7 @@ describe("app startup progressive loading", () => {
     expect(appShellSource).toContain("const workspaceLoading = !ready || !authReady");
     expect(appShellSource).toContain("Preparando tus datos. Puedes seguir navegando.");
     expect(appShellSource).toContain("dashboardVisualCache={dashboardVisualCache}");
+    expect(appShellSource).toContain("listVisualCache={listVisualCache}");
     expect(appShellSource).toContain("children");
     expect(appShellSource).not.toContain("!ready ? (");
     expect(appShellSource).not.toContain("Cargando tus datos");
@@ -37,8 +38,21 @@ describe("app startup progressive loading", () => {
     expect(appShellSource).toContain("Panel principal");
     expect(appShellSource).toContain("<HomeStartupSummaryPlaceholder snapshot={dashboardVisualCache} />");
     expect(appShellSource).toContain("readDashboardVisualCache");
+    expect(appShellSource).toContain("readListVisualCacheSnapshot");
     expect(appShellSource).toContain("Última vista, actualizando...");
     expect(appShellSource).toContain("Resumen del negocio");
     expect(appShellSource).toContain("Últimos documentos");
+  });
+
+  it("only shows Facturas and Gastos visual cache after session scope is known", () => {
+    expect(appShellSource).toContain('pathname === "/facturas"');
+    expect(appShellSource).toContain('pathname === "/gastos"');
+    expect(appShellSource).toContain("const [initialDemoMode] = useState(() => isDemoWorkspaceMode())");
+    expect(appShellSource).toContain('readListVisualCacheSnapshot("facturas", "local")');
+    expect(appShellSource).toContain('readListVisualCacheSnapshot("gastos", "local")');
+    expect(appShellSource).toContain("authReady || demoMode || initialDemoMode ? user?.id ?? \"local\" : null");
+    expect(appShellSource).toContain('if (!visualCacheScope)');
+    expect(appShellSource).toContain('writeListVisualCacheSnapshot(facturas, visualCacheScope)');
+    expect(appShellSource).toContain('writeListVisualCacheSnapshot(gastos, visualCacheScope)');
   });
 });
