@@ -36,6 +36,13 @@ describe("product dashboard home", () => {
     expect(component).toContain(
       "max-h-64 overflow-y-auto overscroll-contain pr-1",
     );
+    expect(component).toContain("recentBlocksReady");
+    expect(component).toContain("setRecentBlocksReady(false)");
+    expect(component).toContain("window.setTimeout");
+    expect(component).toContain("DeferredSummaryCardsPlaceholder");
+    expect(component).toContain('aria-busy="true"');
+    expect(component).toContain("Actualizando bloque del panel.");
+    expect(component).toContain("demoMode || !recentSummary");
     expect(component).toContain("Facturas pendientes de cobro");
     expect(component).toContain("icon={AlertCircle}");
     expect(component).toContain("<PaymentReminderButton");
