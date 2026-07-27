@@ -51,6 +51,11 @@ import {
   applyResolvedAppTheme,
   cacheAppThemePreference,
 } from "@/lib/app-theme-bootstrap";
+import {
+  readDashboardVisualCache,
+  type DashboardVisualCacheItem,
+  type DashboardVisualCacheSnapshot,
+} from "@/lib/dashboard-visual-cache";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -62,6 +67,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [factuDismissed, setFactuDismissed] = useState(false);
   const [pendingNavigation, setPendingNavigation] =
     useState<PendingAppNavigation | null>(null);
+  const [dashboardVisualCache, setDashboardVisualCache] =
+    useState<DashboardVisualCacheSnapshot | null>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);
   const previousPathnameRef = useRef(pathname);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
@@ -116,6 +123,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     syncSystemTheme();
     media.addEventListener("change", syncSystemTheme);
     return () => media.removeEventListener("change", syncSystemTheme);
+  }, []);
+
+  useEffect(() => {
+    setDashboardVisualCache(readDashboardVisualCache());
   }, []);
 
   useEffect(() => {
@@ -528,7 +539,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ) : null}
           {workspaceLoading ? (
-            <AppStartupMainContent pathname={pathname} />
+            <AppStartupMainContent
+              pathname={pathname}
+              dashboardVisualCache={dashboardVisualCache}
+            />
           ) : businessContentBlocked ? (
             <div aria-disabled="true" className="pointer-events-none opacity-55">
               {children}
@@ -611,7 +625,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AppStartupMainContent({ pathname }: { pathname: string }) {
+function AppStartupMainContent({
+  pathname,
+  dashboardVisualCache,
+}: {
+  pathname: string;
+  dashboardVisualCache: DashboardVisualCacheSnapshot | null;
+}) {
   const currentSection =
     APP_NAV_ITEMS.find(({ href, activeBase }) =>
       isAppNavItemActive(pathname, href, activeBase),
@@ -650,12 +670,24 @@ function AppStartupMainContent({ pathname }: { pathname: string }) {
         </div>
       </section>
 
-      {isHome ? <HomeStartupSummaryPlaceholder /> : <SectionStartupPlaceholder />}
+      {isHome ? (
+        <HomeStartupSummaryPlaceholder snapshot={dashboardVisualCache} />
+      ) : (
+        <SectionStartupPlaceholder />
+      )}
     </div>
   );
 }
 
-function HomeStartupSummaryPlaceholder() {
+function HomeStartupSummaryPlaceholder({
+  snapshot,
+}: {
+  snapshot: DashboardVisualCacheSnapshot | null;
+}) {
+  if (snapshot) {
+    return <DashboardVisualCachePreview snapshot={snapshot} />;
+  }
+
   return (
     <section className="space-y-4" aria-labelledby="startup-summary-title">
       <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
@@ -682,6 +714,144 @@ function HomeStartupSummaryPlaceholder() {
       </div>
     </section>
   );
+}
+
+function DashboardVisualCachePreview({
+  snapshot,
+}: {
+  snapshot: DashboardVisualCacheSnapshot;
+}) {
+  return (
+    <section className="space-y-4" aria-labelledby="startup-summary-title">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2
+              id="startup-summary-title"
+              className="text-lg font-bold text-slate-900"
+            >
+              Resumen del negocio
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              {snapshot.periodLabel} · Calculado {cachedAtLabel(snapshot)}
+            </p>
+          </div>
+          <div
+            role="status"
+            aria-live="polite"
+            className="inline-flex w-fit items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800"
+          >
+            <span className="h-2 w-2 rounded-full bg-amber-500 motion-safe:animate-pulse" />
+            Última vista, actualizando...
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <DashboardVisualMetric label="Facturado" value={snapshot.metrics.billed} />
+          <DashboardVisualMetric label="Cobrado" value={snapshot.metrics.collected} />
+          <DashboardVisualMetric label="Pendiente" value={snapshot.metrics.pending} />
+          <DashboardVisualMetric label="Gasto neto" value={snapshot.metrics.expenses} />
+          <DashboardVisualMetric label="Balance" value={snapshot.metrics.balance} />
+        </div>
+      </div>
+
+      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+        <DashboardVisualCacheCard
+          title="Últimos documentos"
+          emptyText="Aún no hay documentos."
+          items={snapshot.recentDocuments}
+        />
+        <DashboardVisualCacheCard
+          title="Últimos gastos"
+          emptyText="Aún no hay gastos."
+          items={snapshot.recentExpenses}
+        />
+        <DashboardVisualCacheCard
+          title="Pendientes de cobro"
+          emptyText="TODO COBRADO :)"
+          items={snapshot.pendingInvoices}
+          highlighted={snapshot.pendingInvoices.length > 0}
+        />
+      </div>
+    </section>
+  );
+}
+
+function DashboardVisualMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl bg-slate-50 px-3 py-2">
+      <p className="truncate text-xs font-bold text-slate-500">{label}</p>
+      <p className="mt-1 truncate text-sm font-bold tabular-nums text-slate-950">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function DashboardVisualCacheCard({
+  title,
+  emptyText,
+  items,
+  highlighted = false,
+}: {
+  title: string;
+  emptyText: string;
+  items: DashboardVisualCacheItem[];
+  highlighted?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border bg-white p-4 shadow-sm ${
+        highlighted
+          ? "border-orange-300 ring-1 ring-orange-100"
+          : "border-slate-200"
+      }`}
+    >
+      <p className="text-sm font-bold text-slate-900">{title}</p>
+      <div className="mt-3 space-y-2">
+        {items.length === 0 ? (
+          <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-500">
+            {emptyText}
+          </p>
+        ) : (
+          items.map((item) => (
+            <div
+              key={item.id}
+              className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-slate-900">
+                  {item.title}
+                </span>
+                <span className="block truncate text-[11px] text-slate-500">
+                  {item.detail}
+                </span>
+              </span>
+              <span className="shrink-0 text-sm font-bold tabular-nums text-slate-800">
+                {item.amount}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function cachedAtLabel(snapshot: DashboardVisualCacheSnapshot): string {
+  const date = new Date(snapshot.savedAt);
+  if (Number.isNaN(date.getTime())) return "en la última sesión";
+  return date.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function SectionStartupPlaceholder() {

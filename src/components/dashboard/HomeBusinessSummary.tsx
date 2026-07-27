@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -23,6 +23,12 @@ import {
   type ProductBusinessSummary,
 } from "@/lib/product-business-summary";
 import {
+  buildDashboardVisualCacheSnapshot,
+  hasDashboardVisualCacheChanges,
+  readDashboardVisualCache,
+  writeDashboardVisualCache,
+} from "@/lib/dashboard-visual-cache";
+import {
   PRODUCT_MONTH_NAMES,
   PRODUCT_QUARTERS,
   availableProductPeriodYears,
@@ -34,6 +40,7 @@ import {
 } from "@/lib/product-period-summary";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { expenseTotals } from "@/lib/expenses";
+import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import type { AppData, Document, Expense } from "@/lib/types";
 
 interface HomeBusinessSummaryProps {
@@ -57,6 +64,8 @@ interface FlowSegment {
 
 export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
   const [expanded, setExpanded] = useState(true);
+  const [cacheUpdateDetected, setCacheUpdateDetected] = useState(false);
+  const demoMode = useDemoWorkspaceMode();
   const [period, setPeriod] = useState<ProductPeriodSelection>(() => ({
     ...getDefaultProductPeriod(),
     kind: "quarter",
@@ -71,6 +80,28 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
   );
   const summary = periodSummary.business;
   const recentSummary = useMemo(() => buildProductBusinessSummary(data), [data]);
+
+  useEffect(() => {
+    if (demoMode) return;
+
+    const previous = readDashboardVisualCache();
+    const next = buildDashboardVisualCacheSnapshot(
+      data,
+      period,
+      periodSummary,
+      recentSummary,
+    );
+    const changed = hasDashboardVisualCacheChanges(previous, next);
+    writeDashboardVisualCache(next);
+
+    if (!changed) return;
+    setCacheUpdateDetected(true);
+    const timeout = window.setTimeout(() => {
+      setCacheUpdateDetected(false);
+    }, 3500);
+
+    return () => window.clearTimeout(timeout);
+  }, [data, demoMode, period, periodSummary, recentSummary]);
 
   function updatePeriod(patch: Partial<ProductPeriodSelection>) {
     setPeriod((current) => ({ ...current, ...patch }));
@@ -113,6 +144,16 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
             {expanded ? "Ocultar resumen" : "Mostrar resumen"}
           </Button>
         </div>
+        {cacheUpdateDetected ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
+            Cambios detectados, actualizando...
+          </div>
+        ) : null}
         {expanded && (
           <PeriodSelector
             period={period}

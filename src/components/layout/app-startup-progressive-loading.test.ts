@@ -12,7 +12,7 @@ describe("app startup progressive loading", () => {
   it("keeps the app shell and navigation available while startup data resolves", () => {
     expect(appShellSource).toContain("const workspaceLoading = !ready || !authReady");
     expect(appShellSource).toContain("Preparando tus datos. Puedes seguir navegando.");
-    expect(appShellSource).toContain("<AppStartupMainContent pathname={pathname} />");
+    expect(appShellSource).toContain("dashboardVisualCache={dashboardVisualCache}");
     expect(appShellSource).toContain("children");
     expect(appShellSource).not.toContain("!ready ? (");
     expect(appShellSource).not.toContain("Cargando tus datos");
@@ -35,7 +35,9 @@ describe("app startup progressive loading", () => {
 
   it("renders dashboard placeholders from the shell instead of blocking the app content area", () => {
     expect(appShellSource).toContain("Panel principal");
-    expect(appShellSource).toContain("<HomeStartupSummaryPlaceholder />");
+    expect(appShellSource).toContain("<HomeStartupSummaryPlaceholder snapshot={dashboardVisualCache} />");
+    expect(appShellSource).toContain("readDashboardVisualCache");
+    expect(appShellSource).toContain("Última vista, actualizando...");
     expect(appShellSource).toContain("Resumen del negocio");
     expect(appShellSource).toContain("Últimos documentos");
   });
