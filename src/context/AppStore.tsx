@@ -22,6 +22,7 @@ import type {
   RecurringExpense,
   UserReminder,
 } from "@/lib/types";
+import type { CentralInvoiceAuthorityFormIssueIdentity } from "@/lib/central-invoice-authority/form-canary-client";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -385,6 +386,11 @@ interface AppStoreValue {
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
+  ) => Document;
+  addDocumentWithCentralIdentity: (
+    doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
+    identity: CentralInvoiceAuthorityFormIssueIdentity,
+    options?: { localDocumentId?: string },
   ) => Document;
   issueDocument: (id: string) => Promise<Document>;
   markDocumentSent: (id: string) => Document | null;
@@ -1292,6 +1298,71 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         };
       });
       if (!created) throw new Error("No se pudo crear el documento");
+      return created;
+    },
+    [setAppData],
+  );
+
+  const addDocumentWithCentralIdentity = useCallback(
+    (
+      doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
+      identity: CentralInvoiceAuthorityFormIssueIdentity,
+      options: { localDocumentId?: string } = {},
+    ): Document => {
+      if (doc.type !== "factura" || doc.status === "borrador") {
+        throw new Error(
+          "La identidad central solo se aplica al emitir facturas.",
+        );
+      }
+      if (
+        (doc.rectification && identity.kind !== "factura_rectificativa") ||
+        (!doc.rectification && identity.kind !== "factura")
+      ) {
+        throw new Error(
+          "La identidad central no coincide con la serie del documento.",
+        );
+      }
+
+      let created: Document | null = null;
+      setAppData((prev) => {
+        const now = new Date().toISOString();
+        const createdDraft: Document = {
+          ...doc,
+          status: "borrador",
+          id: options.localDocumentId ?? newId(),
+          number: identity.fullNumber,
+          createdAt: now,
+          updatedAt: now,
+        };
+        created = saveEditableDocument(
+          createdDraft,
+          { ...createdDraft, status: doc.status },
+          prev.profile,
+          now,
+        );
+        const nextDocuments = [...prev.documents, created];
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            numbering: bumpNumberingAfterAssign(
+              prev.profile.numbering,
+              identity.kind,
+              identity.fiscalYear,
+              identity.sequence,
+            ),
+          },
+          documents: nextDocuments,
+          counters: countersFromDocuments(
+            nextDocuments,
+            identity.fiscalYear,
+            prev.profile.numbering,
+          ),
+        };
+      });
+      if (!created) {
+        throw new Error("No se pudo crear el documento con identidad central");
+      }
       return created;
     },
     [setAppData],
@@ -2684,6 +2755,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       updateProfile,
       addDocument,
+      addDocumentWithCentralIdentity,
       issueDocument,
       markDocumentSent,
       addRectificativa,
@@ -2756,6 +2828,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       updateProfile,
       addDocument,
+      addDocumentWithCentralIdentity,
       issueDocument,
       markDocumentSent,
       addRectificativa,

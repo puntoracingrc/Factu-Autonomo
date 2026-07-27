@@ -1,0 +1,46 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const source = readFileSync("src/context/AppStore.tsx", "utf8");
+
+function functionSource(name: string, nextName: string): string {
+  const start = source.indexOf(`const ${name}`);
+  const end = source.indexOf(`const ${nextName}`, start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return source.slice(start, end);
+}
+
+describe("central invoice authority form store bridge", () => {
+  it("expone una escritura separada para identidad central sin reasignar numero local", () => {
+    const bridge = functionSource(
+      "addDocumentWithCentralIdentity",
+      "updateDocument",
+    );
+
+    expect(source).toContain("addDocumentWithCentralIdentity:");
+    expect(source).toContain("addDocumentWithCentralIdentity,");
+    expect(bridge).toContain("identity.fullNumber");
+    expect(bridge).toContain("identity.kind");
+    expect(bridge).toContain("identity.fiscalYear");
+    expect(bridge).toContain("identity.sequence");
+    expect(bridge).toContain("options.localDocumentId");
+    expect(bridge).toContain("bumpNumberingAfterAssign");
+    expect(bridge).not.toContain("assignNextDocumentNumber");
+  });
+
+  it("rechaza borradores y series incompatibles antes de tocar el store", () => {
+    const bridge = functionSource(
+      "addDocumentWithCentralIdentity",
+      "updateDocument",
+    );
+
+    expect(bridge).toContain('doc.status === "borrador"');
+    expect(bridge).toContain('doc.type !== "factura"');
+    expect(bridge).toContain('identity.kind !== "factura_rectificativa"');
+    expect(bridge).toContain('identity.kind !== "factura"');
+    expect(bridge.indexOf("throw new Error")).toBeLessThan(
+      bridge.indexOf("setAppData"),
+    );
+  });
+});
