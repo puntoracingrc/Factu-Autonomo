@@ -80,10 +80,13 @@ const allowedLocalIssueRpcMigration =
   "20260727181804_central_invoice_authority_issue_rpc.sql";
 const allowedMaterializedSnapshotMigration =
   "20260727190823_central_invoice_authority_materialized_snapshot.sql";
+const allowedOutboxPullMigration =
+  "20260727193609_central_invoice_authority_outbox_pull.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
   allowedMaterializedSnapshotMigration,
+  allowedOutboxPullMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -174,6 +177,28 @@ if (centralMigrations.includes(allowedMaterializedSnapshotMigration)) {
   );
   assert.doesNotMatch(localMaterializedSnapshot, /\buser_backups\b/i);
   assert.doesNotMatch(localMaterializedSnapshot, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedOutboxPullMigration)) {
+  const localOutboxPull = read(
+    `supabase/migrations/${allowedOutboxPullMigration}`,
+  );
+  assert.match(localOutboxPull, /CENTRAL_INVOICE_AUTHORITY_OUTBOX_PULL_V1/);
+  assert.match(
+    localOutboxPull,
+    /create\s+or\s+replace\s+function\s+public\.list_central_invoice_events_v1/i,
+  );
+  assert.match(localOutboxPull, /\bsecurity\s+definer\b/i);
+  assert.match(localOutboxPull, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(localOutboxPull, /auth\.role\(\)\s*<>\s*'service_role'/i);
+  assert.doesNotMatch(
+    localOutboxPull,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(localOutboxPull, /\bupdate\s+public\.(?!central_invoice_)/i);
+  assert.doesNotMatch(localOutboxPull, /\binsert\s+into\s+public\.(?!central_invoice_)/i);
+  assert.doesNotMatch(localOutboxPull, /\buser_backups\b/i);
+  assert.doesNotMatch(localOutboxPull, /\bsync_entities\b/i);
 }
 
 runBin("npx", [
