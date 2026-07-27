@@ -162,3 +162,51 @@ apagados `EXPENSE_LEARNING_INGESTION_ENABLED` y
 preflight de consentimiento si el copy anterior esta publicado, la retirada es
 simetrica y las tablas de contribucion, raw, batches y metricas permanecen sin
 trafico real.
+
+## Preflight operativo P4C3 del 27 de julio de 2026
+
+El preflight sin PII queda registrado en
+[`expense-learning-p4c3-preflight-2026-07-27.json`](expense-learning-p4c3-preflight-2026-07-27.json).
+Se ejecuto sobre `main` `f81a1e879315793fea6818da96c609de7ac23dd5`, despues
+del cierre de rendimiento `/gastos` #880.
+
+Resultado aprobado para preparacion, no para trafico real:
+
+- `EXPENSE_LEARNING_CONSENT_ENABLED` permanece en `true` como preflight de
+  consentimiento.
+- `EXPENSE_LEARNING_INGESTION_ENABLED` permanece en `false`.
+- `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` permanece en `false`.
+- Se rotaron los dos secretos HMAC de produccion a valores `Sensitive`,
+  independientes, base64url canonicos sin padding, 43 caracteres y 32 bytes
+  decodificados. Los valores no se registran.
+- Se redeplego el mismo codigo de produccion para que las funciones server lean
+  esos secretos nuevos y se reasigno el dominio canonico
+  `facturacion-autonomos.app`.
+- La ruta de ingesta sigue devolviendo `404` privado con ingesta apagada; la
+  ruta de consentimiento anonima devuelve `401` privado; mantenimiento anonimo
+  devuelve `401` privado.
+- El workflow real `expense-learning-maintenance.yml` paso en `main` despues
+  del redeploy y no dejo `RETRY_REQUIRED` observable.
+- Las tablas protegidas de claims, vinculos, limites, memberships,
+  acumuladores, metricas promovidas y markers siguen con cero filas.
+
+Bloqueos que impiden activar cliente o abrir trafico general:
+
+- El inventario de objetos de Supabase confirma las tablas/RPC P1B-P5 y las ACL
+  cerradas, pero `schema_migrations` de produccion sigue mostrando solo las
+  migraciones cloud `20260720133000`, `20260721190000` y `20260721190100`.
+  Antes de `EXPENSE_LEARNING_INGESTION_ENABLED === "true"` debe reconciliarse
+  ese historial o registrarse una aceptacion explicita de evidencia por objetos
+  y ACL reales.
+- El flag `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` es global de build, no
+  un canary por cuenta. La activacion gradual V1 solo puede empezar con servidor
+  habilitado y cliente apagado; para activar clientes de forma realmente gradual
+  hace falta un gate adicional por cohorte/cuenta o una aprobacion explicita de
+  activacion global.
+
+Siguiente paso permitido tras cerrar esos dos puntos: habilitar solo
+`EXPENSE_LEARNING_INGESTION_ENABLED === "true"`, mantener
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED === "false"`, redeplegar, repetir
+mantenimiento real, comprobar rutas y confirmar que siguen en cero las tablas
+de raw/promocion salvo trafico de prueba autorizado. El wiring cliente queda
+bloqueado hasta un PR/operacion posterior.

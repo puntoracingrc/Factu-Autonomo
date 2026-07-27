@@ -45,6 +45,37 @@ const approvalPacket = readFileSync(
   ),
   "utf8",
 );
+const p4c3Preflight = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../docs/architecture/expense-learning-p4c3-preflight-2026-07-27.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as {
+  schemaVersion: string;
+  vercel: {
+    flags: Record<string, string>;
+    hmacSecrets: {
+      claimSecret: { characters: number; decodedBytes: number };
+      contributorSecret: { characters: number; decodedBytes: number };
+      distinct: boolean;
+      valuesRecorded: boolean;
+    };
+  };
+  supabase: {
+    migrationHistoryGate: string;
+    runtimeRows: Record<string, number>;
+  };
+  activationStatus: {
+    consentPreflight: string;
+    serverIngestion: string;
+    clientWiring: string;
+    reason: string;
+    nextSafeStep: string;
+  };
+};
 
 function observation() {
   return {
@@ -305,6 +336,68 @@ describe("expense aggregate learning privacy contract", () => {
     );
     expect(approvalPacket).toContain("no debe usar casillas premarcadas");
     expect(approvalPacket).not.toMatch(/garantiza anonimato|cumple (?:con )?el RGPD/iu);
+  });
+
+  it("registra el preflight P4C3 sin habilitar ingesta ni wiring cliente", () => {
+    expect(approvalPacket).toContain(
+      "Preflight operativo P4C3 del 27 de julio de 2026",
+    );
+    expect(approvalPacket).toContain(
+      "expense-learning-p4c3-preflight-2026-07-27.json",
+    );
+    expect(approvalPacket).toContain(
+      "`EXPENSE_LEARNING_INGESTION_ENABLED` permanece en `false`",
+    );
+    expect(approvalPacket).toContain(
+      "`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` permanece en `false`",
+    );
+    expect(approvalPacket).toContain("schema_migrations");
+    expect(approvalPacket).toMatch(/no\s+un canary por cuenta/u);
+    expect(approvalPacket).toMatch(
+      /habilitar solo\s+`EXPENSE_LEARNING_INGESTION_ENABLED === "true"`/u,
+    );
+
+    expect(p4c3Preflight.schemaVersion).toBe(
+      "expense-learning-p4c3-production-preflight-v1",
+    );
+    expect(p4c3Preflight.vercel.flags).toMatchObject({
+      EXPENSE_LEARNING_CONSENT_ENABLED: "true",
+      EXPENSE_LEARNING_INGESTION_ENABLED: "false",
+      NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED: "false",
+    });
+    expect(p4c3Preflight.vercel.hmacSecrets.claimSecret).toMatchObject({
+      characters: 43,
+      decodedBytes: 32,
+    });
+    expect(p4c3Preflight.vercel.hmacSecrets.contributorSecret).toMatchObject({
+      characters: 43,
+      decodedBytes: 32,
+    });
+    expect(p4c3Preflight.vercel.hmacSecrets.distinct).toBe(true);
+    expect(p4c3Preflight.vercel.hmacSecrets.valuesRecorded).toBe(false);
+    expect(p4c3Preflight.supabase.migrationHistoryGate).toBe(
+      "blocked_pending_reconciliation_or_explicit_object_level_acceptance",
+    );
+    expect(Object.values(p4c3Preflight.supabase.runtimeRows)).toEqual(
+      expect.arrayContaining([0]),
+    );
+    const runtimeCounts = Object.values(p4c3Preflight.supabase.runtimeRows);
+    expect(runtimeCounts.every((count) => count === 0)).toBe(true);
+    expect(p4c3Preflight.activationStatus).toMatchObject({
+      consentPreflight: "enabled",
+      serverIngestion: "not_enabled",
+      clientWiring: "not_enabled",
+    });
+    expect(p4c3Preflight.activationStatus.reason).toContain(
+      "schema_migrations",
+    );
+    expect(p4c3Preflight.activationStatus.reason).toContain("global");
+    expect(p4c3Preflight.activationStatus.nextSafeStep).toContain(
+      "EXPENSE_LEARNING_INGESTION_ENABLED",
+    );
+    expect(p4c3Preflight.activationStatus.nextSafeStep).toContain(
+      "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false",
+    );
   });
 });
 
