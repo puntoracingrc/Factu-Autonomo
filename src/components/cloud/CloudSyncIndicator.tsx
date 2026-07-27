@@ -37,6 +37,39 @@ function shouldShowIndicator(
   );
 }
 
+function pendingChangesText(count: number): string {
+  return count === 1 ? "1 cambio" : `${count} cambios`;
+}
+
+function cloudSyncButtonTitle(
+  syncStatus: SyncStatus,
+  pendingChangeCount: number,
+  syncMessage: string | null,
+): string {
+  if (syncStatus === "offline") {
+    return pendingChangeCount > 0
+      ? `${pendingChangesText(pendingChangeCount)} guardado en este dispositivo. Se subirá cuando vuelva internet.`
+      : "Sin conexión. Puedes seguir trabajando; lo local se sincronizará al volver internet.";
+  }
+  if (syncStatus === "pending" && pendingChangeCount > 0) {
+    return `${pendingChangesText(pendingChangeCount)} guardado en este dispositivo. Pendiente de subir a la nube.`;
+  }
+  return syncMessage ?? "Sincronizar con la nube";
+}
+
+function cloudSyncButtonLabel(
+  syncStatus: SyncStatus,
+  pendingChangeCount: number,
+): string {
+  const hasCount = pendingChangeCount > 0;
+
+  if (syncStatus === "syncing") return "Subiendo...";
+  if (syncStatus === "offline") return hasCount ? "Guardado local" : "Sin red";
+  if (syncStatus === "error") return "Reintentar";
+  if (hasCount) return "Guardado local";
+  return "Subir";
+}
+
 export function CloudSyncHeaderIndicator() {
   const cloudAvailable = useCloudIndicatorAvailability();
   const {
@@ -68,7 +101,6 @@ export function CloudSyncHeaderIndicator() {
   const isSyncing = syncStatus === "syncing";
   const isOffline = syncStatus === "offline";
   const isError = syncStatus === "error";
-  const hasCount = pendingChangeCount > 0;
 
   if (syncIssue?.recovery === "review_account") {
     return (
@@ -90,7 +122,7 @@ export function CloudSyncHeaderIndicator() {
       type="button"
       onClick={() => void syncNow()}
       disabled={isSyncing || isOffline}
-      title={syncMessage ?? "Sincronizar con la nube"}
+      title={cloudSyncButtonTitle(syncStatus, pendingChangeCount, syncMessage)}
       className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 min-[430px]:min-w-0 ${
         isError
           ? "bg-red-100 text-red-800 hover:bg-red-200"
@@ -111,17 +143,7 @@ export function CloudSyncHeaderIndicator() {
         <CloudUpload className="h-3.5 w-3.5" />
       )}
       <span className="hidden whitespace-nowrap min-[430px]:inline">
-        {isSyncing
-          ? "Subiendo…"
-          : isOffline
-            ? hasCount
-              ? `${pendingChangeCount} en cola`
-              : "Sin red"
-            : isError
-              ? "Reintentar"
-              : hasCount
-                ? `${pendingChangeCount} pendiente${pendingChangeCount === 1 ? "" : "s"}`
-                : "Subir"}
+        {cloudSyncButtonLabel(syncStatus, pendingChangeCount)}
       </span>
     </button>
   );
@@ -245,15 +267,13 @@ export function CloudSyncPendingBanner() {
         >
           {syncStatus === "offline" ? (
             <>
-              <strong>{pendingChangeCount}</strong> cambio
-              {pendingChangeCount === 1 ? "" : "s"} en cola — se subirán al
-              volver internet.
+              <strong>{pendingChangesText(pendingChangeCount)}</strong>{" "}
+              guardado en este dispositivo. Se subirá cuando vuelva internet.
             </>
           ) : (
             <>
-              <strong>{pendingChangeCount}</strong> cambio
-              {pendingChangeCount === 1 ? "" : "s"} sin subir a la nube (solo lo
-              modificado).
+              <strong>{pendingChangesText(pendingChangeCount)}</strong>{" "}
+              guardado en este dispositivo. Pendiente de subir a la nube.
             </>
           )}
         </p>

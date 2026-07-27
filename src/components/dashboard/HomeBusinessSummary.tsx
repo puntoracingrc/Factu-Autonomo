@@ -65,6 +65,7 @@ interface FlowSegment {
 export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
   const [expanded, setExpanded] = useState(true);
   const [cacheUpdateDetected, setCacheUpdateDetected] = useState(false);
+  const [recentBlocksReady, setRecentBlocksReady] = useState(false);
   const demoMode = useDemoWorkspaceMode();
   const [period, setPeriod] = useState<ProductPeriodSelection>(() => ({
     ...getDefaultProductPeriod(),
@@ -79,10 +80,27 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
     [data, period],
   );
   const summary = periodSummary.business;
-  const recentSummary = useMemo(() => buildProductBusinessSummary(data), [data]);
+  const recentSummary = useMemo(
+    () => (recentBlocksReady ? buildProductBusinessSummary(data) : null),
+    [data, recentBlocksReady],
+  );
 
   useEffect(() => {
-    if (demoMode) return;
+    if (!expanded) {
+      setRecentBlocksReady(false);
+      return;
+    }
+
+    setRecentBlocksReady(false);
+    const timeout = window.setTimeout(() => {
+      setRecentBlocksReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [data, expanded]);
+
+  useEffect(() => {
+    if (demoMode || !recentSummary) return;
 
     const previous = readDashboardVisualCache();
     const next = buildDashboardVisualCacheSnapshot(
@@ -168,13 +186,49 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
           <BusinessFlowChart summary={summary} />
 
           <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-            <RecentDocumentsCard data={data} summary={recentSummary} />
-            <RecentExpensesCard data={data} summary={recentSummary} />
-            <PendingInvoicesCard data={data} summary={recentSummary} />
+            {recentSummary ? (
+              <>
+                <RecentDocumentsCard data={data} summary={recentSummary} />
+                <RecentExpensesCard data={data} summary={recentSummary} />
+                <PendingInvoicesCard data={data} summary={recentSummary} />
+              </>
+            ) : (
+              <DeferredSummaryCardsPlaceholder />
+            )}
           </div>
         </div>
       )}
     </section>
+  );
+}
+
+function DeferredSummaryCardsPlaceholder() {
+  return (
+    <>
+      <DeferredSummaryCard icon={FileText} title="Últimos documentos" />
+      <DeferredSummaryCard icon={ShoppingCart} title="Últimos gastos" />
+      <DeferredSummaryCard icon={AlertCircle} title="Pendientes de cobro" />
+    </>
+  );
+}
+
+function DeferredSummaryCard({
+  icon,
+  title,
+}: {
+  icon: typeof FileText;
+  title: string;
+}) {
+  return (
+    <Card className="min-h-[10.5rem] min-w-0 p-4" aria-busy="true">
+      <SectionTitle icon={icon} title={title} />
+      <div className="mt-4 space-y-2" aria-hidden="true">
+        <span className="block h-9 rounded-xl bg-slate-100 motion-safe:animate-pulse" />
+        <span className="block h-9 rounded-xl bg-slate-100 motion-safe:animate-pulse" />
+        <span className="block h-9 rounded-xl bg-slate-100 motion-safe:animate-pulse" />
+      </div>
+      <p className="sr-only">Actualizando bloque del panel.</p>
+    </Card>
   );
 }
 
