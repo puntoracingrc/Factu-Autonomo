@@ -62,10 +62,12 @@ describe("expense VAT page fail-closed wiring", () => {
       "const blockedExportExpenseCount = countBlockedExpenseVat(",
     );
     expect(page).toContain("expensesForExport,");
-    expect(page).toContain(
-      "if (blockedExportExpenseCount > 0 || expensesForExport.length === 0) return;",
+    expect(page).toMatch(
+      /if\s*\(\s*expenseCsvBusy\s*\|\|\s*blockedExportExpenseCount > 0\s*\|\|\s*expensesForExport\.length === 0\s*\)/,
     );
-    expect(page).toContain("disabled={blockedExportExpenseCount > 0}");
+    expect(page).toContain(
+      "disabled={blockedExportExpenseCount > 0 || expenseCsvBusy}",
+    );
     expect(page).toContain("con evidencia fiscal");
   });
 
