@@ -1,6 +1,6 @@
 # ADR-0008 - Paquete de aprobacion de consentimiento y retencion
 
-- Estado: aprobacion interna registrada para consentimiento y retencion V1; servidor P4C3 activado de forma protegida; cliente pendiente
+- Estado: aprobacion interna registrada para consentimiento y retencion V1; P4C3 activado con servidor y wiring cliente, sujeto a consentimiento opt-in por cuenta
 - Fecha: 2026-07-23
 - Ambito: consentimiento separado, retencion, retirada e incentivo futuro del motor de aprendizaje de gastos
 
@@ -16,7 +16,9 @@ contribuciones, no ejecuta wiring cliente, no concede el incentivo mensual y no
 puede presentarse como activacion del aprendizaje compartido. Mientras
 `EXPENSE_LEARNING_INGESTION_ENABLED` y
 `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` sigan apagados, la interfaz debe
-explicar que la preferencia no envia nada todavia.
+explicar que la preferencia no envia nada todavia. Cuando ambos flags estan
+encendidos, la interfaz debe explicar que solo se enviaran senales tecnicas si
+la cuenta autenticada activa expresamente la preferencia.
 
 ## Aprobacion interna de producto/empresa
 
@@ -37,6 +39,12 @@ de 2026 se autoriza y registra el primer paso operativo: servidor de ingesta
 P4C3 encendido con autenticacion obligatoria y cliente aun apagado. Activar
 `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED === "true"` requiere redeploy
 posterior y QA de flujo autenticado opt-in.
+
+El 28 de julio de 2026 queda autorizada y registrada la activacion global V1 del
+wiring cliente, tras cerrar el gap de migraciones por evidencia de objetos/ACL
+reales y aceptar que el primer despliegue no sera un canary por cuenta. La
+ingesta efectiva sigue condicionada a consentimiento `GRANTED` vigente de cada
+cuenta, gasto guardado correctamente y mantenimiento P4C verde.
 
 ## Decision de consentimiento V1
 
@@ -238,10 +246,38 @@ Estado operativo despues del redeploy:
 - El workflow manual `expense-learning-maintenance.yml` paso sobre el mismo
   `main` y no dejo deuda observable.
 
-El siguiente paso operativo autorizado es corregir/publicar el copy dinamico de
-cliente y, solo despues de merge/checks/QA, poner
-`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=true`, redeplegar y verificar un
-flujo autenticado opt-in sin PII. Si aparece error, deuda `RETRY_REQUIRED`,
-contadores runtime inesperados o copy incoherente, el rollback es volver a
-`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false` y redeplegar; si el problema
-esta en servidor, volver tambien `EXPENSE_LEARNING_INGESTION_ENABLED=false`.
+## Activacion cliente P4C3 del 28 de julio de 2026
+
+La evidencia sin PII queda registrada en
+[`expense-learning-p4c3-client-activation-2026-07-28.json`](expense-learning-p4c3-client-activation-2026-07-28.json).
+Despues de fusionar el copy dinamico de consentimiento y cerrar los gates de
+`main` acumulativo `8cab1c4910023f528c60d2e5feba6595ba00497f`, se activo
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=true` en Vercel Production y se
+redeplego produccion para reconstruir el bundle cliente.
+
+Estado operativo tras la activacion:
+
+- `EXPENSE_LEARNING_CONSENT_ENABLED=true`.
+- `EXPENSE_LEARNING_INGESTION_ENABLED=true`.
+- `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=true`.
+- El dominio canonico `facturacion-autonomos.app` apunta al deployment
+  `dpl_HSuk3X6jtx3HDUwcKcWouXVWecza`.
+- El bundle de produccion contiene el copy activo "Si activas esta preferencia"
+  y no contiene el copy dormido "Por ahora esta preferencia no envia
+  contribuciones".
+- Las rutas anonimas de ingesta, consentimiento y mantenimiento siguen
+  devolviendo `401` privado `no-store` con `Vary: Authorization`.
+- El workflow manual `expense-learning-maintenance.yml` paso sobre el mismo
+  `main` y el readback de Supabase conserva cero filas runtime protegidas en
+  claims, links, limits, memberships, accumulators, metrics y batches.
+
+Esta activacion no concede automaticamente consentimiento a ninguna cuenta, no
+ejecuta lotes historicos y no implementa aun el incentivo de relleno mensual:
+ese incentivo sigue reservado para un bloque separado de billing.
+
+El seguimiento operativo de esta activacion debe vigilar mantenimiento P4C,
+contadores runtime protegidos, errores de ingesta y copy visible. Si aparece
+error, deuda `RETRY_REQUIRED`, contadores runtime inesperados o copy incoherente,
+el rollback es volver a `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED=false` y
+redeplegar; si el problema esta en servidor, volver tambien
+`EXPENSE_LEARNING_INGESTION_ENABLED=false`.

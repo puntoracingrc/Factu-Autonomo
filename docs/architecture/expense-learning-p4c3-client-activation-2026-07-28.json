@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "expense-learning-p4c3-client-activation-evidence.v1",
+  "capturedAt": "2026-07-28T01:50:00+02:00",
+  "scope": "production",
+  "main": {
+    "sha": "8cab1c4910023f528c60d2e5feba6595ba00497f",
+    "ciRun": "30314633757",
+    "qualityJob": "90137585305",
+    "supabaseAcceptanceJob": "90137585312",
+    "productionDomainJob": "90138601946",
+    "codeqlRun": "30314633487"
+  },
+  "vercel": {
+    "project": "persianas-almar-web-s-projects/factu-autonomo",
+    "canonicalDomain": "facturacion-autonomos.app",
+    "deploymentId": "dpl_HSuk3X6jtx3HDUwcKcWouXVWecza",
+    "deploymentUrl": "https://factu-autonomo-hqze4gc90-persianas-almar-web-s-projects.vercel.app"
+  },
+  "flags": {
+    "EXPENSE_LEARNING_CONSENT_ENABLED": "true",
+    "EXPENSE_LEARNING_INGESTION_ENABLED": "true",
+    "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED": "true"
+  },
+  "httpReadback": {
+    "root": {
+      "method": "GET",
+      "url": "https://facturacion-autonomos.app/",
+      "status": 200,
+      "csp": "present",
+      "hsts": "present"
+    },
+    "newExpensePage": {
+      "method": "GET",
+      "url": "https://facturacion-autonomos.app/gastos/nuevo",
+      "status": 200,
+      "cacheControl": "no-store, max-age=0",
+      "csp": "present",
+      "hsts": "present"
+    },
+    "anonymousContribution": {
+      "method": "POST",
+      "url": "https://facturacion-autonomos.app/api/expenses/learning-contribution",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    },
+    "anonymousConsent": {
+      "method": "GET",
+      "url": "https://facturacion-autonomos.app/api/expenses/learning-consent",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    },
+    "anonymousMaintenance": {
+      "method": "POST",
+      "url": "https://facturacion-autonomos.app/api/expenses/learning-maintenance",
+      "status": 401,
+      "cacheControl": "private, no-store, max-age=0",
+      "varyAuthorization": true
+    }
+  },
+  "clientBundleReadback": {
+    "checkedScripts": 22,
+    "activeCopyNeedle": "Si activas esta preferencia",
+    "activeCopyOccurrences": 1,
+    "dormantCopyNeedle": "Por ahora esta preferencia no envia contribuciones",
+    "dormantCopyOccurrences": 0
+  },
+  "maintenance": {
+    "workflow": "expense-learning-maintenance.yml",
+    "run": "30315307579",
+    "job": "90139479559",
+    "conclusion": "success"
+  },
+  "supabaseReadback": {
+    "projectId": "rnbmkkzptxbvtchluqrx",
+    "consentDecisionRows": 2,
+    "contributionClaimRows": 0,
+    "revocationLinkRows": 0,
+    "weekLimitRows": 0,
+    "membershipRows": 0,
+    "accumulatorRows": 0,
+    "closedMetricRows": 0,
+    "promotionBatchRows": 0,
+    "apiPrivateSchemaUsageGrants": 0,
+    "apiPrivateTableGrants": 0,
+    "apiPrivateFunctionExecuteGrants": 0
+  },
+  "notes": [
+    "No se ejecutaron lotes historicos.",
+    "No se subieron documentos ni se guardaron gastos de prueba durante esta activacion.",
+    "La ingesta efectiva requiere cuenta autenticada, consentimiento GRANTED vigente y guardado durable de un gasto no replayed.",
+    "El incentivo de relleno mensual del 100% queda aprobado como contrato futuro, no implementado en esta activacion."
+  ]
+}
