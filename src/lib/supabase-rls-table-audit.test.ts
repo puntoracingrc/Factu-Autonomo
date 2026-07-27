@@ -107,6 +107,13 @@ const expenseLearningAdminReaderMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const centralInvoiceAuthorityLedgerSchemaMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260727175229_central_invoice_authority_ledger_schema.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -135,6 +142,12 @@ const serviceOnlyTables = [
   "promo_module_entitlements",
   "affiliate_reward_entries",
   "user_devices",
+  "central_invoice_documents",
+  "central_invoice_document_versions",
+  "central_invoice_series_state",
+  "central_invoice_identities",
+  "central_invoice_commands",
+  "central_invoice_outbox",
 ];
 
 const browserSyncTables = ["user_backups", "sync_entities"];
@@ -433,16 +446,18 @@ describe("Supabase table-by-table RLS audit hardening", () => {
           ? userDevicesMigrationSource
           : table === "affiliate_reward_entries"
             ? affiliateRewardMigrationSource
-            : table.startsWith("promo_")
-              ? promotionMigrationSource
-              : table.startsWith("partner_")
-                ? partnerProgramMigrationSource
-                : table === "admin_mfa_recovery_challenges"
-                  ? adminMfaRecoveryMigrationSource
-                  : table === "tax_product_events" ||
-                      table === "tax_product_weekly_reports"
-                    ? taxProductInsightsMigrationSource
-                    : migrationSource;
+            : table.startsWith("central_invoice_")
+              ? centralInvoiceAuthorityLedgerSchemaMigrationSource
+              : table.startsWith("promo_")
+                ? promotionMigrationSource
+                : table.startsWith("partner_")
+                  ? partnerProgramMigrationSource
+                  : table === "admin_mfa_recovery_challenges"
+                    ? adminMfaRecoveryMigrationSource
+                    : table === "tax_product_events" ||
+                        table === "tax_product_weekly_reports"
+                      ? taxProductInsightsMigrationSource
+                      : migrationSource;
       expect(source).toContain(
         `revoke all on table public.${table} from public, anon, authenticated`,
       );

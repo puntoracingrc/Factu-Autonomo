@@ -74,6 +74,11 @@ assert.equal(
 const centralMigrations = readdirSync("supabase/migrations").filter((file) =>
   /central_invoice/i.test(file),
 );
+const allowedLocalLedgerSchemaMigration =
+  "20260727175229_central_invoice_authority_ledger_schema.sql";
+const unexpectedCentralMigrations = centralMigrations.filter(
+  (file) => file !== allowedLocalLedgerSchemaMigration,
+);
 const migrationVersions = new Set(
   readdirSync("supabase/migrations")
     .map((file) => file.match(/^(\d{14})_/)?.[1])
@@ -90,10 +95,24 @@ assert.deepEqual(
     .productionVisibleVersionsMissingFromGit,
 );
 assert.deepEqual(
-  centralMigrations,
+  unexpectedCentralMigrations,
   [],
-  "Phase 2 must not add executable central_invoice migrations before readiness gates pass.",
+  "Phase 2 only allows the private ledger schema migration before readiness gates pass.",
 );
+
+if (centralMigrations.includes(allowedLocalLedgerSchemaMigration)) {
+  const localLedgerSchema = read(
+    `supabase/migrations/${allowedLocalLedgerSchemaMigration}`,
+  );
+  assert.match(localLedgerSchema, /CENTRAL_INVOICE_AUTHORITY_LEDGER_SCHEMA_V1/);
+  assert.doesNotMatch(localLedgerSchema, /\bcreate\s+(?:or\s+replace\s+)?function\b/i);
+  assert.doesNotMatch(localLedgerSchema, /\bissue_invoice_v1\b/i);
+  assert.doesNotMatch(
+    localLedgerSchema,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.match(localLedgerSchema, /enable row level security/i);
+}
 
 runBin("npx", [
   "vitest",
