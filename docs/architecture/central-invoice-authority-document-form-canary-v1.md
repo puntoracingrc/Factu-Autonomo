@@ -24,9 +24,10 @@ privada en servidor desde Supabase y el token local de dispositivo. Si falla la
 autoridad central, no se crea factura local con otro numero, para evitar dobles
 emisiones.
 
-## Limite conocido
+## Materializacion del numero
 
 El snapshot enviado a la autoridad central usa el marcador
 `__CENTRAL_AUTHORITY_FULL_NUMBER__` porque la identidad fiscal definitiva nace
-en la transaccion central. La siguiente fase debe materializar ese numero en el
-ledger central antes de activar escrituras fiscales reales fuera de canary.
+en la transaccion central. La migracion
+`CENTRAL_INVOICE_AUTHORITY_MATERIALIZED_SNAPSHOT_V1` materializa ese numero en
+el ledger central antes de comprometer la emision.

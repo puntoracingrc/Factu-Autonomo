@@ -78,9 +78,12 @@ const allowedLocalLedgerSchemaMigration =
   "20260727175229_central_invoice_authority_ledger_schema.sql";
 const allowedLocalIssueRpcMigration =
   "20260727181804_central_invoice_authority_issue_rpc.sql";
+const allowedMaterializedSnapshotMigration =
+  "20260727190823_central_invoice_authority_materialized_snapshot.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
+  allowedMaterializedSnapshotMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -103,7 +106,7 @@ assert.deepEqual(
 assert.deepEqual(
   unexpectedCentralMigrations,
   [],
-  "Phase 2 only allows the private ledger schema migration before readiness gates pass.",
+  "Phase 2 only allows explicitly reviewed private central authority migrations before readiness gates pass.",
 );
 
 if (centralMigrations.includes(allowedLocalLedgerSchemaMigration)) {
@@ -143,6 +146,34 @@ if (centralMigrations.includes(allowedLocalIssueRpcMigration)) {
   assert.doesNotMatch(localIssueRpc, /\binsert\s+into\s+public\.(?!central_invoice_)/i);
   assert.doesNotMatch(localIssueRpc, /\buser_backups\b/i);
   assert.doesNotMatch(localIssueRpc, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedMaterializedSnapshotMigration)) {
+  const localMaterializedSnapshot = read(
+    `supabase/migrations/${allowedMaterializedSnapshotMigration}`,
+  );
+  assert.match(
+    localMaterializedSnapshot,
+    /CENTRAL_INVOICE_AUTHORITY_MATERIALIZED_SNAPSHOT_V1/,
+  );
+  assert.match(
+    localMaterializedSnapshot,
+    /central_invoice_authority_materialize_full_number_v1/,
+  );
+  assert.doesNotMatch(
+    localMaterializedSnapshot,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    localMaterializedSnapshot,
+    /\bupdate\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    localMaterializedSnapshot,
+    /\binsert\s+into\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(localMaterializedSnapshot, /\buser_backups\b/i);
+  assert.doesNotMatch(localMaterializedSnapshot, /\bsync_entities\b/i);
 }
 
 runBin("npx", [
