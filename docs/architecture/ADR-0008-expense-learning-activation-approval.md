@@ -1,6 +1,6 @@
 # ADR-0008 - Paquete de aprobacion de consentimiento y retencion
 
-- Estado: preparado para aprobacion explicita de producto/legal; no activa flags
+- Estado: aprobado para preflight de consentimiento; no activa contribuciones
 - Fecha: 2026-07-23
 - Ambito: consentimiento separado, retencion, retirada e incentivo futuro del motor de aprendizaje de gastos
 
@@ -8,6 +8,15 @@ Este paquete no sustituye una revision legal externa. Fija el texto y las
 condiciones que deben aceptarse antes de habilitar `P4C3` en produccion. Si la
 revision legal exige otra base, otro plazo o otra prueba de consentimiento, se
 requiere una nueva version del contrato antes de activar ningun envio real.
+
+El preflight de consentimiento puede estar visible antes de P4C3 para recoger
+una decision versionada y permitir retirarla con la misma facilidad. Ese estado
+solo autoriza `EXPENSE_LEARNING_CONSENT_ENABLED === "true"`: no envia
+contribuciones, no ejecuta wiring cliente, no concede el incentivo mensual y no
+puede presentarse como activacion del aprendizaje compartido. Mientras
+`EXPENSE_LEARNING_INGESTION_ENABLED` y
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` sigan apagados, la interfaz debe
+explicar que la preferencia no envia nada todavia.
 
 ## Decision de consentimiento V1
 
@@ -110,13 +119,18 @@ activar ni depender de ingesta si `EXPENSE_LEARNING_INGESTION_ENABLED`,
 
 ## Gates antes de activar P4C3
 
-Antes de poner cualquier flag de aprendizaje en `true`, debe existir evidencia
-sin PII de:
+Antes de activar trafico real de aprendizaje, o de poner en `true`
+`EXPENSE_LEARNING_INGESTION_ENABLED` o
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED`, debe existir evidencia sin PII
+de:
 
 1. migraciones P1B, P2A, P3A, P4A, P4B, P4C y P5 aplicadas en produccion;
 2. `expense_learning_private` sin acceso directo para `anon`, `authenticated` o
    `service_role`;
-3. rutas de consentimiento e ingesta devolviendo `404` con flags apagados;
+3. ruta de ingesta devolviendo `404` con ingesta apagada; y ruta de
+   consentimiento devolviendo `404` si `EXPENSE_LEARNING_CONSENT_ENABLED` esta
+   apagado, o `401`/`200` cerrados y `no-store` si se ha autorizado solo el
+   preflight de consentimiento;
 4. secretos HMAC canonicos presentes y distintos en servidor;
 5. mantenimiento real verde con scheduler y sin `RETRY_REQUIRED`;
 6. texto de consentimiento y politica de privacidad publicados con esta version;
@@ -124,6 +138,9 @@ sin PII de:
 8. activacion gradual con rollback de flags documentado.
 
 Mientras falte cualquiera de esos puntos, el estado correcto es mantener
-apagados `EXPENSE_LEARNING_CONSENT_ENABLED`,
-`EXPENSE_LEARNING_INGESTION_ENABLED` y
-`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED`.
+apagados `EXPENSE_LEARNING_INGESTION_ENABLED` y
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED`. El flag
+`EXPENSE_LEARNING_CONSENT_ENABLED` puede permanecer encendido solo como
+preflight de consentimiento si el copy anterior esta publicado, la retirada es
+simetrica y las tablas de contribucion, raw, batches y metricas permanecen sin
+trafico real.

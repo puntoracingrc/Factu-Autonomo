@@ -263,8 +263,16 @@ describe("expense aggregate learning privacy contract", () => {
     expect(adr).toContain(
       "ADR-0008-expense-learning-activation-approval.md",
     );
-    expect(approvalPacket).toContain("preparado para aprobacion explicita");
-    expect(approvalPacket).toContain("no activa flags");
+    expect(approvalPacket).toContain(
+      "aprobado para preflight de consentimiento",
+    );
+    expect(approvalPacket).toContain("no activa contribuciones");
+    expect(approvalPacket).toContain(
+      'solo autoriza `EXPENSE_LEARNING_CONSENT_ENABLED === "true"`',
+    );
+    expect(approvalPacket).toMatch(
+      /no envia\s+contribuciones, no ejecuta wiring cliente/,
+    );
     expect(approvalPacket).toContain(
       "Compartir senales tecnicas de futuras correcciones",
     );
@@ -278,6 +286,12 @@ describe("expense aggregate learning privacy contract", () => {
     expect(approvalPacket).toContain("EXPENSE_LEARNING_INGESTION_ENABLED");
     expect(approvalPacket).toContain(
       "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED",
+    );
+    expect(approvalPacket).toContain(
+      "ruta de ingesta devolviendo `404` con ingesta apagada",
+    );
+    expect(approvalPacket).toContain(
+      "puede permanecer encendido solo como\npreflight de consentimiento",
     );
     expect(approvalPacket).toContain("no debe usar casillas premarcadas");
     expect(approvalPacket).not.toMatch(/garantiza anonimato|cumple (?:con )?el RGPD/iu);

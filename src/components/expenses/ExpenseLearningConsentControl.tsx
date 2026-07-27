@@ -465,9 +465,23 @@ export function ExpenseLearningConsentControl({
             importes ni porcentajes exactos.
           </p>
           <p>
+            Durante un máximo de 35 días conservaremos vínculos protegidos para
+            deduplicar, limitar abusos y poder retirar lo que siga separable.
+            Las métricas semanales que superen los controles de soporte y
+            reidentificación pueden conservarse hasta 13 meses y no se
+            presentan como anónimas.
+          </p>
+          <p>
             Puedes retirar el consentimiento en cualquier momento. Se detendrán
             nuevas aportaciones y se eliminará lo que aún pueda separarse. Las
             estadísticas ya combinadas de forma irreversible no pueden aislarse.
+          </p>
+          <p>
+            Si esta opción está activa y agotas tu cuota normal de IA, podremos
+            concederte un único relleno mensual del 100 % de tu cuota de IA.
+            La recompensa no reduce tu plan normal, no se acumula como saldo y
+            deja de estar disponible en meses futuros si retiras el
+            consentimiento.
           </p>
           <p>
             Por ahora esta preferencia no envía contribuciones; el aprendizaje

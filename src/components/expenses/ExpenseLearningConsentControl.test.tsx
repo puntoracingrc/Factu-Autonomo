@@ -232,6 +232,11 @@ describe("ExpenseLearningConsentControl P2C", () => {
     expect(controlSource).toContain("Compartir señales técnicas de futuras correcciones");
     expect(controlSource).toContain("Puedes retirarlo desmarcando esta opción.");
     expect(controlSource).toContain("Qué se compartiría");
+    expect(controlSource).toContain("Durante un máximo de 35 días");
+    expect(controlSource).toContain("pueden conservarse hasta 13 meses");
+    expect(controlSource).toMatch(/no se\s+presentan como anónimas/);
+    expect(controlSource).toContain("un único relleno mensual del 100 %");
+    expect(controlSource).toContain("no se acumula como saldo");
     expect(controlSource).not.toContain("<Card");
   });
 
@@ -361,6 +366,9 @@ describe("ExpenseLearningConsentControl P2C", () => {
     expect(aiNoticeSource).not.toContain("patrones técnicos limpios");
     expect(controlSource).toContain(
       "Por ahora esta preferencia no envía contribuciones; el aprendizaje",
+    );
+    expect(controlSource).toContain(
+      "Cuando habilitemos las contribuciones, solo se enviarían categorías",
     );
   });
 });
