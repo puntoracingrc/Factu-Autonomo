@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  NAVIGATION_NOTICE_DELAY_MS,
   NAVIGATION_SLOW_DELAY_MS,
   NAVIGATION_STALLED_DELAY_MS,
   navigationFeedbackMessage,
@@ -26,8 +27,16 @@ describe("app navigation feedback", () => {
     expect(navigationFeedbackMessage("Gastos", "slow")).toBe(
       "La carga está tardando más de lo habitual. Seguimos abriendo Gastos…",
     );
+    expect(
+      navigationFeedbackMessage("Gastos", "slow", {
+        constrainedConnection: true,
+      }),
+    ).toBe("Conexión lenta. Seguimos abriendo Gastos…");
     expect(navigationFeedbackMessage("Gastos", "stalled")).toBe(
       "No hemos podido abrir Gastos todavía.",
+    );
+    expect(NAVIGATION_NOTICE_DELAY_MS).toBeLessThan(
+      NAVIGATION_SLOW_DELAY_MS,
     );
     expect(NAVIGATION_SLOW_DELAY_MS).toBeLessThan(
       NAVIGATION_STALLED_DELAY_MS,
@@ -50,6 +59,9 @@ describe("app navigation feedback", () => {
   it("keeps progress, delayed status and retry accessible", () => {
     expect(feedbackSource).toContain('role="progressbar"');
     expect(feedbackSource).toContain('aria-live="polite"');
+    expect(feedbackSource).toContain("NAVIGATION_NOTICE_DELAY_MS");
+    expect(feedbackSource).toContain("hasConstrainedNavigationConnection");
+    expect(feedbackSource).toContain("noticeVisible");
     expect(feedbackSource).toContain("NAVIGATION_SLOW_DELAY_MS");
     expect(feedbackSource).toContain("NAVIGATION_STALLED_DELAY_MS");
     expect(feedbackSource).toContain("onClick={onRetry}");

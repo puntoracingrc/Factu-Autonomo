@@ -3,12 +3,34 @@
 import { Clock3, LoaderCircle, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+  NAVIGATION_NOTICE_DELAY_MS,
   NAVIGATION_SLOW_DELAY_MS,
   NAVIGATION_STALLED_DELAY_MS,
   navigationFeedbackMessage,
   type NavigationFeedbackPhase,
   type PendingAppNavigation,
 } from "@/components/layout/app-navigation-feedback";
+
+type NavigationConnectionInfo = {
+  saveData?: boolean;
+  effectiveType?: string;
+};
+
+function hasConstrainedNavigationConnection(): boolean {
+  const connection = (
+    navigator as Navigator & {
+      connection?: NavigationConnectionInfo;
+      mozConnection?: NavigationConnectionInfo;
+      webkitConnection?: NavigationConnectionInfo;
+    }
+  ).connection;
+  const effectiveType = connection?.effectiveType?.toLowerCase();
+  return Boolean(
+    connection?.saveData ||
+      effectiveType === "slow-2g" ||
+      effectiveType === "2g",
+  );
+}
 
 export function AppNavigationFeedback({
   navigation,
@@ -20,23 +42,58 @@ export function AppNavigationFeedback({
   const [feedbackState, setFeedbackState] = useState<{
     href: string;
     phase: NavigationFeedbackPhase;
-  }>({ href: "", phase: "pending" });
+    noticeVisible: boolean;
+    constrainedConnection: boolean;
+  }>({
+    href: "",
+    phase: "pending",
+    noticeVisible: false,
+    constrainedConnection: false,
+  });
 
   useEffect(() => {
     if (!navigation) return;
     const href = navigation.href;
-    setFeedbackState({ href, phase: "pending" });
+    const constrainedConnection = hasConstrainedNavigationConnection();
+    setFeedbackState({
+      href,
+      phase: "pending",
+      noticeVisible: false,
+      constrainedConnection,
+    });
 
+    const noticeTimer = window.setTimeout(
+      () =>
+        setFeedbackState((state) =>
+          state.href === href
+            ? { ...state, noticeVisible: true }
+            : state,
+        ),
+      NAVIGATION_NOTICE_DELAY_MS,
+    );
     const slowTimer = window.setTimeout(
-      () => setFeedbackState({ href, phase: "slow" }),
+      () =>
+        setFeedbackState({
+          href,
+          phase: "slow",
+          noticeVisible: true,
+          constrainedConnection,
+        }),
       NAVIGATION_SLOW_DELAY_MS,
     );
     const stalledTimer = window.setTimeout(
-      () => setFeedbackState({ href, phase: "stalled" }),
+      () =>
+        setFeedbackState({
+          href,
+          phase: "stalled",
+          noticeVisible: true,
+          constrainedConnection,
+        }),
       NAVIGATION_STALLED_DELAY_MS,
     );
 
     return () => {
+      window.clearTimeout(noticeTimer);
       window.clearTimeout(slowTimer);
       window.clearTimeout(stalledTimer);
     };
@@ -46,7 +103,14 @@ export function AppNavigationFeedback({
 
   const phase =
     feedbackState.href === navigation.href ? feedbackState.phase : "pending";
-  const message = navigationFeedbackMessage(navigation.label, phase);
+  const noticeVisible =
+    feedbackState.href === navigation.href && feedbackState.noticeVisible;
+  const constrainedConnection =
+    feedbackState.href === navigation.href &&
+    feedbackState.constrainedConnection;
+  const message = navigationFeedbackMessage(navigation.label, phase, {
+    constrainedConnection,
+  });
 
   return (
     <>
@@ -58,7 +122,7 @@ export function AppNavigationFeedback({
       <p className="sr-only" role="status" aria-live="polite">
         {message}
       </p>
-      {phase !== "pending" ? (
+      {noticeVisible || phase !== "pending" ? (
         <div
           className="pointer-events-none fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[90] flex w-[min(calc(100%_-_2rem),28rem)] -translate-x-1/2 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 lg:bottom-auto lg:top-[calc(env(safe-area-inset-top)+0.75rem)]"
           role="status"
