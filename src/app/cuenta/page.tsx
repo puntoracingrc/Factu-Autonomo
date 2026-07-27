@@ -17,6 +17,7 @@ import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { CloudDevicesCard } from "@/components/cloud/CloudDevicesCard";
+import { CentralInvoiceAuthorityEventsSyncCard } from "@/components/cloud/CentralInvoiceAuthorityEventsSyncCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
 import { PromoCodeRedeemer } from "@/components/promotions/PromoCodeRedeemer";
@@ -168,6 +169,7 @@ export default function CuentaPage() {
             Ir a Acceso
           </ButtonLink>
         </Card>
+        <CentralInvoiceAuthorityEventsSyncCard />
         <CloudDevicesCard />
       </AccountSection>
 
