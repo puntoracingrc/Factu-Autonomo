@@ -27,6 +27,20 @@ export type DocumentDeliveryStatus = "not_sent" | "sent";
 export type DocumentPaymentStatus =
   "not_applicable" | "pending" | "paid" | "overdue";
 
+export interface DocumentCentralInvoiceAuthorityLinkV1 {
+  schemaVersion: 1;
+  source: "central_invoice_authority";
+  serverDocumentId: string;
+  identityId: string;
+  outboxEventId: string;
+  eventType: "invoice_issued" | "rectification_issued" | "document_repaired";
+  fullNumber: string;
+  sequence: number;
+  documentVersion: number;
+  emittedHash?: string;
+  receivedAt: string;
+}
+
 export interface DocumentCollectionStatusOverrideV1 {
   schemaVersion: 1;
   status: "collected" | "pending";
@@ -186,6 +200,8 @@ export interface Document {
     "server_confirmed" | "legacy_unverified" | "simulation";
   /** Snapshot fiscal/documental congelado al emitir. */
   documentSnapshot?: DocumentSnapshot;
+  /** Identidad operativa emitida por la autoridad central. No forma parte del snapshot fiscal. */
+  centralInvoiceAuthority?: DocumentCentralInvoiceAuthorityLinkV1;
   /**
    * Atestación explícita de un documento histórico importado. No es un sello
    * de emisión de esta app ni acredita Veri*Factu.

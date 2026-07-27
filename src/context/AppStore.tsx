@@ -1331,6 +1331,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           status: "borrador",
           id: options.localDocumentId ?? newId(),
           number: identity.fullNumber,
+          centralInvoiceAuthority: {
+            schemaVersion: 1,
+            source: "central_invoice_authority",
+            serverDocumentId: identity.serverDocumentId,
+            identityId: identity.identityId,
+            outboxEventId: identity.outboxEventId,
+            eventType:
+              identity.kind === "factura_rectificativa"
+                ? "rectification_issued"
+                : "invoice_issued",
+            fullNumber: identity.fullNumber,
+            sequence: identity.sequence,
+            documentVersion: identity.documentVersion,
+            receivedAt: now,
+          },
           createdAt: now,
           updatedAt: now,
         };
