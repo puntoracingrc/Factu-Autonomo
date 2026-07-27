@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P5 con lectura Admin promoted-only; consentimiento en preflight; ingesta real apagada
+- Estado: P5 con lectura Admin promoted-only; consentimiento y retencion V1 aprobados internamente; ingesta real apagada
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -575,7 +575,8 @@ mantenerse visible en modo preflight para registrar y retirar la decision V1,
 pero no autoriza envios mientras `EXPENSE_LEARNING_INGESTION_ENABLED` y
 `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` sigan apagados. La activación
 gradual continúa bloqueada hasta cerrar secretos, ejecución real verde de mantenimiento,
-autorización expresa de producción y el paquete de consentimiento y retención
+autorización expresa de producción y los gates restantes del paquete de
+consentimiento y retención
 [`ADR-0008 - Paquete de aprobación de consentimiento y retención`](ADR-0008-expense-learning-activation-approval.md).
 
 ### Incentivo futuro separado
