@@ -185,6 +185,34 @@ assert.throws(
   /permission denied for function list_central_invoice_events_v1/i,
 );
 
+const expectedIndexes = [
+  "central_invoice_documents_identity_uidx",
+  "central_invoice_identities_rectifies_idx",
+  "central_invoice_commands_result_document_idx",
+  "central_invoice_commands_result_identity_idx",
+  "central_invoice_commands_result_outbox_idx",
+  "central_invoice_outbox_document_idx",
+  "central_invoice_outbox_identity_idx",
+  "central_invoice_outbox_user_cursor_idx",
+];
+const installedIndexes = new Set(
+  runSql(`
+    select indexname
+    from pg_indexes
+    where schemaname = 'public'
+      and indexname = any (
+        array[${expectedIndexes.map(sqlLiteral).join(", ")}]::text[]
+      )
+    order by indexname;
+  `)
+    .split("\n")
+    .filter(Boolean),
+);
+assert.deepEqual(
+  [...installedIndexes].sort(),
+  [...expectedIndexes].sort(),
+);
+
 console.log(
-  "central invoice authority PostgreSQL acceptance: concurrency, replay, tenant isolation, and RPC privileges OK",
+  "central invoice authority PostgreSQL acceptance: concurrency, replay, tenant isolation, RPC privileges, and indexes OK",
 );
