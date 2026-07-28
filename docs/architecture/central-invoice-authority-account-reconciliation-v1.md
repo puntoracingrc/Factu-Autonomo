@@ -21,6 +21,8 @@ inventario local con la RPC monotona
    actores enviados por el cliente.
 8. La RPC eleva el contador con `greatest(actual, observado)`, deja evidencia
    inmutable e idempotente y nunca reduce una serie.
+9. La pantalla Cuenta presenta cada serie, el maximo local y cualquier
+   conflicto; exige una casilla de confirmacion antes de llamar a la ruta.
 
 ## Privacidad y seguridad
 
@@ -38,6 +40,7 @@ inventario local con la RPC monotona
 - `CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_INVENTORY_V1`
 - `CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_RPC_V1`
 - `CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_ROUTE_V1`
+- `CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_CLIENT_V1`
 
 ## Gate
 
