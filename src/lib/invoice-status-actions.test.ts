@@ -57,6 +57,28 @@ function issuedInvoice(overrides: Partial<Document> = {}): Document {
   };
 }
 
+function withCentralAuthority(
+  document: Document,
+  overrides: Partial<NonNullable<Document["centralInvoiceAuthority"]>> = {},
+): Document {
+  return {
+    ...document,
+    centralInvoiceAuthority: {
+      schemaVersion: 1,
+      source: "central_invoice_authority",
+      serverDocumentId: "server-doc-1",
+      identityId: "identity-1",
+      outboxEventId: "event-1",
+      eventType: "invoice_issued",
+      fullNumber: document.number,
+      sequence: 1,
+      documentVersion: 1,
+      receivedAt: "2026-07-24T10:00:01.000Z",
+      ...overrides,
+    },
+  };
+}
+
 const forbiddenCopy = [
   "Aceptado online",
   "Enviado automaticamente",
@@ -93,6 +115,19 @@ describe("invoice status action copy", () => {
     expect(documentStatusHint(issuedInvoice({ status: "vencido" }))).toContain(
       "preparar un recordatorio",
     );
+  });
+
+  it("distingue facturas emitidas por autoridad central y enlaces que requieren revision", () => {
+    expect(documentStatusHint(withCentralAuthority(issuedInvoice()))).toContain(
+      "servidor central",
+    );
+    expect(
+      documentStatusHint(
+        withCentralAuthority(issuedInvoice(), {
+          fullNumber: "F-2026-9999",
+        }),
+      ),
+    ).toContain("Requiere revisión");
   });
 
   it("presenta como pendiente una cobrada histórica desmarcada", () => {

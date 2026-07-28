@@ -109,6 +109,7 @@ import {
   documentStatusHint,
   documentStatusLabel,
 } from "@/lib/invoice-status-actions";
+import { getCentralInvoiceAuthorityOperationState } from "@/lib/central-invoice-authority/operation-state";
 import {
   canShareFileNatively,
   hasClientEmail,
@@ -1062,6 +1063,10 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
               doc.snapshotIntegrity?.issues,
             );
             const statusHint = documentStatusHint(doc, type);
+            const centralAuthorityState =
+              type === "factura"
+                ? getCentralInvoiceAuthorityOperationState(doc)
+                : null;
             const linkedInvoice =
               type === "presupuesto"
                 ? findInvoiceCreatedFromQuote(data.documents, doc.id)
@@ -1127,6 +1132,18 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                             Veri*Factu
                           </span>
                         )}
+                      {centralAuthorityState?.badgeLabel && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            centralAuthorityState.tone === "warning"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                          title={centralAuthorityState.statusHint ?? undefined}
+                        >
+                          {centralAuthorityState.badgeLabel}
+                        </span>
+                      )}
                       {legacyImportedAccepted && (
                         <span
                           className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800"
