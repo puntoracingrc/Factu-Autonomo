@@ -42,6 +42,15 @@ describe("central invoice authority form runtime policy wiring", () => {
     expect(envExample).toContain("CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS=");
     expect(client).toContain("isCentralInvoiceAuthorityFormCanaryEnabledForUser");
     expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED");
+    expect(client).toContain(
+      "process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY",
+    );
+    expect(client).toContain(
+      "process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED",
+    );
+    expect(client).not.toContain(
+      "env: Record<string, string | undefined> = process.env",
+    );
     expect(client).toContain("CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_V1");
     expect(client).toContain("last_known_central_authority");
     expect(client).toContain("public_canary_not_ready");

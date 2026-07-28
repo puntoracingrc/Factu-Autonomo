@@ -156,15 +156,21 @@ export interface CentralInvoiceAuthorityFormIssuePolicyDependencies
 }
 
 export function isCentralInvoiceAuthorityFormCanaryEnabled(
-  env: Record<string, string | undefined> = process.env,
+  env?: Record<string, string | undefined>,
 ): boolean {
-  return env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY === "true";
+  const value =
+    env?.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY ??
+    process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY;
+  return value === "true";
 }
 
 export function isCentralInvoiceAuthorityFormRequiredEnabled(
-  env: Record<string, string | undefined> = process.env,
+  env?: Record<string, string | undefined>,
 ): boolean {
-  return env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED === "true";
+  const value =
+    env?.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED ??
+    process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED;
+  return value === "true";
 }
 
 export function isCentralInvoiceAuthorityFormCanaryUserAllowed(
@@ -193,14 +199,13 @@ export function isCentralInvoiceAuthorityFormCanaryEnabledForUser(
     publicFormCanaryEnabled?: boolean;
   } = {},
 ): boolean {
-  const env = input.env ?? process.env;
   const enabled =
     input.publicFormCanaryEnabled ??
-    isCentralInvoiceAuthorityFormCanaryEnabled(env);
+    isCentralInvoiceAuthorityFormCanaryEnabled(input.env);
   if (!enabled) return false;
   return isCentralInvoiceAuthorityFormCanaryUserAllowed(
     input.userId,
-    env[CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS_PUBLIC_FLAG],
+    input.env?.[CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS_PUBLIC_FLAG],
   );
 }
 
@@ -295,7 +300,7 @@ function rememberCentralAuthorityFormGuard(
 export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
   dependencies: CentralInvoiceAuthorityFormIssuePolicyDependencies = {},
 ): Promise<CentralInvoiceAuthorityFormIssuePolicyDecision> {
-  const env = dependencies.env ?? process.env;
+  const env = dependencies.env;
   const storage = dependencies.storage ?? getBrowserStorage();
   const now = dependencies.now ?? (() => new Date());
   const lastKnownGuard = readLastKnownCentralAuthorityFormGuard(storage);
