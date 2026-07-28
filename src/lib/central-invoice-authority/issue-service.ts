@@ -1,10 +1,12 @@
 import {
+  CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY,
   evaluateCentralInvoiceAuthorityActivation,
   type CentralInvoiceAuthorityActivation,
 } from "./activation";
 import {
   buildCentralInvoiceAuthorityIssueCommand,
   summarizeCentralInvoiceAuthorityIssueCommand,
+  type CentralInvoiceAuthorityIssueCommand,
   type CentralInvoiceAuthorityIssueCommandSafeSummary,
   type CentralInvoiceAuthorityIssueInput,
 } from "./issue-command";
@@ -29,6 +31,7 @@ export interface CentralInvoiceAuthorityIssueServiceInput
   rpcClient: CentralInvoiceAuthorityIssueRpcClient;
   activation?: CentralInvoiceAuthorityActivation;
   userEmail?: string | null;
+  env?: Record<string, string | undefined>;
 }
 
 export interface CentralInvoiceAuthorityIssueServiceResult {
@@ -41,7 +44,8 @@ export interface CentralInvoiceAuthorityIssueServiceResult {
 
 export type CentralInvoiceAuthorityIssueServiceErrorCode =
   | "CENTRAL_AUTHORITY_DISABLED"
-  | "CENTRAL_AUTHORITY_SHADOW_ONLY";
+  | "CENTRAL_AUTHORITY_SHADOW_ONLY"
+  | "CENTRAL_AUTHORITY_CANARY_TEST_ONLY";
 
 export class CentralInvoiceAuthorityIssueServiceError extends Error {
   readonly code: CentralInvoiceAuthorityIssueServiceErrorCode;
@@ -84,6 +88,24 @@ function assertFiscalWritesEnabled(activation: CentralInvoiceAuthorityActivation
   }
 }
 
+function assertCanaryTestEnvironment(
+  input: CentralInvoiceAuthorityIssueCommand,
+  activation: CentralInvoiceAuthorityActivation,
+  env: Record<string, string | undefined>,
+) {
+  if (
+    activation.effectiveMode === "canary" &&
+    env[CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY] === "true" &&
+    input.series.environment !== "test"
+  ) {
+    throw new CentralInvoiceAuthorityIssueServiceError(
+      "CENTRAL_AUTHORITY_CANARY_TEST_ONLY",
+      "El canario central esta limitado al entorno fiscal de pruebas.",
+      activation,
+    );
+  }
+}
+
 export async function issueCentralInvoiceWithAuthority(
   input: CentralInvoiceAuthorityIssueServiceInput,
 ): Promise<CentralInvoiceAuthorityIssueServiceResult> {
@@ -96,6 +118,11 @@ export async function issueCentralInvoiceWithAuthority(
     });
 
   assertFiscalWritesEnabled(activation);
+  assertCanaryTestEnvironment(
+    command,
+    activation,
+    input.env ?? process.env,
+  );
 
   const idempotencyDecision = decideCentralInvoiceAuthorityIdempotency(
     command,

@@ -28,6 +28,9 @@ for (const required of [
   "issueCentralInvoiceThroughRpc",
   "CENTRAL_AUTHORITY_DISABLED",
   "CENTRAL_AUTHORITY_SHADOW_ONLY",
+  "CENTRAL_AUTHORITY_CANARY_TEST_ONLY",
+  "CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY",
+  "input.series.environment !== \"test\"",
   "fiscalWritesEnabled",
   "transactionStepIds",
 ]) {
