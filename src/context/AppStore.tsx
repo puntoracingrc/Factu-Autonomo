@@ -1360,26 +1360,98 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       let created: Document | null = null;
       setAppData((prev) => {
         const now = new Date().toISOString();
+        const centralInvoiceAuthority: Document["centralInvoiceAuthority"] = {
+          schemaVersion: 1,
+          source: "central_invoice_authority",
+          serverDocumentId: identity.serverDocumentId,
+          identityId: identity.identityId,
+          outboxEventId: identity.outboxEventId,
+          eventType:
+            identity.kind === "factura_rectificativa"
+              ? "rectification_issued"
+              : "invoice_issued",
+          fullNumber: identity.fullNumber,
+          sequence: identity.sequence,
+          documentVersion: identity.documentVersion,
+          receivedAt: now,
+        };
+        if (doc.rectification) {
+          const storedOriginal = requireUniqueRectificationOriginal(
+            prev.documents,
+            doc.rectification.originalDocumentId,
+          );
+          const { original, profile: rectificationProfile } =
+            resolveCanonicalRectificationSource(storedOriginal, prev.profile);
+          if (!canRectifyInvoice(original)) {
+            throw new Error(
+              "La factura original no admite una rectificativa central.",
+            );
+          }
+          if (hasPendingRectificationDraft(prev.documents, original.id)) {
+            throw new Error(
+              "La factura original ya tiene una rectificativa pendiente.",
+            );
+          }
+
+          const rectification = canonicalRectificationReference(
+            original,
+            doc.rectification,
+          );
+          const source: Document = {
+            ...doc,
+            status: doc.status,
+            id: options.localDocumentId ?? newId(),
+            number: identity.fullNumber,
+            items: canonicalRectificationItems(
+              original,
+              doc.items,
+              rectification.type,
+            ),
+            rectification,
+            centralInvoiceAuthority,
+            createdAt: now,
+            updatedAt: now,
+          };
+          assertRectificationEmissionAllowed(source, prev.documents);
+          assertDocumentEmissionValid(source, rectificationProfile);
+
+          created = materializeRectificationDocument(
+            source,
+            rectificationProfile,
+            now,
+          );
+          const nextDocuments = applyEmittedRectificationToOriginal(
+            [...prev.documents, created],
+            created,
+            now,
+          );
+
+          return {
+            ...prev,
+            profile: {
+              ...prev.profile,
+              numbering: bumpNumberingAfterAssign(
+                prev.profile.numbering,
+                identity.kind,
+                identity.fiscalYear,
+                identity.sequence,
+              ),
+            },
+            documents: nextDocuments,
+            counters: countersFromDocuments(
+              nextDocuments,
+              identity.fiscalYear,
+              prev.profile.numbering,
+            ),
+          };
+        }
+
         const createdDraft: Document = {
           ...doc,
           status: "borrador",
           id: options.localDocumentId ?? newId(),
           number: identity.fullNumber,
-          centralInvoiceAuthority: {
-            schemaVersion: 1,
-            source: "central_invoice_authority",
-            serverDocumentId: identity.serverDocumentId,
-            identityId: identity.identityId,
-            outboxEventId: identity.outboxEventId,
-            eventType:
-              identity.kind === "factura_rectificativa"
-                ? "rectification_issued"
-                : "invoice_issued",
-            fullNumber: identity.fullNumber,
-            sequence: identity.sequence,
-            documentVersion: identity.documentVersion,
-            receivedAt: now,
-          },
+          centralInvoiceAuthority,
           createdAt: now,
           updatedAt: now,
         };
