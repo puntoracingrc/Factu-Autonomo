@@ -213,6 +213,30 @@ assert.deepEqual(
   [...expectedIndexes].sort(),
 );
 
+const expectedDenyPolicies = [
+  "central_invoice_commands|central_invoice_commands_deny_clients_v1",
+  "central_invoice_document_versions|central_invoice_document_versions_deny_clients_v1",
+  "central_invoice_documents|central_invoice_documents_deny_clients_v1",
+  "central_invoice_identities|central_invoice_identities_deny_clients_v1",
+  "central_invoice_outbox|central_invoice_outbox_deny_clients_v1",
+  "central_invoice_series_state|central_invoice_series_state_deny_clients_v1",
+];
+const installedDenyPolicies = runSql(`
+  select tablename || '|' || policyname
+  from pg_policies
+  where schemaname = 'public'
+    and policyname like 'central_invoice_%_deny_clients_v1'
+    and permissive = 'RESTRICTIVE'
+    and cmd = 'ALL'
+    and roles = array['anon', 'authenticated']::name[]
+    and qual = 'false'
+    and with_check = 'false'
+  order by tablename;
+`)
+  .split("\n")
+  .filter(Boolean);
+assert.deepEqual(installedDenyPolicies, expectedDenyPolicies);
+
 console.log(
-  "central invoice authority PostgreSQL acceptance: concurrency, replay, tenant isolation, RPC privileges, and indexes OK",
+  "central invoice authority PostgreSQL acceptance: concurrency, replay, tenant isolation, RPC privileges, indexes, and explicit client denies OK",
 );
