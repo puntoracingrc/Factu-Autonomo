@@ -34,11 +34,22 @@ describe("central invoice authority form runtime policy wiring", () => {
     expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED");
     expect(client).toContain("CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_V1");
     expect(client).toContain("last_known_central_authority");
+    expect(client).toContain("public_canary_not_ready");
     expect(client).toContain("localStorage");
     expect(client).toContain("resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser");
     expect(client).toContain("fetchCentralInvoiceAuthorityStatusFromBrowser");
     expect(client).toContain('status.activation.requestedMode === "required"');
     expect(client).toContain("status.summary.fiscalWritesPossible");
+
+    const resolverStart = client.indexOf(
+      "export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser",
+    );
+    const resolverEnd = client.indexOf("async function defaultAccessToken", resolverStart);
+    const resolver = client.slice(resolverStart, resolverEnd);
+    expect(resolver.indexOf("fetchCentralInvoiceAuthorityStatusFromBrowser")).toBeLessThan(
+      resolver.indexOf('return enabledPolicy("public_form_canary", status)'),
+    );
+    expect(resolver).toContain('return localPolicy("public_canary_not_ready"');
   });
 
   it("DocumentForm consulta la politica antes de caer al alta local", () => {
