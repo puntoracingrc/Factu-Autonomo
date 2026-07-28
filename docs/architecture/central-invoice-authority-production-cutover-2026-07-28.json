@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "central-invoice-authority-production-cutover-v1",
+  "marker": "CENTRAL_INVOICE_AUTHORITY_PRODUCTION_CUTOVER_V1",
+  "capturedAt": "2026-07-28T17:35:00Z",
+  "project": {
+    "ref": "rnbmkkzptxbvtchluqrx",
+    "environment": "production"
+  },
+  "source": {
+    "repoMainCommit": "41001b017872e177044fa1e353554f7a41ad4f48",
+    "queryMode": "read-only-catalog-only-no-business-rows",
+    "recoveryEvidence": "docs/architecture/central-invoice-authority-recovery-evidence-2026-07-28.json",
+    "migrationClassification": "docs/architecture/central-invoice-authority-migration-gap-operational-classification-2026-07-25.json"
+  },
+  "productionCatalog": {
+    "visibleMigrationVersions": [
+      "20260720133000",
+      "20260721190000",
+      "20260721190100"
+    ],
+    "visibleVersionsMissingFromGit": [],
+    "centralTablesBeforeCutover": [],
+    "centralFunctionsBeforeCutover": [],
+    "pgcryptoInExtensions": true,
+    "serviceRoleExists": true,
+    "authRoleExists": true,
+    "authUidExists": true,
+    "realtimePublicationExists": true,
+    "businessRowsRead": false
+  },
+  "baselineDecision": {
+    "repositoryHistoryFullyReconciled": false,
+    "centralAuthorityBaselineAccepted": true,
+    "classifiedLegacyGapEntries": 18,
+    "legacyGapAppliedOrReplayed": false,
+    "reviewedCentralSchemaReplacesPartialBaseAsAuthoritySource": true,
+    "legacyVerifactuRolloutRemainsBlocked": true,
+    "reason": "The reviewed central authority migrations are additive, use only verified Supabase prerequisites, and do not depend on the excluded legacy or local-staging fiscal migrations."
+  },
+  "approvedMigrations": [
+    "20260727175229_central_invoice_authority_ledger_schema.sql",
+    "20260727181804_central_invoice_authority_issue_rpc.sql",
+    "20260727190823_central_invoice_authority_materialized_snapshot.sql",
+    "20260727193609_central_invoice_authority_outbox_pull.sql",
+    "20260728100752_central_invoice_authority_realtime_wakeups.sql",
+    "20260728164325_central_invoice_authority_tenant_guard.sql",
+    "20260728172000_central_invoice_authority_indexes.sql"
+  ],
+  "safetyBoundary": {
+    "modeDuringMigration": "canary",
+    "fiscalWriteGatesDuringMigration": false,
+    "existingCloudSyncReactivated": false,
+    "existingBusinessRowsMutated": false,
+    "failureBeforeCanaryWrite": "leave additive private tables inert and keep all fiscal write gates disabled",
+    "failureAfterCanaryWrite": "disable canary writes and preserve the immutable central ledger; never drop or renumber issued identities"
+  },
+  "approval": {
+    "humanApprovalRecorded": true,
+    "source": "explicit user instruction in the current Codex task to complete the phased central-server migration",
+    "scope": "exact approved migration list and test-user canary only",
+    "requiredModeApproved": false
+  },
+  "decision": "approved_to_apply_exact_additive_central_schema_with_fiscal_writes_disabled"
+}
