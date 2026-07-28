@@ -22,14 +22,25 @@ const packageJson = JSON.parse(read("package.json"));
 for (const required of [
   marker,
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY",
+  "fetchCentralInvoiceAuthorityStatusFromBrowser",
   "getSupabaseClientAsync",
   "getLocalCloudDeviceToken",
   "CLOUD_DEVICE_TOKEN_HEADER",
+  "/api/central-invoice-authority/status",
   "/api/central-invoice-authority/issue",
+  "CENTRAL_AUTHORITY_PREFLIGHT_BLOCKED",
   "CENTRAL_AUTHORITY_INVALID_RESPONSE",
 ]) {
   assert.match(`${client}\n${doc}`, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 }
+
+assert.ok(
+  client.indexOf("fetchCentralInvoiceAuthorityStatusFromBrowser") <
+    client.indexOf('fetchImpl("/api/central-invoice-authority/issue"'),
+  "status preflight must run before the issue POST",
+);
+assert.match(doc, /no llama a `\/issue`/);
+assert.match(doc, /no crea factura local/);
 
 const bridgeStart = store.indexOf("const addDocumentWithCentralIdentity");
 const bridgeEnd = store.indexOf("const updateDocument", bridgeStart);

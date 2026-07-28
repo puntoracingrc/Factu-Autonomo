@@ -7,6 +7,11 @@ import {
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { DocumentKind } from "@/lib/types";
 
+import {
+  fetchCentralInvoiceAuthorityStatusFromBrowser,
+  type CentralInvoiceAuthorityStatusResult,
+} from "./status-client";
+
 export const CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT_V1";
 
@@ -144,6 +149,21 @@ function identityFromPayload(
   };
 }
 
+function blockedPreflightMessage(
+  status: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>,
+): string {
+  const blocker =
+    status.readiness.blockers[0] ??
+    status.readiness.checks.find((check) => check.status === "blocked")
+      ?.message ??
+    status.activation.reason;
+  const reason = blocker.trim();
+  if (!reason) {
+    return "El servidor central no esta listo para emitir facturas.";
+  }
+  return `El servidor central no esta listo para emitir facturas: ${reason}`;
+}
+
 export async function issueCentralInvoiceAuthorityFromBrowser(
   input: CentralInvoiceAuthorityFormIssueRequest,
   dependencies: CentralInvoiceAuthorityFormIssueDependencies = {},
@@ -159,6 +179,22 @@ export async function issueCentralInvoiceAuthorityFromBrowser(
       401,
       "CENTRAL_AUTHORITY_SESSION_REQUIRED",
       "Inicia sesion y registra este dispositivo antes de emitir con autoridad central.",
+    );
+  }
+
+  const status = await fetchCentralInvoiceAuthorityStatusFromBrowser({
+    fetchImpl,
+    getAccessToken: async () => accessToken,
+    getDeviceToken: () => deviceToken,
+  });
+  if (!status.ok) {
+    return errorResult(status.status, status.code, status.message);
+  }
+  if (!status.summary.fiscalWritesPossible) {
+    return errorResult(
+      409,
+      "CENTRAL_AUTHORITY_PREFLIGHT_BLOCKED",
+      blockedPreflightMessage(status),
     );
   }
 
