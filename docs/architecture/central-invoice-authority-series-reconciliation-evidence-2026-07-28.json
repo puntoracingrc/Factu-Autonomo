@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "central-invoice-authority-series-reconciliation-evidence-v1",
+  "marker": "CENTRAL_INVOICE_AUTHORITY_SERIES_RECONCILIATION_EVIDENCE_V1",
+  "capturedAt": "2026-07-28T19:59:00Z",
+  "project": {
+    "ref": "rnbmkkzptxbvtchluqrx",
+    "environment": "production"
+  },
+  "source": {
+    "repoMainCommit": "173100b579621b70721dece5104ecf3304b73e76",
+    "migrationVersion": "20260728195536",
+    "migrationName": "central_invoice_authority_series_reconciliation",
+    "browserEvidence": "authenticated synthetic test account visible summary",
+    "businessRowsCopied": false,
+    "emailRecorded": false,
+    "userScopeHash": "sha256:c937e6e6e25eda12a98a7f0e95f37cf606ee1896d9bd14cda51b25a28b68f785",
+    "issuerNifHash": "sha256:22b94d56066ba095a3eebb07bef11638ba77ca025f97ae31281db1b75d781e3e"
+  },
+  "catalogReadback": {
+    "tableExists": true,
+    "rlsEnabled": true,
+    "restrictiveClientDenyPolicies": 1,
+    "serviceRoleCanSelectEvidence": true,
+    "serviceRoleCanInsertEvidence": false,
+    "serviceRoleCanUpdateEvidence": false,
+    "serviceRoleCanDeleteEvidence": false,
+    "serviceRoleCanTruncateEvidence": false,
+    "anonCanSelectEvidence": false,
+    "authenticatedCanSelectEvidence": false,
+    "serviceRoleCanExecuteReconciliation": true,
+    "anonCanExecuteReconciliation": false,
+    "authenticatedCanExecuteReconciliation": false,
+    "immutableTriggers": 2,
+    "identityBaselineTrigger": true
+  },
+  "series": [
+    {
+      "environment": "test",
+      "seriesCode": "F-2026",
+      "fiscalYear": 2026,
+      "observedMaxSequence": 2954,
+      "sourceDocumentCount": 936,
+      "sourceDigest": "sha256:a89639784d1d66b21d5eb648c1b4aef6fc0ac851f39b22ffd8c737ae9d272dc7",
+      "previousSequence": 0,
+      "resultingSequence": 2954,
+      "stateVersion": 1,
+      "reconciliationRows": 1
+    },
+    {
+      "environment": "test",
+      "seriesCode": "FR-2026",
+      "fiscalYear": 2026,
+      "observedMaxSequence": 1,
+      "sourceDocumentCount": 1,
+      "sourceDigest": "sha256:76eb226c06b6827eabea78b299393d9c2fa4d9eb84dc1508c8e24669ee5ae2e8",
+      "previousSequence": 0,
+      "resultingSequence": 1,
+      "stateVersion": 1,
+      "reconciliationRows": 1
+    }
+  ],
+  "rollbackDryRun": {
+    "requestedSeriesCode": "F-2026",
+    "allocatedFullNumber": "F-2026-2955",
+    "allocatedSequence": 2955,
+    "transactionRolledBack": true,
+    "lastSequenceAfterRollback": 2954,
+    "centralDocumentsAfterRollback": 0,
+    "centralIdentitiesAfterRollback": 0,
+    "centralCommandsAfterRollback": 0,
+    "centralOutboxAfterRollback": 0,
+    "centralWakeupsAfterRollback": 0
+  },
+  "advisors": {
+    "centralSecurityWarnings": 0,
+    "centralPerformanceWarnings": 0,
+    "newCentralPerformanceInfosAreOnlyUnusedIndexesOnEmptyTables": true,
+    "existingUnrelatedNoticesChanged": false,
+    "securityRemediationReference": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+    "performanceRemediationReference": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+  },
+  "activationBoundary": {
+    "centralAuthorityModeDuringEvidence": "off",
+    "legacyCloudSyncReactivated": false,
+    "fiscalIdentityPersisted": false,
+    "requiredModeEnabled": false,
+    "nextAllowedStep": "enable only the authorized synthetic test-user canary with test-only fiscal writes"
+  },
+  "result": "ready_for_test_only_canary_activation"
+}
