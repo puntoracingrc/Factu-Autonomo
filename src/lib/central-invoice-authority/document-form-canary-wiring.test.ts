@@ -22,9 +22,17 @@ describe("DocumentForm central authority canary wiring", () => {
     expect(form).toContain("isCentralInvoiceAuthorityFormCanaryEnabled");
     expect(form).toContain("issueCentralInvoiceAuthorityFromBrowser");
     expect(form).toContain("addDocumentWithCentralIdentity");
+    expect(form).toContain("CentralInvoiceAuthorityFormPolicyNotice");
   });
 
-  it("solo intercepta la creacion nueva cuando la bandera canary esta activa", () => {
+  it("muestra un preflight visible sin cambiar la rama de guardado", () => {
+    expect(form).toContain("centralFormPolicyNoticeEligible");
+    expect(form).toContain("type === \"factura\" && !existing");
+    expect(form).toContain("publicFormCanaryEnabled={centralCanaryEnabled}");
+    expect(form).toContain("documentLabel=\"factura\"");
+  });
+
+  it("solo intercepta la creacion nueva cuando la politica central lo permite", () => {
     const branch = creationBranch();
 
     expect(branch).toContain("centralCanaryEnabled");

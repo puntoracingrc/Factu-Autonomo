@@ -64,6 +64,7 @@ import {
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { CentralInvoiceAuthorityFormPolicyNotice } from "@/components/forms/CentralInvoiceAuthorityFormPolicyNotice";
 import {
   defaultPhraseForType,
   normalizeDocumentPhrases,
@@ -1139,6 +1140,8 @@ export function DocumentForm({
         ? "Emitir rectificativa"
         : "Emitir factura"
       : `Guardar ${label}`;
+  const centralFormPolicyNoticeEligible =
+    type === "factura" && !existing && !isRectificationDraft;
   const downloadButtonLabel =
     type === "factura" && isDraftStatus
       ? isRectificationDraft
@@ -2643,6 +2646,12 @@ export function DocumentForm({
           integridad.
         </div>
       )}
+
+      <CentralInvoiceAuthorityFormPolicyNotice
+        eligible={centralFormPolicyNoticeEligible}
+        publicFormCanaryEnabled={centralCanaryEnabled}
+        documentLabel="factura"
+      />
 
       {formError && (
         <div

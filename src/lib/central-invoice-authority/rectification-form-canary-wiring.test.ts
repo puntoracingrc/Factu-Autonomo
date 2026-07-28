@@ -23,9 +23,17 @@ describe("RectificativaForm central authority canary wiring", () => {
     expect(form).toContain("issueCentralInvoiceAuthorityFromBrowser");
     expect(form).toContain("addDocumentWithCentralIdentity");
     expect(form).toContain("buildRectificativaPayload");
+    expect(form).toContain("CentralInvoiceAuthorityFormPolicyNotice");
   });
 
-  it("solo intercepta rectificativas centrales cuando la bandera canary esta activa", () => {
+  it("muestra preflight visible solo para originales con identidad central coherente", () => {
+    expect(form).toContain("centralRectificationPolicyNoticeEligible");
+    expect(form).toContain("resolveCentralInvoiceAuthorityRectificationTarget");
+    expect(form).toContain("publicFormCanaryEnabled={centralCanaryEnabled}");
+    expect(form).toContain("documentLabel=\"factura rectificativa\"");
+  });
+
+  it("solo intercepta rectificativas centrales cuando la politica central lo permite", () => {
     const branch = saveBranch();
 
     expect(branch).toContain("centralCanaryEnabled");

@@ -38,8 +38,10 @@ canario publico cuando `/status` ya ha confirmado `summary.fiscalWritesPossible`
 si no, el formulario sigue en el flujo local existente y no reserva ni decide
 numeros fiscales centrales. Una vez invocado el cliente central, no crea factura local alternativa.
 
-## Siguiente corte
+## Corte posterior
 
-Extender el canary a rectificativas y a estados de operacion visibles para que
-el usuario vea "pendiente de emision", "emitido por servidor" o "requiere
-revision" sin mezclarlo con sincronizacion local.
+`CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1` y el aviso
+`CENTRAL_INVOICE_AUTHORITY_FORM_POLICY_NOTICE_V1` hacen visible si el formulario
+esta en canario central, en espera o sin comprobacion antes de emitir. La
+siguiente activacion ya debe limitarse a variables de entorno y usuario UUID
+allowlisted, sin cambiar este contrato cliente.

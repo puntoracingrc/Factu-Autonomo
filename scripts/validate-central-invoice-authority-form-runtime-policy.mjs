@@ -25,9 +25,16 @@ const marker = "CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1";
 const client = read("src/lib/central-invoice-authority/form-canary-client.ts");
 const documentForm = read("src/components/forms/DocumentForm.tsx");
 const rectificationForm = read("src/components/forms/RectificativaForm.tsx");
+const policyNotice = read(
+  "src/lib/central-invoice-authority/form-canary-presentation.ts",
+);
+const policyNoticeComponent = read(
+  "src/components/forms/CentralInvoiceAuthorityFormPolicyNotice.tsx",
+);
 const wiringTest = read(
   "src/lib/central-invoice-authority/form-runtime-policy-wiring.test.ts",
 );
+const envExample = read(".env.example");
 const doc = read(
   "docs/architecture/central-invoice-authority-form-runtime-policy-v1.md",
 );
@@ -39,6 +46,7 @@ const rectificationDoc = read(
 );
 const packageJson = JSON.parse(read("package.json"));
 const body = `${client}\n${documentForm}\n${rectificationForm}\n${wiringTest}\n${doc}\n${documentDoc}\n${rectificationDoc}`;
+const noticeBody = `${policyNotice}\n${policyNoticeComponent}\n${wiringTest}\n${envExample}\n${doc}`;
 
 for (const required of [
   marker,
@@ -56,6 +64,20 @@ for (const required of [
   "no cae a numeracion local",
 ]) {
   includes(body, required, "central authority form runtime policy");
+}
+
+for (const required of [
+  "CENTRAL_INVOICE_AUTHORITY_FORM_POLICY_NOTICE_V1",
+  "describeCentralInvoiceAuthorityFormPolicyNotice",
+  "CentralInvoiceAuthorityFormPolicyNotice",
+  "Comprobando autoridad central",
+  "Canario central activo",
+  "Canario central en espera",
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=false",
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED=false",
+  "CENTRAL_INVOICE_AUTHORITY_MODE=off",
+]) {
+  includes(noticeBody, required, "central authority form policy notice");
 }
 
 const resolverStart = client.indexOf(
@@ -127,6 +149,7 @@ runBin("npx", [
   "run",
   "src/lib/central-invoice-authority/form-canary-client.test.ts",
   "src/lib/central-invoice-authority/form-runtime-policy-wiring.test.ts",
+  "src/lib/central-invoice-authority/form-canary-presentation.test.ts",
   "src/lib/central-invoice-authority/document-form-canary-wiring.test.ts",
   "src/lib/central-invoice-authority/rectification-form-canary-wiring.test.ts",
 ]);
