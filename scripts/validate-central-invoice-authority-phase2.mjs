@@ -84,12 +84,15 @@ const allowedOutboxPullMigration =
   "20260727193609_central_invoice_authority_outbox_pull.sql";
 const allowedRealtimeWakeupsMigration =
   "20260728100752_central_invoice_authority_realtime_wakeups.sql";
+const allowedTenantGuardMigration =
+  "20260728164325_central_invoice_authority_tenant_guard.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
   allowedMaterializedSnapshotMigration,
   allowedOutboxPullMigration,
   allowedRealtimeWakeupsMigration,
+  allowedTenantGuardMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -180,6 +183,32 @@ if (centralMigrations.includes(allowedMaterializedSnapshotMigration)) {
   );
   assert.doesNotMatch(localMaterializedSnapshot, /\buser_backups\b/i);
   assert.doesNotMatch(localMaterializedSnapshot, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedTenantGuardMigration)) {
+  const tenantGuard = read(
+    `supabase/migrations/${allowedTenantGuardMigration}`,
+  );
+  assert.match(
+    tenantGuard,
+    /CENTRAL_INVOICE_AUTHORITY_TENANT_GUARD_V1/,
+  );
+  assert.match(tenantGuard, /\bsecurity\s+invoker\b/i);
+  assert.match(tenantGuard, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(tenantGuard, /v_rectified_user_id\s*<>\s*new\.user_id/i);
+  assert.match(
+    tenantGuard,
+    /v_rectified_environment\s*<>\s*new\.environment/i,
+  );
+  assert.match(
+    tenantGuard,
+    /v_rectified_issuer_nif\s*<>\s*new\.issuer_nif/i,
+  );
+  assert.doesNotMatch(tenantGuard, /\bsecurity\s+definer\b/i);
+  assert.doesNotMatch(
+    tenantGuard,
+    /\bgrant\s+execute\b[\s\S]*\bto\s+(?:anon|authenticated)\b/i,
+  );
 }
 
 if (centralMigrations.includes(allowedOutboxPullMigration)) {
