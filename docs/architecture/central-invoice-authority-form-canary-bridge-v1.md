@@ -7,14 +7,18 @@ sin activarla por defecto ni sustituir todavia el flujo local.
 
 ## Alcance
 
-1. cliente browser para llamar a `/api/central-invoice-authority/issue`;
-2. cabeceras derivadas de sesion Supabase y token local de dispositivo;
-3. respuesta reducida a identidad fiscal segura (`fullNumber`, secuencia y
+1. cliente browser para consultar primero
+   `/api/central-invoice-authority/status` con `GET` y `no-store`;
+2. llamada a `/api/central-invoice-authority/issue` solo si el status confirma
+   `summary.fiscalWritesPossible`;
+3. cabeceras derivadas de sesion Supabase y token local de dispositivo en ambas
+   llamadas;
+4. respuesta reducida a identidad fiscal segura (`fullNumber`, secuencia y
    referencias tecnicas);
-4. funcion separada en `AppStore` para crear una factura emitida con identidad
+5. funcion separada en `AppStore` para crear una factura emitida con identidad
    ya asignada por servidor, reutilizando el `localDocumentId` que se envio al
    endpoint si el formulario lo aporta;
-5. bandera publica opt-in
+6. bandera publica opt-in
    `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=true`.
 
 ## Seguridad
@@ -24,8 +28,13 @@ deriva en servidor. El store no reasigna numeracion local cuando recibe una
 identidad central y solo permite esta entrada para facturas emitidas, no para
 borradores ni presupuestos.
 
+Si el status central no se puede leer, no garantiza lectura no destructiva o
+declara que no hay escrituras fiscales posibles, el formulario falla cerrado:
+no llama a `/issue`, no crea factura local y muestra el motivo seguro devuelto
+por el preflight. El navegador sigue sin reservar ni decidir numeros fiscales.
+
 ## Siguiente corte
 
-Cablear `DocumentForm` para construir hashes/snapshots canary y usar
-`addDocumentWithCentralIdentity` cuando la bandera publica y las puertas de
-servidor esten activas. Si la bandera esta apagada, el flujo actual no cambia.
+Extender el canary a rectificativas y a estados de operacion visibles para que
+el usuario vea "pendiente de emision", "emitido por servidor" o "requiere
+revision" sin mezclarlo con sincronizacion local.
