@@ -1,8 +1,10 @@
 import { sha256Hex } from "@/lib/document-integrity/snapshot-hash";
 import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import {
+  formatDocumentNumberWithSettings,
   normalizeNumbering,
   parseDocumentNumberForKind,
+  parseLegacyDocumentNumber,
 } from "@/lib/numbering";
 import type {
   AppData,
@@ -29,6 +31,8 @@ export interface CentralInvoiceAuthorityAccountSeriesSummary {
 }
 
 export interface CentralInvoiceAuthorityAccountSeriesConflict {
+  environment: "test" | "production";
+  issuerNif: string;
   seriesCode: string;
   fiscalYear: number;
   sequence: number;
@@ -46,6 +50,18 @@ type SupportedKind = Extract<
   DocumentKind,
   "factura" | "factura_rectificativa"
 >;
+
+export interface CentralInvoiceAuthorityRequiredSeries {
+  kind: SupportedKind;
+  series: Omit<
+    CentralInvoiceAuthorityAccountSeriesSummary,
+    "observedMaxSequence" | "sourceDocumentCount" | "sourceDigest"
+  >;
+}
+
+export interface CentralInvoiceAuthorityAccountSeriesInventoryOptions {
+  requiredSeries?: CentralInvoiceAuthorityRequiredSeries[];
+}
 
 interface SeriesAccumulator {
   summary: Omit<
@@ -93,6 +109,28 @@ function seriesKey(input: {
   ].join("\u0000");
 }
 
+function legacySeriesForDocument(
+  data: AppData,
+  number: string,
+  kind: SupportedKind,
+) {
+  const parsed = parseLegacyDocumentNumber(number, kind);
+  if (!parsed) return null;
+  const current = seriesForDocument(
+    data,
+    { date: `${parsed.year}-01-01` },
+    kind,
+  );
+  return {
+    ...current,
+    seriesCode:
+      kind === "factura"
+        ? `F-${parsed.year}`
+        : `FR-${parsed.year}`,
+    fiscalYear: parsed.year,
+  };
+}
+
 function configuredAccumulator(
   data: AppData,
   kind: SupportedKind,
@@ -133,6 +171,7 @@ function digestSeriesDocuments(
 
 export function buildCentralInvoiceAuthorityAccountSeriesInventory(
   data: AppData,
+  options: CentralInvoiceAuthorityAccountSeriesInventoryOptions = {},
 ): CentralInvoiceAuthorityAccountSeriesInventory {
   const numbering = normalizeNumbering(data.profile.numbering);
   const accumulators = new Map<string, SeriesAccumulator>();
@@ -142,6 +181,18 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
   ] satisfies SupportedKind[]) {
     const accumulator = configuredAccumulator(data, kind);
     accumulators.set(seriesKey(accumulator.summary), accumulator);
+  }
+  for (const required of options.requiredSeries ?? []) {
+    const key = seriesKey(required.series);
+    if (accumulators.has(key)) continue;
+    accumulators.set(key, {
+      summary: required.series,
+      documents: [],
+      configuredFloor:
+        numbering.year === required.series.fiscalYear
+          ? numbering.lastSequence[required.kind]
+          : 0,
+    });
   }
 
   let ignoredDocuments = 0;
@@ -158,7 +209,21 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
       continue;
     }
 
-    const series = seriesForDocument(data, document, kind);
+    const currentSeries = seriesForDocument(data, document, kind);
+    const formattedWithCurrentSeries = formatDocumentNumberWithSettings(
+      kind,
+      parsed.year ?? currentSeries.fiscalYear,
+      parsed.sequence,
+      numbering,
+    );
+    const series =
+      formattedWithCurrentSeries === document.number
+        ? currentSeries
+        : legacySeriesForDocument(data, document.number, kind);
+    if (!series) {
+      ignoredDocuments += 1;
+      continue;
+    }
     if (parsed.year !== undefined && parsed.year !== series.fiscalYear) {
       ignoredDocuments += 1;
       continue;
@@ -188,6 +253,8 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
     for (const [sequence, documentNumbers] of bySequence) {
       if (documentNumbers.length < 2) continue;
       conflicts.push({
+        environment: accumulator.summary.environment,
+        issuerNif: accumulator.summary.issuerNif,
         seriesCode: accumulator.summary.seriesCode,
         fiscalYear: accumulator.summary.fiscalYear,
         sequence,
@@ -198,15 +265,13 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
 
   const conflictingSeries = new Set(
     conflicts.map((conflict) =>
-      `${conflict.seriesCode}\u0000${conflict.fiscalYear}`,
+      seriesKey(conflict),
     ),
   );
   const summaries = [...accumulators.values()]
     .filter(
       (accumulator) =>
-        !conflictingSeries.has(
-          `${accumulator.summary.seriesCode}\u0000${accumulator.summary.fiscalYear}`,
-        ),
+        !conflictingSeries.has(seriesKey(accumulator.summary)),
     )
     .map((accumulator) => ({
       ...accumulator.summary,
@@ -228,8 +293,8 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
     schema: CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_INVENTORY,
     summaries,
     conflicts: conflicts.sort((left, right) =>
-      `${left.seriesCode}:${left.fiscalYear}:${left.sequence}`.localeCompare(
-        `${right.seriesCode}:${right.fiscalYear}:${right.sequence}`,
+      `${left.environment}:${left.issuerNif}:${left.seriesCode}:${left.fiscalYear}:${left.sequence}`.localeCompare(
+        `${right.environment}:${right.issuerNif}:${right.seriesCode}:${right.fiscalYear}:${right.sequence}`,
       ),
     ),
     ignoredDocuments,

@@ -41,10 +41,17 @@ describe("central authority account reconciliation card", () => {
     );
   });
 
-  it("requires explicit confirmation and blocks duplicate series", () => {
+  it("requires explicit confirmation and excludes only duplicate series", () => {
     expect(component).toContain('type="checkbox"');
     expect(component).toContain("confirmed");
     expect(component).toContain("hasConflicts");
+    expect(component).toContain("hasCleanSeries");
+    expect(component).toContain(
+      "Las series con numeros duplicados quedan bloqueadas.",
+    );
+    expect(component).toContain(
+      "series en conflicto no se enviaran.",
+    );
     expect(component).toContain("disabled={!canReconcile}");
     expect(component).toContain(
       "runCentralInvoiceAuthorityClientOperation",

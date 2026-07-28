@@ -118,6 +118,8 @@ describe("central authority account series inventory", () => {
 
     expect(inventory.conflicts).toEqual([
       {
+        environment: "test",
+        issuerNif: "00000000T",
         seriesCode: "F-2026",
         fiscalYear: 2026,
         sequence: 7,
@@ -143,5 +145,61 @@ describe("central authority account series inventory", () => {
       observedMaxSequence: 8,
       sourceDocumentCount: 0,
     });
+  });
+
+  it("mantiene separada una serie legacy al cambiar el formato actual", () => {
+    const data = appData([
+      document("legacy-1", "F-2026-0002"),
+      document("legacy-2", "F-2026-0002"),
+    ]);
+    data.profile.numbering.formats.factura.template =
+      "QA-F-{year}-{num}";
+    data.profile.numbering.lastSequence.factura = 2955;
+
+    const inventory =
+      buildCentralInvoiceAuthorityAccountSeriesInventory(data);
+
+    expect(inventory.conflicts).toEqual([
+      expect.objectContaining({
+        seriesCode: "F-2026",
+        fiscalYear: 2026,
+        sequence: 2,
+      }),
+    ]);
+    expect(inventory.summaries).toContainEqual(
+      expect.objectContaining({
+        seriesCode: "QA-F-2026",
+        observedMaxSequence: 2955,
+        sourceDocumentCount: 0,
+      }),
+    );
+  });
+
+  it("incluye una serie requerida fuera del ejercicio configurado", () => {
+    const data = appData([]);
+
+    const inventory =
+      buildCentralInvoiceAuthorityAccountSeriesInventory(data, {
+        requiredSeries: [
+          {
+            kind: "factura",
+            series: {
+              environment: "test",
+              issuerNif: "00000000T",
+              seriesCode: "F-2027",
+              fiscalYear: 2027,
+            },
+          },
+        ],
+      });
+
+    expect(inventory.summaries).toContainEqual(
+      expect.objectContaining({
+        seriesCode: "F-2027",
+        fiscalYear: 2027,
+        observedMaxSequence: 0,
+        sourceDocumentCount: 0,
+      }),
+    );
   });
 });
