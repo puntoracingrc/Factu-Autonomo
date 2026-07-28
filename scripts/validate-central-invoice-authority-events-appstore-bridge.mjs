@@ -24,11 +24,17 @@ const appStore = read("src/context/AppStore.tsx");
 const appStoreTest = read(
   "src/context/AppStore.central-authority-events-sync.test.ts",
 );
+const clientLock = read(
+  "src/lib/central-invoice-authority/client-operation-lock.ts",
+);
+const clientLockTest = read(
+  "src/lib/central-invoice-authority/client-operation-lock.test.ts",
+);
 const doc = read(
   "docs/architecture/central-invoice-authority-events-appstore-bridge-v1.md",
 );
 const packageJson = JSON.parse(read("package.json"));
-const body = `${source}\n${sourceTest}\n${appStore}\n${appStoreTest}\n${doc}`;
+const body = `${source}\n${sourceTest}\n${appStore}\n${appStoreTest}\n${clientLock}\n${clientLockTest}\n${doc}`;
 
 for (const required of [
   marker,
@@ -39,7 +45,10 @@ for (const required of [
   "recordCentralInvoiceAuthorityEventsLocalSyncResult",
   "syncCentralInvoiceAuthorityPulledEventsIntoDocuments",
   "centralInvoiceAuthorityEventsSync?.cursor",
-  "commitDurableAppData(expected, (previous) =>",
+  "selectCentralInvoiceAuthorityEventsSyncBaseline",
+  "runCentralInvoiceAuthorityClientOperation",
+  "factu:central-invoice-authority:client-operation:v1",
+  "commitDurableAppData(baseline, (previous) =>",
   "no automatic polling",
 ]) {
   assert.match(
@@ -96,6 +105,7 @@ runBin("npx", [
   "vitest",
   "run",
   "src/lib/central-invoice-authority/events-app-data-sync.test.ts",
+  "src/lib/central-invoice-authority/client-operation-lock.test.ts",
   "src/context/AppStore.central-authority-events-sync.test.ts",
 ]);
 

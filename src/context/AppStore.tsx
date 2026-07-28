@@ -1218,7 +1218,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const syncCentralInvoiceAuthorityEvents = useCallback(
     async (
-      expected: AppData,
+      _expected: AppData,
       options: { limit?: number | null; receivedAt?: string } = {},
     ): Promise<
       AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>
@@ -1226,21 +1226,51 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const {
         buildCentralInvoiceAuthorityEventsAppDataTransition,
         pullCentralInvoiceAuthorityEventsForAppData,
+        selectCentralInvoiceAuthorityEventsSyncBaseline,
       } = await import(
         "@/lib/central-invoice-authority/events-app-data-sync"
       );
-      const pulled = await pullCentralInvoiceAuthorityEventsForAppData({
-        data: expected,
-        limit: options.limit,
-        receivedAt: options.receivedAt,
-      });
-      // central authority event sync: rebuild against the durable baseline before writing
-      return commitDurableAppData(expected, (previous) =>
-        buildCentralInvoiceAuthorityEventsAppDataTransition({
-          data: previous,
-          pulled,
-        }),
+      const { runCentralInvoiceAuthorityClientOperation } = await import(
+        "@/lib/central-invoice-authority/client-operation-lock"
       );
+
+      return runCentralInvoiceAuthorityClientOperation(async () => {
+        const memory = dataRef.current;
+        const baseline = selectCentralInvoiceAuthorityEventsSyncBaseline({
+          memory,
+          persisted: readPersistedDataSnapshot(),
+          persistedMatchesMemory:
+            inspectPersistedData(memory).status === "applied",
+        });
+        if (!baseline) {
+          return {
+            status: "blocked",
+            reason: "stale_precondition",
+          } as const;
+        }
+        if (baseline !== memory) {
+          durableStorageBaselineRef.current = {
+            status: "known",
+            data: baseline,
+          };
+          lastKnownDurableDataRef.current = baseline;
+          durablyPersistedDataRef.current = baseline;
+          dataRef.current = baseline;
+          setData(baseline);
+        }
+
+        const pulled = await pullCentralInvoiceAuthorityEventsForAppData({
+          data: baseline,
+          limit: options.limit,
+          receivedAt: options.receivedAt,
+        });
+        return commitDurableAppData(baseline, (previous) =>
+          buildCentralInvoiceAuthorityEventsAppDataTransition({
+            data: previous,
+            pulled,
+          }),
+        );
+      });
     },
     [commitDurableAppData],
   );
@@ -1357,8 +1387,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      let created: Document | null = null;
-      setAppData((prev) => {
+      const expected = dataRef.current;
+      const result = commitDurableAppData(expected, (prev) => {
         const now = new Date().toISOString();
         const centralInvoiceAuthority: Document["centralInvoiceAuthority"] = {
           schemaVersion: 1,
@@ -1415,7 +1445,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           assertRectificationEmissionAllowed(source, prev.documents);
           assertDocumentEmissionValid(source, rectificationProfile);
 
-          created = materializeRectificationDocument(
+          const created = materializeRectificationDocument(
             source,
             rectificationProfile,
             now,
@@ -1427,6 +1457,46 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           );
 
           return {
+            data: {
+              ...prev,
+              profile: {
+                ...prev.profile,
+                numbering: bumpNumberingAfterAssign(
+                  prev.profile.numbering,
+                  identity.kind,
+                  identity.fiscalYear,
+                  identity.sequence,
+                ),
+              },
+              documents: nextDocuments,
+              counters: countersFromDocuments(
+                nextDocuments,
+                identity.fiscalYear,
+                prev.profile.numbering,
+              ),
+            },
+            value: created,
+          };
+        }
+
+        const createdDraft: Document = {
+          ...doc,
+          status: "borrador",
+          id: options.localDocumentId ?? newId(),
+          number: identity.fullNumber,
+          centralInvoiceAuthority,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const created = saveEditableDocument(
+          createdDraft,
+          { ...createdDraft, status: doc.status },
+          prev.profile,
+          now,
+        );
+        const nextDocuments = [...prev.documents, created];
+        return {
+          data: {
             ...prev,
             profile: {
               ...prev.profile,
@@ -1443,50 +1513,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               identity.fiscalYear,
               prev.profile.numbering,
             ),
-          };
-        }
-
-        const createdDraft: Document = {
-          ...doc,
-          status: "borrador",
-          id: options.localDocumentId ?? newId(),
-          number: identity.fullNumber,
-          centralInvoiceAuthority,
-          createdAt: now,
-          updatedAt: now,
-        };
-        created = saveEditableDocument(
-          createdDraft,
-          { ...createdDraft, status: doc.status },
-          prev.profile,
-          now,
-        );
-        const nextDocuments = [...prev.documents, created];
-        return {
-          ...prev,
-          profile: {
-            ...prev.profile,
-            numbering: bumpNumberingAfterAssign(
-              prev.profile.numbering,
-              identity.kind,
-              identity.fiscalYear,
-              identity.sequence,
-            ),
           },
-          documents: nextDocuments,
-          counters: countersFromDocuments(
-            nextDocuments,
-            identity.fiscalYear,
-            prev.profile.numbering,
-          ),
+          value: created,
         };
       });
-      if (!created) {
-        throw new Error("No se pudo crear el documento con identidad central");
+      if (result.status !== "applied") {
+        throw new Error(
+          "La identidad fiscal central se emitio, pero el guardado local no pudo confirmarse.",
+        );
       }
-      return created;
+      return result.value;
     },
-    [setAppData],
+    [commitDurableAppData],
   );
 
   const updateDocument = useCallback(

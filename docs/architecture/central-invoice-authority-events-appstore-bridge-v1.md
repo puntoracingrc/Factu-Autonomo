@@ -9,6 +9,11 @@ background polling or cloud-sync coupling.
 
 Safety contract:
 
+- Browser tabs serialize central issuance and event reception through one Web
+  Locks key, with an in-process queue fallback when Web Locks is unavailable.
+- A tab that waited for another tab adopts the newer durable cursor/state
+  before pulling again; it never replaces newer in-memory work with an older
+  persisted copy.
 - The browser first pulls central events using the cursor already stored in
   `centralInvoiceAuthorityEventsSync`.
 - The resulting local sync decision is committed through

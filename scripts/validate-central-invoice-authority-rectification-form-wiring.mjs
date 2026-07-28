@@ -40,8 +40,10 @@ for (const required of [
   "isCentralInvoiceAuthorityFormCanaryEnabled",
   "issueCentralInvoiceAuthorityFromBrowser",
   "addDocumentWithCentralIdentity",
+  "runCentralInvoiceAuthorityClientOperation",
   "crypto.randomUUID()",
-  "setFormError(centralResult.message)",
+  "setFormError(centralSave.message)",
+  "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
   "saved = await addRectificativa(original.id, payload)",
   "rectifiesIdentityId",
   "no cae a numeracion local",
@@ -72,6 +74,11 @@ includes(
   saveBranch.slice(rejectionIndex, centralStoreIndex),
   "return",
   "central rejection branch",
+);
+includes(
+  saveBranch.slice(centralStoreIndex, localStoreIndex),
+  "saved = centralSave.document",
+  "central durable save branch",
 );
 
 assert.equal(

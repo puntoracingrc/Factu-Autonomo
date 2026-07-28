@@ -7,6 +7,7 @@ import {
   CENTRAL_INVOICE_AUTHORITY_EVENTS_APP_DATA_SYNC,
   buildCentralInvoiceAuthorityEventsAppDataTransition,
   pullCentralInvoiceAuthorityEventsForAppData,
+  selectCentralInvoiceAuthorityEventsSyncBaseline,
   syncCentralInvoiceAuthorityEventsIntoAppData,
 } from "./events-app-data-sync";
 import type {
@@ -111,6 +112,62 @@ function event(
 }
 
 describe("central invoice authority app data sync", () => {
+  it("adopta el estado durable mas avanzado de otra pestana antes de tirar del servidor", () => {
+    const memory = appData({
+      meta: {
+        lastModified: "2026-07-27T11:00:00.000Z",
+        pendingChanges: [],
+      },
+    });
+    const persisted = appData({
+      documents: [document()],
+      centralInvoiceAuthorityEventsSync: {
+        ...memory.centralInvoiceAuthorityEventsSync!,
+        cursor: cursor1,
+      },
+      meta: {
+        lastModified: "2026-07-27T12:00:00.000Z",
+        pendingChanges: [],
+      },
+    });
+
+    expect(
+      selectCentralInvoiceAuthorityEventsSyncBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBe(persisted);
+  });
+
+  it("no pisa memoria mas reciente con una copia durable atrasada", () => {
+    const memory = appData({
+      documents: [document()],
+      centralInvoiceAuthorityEventsSync: {
+        ...appData().centralInvoiceAuthorityEventsSync!,
+        cursor: cursor1,
+      },
+      meta: {
+        lastModified: "2026-07-27T12:00:00.000Z",
+        pendingChanges: [],
+      },
+    });
+    const persisted = appData({
+      meta: {
+        lastModified: "2026-07-27T11:00:00.000Z",
+        pendingChanges: [],
+      },
+    });
+
+    expect(
+      selectCentralInvoiceAuthorityEventsSyncBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBeNull();
+  });
+
   it("usa el cursor operativo de AppData y construye una transición aplicable", async () => {
     const pullEvents = vi.fn(async () => ({
       ok: true as const,

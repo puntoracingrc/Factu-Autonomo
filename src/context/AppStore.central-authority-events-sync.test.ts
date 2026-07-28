@@ -4,14 +4,17 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(new URL("./AppStore.tsx", import.meta.url), "utf8");
 
 describe("AppStore central authority events sync bridge", () => {
-  it("expone un método manual que persiste por el commit durable existente", () => {
+  it("expone un método manual serializado que persiste por el commit durable existente", () => {
     expect(source).toContain("syncCentralInvoiceAuthorityEvents");
     expect(source).toContain("pullCentralInvoiceAuthorityEventsForAppData");
     expect(source).toContain(
       "buildCentralInvoiceAuthorityEventsAppDataTransition",
     );
-    expect(source).toContain("commitDurableAppData(expected, (previous) =>");
-    expect(source).toContain("central authority event sync");
+    expect(source).toContain("runCentralInvoiceAuthorityClientOperation");
+    expect(source).toContain(
+      "selectCentralInvoiceAuthorityEventsSyncBaseline",
+    );
+    expect(source).toContain("commitDurableAppData(baseline, (previous) =>");
   });
 
   it("no activa polling automático ni se engancha al efecto de carga inicial", () => {
