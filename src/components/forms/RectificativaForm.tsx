@@ -366,6 +366,8 @@ export function RectificativaForm({
       return;
     }
 
+    const payload = buildRectificativaPayload(statusOverride);
+
     if (!isDraft) {
       const client = rectificativaClient();
       const clientLegalLabels = invoiceClientMissingDocumentLabels({
@@ -384,12 +386,7 @@ export function RectificativaForm({
       }
 
       const emissionCheck = validateDocumentEmission(
-        {
-          type: "factura",
-          status: statusOverride,
-          client,
-          items: rectificativaItemsForSave(),
-        },
+        payload,
         historicalProfile,
         "factura",
       );
@@ -400,7 +397,6 @@ export function RectificativaForm({
       }
     }
 
-    const payload = buildRectificativaPayload(statusOverride);
     let saved: Document | null;
     try {
       const centralRectificationEligible =
