@@ -15,8 +15,12 @@ usar el camino central.
 4. deriva serie, NIF emisor, entorno y ejercicio desde el perfil/documento;
 5. llama a `/api/central-invoice-authority/issue`;
 6. crea el documento local con el `fullNumber` devuelto por servidor;
-7. no cae a numeracion local si la autoridad central rechaza;
-8. desde `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1`, el canary publico
+7. serializa emision y recepcion de eventos entre pestanas y confirma el
+   guardado durable local antes de cerrar la operacion;
+8. no cae a numeracion local si la autoridad central rechaza;
+9. si el servidor emitio pero el guardado local falla, avisa expresamente que
+   no se repita la emision y deja la recuperacion al evento central;
+10. desde `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1`, el canary publico
    convive con el status servidor `required` o `fiscalWritesPossible`, y puede
    limitarse a UUIDs Supabase mediante
    `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS`; el canary privado

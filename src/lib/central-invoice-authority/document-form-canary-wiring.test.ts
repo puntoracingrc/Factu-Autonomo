@@ -22,6 +22,7 @@ describe("DocumentForm central authority canary wiring", () => {
     expect(form).toContain("isCentralInvoiceAuthorityFormCanaryEnabled");
     expect(form).toContain("issueCentralInvoiceAuthorityFromBrowser");
     expect(form).toContain("addDocumentWithCentralIdentity");
+    expect(form).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(form).toContain("CentralInvoiceAuthorityFormPolicyNotice");
   });
 
@@ -44,6 +45,7 @@ describe("DocumentForm central authority canary wiring", () => {
       "buildCentralInvoiceAuthorityDocumentFormIssueRequest",
     );
     expect(branch).toContain("issueCentralInvoiceAuthorityFromBrowser");
+    expect(branch).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(branch).toContain("addDocumentWithCentralIdentity");
     expect(branch).toContain("localDocumentId");
     expect(branch).toContain("saved = addDocument(payload)");
@@ -59,10 +61,13 @@ describe("DocumentForm central authority canary wiring", () => {
     expect(centralStoreIndex).toBeGreaterThan(rejectionIndex);
     expect(localStoreIndex).toBeGreaterThan(centralStoreIndex);
     expect(branch.slice(rejectionIndex, centralStoreIndex)).toContain(
-      "setSaveAction(\"idle\")",
+      "return centralResult",
     );
-    expect(branch.slice(rejectionIndex, centralStoreIndex)).toContain(
-      "setFormError(centralResult.message)",
+    expect(branch.slice(centralStoreIndex, localStoreIndex)).toContain(
+      "if (!centralSave.ok)",
+    );
+    expect(branch.slice(centralStoreIndex, localStoreIndex)).toContain(
+      "setFormError(centralSave.message)",
     );
     expect(branch.slice(rejectionIndex, centralStoreIndex)).toContain("return");
   });

@@ -105,6 +105,7 @@ import {
   issueCentralInvoiceAuthorityFromBrowser,
   resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
 } from "@/lib/central-invoice-authority/form-canary-client";
+import { runCentralInvoiceAuthorityClientOperation } from "@/lib/central-invoice-authority/client-operation-lock";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import {
   applyDocumentProductToLine,
@@ -1748,18 +1749,40 @@ export function DocumentForm({
             profile: effectiveDocumentProfile,
             issuedAt,
           });
-        const centralResult =
-          await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
+        const centralSave = await runCentralInvoiceAuthorityClientOperation(
+          async () => {
+            const centralResult =
+              await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
 
-        if (!centralResult.ok) {
+            if (!centralResult.ok) return centralResult;
+            try {
+              return {
+                ok: true as const,
+                document: addDocumentWithCentralIdentity(
+                  payload,
+                  centralResult.identity,
+                  { localDocumentId },
+                ),
+              };
+            } catch {
+              return {
+                ok: false as const,
+                status: 409,
+                code: "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
+                message:
+                  "La factura ya quedo emitida en el servidor, pero este navegador no pudo guardarla. No repitas la emision: sincroniza los eventos centrales para recuperarla.",
+              };
+            }
+          },
+        );
+
+        if (!centralSave.ok) {
           setSaveAction("idle");
-          setFormError(centralResult.message);
+          setFormError(centralSave.message);
           return;
         }
 
-        saved = addDocumentWithCentralIdentity(payload, centralResult.identity, {
-          localDocumentId,
-        });
+        saved = centralSave.document;
       } else {
         saved = addDocument(payload);
       }

@@ -38,15 +38,18 @@ for (const required of [
   "isCentralInvoiceAuthorityFormCanaryEnabled",
   "issueCentralInvoiceAuthorityFromBrowser",
   "addDocumentWithCentralIdentity",
+  "runCentralInvoiceAuthorityClientOperation",
   "centralCanaryEnabled",
   "crypto.randomUUID()",
-  "setFormError(centralResult.message)",
+  "setFormError(centralSave.message)",
+  "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
 ]) {
   assert.match(form, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 }
 
 assert.match(form, /shouldUseCentralInvoiceAuthorityDocumentFormCanary\(\{/);
-assert.match(form, /saved = addDocumentWithCentralIdentity\(/);
+assert.match(form, /document: addDocumentWithCentralIdentity\(/);
+assert.match(form, /saved = centralSave\.document/);
 assert.match(form, /saved = addDocument\(payload\)/);
 assert.match(doc, /no cae a numeracion local si la autoridad central rechaza/);
 

@@ -17,9 +17,13 @@ coherente.
 5. llama a `/api/central-invoice-authority/issue` con `kind: "rectification"`;
 6. crea el documento local con el `fullNumber` devuelto por servidor mediante
    `addDocumentWithCentralIdentity`;
-7. no cae a numeracion local si la autoridad central rechaza una rectificativa
+7. serializa emision y recepcion de eventos entre pestanas y confirma el
+   guardado durable local antes de cerrar la operacion;
+8. no cae a numeracion local si la autoridad central rechaza una rectificativa
    de una factura central;
-8. desde `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1`, el canary publico
+9. si el servidor emitio pero el guardado local falla, avisa que no se repita
+   la emision y la recupera mediante el evento central;
+10. desde `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1`, el canary publico
    convive con el status servidor `required` o `fiscalWritesPossible`, y puede
    limitarse a UUIDs Supabase mediante
    `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS`; el canary privado

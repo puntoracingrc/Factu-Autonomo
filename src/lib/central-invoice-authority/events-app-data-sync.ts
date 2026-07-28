@@ -34,6 +34,47 @@ export interface CentralInvoiceAuthorityEventsAppDataSyncValue {
   state: CentralInvoiceAuthorityEventsSyncStateV1;
 }
 
+function parsedTimestamp(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function cursorKey(data: AppData): string | null {
+  const cursor = data.centralInvoiceAuthorityEventsSync?.cursor;
+  if (!cursor) return null;
+  return `${cursor.afterCreatedAt}\u0000${cursor.afterEventId}`;
+}
+
+export function selectCentralInvoiceAuthorityEventsSyncBaseline(input: {
+  memory: AppData;
+  persisted: AppData | null;
+  persistedMatchesMemory: boolean;
+}): AppData | null {
+  if (input.persistedMatchesMemory) return input.memory;
+  if (!input.persisted) return null;
+
+  const memoryCursor = cursorKey(input.memory);
+  const persistedCursor = cursorKey(input.persisted);
+  if (
+    persistedCursor !== null &&
+    (memoryCursor === null || persistedCursor > memoryCursor)
+  ) {
+    return input.persisted;
+  }
+
+  const memoryModified = parsedTimestamp(input.memory.meta?.lastModified);
+  const persistedModified = parsedTimestamp(input.persisted.meta?.lastModified);
+  if (
+    persistedModified !== null &&
+    (memoryModified === null || persistedModified > memoryModified)
+  ) {
+    return input.persisted;
+  }
+
+  return null;
+}
+
 export async function pullCentralInvoiceAuthorityEventsForAppData(
   input: CentralInvoiceAuthorityEventsAppDataPullInput,
   dependencies: CentralInvoiceAuthorityEventsLocalSyncDependencies = {},
