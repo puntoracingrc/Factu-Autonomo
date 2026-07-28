@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT,
+  CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD,
+  CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY,
   CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
   isCentralInvoiceAuthorityFormCanaryEnabled,
   isCentralInvoiceAuthorityFormRequiredEnabled,
@@ -78,6 +80,18 @@ function readyStatusPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function memoryStorage(
+  initial: Record<string, string> = {},
+): Pick<Storage, "getItem" | "setItem"> {
+  const entries = new Map(Object.entries(initial));
+  return {
+    getItem: (key: string) => entries.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      entries.set(key, value);
+    },
+  };
+}
+
 describe("central invoice authority form canary client", () => {
   it("permanece apagado salvo bandera publica explicita", () => {
     expect(isCentralInvoiceAuthorityFormCanaryEnabled({})).toBe(false);
@@ -120,6 +134,104 @@ describe("central invoice authority form canary client", () => {
       reason: "public_form_required",
     });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("recuerda el modo required y falla cerrado si luego no puede consultar status", async () => {
+    const storage = memoryStorage();
+    const now = () => new Date("2026-07-28T09:00:00.000Z");
+
+    const required = await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+      fetchImpl: vi.fn(async () =>
+        jsonResponse(
+          200,
+          readyStatusPayload({
+            activation: {
+              requestedMode: "required",
+              effectiveMode: "off",
+              enabled: false,
+              fiscalWritesEnabled: false,
+              appliesToUser: true,
+              production: false,
+              reason: "schema_not_ready",
+            },
+            summary: {
+              fiscalWritesPossible: false,
+              modeAllowsWrites: false,
+              serverSchemaReady: true,
+              deviceVerified: true,
+            },
+          }),
+        ),
+      ),
+      getAccessToken: async () => "access-token",
+      getDeviceToken: () => "device-token",
+      storage,
+      now,
+    });
+    const unavailable = await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+      fetchImpl: vi.fn(),
+      getAccessToken: async () => null,
+      getDeviceToken: () => "device-token",
+      storage,
+      now,
+    });
+
+    expect(required).toMatchObject({
+      shouldUseCentralAuthority: true,
+      failClosed: true,
+      reason: "server_required",
+    });
+    expect(storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY))
+      .toContain(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD);
+    expect(unavailable).toMatchObject({
+      shouldUseCentralAuthority: true,
+      failClosed: true,
+      reason: "last_known_central_authority",
+    });
+  });
+
+  it("no vuelve a fallback local si la autoridad central ya era conocida", async () => {
+    const storage = memoryStorage({
+      [CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY]: JSON.stringify({
+        schema: CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD,
+        rememberedAt: "2026-07-28T09:00:00.000Z",
+        reason: "server_fiscal_writes_possible",
+      }),
+    });
+
+    const off = await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+      fetchImpl: vi.fn(async () =>
+        jsonResponse(
+          200,
+          readyStatusPayload({
+            activation: {
+              requestedMode: "off",
+              effectiveMode: "off",
+              enabled: false,
+              fiscalWritesEnabled: false,
+              appliesToUser: false,
+              production: false,
+              reason: "disabled",
+            },
+            summary: {
+              fiscalWritesPossible: false,
+              modeAllowsWrites: false,
+              serverSchemaReady: true,
+              deviceVerified: true,
+            },
+          }),
+        ),
+      ),
+      getAccessToken: async () => "access-token",
+      getDeviceToken: () => "device-token",
+      storage,
+    });
+
+    expect(off).toMatchObject({
+      shouldUseCentralAuthority: true,
+      failClosed: true,
+      reason: "last_known_central_authority",
+    });
   });
 
   it("resuelve politica runtime desde status central", async () => {

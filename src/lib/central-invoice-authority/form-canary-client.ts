@@ -17,6 +17,10 @@ export const CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT_V1";
 export const CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY =
   "CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1";
+export const CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD =
+  "CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_V1";
+export const CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY =
+  "factu:central-invoice-authority:form-last-known-guard:v1";
 
 export type CentralInvoiceAuthorityFormJson =
   | null
@@ -90,8 +94,20 @@ export type CentralInvoiceAuthorityFormIssuePolicyReason =
   | "public_form_required"
   | "server_required"
   | "server_fiscal_writes_possible"
+  | "last_known_central_authority"
   | "central_not_requested"
   | "status_unavailable";
+
+export type CentralInvoiceAuthorityFormLastKnownGuardReason =
+  | "public_form_required"
+  | "server_required"
+  | "server_fiscal_writes_possible";
+
+export interface CentralInvoiceAuthorityFormLastKnownGuard {
+  schema: typeof CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD;
+  rememberedAt: string;
+  reason: CentralInvoiceAuthorityFormLastKnownGuardReason;
+}
 
 export type CentralInvoiceAuthorityFormIssuePolicyDecision =
   | {
@@ -121,6 +137,8 @@ export interface CentralInvoiceAuthorityFormIssuePolicyDependencies
   env?: Record<string, string | undefined>;
   publicFormCanaryEnabled?: boolean;
   publicFormRequiredEnabled?: boolean;
+  storage?: Pick<Storage, "getItem" | "setItem">;
+  now?: () => Date;
 }
 
 export function isCentralInvoiceAuthorityFormCanaryEnabled(
@@ -170,10 +188,66 @@ function localPolicy(
   };
 }
 
+function getBrowserStorage(): Pick<Storage, "getItem" | "setItem"> | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.localStorage;
+}
+
+function readLastKnownCentralAuthorityFormGuard(
+  storage: Pick<Storage, "getItem" | "setItem"> | undefined,
+): CentralInvoiceAuthorityFormLastKnownGuard | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CentralInvoiceAuthorityFormLastKnownGuard>;
+    if (
+      parsed.schema !== CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD ||
+      typeof parsed.rememberedAt !== "string" ||
+      (parsed.reason !== "public_form_required" &&
+        parsed.reason !== "server_required" &&
+        parsed.reason !== "server_fiscal_writes_possible")
+    ) {
+      return null;
+    }
+    return {
+      schema: CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD,
+      rememberedAt: parsed.rememberedAt,
+      reason: parsed.reason,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function rememberCentralAuthorityFormGuard(
+  storage: Pick<Storage, "getItem" | "setItem"> | undefined,
+  reason: CentralInvoiceAuthorityFormLastKnownGuardReason,
+  now: () => Date,
+): void {
+  if (!storage) return;
+  try {
+    const payload: CentralInvoiceAuthorityFormLastKnownGuard = {
+      schema: CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD,
+      rememberedAt: now().toISOString(),
+      reason,
+    };
+    storage.setItem(
+      CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY,
+      JSON.stringify(payload),
+    );
+  } catch {
+    // Un almacenamiento privado o lleno no debe impedir que el preflight central decida.
+  }
+}
+
 export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
   dependencies: CentralInvoiceAuthorityFormIssuePolicyDependencies = {},
 ): Promise<CentralInvoiceAuthorityFormIssuePolicyDecision> {
   const env = dependencies.env ?? process.env;
+  const storage = dependencies.storage ?? getBrowserStorage();
+  const now = dependencies.now ?? (() => new Date());
+  const lastKnownGuard = readLastKnownCentralAuthorityFormGuard(storage);
   const publicCanaryEnabled =
     dependencies.publicFormCanaryEnabled ??
     isCentralInvoiceAuthorityFormCanaryEnabled(env);
@@ -181,7 +255,10 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
     dependencies.publicFormRequiredEnabled ??
     isCentralInvoiceAuthorityFormRequiredEnabled(env);
 
-  if (publicRequiredEnabled) return enabledPolicy("public_form_required");
+  if (publicRequiredEnabled) {
+    rememberCentralAuthorityFormGuard(storage, "public_form_required", now);
+    return enabledPolicy("public_form_required");
+  }
   if (publicCanaryEnabled) return enabledPolicy("public_form_canary");
 
   const status = await fetchCentralInvoiceAuthorityStatusFromBrowser({
@@ -190,12 +267,16 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
     getDeviceToken: dependencies.getDeviceToken,
   });
   if (!status.ok) {
+    if (lastKnownGuard) return enabledPolicy("last_known_central_authority");
     return localPolicy("status_unavailable", { statusError: status });
   }
+  if (lastKnownGuard) return enabledPolicy("last_known_central_authority", status);
   if (status.activation.requestedMode === "required") {
+    rememberCentralAuthorityFormGuard(storage, "server_required", now);
     return enabledPolicy("server_required", status);
   }
   if (status.summary.fiscalWritesPossible) {
+    rememberCentralAuthorityFormGuard(storage, "server_fiscal_writes_possible", now);
     return enabledPolicy("server_fiscal_writes_possible", status);
   }
   return localPolicy("central_not_requested", { status });

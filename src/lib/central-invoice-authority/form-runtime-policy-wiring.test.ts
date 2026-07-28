@@ -32,6 +32,9 @@ describe("central invoice authority form runtime policy wiring", () => {
     expect(client).toContain("CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1");
     expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY");
     expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED");
+    expect(client).toContain("CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_V1");
+    expect(client).toContain("last_known_central_authority");
+    expect(client).toContain("localStorage");
     expect(client).toContain("resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser");
     expect(client).toContain("fetchCentralInvoiceAuthorityStatusFromBrowser");
     expect(client).toContain('status.activation.requestedMode === "required"');
