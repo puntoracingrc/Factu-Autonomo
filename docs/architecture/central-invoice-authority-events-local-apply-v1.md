@@ -12,17 +12,24 @@ materialized in the local document list.
 
 Safety contract:
 
-- Only `invoice_issued` events are applied in this phase.
-- Missing invoices are inserted only when the materialized payload is a complete
-  invoice document whose visible number matches the central `fullNumber`.
+- `invoice_issued` and `rectification_issued` events are applied in this phase.
+- Missing invoices or rectificatives are inserted only when the materialized
+  payload is a complete document whose visible number matches the central
+  `fullNumber`.
 - Existing invoices with the same central `serverDocumentId` or `identityId`
   receive metadata only; fiscal content is not overwritten.
 - A different local invoice with the same fiscal number creates
   `duplicate_fiscal_number` and leaves the local list unchanged.
 - A local id collision creates `local_document_id_collision` unless it is the
   same visible invoice and only lacks central metadata.
-- `rectification_issued` and `document_repaired` stay skipped until they have a
-  dedicated protected merge contract.
+- A received rectificative requires its original invoice to exist locally. If
+  the original is missing or already linked to a different rectificative, the
+  whole page is treated as a conflict and the cursor does not advance.
+- When a rectificative is inserted or receives central metadata, its local
+  original is marked `rectificada` or `anulada` using the same status rule as
+  the emission flow.
+- `document_repaired` stays skipped until it has a dedicated protected merge
+  contract.
 - The module is pure: no `fetch`, no `localStorage`, no Supabase client and no
   cloud snapshot writes.
 

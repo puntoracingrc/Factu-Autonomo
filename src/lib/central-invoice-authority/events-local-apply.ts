@@ -1,4 +1,5 @@
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import { originalStatusAfterRectification } from "@/lib/rectificativas";
 import type {
   BusinessProfile,
   Document,
@@ -25,7 +26,9 @@ export type CentralInvoiceAuthorityEventsLocalSkipCode =
 export type CentralInvoiceAuthorityEventsLocalConflictCode =
   | "duplicate_fiscal_number"
   | "local_document_id_collision"
-  | "central_identity_number_mismatch";
+  | "central_identity_number_mismatch"
+  | "rectification_original_missing"
+  | "rectification_original_already_linked";
 
 export interface CentralInvoiceAuthorityEventsLocalApplyInput {
   documents: Document[];
@@ -224,6 +227,56 @@ function buildReceivedIssuedDocument(input: {
   return attachCentralMetadata(issued, input.event, input.receivedAt);
 }
 
+function applyReceivedRectificationToOriginal(
+  documents: Document[],
+  rectificativa: Document,
+  updatedAt: string,
+): Document[] {
+  if (!rectificativa.rectification || rectificativa.status === "borrador") {
+    return documents;
+  }
+
+  const originalId = rectificativa.rectification.originalDocumentId;
+  return documents.map((doc) => {
+    if (doc.id !== originalId) return doc;
+    return {
+      ...doc,
+      status: originalStatusAfterRectification(rectificativa.rectification!.type),
+      rectifiedById: rectificativa.id,
+      updatedAt,
+    };
+  });
+}
+
+function rectificationRelationConflict(
+  documents: Document[],
+  incoming: Document,
+  event: CentralInvoiceAuthorityPulledBrowserEvent,
+): CentralInvoiceAuthorityEventsLocalConflict | null {
+  if (!incoming.rectification) return null;
+  const original = documents.find(
+    (doc) => doc.id === incoming.rectification?.originalDocumentId,
+  );
+  if (!original) {
+    return {
+      eventId: event.eventId,
+      fullNumber: event.fullNumber,
+      code: "rectification_original_missing",
+      centralDocumentId: event.documentId,
+    };
+  }
+  if (original.rectifiedById && original.rectifiedById !== incoming.id) {
+    return {
+      eventId: event.eventId,
+      fullNumber: event.fullNumber,
+      code: "rectification_original_already_linked",
+      localDocumentId: original.id,
+      centralDocumentId: event.documentId,
+    };
+  }
+  return null;
+}
+
 export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
   input: CentralInvoiceAuthorityEventsLocalApplyInput,
 ): CentralInvoiceAuthorityEventsLocalApplyResult {
@@ -235,7 +288,7 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
 
   for (const event of input.events) {
     const eventKind = kindForEvent(event);
-    if (eventKind !== "factura") {
+    if (!eventKind) {
       skipped.push({
         eventId: event.eventId,
         fullNumber: event.fullNumber,
@@ -285,6 +338,11 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
       documents = documents.map((doc, index) =>
         index === centralIndex ? attachCentralMetadata(doc, event, receivedAt) : doc,
       );
+      documents = applyReceivedRectificationToOriginal(
+        documents,
+        documents[centralIndex]!,
+        receivedAt,
+      );
       applied.push({
         eventId: event.eventId,
         documentId: existing.id,
@@ -297,7 +355,6 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
     const incoming = documentFromEventPayload(event);
     if (
       !incoming ||
-      incoming.rectification ||
       kindForDocument(incoming) !== eventKind ||
       normalizeNumber(incoming.number) !== normalizeNumber(event.fullNumber)
     ) {
@@ -306,6 +363,16 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
         fullNumber: event.fullNumber,
         code: "invalid_document_payload",
       });
+      continue;
+    }
+
+    const relationConflict = rectificationRelationConflict(
+      documents,
+      incoming,
+      event,
+    );
+    if (relationConflict) {
+      conflicts.push(relationConflict);
       continue;
     }
 
@@ -320,6 +387,11 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
           index === sameIdIndex
             ? attachCentralMetadata(doc, event, receivedAt)
             : doc,
+        );
+        documents = applyReceivedRectificationToOriginal(
+          documents,
+          documents[sameIdIndex]!,
+          receivedAt,
         );
         applied.push({
           eventId: event.eventId,
@@ -359,7 +431,11 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
       profile: input.profile,
       receivedAt,
     });
-    documents = [...documents, inserted];
+    documents = applyReceivedRectificationToOriginal(
+      [...documents, inserted],
+      inserted,
+      receivedAt,
+    );
     applied.push({
       eventId: event.eventId,
       documentId: inserted.id,
