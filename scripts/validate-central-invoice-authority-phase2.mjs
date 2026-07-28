@@ -86,6 +86,8 @@ const allowedRealtimeWakeupsMigration =
   "20260728100752_central_invoice_authority_realtime_wakeups.sql";
 const allowedTenantGuardMigration =
   "20260728164325_central_invoice_authority_tenant_guard.sql";
+const allowedIndexesMigration =
+  "20260728172000_central_invoice_authority_indexes.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -93,6 +95,7 @@ const allowedCentralMigrations = new Set([
   allowedOutboxPullMigration,
   allowedRealtimeWakeupsMigration,
   allowedTenantGuardMigration,
+  allowedIndexesMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -208,6 +211,23 @@ if (centralMigrations.includes(allowedTenantGuardMigration)) {
   assert.doesNotMatch(
     tenantGuard,
     /\bgrant\s+execute\b[\s\S]*\bto\s+(?:anon|authenticated)\b/i,
+  );
+}
+
+if (centralMigrations.includes(allowedIndexesMigration)) {
+  const indexes = read(
+    `supabase/migrations/${allowedIndexesMigration}`,
+  );
+  assert.match(indexes, /CENTRAL_INVOICE_AUTHORITY_INDEXES_V1/);
+  assert.match(
+    indexes,
+    /central_invoice_outbox_user_cursor_idx[\s\S]*user_id,\s*created_at,\s*id/i,
+  );
+  assert.doesNotMatch(indexes, /\b(?:drop|truncate|delete|update|insert)\b/i);
+  assert.doesNotMatch(indexes, /\bcreate\s+table\b/i);
+  assert.doesNotMatch(
+    indexes,
+    /\bcreate\s+(?:or\s+replace\s+)?function\b/i,
   );
 }
 
