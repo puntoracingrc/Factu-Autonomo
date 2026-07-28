@@ -30,6 +30,7 @@ import { clientInputToSnapshot } from "@/lib/customers";
 import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { LineItemPriceFields } from "@/components/documents/LineItemPriceFields";
 import { LineItemUnitSelect } from "@/components/documents/LineItemUnitSelect";
+import { CentralInvoiceAuthorityFormPolicyNotice } from "@/components/forms/CentralInvoiceAuthorityFormPolicyNotice";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
 import { DocumentPhrasePicker } from "@/components/documents/DocumentPhrasePicker";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
@@ -69,6 +70,7 @@ import type {
 import { RECTIFICATION_REASONS } from "@/lib/types";
 import {
   buildCentralInvoiceAuthorityRectificationFormIssueRequest,
+  resolveCentralInvoiceAuthorityRectificationTarget,
   shouldUseCentralInvoiceAuthorityRectificationFormCanary,
   type CentralInvoiceAuthorityRectificationFormPayload,
 } from "@/lib/central-invoice-authority/document-form-canary";
@@ -116,6 +118,9 @@ export function RectificativaForm({
   const [previewLoading, setPreviewLoading] = useState(false);
   const saving = saveAction !== "idle";
   const centralCanaryEnabled = isCentralInvoiceAuthorityFormCanaryEnabled();
+  const centralRectificationPolicyNoticeEligible = Boolean(
+    resolveCentralInvoiceAuthorityRectificationTarget(original),
+  );
   const vatExempt = isVatExempt(historicalProfile);
   const defaultIva = vatExempt
     ? 0
@@ -499,6 +504,12 @@ export function RectificativaForm({
           anulada según el tipo que elijas.
         </p>
       </Card>
+
+      <CentralInvoiceAuthorityFormPolicyNotice
+        eligible={centralRectificationPolicyNoticeEligible}
+        publicFormCanaryEnabled={centralCanaryEnabled}
+        documentLabel="factura rectificativa"
+      />
 
       <Card className="space-y-4">
         <h2 className="text-lg font-bold text-slate-900">

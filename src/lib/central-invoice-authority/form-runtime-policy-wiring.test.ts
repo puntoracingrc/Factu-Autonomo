@@ -10,6 +10,11 @@ const rectificationForm = readFileSync(
   "src/components/forms/RectificativaForm.tsx",
   "utf8",
 );
+const envExample = readFileSync(".env.example", "utf8");
+const runtimeDoc = readFileSync(
+  "docs/architecture/central-invoice-authority-form-runtime-policy-v1.md",
+  "utf8",
+);
 
 function documentCreationBranch(): string {
   const start = documentForm.indexOf("const centralDocumentEligible");
@@ -40,6 +45,11 @@ describe("central invoice authority form runtime policy wiring", () => {
     expect(client).toContain("fetchCentralInvoiceAuthorityStatusFromBrowser");
     expect(client).toContain('status.activation.requestedMode === "required"');
     expect(client).toContain("status.summary.fiscalWritesPossible");
+    expect(runtimeDoc).toContain("aviso no bloqueante");
+    expect(runtimeDoc).toContain("No cambia variables de Vercel");
+    expect(envExample).toContain("CENTRAL_INVOICE_AUTHORITY_MODE=off");
+    expect(envExample).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=false");
+    expect(envExample).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED=false");
 
     const resolverStart = client.indexOf(
       "export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser",

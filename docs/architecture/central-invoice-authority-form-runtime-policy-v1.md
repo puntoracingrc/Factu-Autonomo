@@ -26,6 +26,11 @@ servidor confirma que todos los gates permiten escrituras fiscales.
    `public_canary_not_ready`, siempre que el navegador no hubiera visto antes
    autoridad central;
 8. sigue dejando que `/issue` haga el preflight final antes de escribir.
+9. muestra un aviso no bloqueante en formularios candidatos para que el usuario
+   vea si el canario central esta activo, en espera o sin comprobacion antes de
+   pulsar emitir;
+10. documenta las variables de activacion en `.env.example` siempre apagadas por
+    defecto.
 
 ## Seguridad
 
@@ -42,5 +47,6 @@ posibles confirmadas por status, una caida posterior de `/status` no permite vol
 ## Limite de esta fase
 
 No cambia variables de Vercel, no aplica migraciones remotas y no activa
-`CENTRAL_INVOICE_AUTHORITY_MODE`. Solo prepara la politica runtime compartida
-para que una activacion posterior no dependa de recordar el flag de canary.
+`CENTRAL_INVOICE_AUTHORITY_MODE`. Solo prepara la politica runtime compartida y
+su aviso visible para que una activacion posterior no dependa de recordar el
+flag de canary ni de emitir a ciegas desde el formulario.
