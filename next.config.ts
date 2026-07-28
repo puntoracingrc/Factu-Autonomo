@@ -55,6 +55,14 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_VERCEL_ENV:
       process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.VERCEL_ENV ?? "",
   },
+  ...(isVercelBuild
+    ? {
+        experimental: {
+          webpackBuildWorker: true,
+          webpackMemoryOptimizations: true,
+        },
+      }
+    : {}),
   async headers() {
     return [
       {
