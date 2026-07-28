@@ -4,6 +4,8 @@ export const CENTRAL_INVOICE_AUTHORITY_MODE_KEY =
   "CENTRAL_INVOICE_AUTHORITY_MODE";
 export const CENTRAL_INVOICE_AUTHORITY_CANARY_USERS_KEY =
   "CENTRAL_INVOICE_AUTHORITY_CANARY_USERS";
+export const CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY =
+  "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS";
 export const CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY =
   "CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION";
 export const CENTRAL_INVOICE_AUTHORITY_PRODUCTION_APPROVED_KEY =
@@ -101,9 +103,23 @@ function canaryUsers(env: EnvLike): Set<string> {
   return new Set(
     (env[CENTRAL_INVOICE_AUTHORITY_CANARY_USERS_KEY] ?? "")
       .split(",")
-      .map((value) => value.trim())
+      .map((value) => value.trim().toLowerCase())
       .filter(Boolean),
   );
+}
+
+function canaryUserEmails(env: EnvLike): Set<string> {
+  return new Set(
+    (env[CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY] ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+function normalizeCanaryEmail(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return normalized.includes("@") ? normalized : null;
 }
 
 function envFlagEnabled(env: EnvLike, key: string): boolean {
@@ -144,6 +160,7 @@ export function evaluateCentralInvoiceAuthorityActivation(
   input: {
     env?: EnvLike;
     userId?: string | null;
+    userEmail?: string | null;
   } = {},
 ): CentralInvoiceAuthorityActivation {
   const env = input.env ?? process.env;
@@ -168,9 +185,11 @@ export function evaluateCentralInvoiceAuthorityActivation(
     };
   }
 
+  const normalizedUserEmail = normalizeCanaryEmail(input.userEmail);
   const appliesToUser =
     parsedMode === "required" ||
-    Boolean(input.userId && canaryUsers(env).has(input.userId));
+    Boolean(input.userId && canaryUsers(env).has(input.userId.toLowerCase())) ||
+    Boolean(normalizedUserEmail && canaryUserEmails(env).has(normalizedUserEmail));
   if (!appliesToUser) {
     return disabled(parsedMode, production, "user_not_allowlisted", false);
   }

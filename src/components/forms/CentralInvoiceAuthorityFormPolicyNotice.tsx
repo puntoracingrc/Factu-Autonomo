@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import {
+  isCentralInvoiceAuthorityFormCanaryEnabledForUser,
   resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
   type CentralInvoiceAuthorityFormIssuePolicyDecision,
 } from "@/lib/central-invoice-authority/form-canary-client";
@@ -14,6 +15,7 @@ import {
 interface CentralInvoiceAuthorityFormPolicyNoticeProps {
   eligible: boolean;
   publicFormCanaryEnabled: boolean;
+  userId?: string | null;
   documentLabel: string;
 }
 
@@ -27,11 +29,17 @@ const TONE_CLASSES: Record<CentralInvoiceAuthorityFormPolicyNoticeTone, string> 
 export function CentralInvoiceAuthorityFormPolicyNotice({
   eligible,
   publicFormCanaryEnabled,
+  userId,
   documentLabel,
 }: CentralInvoiceAuthorityFormPolicyNoticeProps) {
   const [checking, setChecking] = useState(false);
   const [policy, setPolicy] =
     useState<CentralInvoiceAuthorityFormIssuePolicyDecision | null>(null);
+  const publicFormCanaryEnabledForUser =
+    isCentralInvoiceAuthorityFormCanaryEnabledForUser({
+      publicFormCanaryEnabled,
+      userId,
+    });
 
   useEffect(() => {
     if (!eligible) {
@@ -44,6 +52,7 @@ export function CentralInvoiceAuthorityFormPolicyNotice({
     setChecking(true);
     void resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
       publicFormCanaryEnabled,
+      publicFormCanaryUserId: userId,
     })
       .then((nextPolicy) => {
         if (!cancelled) setPolicy(nextPolicy);
@@ -58,12 +67,12 @@ export function CentralInvoiceAuthorityFormPolicyNotice({
     return () => {
       cancelled = true;
     };
-  }, [eligible, publicFormCanaryEnabled]);
+  }, [eligible, publicFormCanaryEnabled, userId]);
 
   const notice = describeCentralInvoiceAuthorityFormPolicyNotice({
     policy,
     checking,
-    publicFormCanaryEnabled,
+    publicFormCanaryEnabled: publicFormCanaryEnabledForUser,
     documentLabel,
   });
 

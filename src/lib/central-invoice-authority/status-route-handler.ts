@@ -17,6 +17,7 @@ export const CENTRAL_INVOICE_AUTHORITY_STATUS_ROUTE =
 export interface CentralInvoiceAuthorityStatusRouteAuth {
   userId: string;
   sessionId: string;
+  userEmail?: string | null;
 }
 
 export type CentralInvoiceAuthorityStatusRouteDeviceGateResult =
@@ -45,7 +46,10 @@ export interface CentralInvoiceAuthorityStatusRouteDependencies {
     userAgent: string | null;
   }): Promise<CentralInvoiceAuthorityStatusRouteDeviceGateResult>;
   getProbeClient(): CentralInvoiceAuthorityStatusProbeClient | null;
-  evaluateActivation(input: { userId: string }): CentralInvoiceAuthorityActivation;
+  evaluateActivation(input: {
+    userId: string;
+    userEmail?: string | null;
+  }): CentralInvoiceAuthorityActivation;
   now(): string;
 }
 
@@ -144,6 +148,7 @@ export function createCentralInvoiceAuthorityStatusRouteHandler(
 
       const activation = dependencies.evaluateActivation({
         userId: auth.userId,
+        userEmail: auth.userEmail,
       });
       const readiness = await probeCentralInvoiceAuthorityStatusReadiness({
         client: dependencies.getProbeClient(),

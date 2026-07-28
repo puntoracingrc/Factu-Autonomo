@@ -17,7 +17,11 @@ usar el camino central.
 6. crea el documento local con el `fullNumber` devuelto por servidor;
 7. no cae a numeracion local si la autoridad central rechaza;
 8. desde `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1`, el canary publico
-   convive con el status servidor `required` o `fiscalWritesPossible`.
+   convive con el status servidor `required` o `fiscalWritesPossible`, y puede
+   limitarse a UUIDs Supabase mediante
+   `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS`; el canary privado
+   de servidor puede limitarse por email con
+   `CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS` sin exponerlo en el cliente.
 
 ## Seguridad
 

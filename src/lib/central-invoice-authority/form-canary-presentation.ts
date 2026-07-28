@@ -35,6 +35,7 @@ const REASON_LABELS: Record<CentralInvoiceAuthorityFormIssuePolicyReason, string
   last_known_central_authority: "autoridad central recordada",
   central_not_requested: "autoridad central no solicitada",
   public_canary_not_ready: "canario publico en espera",
+  server_canary_not_ready: "canario servidor en espera",
   status_unavailable: "estado central no disponible",
 };
 
@@ -105,14 +106,21 @@ export function describeCentralInvoiceAuthorityFormPolicyNotice({
     };
   }
 
-  if (policy.reason === "public_canary_not_ready") {
+  if (
+    policy.reason === "public_canary_not_ready" ||
+    policy.reason === "server_canary_not_ready"
+  ) {
+    const source =
+      policy.reason === "server_canary_not_ready"
+        ? "Tu cuenta esta incluida en el canario central"
+        : "El canario del formulario esta solicitado";
     return {
       schema: CENTRAL_INVOICE_AUTHORITY_FORM_POLICY_NOTICE,
       visible: true,
       tone: "warning",
       title: "Canario central en espera",
       message:
-        `El canario del formulario esta solicitado, pero el servidor aun no confirma todos los gates. Esta ${documentLabel} seguira usando el flujo local actual.${blockerMessage(policy)}`,
+        `${source}, pero el servidor aun no confirma todos los gates. Esta ${documentLabel} seguira usando el flujo local actual.${blockerMessage(policy)}`,
     };
   }
 

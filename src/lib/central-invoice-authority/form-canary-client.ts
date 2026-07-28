@@ -21,6 +21,11 @@ export const CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD =
   "CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_V1";
 export const CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY =
   "factu:central-invoice-authority:form-last-known-guard:v1";
+export const CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS_PUBLIC_FLAG =
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS";
+
+const UUID_V4_LIKE_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type CentralInvoiceAuthorityFormJson =
   | null
@@ -97,11 +102,13 @@ export type CentralInvoiceAuthorityFormIssuePolicyReason =
   | "last_known_central_authority"
   | "central_not_requested"
   | "public_canary_not_ready"
+  | "server_canary_not_ready"
   | "status_unavailable";
 
 type CentralInvoiceAuthorityFormLocalPolicyReason =
   | "central_not_requested"
   | "public_canary_not_ready"
+  | "server_canary_not_ready"
   | "status_unavailable";
 
 export type CentralInvoiceAuthorityFormLastKnownGuardReason =
@@ -142,6 +149,7 @@ export interface CentralInvoiceAuthorityFormIssuePolicyDependencies
   extends CentralInvoiceAuthorityStatusClientDependencies {
   env?: Record<string, string | undefined>;
   publicFormCanaryEnabled?: boolean;
+  publicFormCanaryUserId?: string | null;
   publicFormRequiredEnabled?: boolean;
   storage?: Pick<Storage, "getItem" | "setItem">;
   now?: () => Date;
@@ -157,6 +165,43 @@ export function isCentralInvoiceAuthorityFormRequiredEnabled(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   return env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED === "true";
+}
+
+export function isCentralInvoiceAuthorityFormCanaryUserAllowed(
+  userId: string | null | undefined,
+  value: string | undefined =
+    process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS,
+): boolean {
+  const raw = value?.trim();
+  if (!raw) return true;
+  if (!userId || !UUID_V4_LIKE_PATTERN.test(userId)) return false;
+
+  const allowed = new Set(
+    raw
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => UUID_V4_LIKE_PATTERN.test(entry)),
+  );
+
+  return allowed.has(userId.toLowerCase());
+}
+
+export function isCentralInvoiceAuthorityFormCanaryEnabledForUser(
+  input: {
+    userId?: string | null;
+    env?: Record<string, string | undefined>;
+    publicFormCanaryEnabled?: boolean;
+  } = {},
+): boolean {
+  const env = input.env ?? process.env;
+  const enabled =
+    input.publicFormCanaryEnabled ??
+    isCentralInvoiceAuthorityFormCanaryEnabled(env);
+  if (!enabled) return false;
+  return isCentralInvoiceAuthorityFormCanaryUserAllowed(
+    input.userId,
+    env[CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS_PUBLIC_FLAG],
+  );
 }
 
 function enabledPolicy(
@@ -255,8 +300,11 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
   const now = dependencies.now ?? (() => new Date());
   const lastKnownGuard = readLastKnownCentralAuthorityFormGuard(storage);
   const publicCanaryEnabled =
-    dependencies.publicFormCanaryEnabled ??
-    isCentralInvoiceAuthorityFormCanaryEnabled(env);
+    isCentralInvoiceAuthorityFormCanaryEnabledForUser({
+      env,
+      publicFormCanaryEnabled: dependencies.publicFormCanaryEnabled,
+      userId: dependencies.publicFormCanaryUserId,
+    });
   const publicRequiredEnabled =
     dependencies.publicFormRequiredEnabled ??
     isCentralInvoiceAuthorityFormRequiredEnabled(env);
@@ -290,6 +338,12 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
   if (status.summary.fiscalWritesPossible) {
     rememberCentralAuthorityFormGuard(storage, "server_fiscal_writes_possible", now);
     return enabledPolicy("server_fiscal_writes_possible", status);
+  }
+  if (
+    status.activation.requestedMode === "canary" &&
+    status.activation.appliesToUser
+  ) {
+    return localPolicy("server_canary_not_ready", { status });
   }
   return localPolicy("central_not_requested", { status });
 }

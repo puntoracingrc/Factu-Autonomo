@@ -16,6 +16,7 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { formatMoney, todayISO, unitPriceFromGross } from "@/lib/calculations";
 import {
   documentAmounts,
@@ -108,6 +109,7 @@ export function RectificativaForm({
     isPro,
     recordDocumentCreated,
   } = useBilling();
+  const { user: cloudUser } = useCloudSync();
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
@@ -406,6 +408,7 @@ export function RectificativaForm({
       const centralPolicy = centralRectificationEligible
         ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
             publicFormCanaryEnabled: centralCanaryEnabled,
+            publicFormCanaryUserId: cloudUser?.id,
           })
         : null;
 
@@ -508,6 +511,7 @@ export function RectificativaForm({
       <CentralInvoiceAuthorityFormPolicyNotice
         eligible={centralRectificationPolicyNoticeEligible}
         publicFormCanaryEnabled={centralCanaryEnabled}
+        userId={cloudUser?.id}
         documentLabel="factura rectificativa"
       />
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY,
   CENTRAL_INVOICE_AUTHORITY_CANARY_USERS_KEY,
   CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY,
   CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
@@ -13,6 +14,7 @@ import {
 } from "./activation";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
+const USER_EMAIL = "puntoracingrc@gmail.com";
 
 const READY_PRIVATE_GATES = {
   [CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY]: "true",
@@ -75,6 +77,36 @@ describe("central invoice authority activation", () => {
       evaluateCentralInvoiceAuthorityActivation({ env, userId: USER_ID })
         .fiscalWritesEnabled,
     ).toBe(true);
+  });
+
+  it("permite canary por email server-only sin exponer emails al bundle publico", () => {
+    const env = {
+      [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+      [CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY]:
+        ` ${USER_EMAIL.toUpperCase()} `,
+      [CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY]:
+        CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
+      ...READY_PRIVATE_GATES,
+    };
+
+    expect(
+      evaluateCentralInvoiceAuthorityActivation({
+        env,
+        userId: "22222222-2222-4222-8222-222222222222",
+        userEmail: USER_EMAIL,
+      }),
+    ).toMatchObject({
+      appliesToUser: true,
+      fiscalWritesEnabled: true,
+      reason: "canary_enabled",
+    });
+    expect(
+      evaluateCentralInvoiceAuthorityActivation({
+        env,
+        userId: "22222222-2222-4222-8222-222222222222",
+        userEmail: "otro@example.com",
+      }).reason,
+    ).toBe("user_not_allowlisted");
   });
 
   it("bloquea canary cuando el esquema no esta listo", () => {

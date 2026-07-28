@@ -25,6 +25,7 @@ const MAX_BODY_BYTES = 512 * 1024;
 export interface CentralInvoiceAuthorityRouteAuth {
   userId: string;
   sessionId: string;
+  userEmail?: string | null;
 }
 
 export type CentralInvoiceAuthorityRouteDeviceGateResult =
@@ -280,6 +281,7 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
           emittedSnapshot: body.emittedSnapshot,
           emittedHash: body.emittedHash,
           rpcClient,
+          userEmail: auth.userEmail,
         });
 
         return json(200, {
