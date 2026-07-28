@@ -115,6 +115,8 @@ const allowedIndexesMigration =
   "20260728172000_central_invoice_authority_indexes.sql";
 const allowedExplicitDeniesMigration =
   "20260728175925_central_invoice_authority_explicit_denies.sql";
+const allowedSeriesReconciliationMigration =
+  "20260728213000_central_invoice_authority_series_reconciliation.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -124,6 +126,7 @@ const allowedCentralMigrations = new Set([
   allowedTenantGuardMigration,
   allowedIndexesMigration,
   allowedExplicitDeniesMigration,
+  allowedSeriesReconciliationMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -214,6 +217,46 @@ if (centralMigrations.includes(allowedMaterializedSnapshotMigration)) {
   );
   assert.doesNotMatch(localMaterializedSnapshot, /\buser_backups\b/i);
   assert.doesNotMatch(localMaterializedSnapshot, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedSeriesReconciliationMigration)) {
+  const seriesReconciliation = read(
+    `supabase/migrations/${allowedSeriesReconciliationMigration}`,
+  );
+  assert.match(
+    seriesReconciliation,
+    /CENTRAL_INVOICE_AUTHORITY_SERIES_RECONCILIATION_V1/,
+  );
+  assert.match(
+    seriesReconciliation,
+    /\bcreate\s+or\s+replace\s+function\s+public\.reconcile_central_invoice_series_v1\b/i,
+  );
+  assert.match(seriesReconciliation, /\bsecurity\s+definer\b/i);
+  assert.match(seriesReconciliation, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(
+    seriesReconciliation,
+    /auth\.role\(\)\s*<>\s*'service_role'/i,
+  );
+  assert.match(seriesReconciliation, /\bfor\s+update\b/i);
+  assert.match(seriesReconciliation, /\bgreatest\s*\(/i);
+  assert.match(
+    seriesReconciliation,
+    /central invoice series baseline not reconciled/i,
+  );
+  assert.doesNotMatch(
+    seriesReconciliation,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    seriesReconciliation,
+    /\bupdate\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    seriesReconciliation,
+    /\binsert\s+into\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(seriesReconciliation, /\buser_backups\b/i);
+  assert.doesNotMatch(seriesReconciliation, /\bsync_entities\b/i);
 }
 
 if (centralMigrations.includes(allowedTenantGuardMigration)) {

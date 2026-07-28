@@ -41,6 +41,7 @@ const migrations = [
   "20260728164325_central_invoice_authority_tenant_guard.sql",
   "20260728172000_central_invoice_authority_indexes.sql",
   "20260728175925_central_invoice_authority_explicit_denies.sql",
+  "20260728213000_central_invoice_authority_series_reconciliation.sql",
 ];
 
 function databaseUrlFor(name) {
@@ -76,7 +77,11 @@ function safeCounts(url) {
           'identities', (select count(*) from public.central_invoice_identities),
           'commands', (select count(*) from public.central_invoice_commands),
           'outbox', (select count(*) from public.central_invoice_outbox),
-          'wakeups', (select count(*) from public.central_invoice_event_wakeups)
+          'wakeups', (select count(*) from public.central_invoice_event_wakeups),
+          'reconciliations', (
+            select count(*)
+            from public.central_invoice_series_reconciliations
+          )
         )::text;
       `,
     ]),
