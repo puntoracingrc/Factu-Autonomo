@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "central-invoice-authority-production-schema-evidence-v1",
+  "marker": "CENTRAL_INVOICE_AUTHORITY_PRODUCTION_SCHEMA_EVIDENCE_V1",
+  "capturedAt": "2026-07-28T18:39:00Z",
+  "project": {
+    "ref": "rnbmkkzptxbvtchluqrx",
+    "environment": "production"
+  },
+  "source": {
+    "repoMainCommit": "8e778be9c32abab24d2acc366aeaa7777fb846d2",
+    "queryMode": "catalog-counts-and-authorized-test-account-ui-only",
+    "businessRowsRead": false
+  },
+  "appliedMigrations": [
+    {
+      "version": "20260728175643",
+      "name": "central_invoice_authority_ledger_schema"
+    },
+    {
+      "version": "20260728175655",
+      "name": "central_invoice_authority_issue_rpc"
+    },
+    {
+      "version": "20260728175704",
+      "name": "central_invoice_authority_materialized_snapshot"
+    },
+    {
+      "version": "20260728175713",
+      "name": "central_invoice_authority_outbox_pull"
+    },
+    {
+      "version": "20260728175724",
+      "name": "central_invoice_authority_realtime_wakeups"
+    },
+    {
+      "version": "20260728175733",
+      "name": "central_invoice_authority_tenant_guard"
+    },
+    {
+      "version": "20260728175744",
+      "name": "central_invoice_authority_indexes"
+    },
+    {
+      "version": "20260728183716",
+      "name": "central_invoice_authority_explicit_denies"
+    }
+  ],
+  "catalog": {
+    "tables": 7,
+    "tablesWithRls": 7,
+    "policies": 7,
+    "explicitRestrictiveClientDenies": 6,
+    "ownerScopedRealtimeReadPolicies": 1,
+    "serviceRoleOnlyFunctions": 5,
+    "indexes": 29,
+    "triggers": 2,
+    "realtimeTables": [
+      "central_invoice_event_wakeups"
+    ],
+    "immutableIdentityServiceRoleCanUpdate": false,
+    "immutableIdentityServiceRoleCanDelete": false,
+    "immutableIdentityServiceRoleCanTruncate": false
+  },
+  "safeCounts": {
+    "central_invoice_commands": 0,
+    "central_invoice_document_versions": 0,
+    "central_invoice_documents": 0,
+    "central_invoice_event_wakeups": 0,
+    "central_invoice_identities": 0,
+    "central_invoice_outbox": 0,
+    "central_invoice_series_state": 0
+  },
+  "advisors": {
+    "centralSecurityWarnings": 0,
+    "centralSecurityInfos": 0,
+    "centralPerformanceWarnings": 0,
+    "centralPerformanceInfosAreOnlyUnusedIndexesOnEmptyTables": true,
+    "existingUnrelatedNoticesChanged": false,
+    "securityRemediationReference": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+    "performanceRemediationReference": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+  },
+  "browserReadback": {
+    "account": "authorized synthetic test account",
+    "emailRecorded": false,
+    "checksReady": 8,
+    "checksBlocked": 0,
+    "serverReady": true,
+    "canaryRequested": false,
+    "fiscalWritesEnabled": false,
+    "displayedMode": "off_schema_version_pending"
+  },
+  "activationBoundary": {
+    "legacyCloudSyncReactivated": false,
+    "canaryFiscalWritesEnabled": false,
+    "requiredModeEnabled": false,
+    "nextAllowedStep": "merge this evidence, close exact-main production gates, then enable only the authorized test-user canary"
+  },
+  "result": "production_schema_ready_writes_disabled"
+}
