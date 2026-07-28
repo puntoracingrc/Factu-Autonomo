@@ -5,6 +5,13 @@ Marcador: `CENTRAL_INVOICE_AUTHORITY_PHASE2_READINESS_GATES_V1`
 Estado: bloqueo operativo vigente. No habilita tablas centrales ni rutas de
 emision.
 
+Actualizacion 28 jul 2026: este estado queda conservado como evidencia
+historica de la baseline inicial. La decision vigente para la autoridad central
+esta en
+`central-invoice-authority-production-cutover-2026-07-28.json`: acepta solo las
+siete migraciones aditivas revisadas, mantiene excluidas las 18 entradas legacy
+clasificadas y no autoriza aun escrituras fiscales ni el modo `required`.
+
 ## Objetivo
 
 Esta fase prepara el cambio sin romper la web actual. La nube existente,

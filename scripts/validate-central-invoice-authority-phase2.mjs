@@ -24,6 +24,9 @@ const readinessDoc = read(
 const readinessEvidence = readJson(
   "docs/architecture/central-invoice-authority-production-readiness-2026-07-23.json",
 );
+const productionCutover = readJson(
+  "docs/architecture/central-invoice-authority-production-cutover-2026-07-28.json",
+);
 const baseline = readJson(
   "docs/architecture/central-invoice-authority-production-baseline-2026-07-23.json",
 );
@@ -51,6 +54,27 @@ assert.equal(readinessEvidence.activation.productionMigrationApproved, false);
 assert.equal(readinessEvidence.centralAuthority.tablesPresent, false);
 assert.equal(readinessEvidence.centralAuthority.issueRpcPresent, false);
 assert.equal(readinessEvidence.decision, "blocked-before-additive-central-schema");
+assert.equal(
+  productionCutover.marker,
+  "CENTRAL_INVOICE_AUTHORITY_PRODUCTION_CUTOVER_V1",
+);
+assert.equal(
+  productionCutover.baselineDecision.centralAuthorityBaselineAccepted,
+  true,
+);
+assert.equal(
+  productionCutover.baselineDecision.repositoryHistoryFullyReconciled,
+  false,
+);
+assert.equal(
+  productionCutover.safetyBoundary.fiscalWriteGatesDuringMigration,
+  false,
+);
+assert.equal(productionCutover.approval.requiredModeApproved, false);
+assert.equal(
+  productionCutover.decision,
+  "approved_to_apply_exact_additive_central_schema_with_fiscal_writes_disabled",
+);
 
 for (const body of [readinessDoc, readiness]) {
   assert.match(body, new RegExp(marker));
@@ -65,6 +89,7 @@ assert.match(readiness, /production_baseline_not_reconciled/);
 assert.match(readiness, /restorable_backup_not_verified/);
 assert.match(readiness, /isolated_restore_drill_missing/);
 assert.match(readiness, /unexpected_pitr_requirement/);
+assert.match(readinessDoc, /Actualizacion 28 jul 2026/i);
 assert.match(codeowners, /central-invoice-authority/);
 assert.equal(
   packageJson.scripts["validate:central-invoice-authority-phase2"],
