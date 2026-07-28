@@ -4,11 +4,26 @@ import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "./events-app
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import type { CentralInvoiceAuthorityEventsSyncLastResultV1 } from "@/lib/types";
 
+const UUID_V4_LIKE_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC =
   "CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC_V1";
 
 export const CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC_PUBLIC_FLAG =
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC";
+
+export const CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS =
+  "CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_V1";
+
+export const CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_PUBLIC_FLAG =
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS";
+
+export const CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_SCHEMA = "public";
+export const CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE =
+  "central_invoice_event_wakeups";
+export const CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_CHANNEL_PREFIX =
+  "central-invoice-authority-events";
 
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT = 50;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_START_DELAY_MS = 3_000;
@@ -35,6 +50,21 @@ export type CentralInvoiceAuthorityEventsAutoSyncDecision =
       retryAfterMs: number | null;
     };
 
+export type CentralInvoiceAuthorityEventsRealtimeWakeupsSkipReason =
+  | "auto_sync_disabled"
+  | "flag_disabled"
+  | "workspace_not_ready"
+  | "cloud_unavailable"
+  | "session_unavailable"
+  | "email_unconfirmed";
+
+export type CentralInvoiceAuthorityEventsRealtimeWakeupsDecision =
+  | { shouldSubscribe: true }
+  | {
+      shouldSubscribe: false;
+      reason: CentralInvoiceAuthorityEventsRealtimeWakeupsSkipReason;
+    };
+
 export interface CentralInvoiceAuthorityEventsAutoSyncDecisionInput {
   enabled: boolean;
   ready: boolean;
@@ -45,6 +75,20 @@ export interface CentralInvoiceAuthorityEventsAutoSyncDecisionInput {
   visible: boolean;
   running: boolean;
   lastStatus?: CentralInvoiceAuthorityEventsSyncLastResultV1["status"];
+}
+
+export interface CentralInvoiceAuthorityEventsRealtimeWakeupsDecisionInput {
+  autoSyncEnabled: boolean;
+  realtimeWakeupsEnabled: boolean;
+  ready: boolean;
+  cloudEnabled: boolean;
+  hasUser: boolean;
+  emailConfirmed: boolean;
+}
+
+export interface CentralInvoiceAuthorityEventsRealtimeWakeupsSubscription {
+  channelName: string;
+  filter: string;
 }
 
 function skipped(
@@ -61,6 +105,13 @@ function skipped(
 export function isCentralInvoiceAuthorityEventsAutoSyncEnabled(
   value: string | undefined =
     process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC,
+): boolean {
+  return value === "true";
+}
+
+export function isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled(
+  value: string | undefined =
+    process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS,
 ): boolean {
   return value === "true";
 }
@@ -97,6 +148,41 @@ export function shouldRunCentralInvoiceAuthorityEventsAutoSync(
     return skipped("conflict_paused", null);
   }
   return { shouldRun: true };
+}
+
+export function shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups(
+  input: CentralInvoiceAuthorityEventsRealtimeWakeupsDecisionInput,
+): CentralInvoiceAuthorityEventsRealtimeWakeupsDecision {
+  if (!input.autoSyncEnabled) {
+    return { shouldSubscribe: false, reason: "auto_sync_disabled" };
+  }
+  if (!input.realtimeWakeupsEnabled) {
+    return { shouldSubscribe: false, reason: "flag_disabled" };
+  }
+  if (!input.ready) {
+    return { shouldSubscribe: false, reason: "workspace_not_ready" };
+  }
+  if (!input.cloudEnabled) {
+    return { shouldSubscribe: false, reason: "cloud_unavailable" };
+  }
+  if (!input.hasUser) {
+    return { shouldSubscribe: false, reason: "session_unavailable" };
+  }
+  if (!input.emailConfirmed) {
+    return { shouldSubscribe: false, reason: "email_unconfirmed" };
+  }
+  return { shouldSubscribe: true };
+}
+
+export function centralInvoiceAuthorityEventsRealtimeWakeupsSubscription(
+  userId: string | null | undefined,
+): CentralInvoiceAuthorityEventsRealtimeWakeupsSubscription | null {
+  if (!userId || !UUID_V4_LIKE_PATTERN.test(userId)) return null;
+
+  return {
+    channelName: `${CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_CHANNEL_PREFIX}:${userId}`,
+    filter: `user_id=eq.${userId}`,
+  };
 }
 
 export function nextCentralInvoiceAuthorityEventsAutoSyncDelay(

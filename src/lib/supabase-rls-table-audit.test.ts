@@ -114,6 +114,13 @@ const centralInvoiceAuthorityLedgerSchemaMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const centralInvoiceAuthorityRealtimeWakeupsMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260728100752_central_invoice_authority_realtime_wakeups.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -152,6 +159,7 @@ const serviceOnlyTables = [
 
 const browserSyncTables = ["user_backups", "sync_entities"];
 const browserReadOnlyTables = ["user_subscriptions", "user_usage"];
+const browserRealtimeWakeupTables = ["central_invoice_event_wakeups"];
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -174,6 +182,7 @@ const classifiedTables = new Set([
   ...serviceOnlyTables,
   ...browserSyncTables,
   ...browserReadOnlyTables,
+  ...browserRealtimeWakeupTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -544,6 +553,39 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         ),
       );
     }
+  });
+
+  it("keeps central invoice realtime wakeups owner-scoped and read-only", () => {
+    for (const table of browserRealtimeWakeupTables) {
+      expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).toContain(
+        `revoke all on table public.${table} from public, anon, authenticated`,
+      );
+      expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).toContain(
+        `grant select on table public.${table} to authenticated`,
+      );
+      expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).toContain(
+        `create policy ${table}_owner_select_v1`,
+      );
+      expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).toContain(
+        `on public.${table}\n  for select\n  to authenticated\n  using ((select auth.uid()) = user_id)`,
+      );
+      expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).toContain(
+        `add table public.${table}`,
+      );
+      expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).not.toMatch(
+        new RegExp(
+          `grant\\s+(?:all|insert|update|delete)[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
+          "i",
+        ),
+      );
+    }
+
+    expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).not.toMatch(
+      /grant\s+[^;]*central_invoice_outbox[^;]*to\s+(?:anon|authenticated)/iu,
+    );
+    expect(centralInvoiceAuthorityRealtimeWakeupsMigrationSource).not.toMatch(
+      /alter publication supabase_realtime[\s\S]*?central_invoice_outbox/iu,
+    );
   });
 
   it("uses init-plan-safe owner checks on user-scoped policies", () => {

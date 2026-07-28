@@ -24,7 +24,9 @@ Safety contract:
 - A central local conflict pauses automatic polling. The user-facing manual
   card in Cuenta remains the recovery surface.
 - Browser `online`, `focus` and `visibilitychange` are wakeup signals only.
-  Realtime remains a later phase and, per ADR-0010, will only signal a reread.
+- Realtime wakeups remain optional in
+  `central-invoice-authority-events-realtime-wakeups-v1.md` and, per ADR-0010,
+  only signal a reread through this polling bridge.
 
 This keeps the current production behavior unchanged while preparing the route
 to a Holded-style central source of truth: server commits the invoice identity,
