@@ -6,6 +6,7 @@ import {
 import { isAcceptedQuote, isRejectedQuote } from "./quotes";
 import { isQuoteExpired } from "./quote-validity";
 import { isRectificativa } from "./rectificativas";
+import { getCentralInvoiceAuthorityOperationState } from "./central-invoice-authority/operation-state";
 import type { Document, DocumentType } from "./types";
 
 const STATUS_LABELS: Record<Document["status"], string> = {
@@ -121,8 +122,16 @@ export function documentStatusHint(
 
   if (type !== "factura") return null;
 
+  const centralAuthorityState = getCentralInvoiceAuthorityOperationState(doc);
+  if (centralAuthorityState.requiresReview) {
+    return centralAuthorityState.statusHint;
+  }
+
   if (isRectificativa(doc)) {
-    return "Factura rectificativa vinculada. Conserva su PDF y QR existentes.";
+    return (
+      centralAuthorityState.statusHint ??
+      "Factura rectificativa vinculada. Conserva su PDF y QR existentes."
+    );
   }
 
   if (doc.rectifiedById) {
@@ -139,7 +148,8 @@ export function documentStatusHint(
     case "enviado":
       return doc.deliveryStatus === "sent"
         ? "Enviada al cliente. Pendiente de cobro local hasta marcarla como cobrada."
-        : "Emitida y protegida. Puedes abrir el PDF, compartirla o preparar un recordatorio.";
+        : (centralAuthorityState.statusHint ??
+            "Emitida y protegida. Puedes abrir el PDF, compartirla o preparar un recordatorio.");
     case "pagado":
       return "Cobrada en tu registro local. No es pasarela ni banco.";
     case "vencido":
