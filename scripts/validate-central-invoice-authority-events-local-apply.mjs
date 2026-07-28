@@ -40,7 +40,11 @@ for (const required of [
   "duplicate_fiscal_number",
   "local_document_id_collision",
   "central_identity_number_mismatch",
+  "rectification_original_missing",
+  "rectification_original_already_linked",
   "unsupported_event_type",
+  "rectification_issued",
+  "originalStatusAfterRectification",
   "CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY",
   "issueDraftDocumentWithStatus",
 ]) {
@@ -71,6 +75,10 @@ for (const forbidden of [
 assert.match(
   doc,
   /A different local invoice with the same fiscal number creates\s+`duplicate_fiscal_number`/i,
+);
+assert.match(
+  doc,
+  /A received rectificative requires its original invoice to exist locally/i,
 );
 assert.equal(
   packageJson.scripts["validate:central-invoice-authority-events-local-apply"],
