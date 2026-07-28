@@ -14,6 +14,7 @@ import {
 import { IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
+import { CentralInvoiceAuthorityBadge } from "@/components/documents/CentralInvoiceAuthorityDocumentState";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { DocumentRelationshipFlow } from "@/components/documents/DocumentRelationshipFlow";
@@ -1133,16 +1134,9 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                           </span>
                         )}
                       {centralAuthorityState?.badgeLabel && (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            centralAuthorityState.tone === "warning"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                          title={centralAuthorityState.statusHint ?? undefined}
-                        >
-                          {centralAuthorityState.badgeLabel}
-                        </span>
+                        <CentralInvoiceAuthorityBadge
+                          state={centralAuthorityState}
+                        />
                       )}
                       {legacyImportedAccepted && (
                         <span

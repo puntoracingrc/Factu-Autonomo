@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { CentralInvoiceAuthorityNotice } from "@/components/documents/CentralInvoiceAuthorityDocumentState";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
 import { DocumentActionLoadingPlaceholder } from "@/components/documents/DocumentActionLoadingPlaceholder";
 import { DocumentLinkBadges } from "@/components/documents/DocumentLinkBadges";
@@ -21,6 +22,7 @@ import {
   isDocumentUsableForFinancialCalculations,
   isUsableLegacyImportedDocument,
 } from "@/lib/document-integrity/legacy-import-attestation";
+import { getCentralInvoiceAuthorityOperationState } from "@/lib/central-invoice-authority/operation-state";
 import { canShowPaymentReminder } from "@/lib/payment-reminder-client";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { hasClientEmail, hasClientPhone } from "@/lib/share";
@@ -98,6 +100,10 @@ export function DocumentReadOnlyActions({
   const legacyImportAttested = isUsableLegacyImportedDocument(doc);
   const legacyImportedAccepted =
     legacyImportAttested && isDocumentUsableForFinancialCalculations(doc);
+  const centralAuthorityState =
+    doc.type === "factura"
+      ? getCentralInvoiceAuthorityOperationState(doc)
+      : null;
 
   return (
     <div className="mt-6 space-y-4">
@@ -105,6 +111,7 @@ export function DocumentReadOnlyActions({
         Acciones de {typeLabel}
       </p>
       <DocumentLinkBadges document={doc} documents={data.documents} />
+      <CentralInvoiceAuthorityNotice state={centralAuthorityState} />
       {legacyImportedAccepted && (
         <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
           <span className="block font-bold">
