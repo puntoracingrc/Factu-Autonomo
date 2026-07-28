@@ -18,7 +18,8 @@ la emision de facturas y rectificativas elegibles al endpoint central.
 4. entra al camino central si el servidor declara `requestedMode: "required"`;
 5. entra al camino central si el servidor declara `summary.fiscalWritesPossible`;
 6. mantiene el flujo local si no hay sesion/dispositivo, el modo esta `off`,
-   `shadow` o el usuario no esta incluido en canary;
+   `shadow` o el usuario no esta incluido en canary y el navegador no habia
+   visto antes autoridad central;
 7. sigue dejando que `/issue` haga el preflight final antes de escribir.
 
 ## Seguridad
@@ -28,6 +29,10 @@ para intentar el camino central. Cuando el intento central ocurre, cualquier
 rechazo posterior de `/status`, `/issue` o `addDocumentWithCentralIdentity`
 mantiene el comportamiento fail-closed existente: no se crea una factura local
 con numeracion alternativa.
+
+La fase `CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_V1` anade una memoria
+local versionada. Si un navegador ya vio `required` o escrituras fiscales
+posibles, una caida posterior de `/status` no permite volver a emitir en local.
 
 ## Limite de esta fase
 
