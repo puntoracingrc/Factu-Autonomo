@@ -25,16 +25,24 @@ const handler = read(
 const route = read(
   "src/app/api/central-invoice-authority/reconcile/route.ts",
 );
+const client = read(
+  "src/lib/central-invoice-authority/account-series-reconciliation-client.ts",
+);
+const card = read(
+  "src/components/cloud/CentralInvoiceAuthorityAccountReconciliationCard.tsx",
+);
+const accountPage = read("src/app/cuenta/page.tsx");
 const doc = read(
   "docs/architecture/central-invoice-authority-account-reconciliation-v1.md",
 );
 const packageJson = JSON.parse(read("package.json"));
-const body = `${inventory}\n${rpc}\n${handler}\n${route}\n${doc}`;
+const body = `${inventory}\n${rpc}\n${handler}\n${route}\n${client}\n${card}\n${accountPage}\n${doc}`;
 
 for (const required of [
   "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_INVENTORY_V1",
   "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_RPC_V1",
   "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_ROUTE_V1",
+  "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_CLIENT_V1",
   "reconcile_central_invoice_series_v1",
   "getUserSessionFromBearer",
   "ensureCloudDeviceAccess",
@@ -46,6 +54,9 @@ for (const required of [
   "observedMaxSequence",
   "CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY",
   "private, no-store",
+  "CentralInvoiceAuthorityAccountReconciliationCard",
+  "runCentralInvoiceAuthorityClientOperation",
+  "type=\"checkbox\"",
 ]) {
   assert.match(
     body,
@@ -88,6 +99,8 @@ runBin("npx", [
   "src/lib/central-invoice-authority/account-series-inventory.test.ts",
   "src/lib/central-invoice-authority/account-series-reconciliation-rpc.test.ts",
   "src/lib/central-invoice-authority/account-series-reconciliation-route-handler.test.ts",
+  "src/lib/central-invoice-authority/account-series-reconciliation-client.test.ts",
+  "src/components/cloud/central-authority-account-reconciliation-card.test.ts",
 ]);
 
 console.log("central invoice authority account reconciliation: OK");
