@@ -18,6 +18,7 @@ import {
   CloudSyncNavBadge,
   CloudSyncPendingBanner,
 } from "@/components/cloud/CloudSyncIndicator";
+import { CentralInvoiceAuthorityEventsAutoSync } from "@/components/cloud/CentralInvoiceAuthorityEventsAutoSync";
 import { GoogleDriveAutoBackup } from "@/components/cloud/GoogleDriveAutoBackup";
 import { DataAccessEventReporter } from "@/components/security/DataAccessEventReporter";
 import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
@@ -287,6 +288,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Suspense>
       <ReferralRedeemOnLogin />
       <GoogleDriveAutoBackup />
+      <CentralInvoiceAuthorityEventsAutoSync />
       <DataAccessEventReporter />
       <AppNavigationFeedback
         navigation={pendingNavigation}
