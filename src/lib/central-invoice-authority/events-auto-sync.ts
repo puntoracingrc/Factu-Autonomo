@@ -19,6 +19,9 @@ export const CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS =
 export const CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_PUBLIC_FLAG =
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS";
 
+export const CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS_PUBLIC_FLAG =
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS";
+
 export const CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_SCHEMA = "public";
 export const CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE =
   "central_invoice_event_wakeups";
@@ -38,6 +41,7 @@ export type CentralInvoiceAuthorityEventsAutoSyncSkipReason =
   | "cloud_unavailable"
   | "session_unavailable"
   | "email_unconfirmed"
+  | "user_not_allowlisted"
   | "browser_offline"
   | "document_hidden"
   | "conflict_paused";
@@ -56,7 +60,8 @@ export type CentralInvoiceAuthorityEventsRealtimeWakeupsSkipReason =
   | "workspace_not_ready"
   | "cloud_unavailable"
   | "session_unavailable"
-  | "email_unconfirmed";
+  | "email_unconfirmed"
+  | "user_not_allowlisted";
 
 export type CentralInvoiceAuthorityEventsRealtimeWakeupsDecision =
   | { shouldSubscribe: true }
@@ -71,6 +76,7 @@ export interface CentralInvoiceAuthorityEventsAutoSyncDecisionInput {
   cloudEnabled: boolean;
   hasUser: boolean;
   emailConfirmed: boolean;
+  userCanaryAllowed: boolean;
   online: boolean;
   visible: boolean;
   running: boolean;
@@ -84,6 +90,7 @@ export interface CentralInvoiceAuthorityEventsRealtimeWakeupsDecisionInput {
   cloudEnabled: boolean;
   hasUser: boolean;
   emailConfirmed: boolean;
+  userCanaryAllowed: boolean;
 }
 
 export interface CentralInvoiceAuthorityEventsRealtimeWakeupsSubscription {
@@ -116,6 +123,25 @@ export function isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled(
   return value === "true";
 }
 
+export function isCentralInvoiceAuthorityEventsCanaryUserAllowed(
+  userId: string | null | undefined,
+  value: string | undefined =
+    process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS,
+): boolean {
+  const raw = value?.trim();
+  if (!raw) return true;
+  if (!userId || !UUID_V4_LIKE_PATTERN.test(userId)) return false;
+
+  const allowed = new Set(
+    raw
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => UUID_V4_LIKE_PATTERN.test(entry)),
+  );
+
+  return allowed.has(userId.toLowerCase());
+}
+
 export function shouldRunCentralInvoiceAuthorityEventsAutoSync(
   input: CentralInvoiceAuthorityEventsAutoSyncDecisionInput,
 ): CentralInvoiceAuthorityEventsAutoSyncDecision {
@@ -137,6 +163,9 @@ export function shouldRunCentralInvoiceAuthorityEventsAutoSync(
   }
   if (!input.emailConfirmed) {
     return skipped("email_unconfirmed", CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS);
+  }
+  if (!input.userCanaryAllowed) {
+    return skipped("user_not_allowlisted", null);
   }
   if (!input.online) {
     return skipped("browser_offline", CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS);
@@ -170,6 +199,9 @@ export function shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups(
   }
   if (!input.emailConfirmed) {
     return { shouldSubscribe: false, reason: "email_unconfirmed" };
+  }
+  if (!input.userCanaryAllowed) {
+    return { shouldSubscribe: false, reason: "user_not_allowlisted" };
   }
   return { shouldSubscribe: true };
 }

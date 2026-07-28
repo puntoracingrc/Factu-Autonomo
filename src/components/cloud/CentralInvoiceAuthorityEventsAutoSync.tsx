@@ -12,6 +12,7 @@ import {
   CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE,
   centralInvoiceAuthorityEventsRealtimeWakeupsSubscription,
   isCentralInvoiceAuthorityEventsAutoSyncEnabled,
+  isCentralInvoiceAuthorityEventsCanaryUserAllowed,
   isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled,
   nextCentralInvoiceAuthorityEventsAutoSyncDelay,
   shouldRunCentralInvoiceAuthorityEventsAutoSync,
@@ -28,6 +29,7 @@ type LatestCentralAuthorityAutoSyncState = {
   cloudEnabled: boolean;
   hasUser: boolean;
   emailConfirmed: boolean;
+  userCanaryAllowed: boolean;
   syncCentralInvoiceAuthorityEvents: ReturnType<typeof useAppStore>["syncCentralInvoiceAuthorityEvents"];
 };
 
@@ -38,6 +40,8 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
   const realtimeWakeupsEnabled =
     isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled();
   const userId = typeof user?.id === "string" ? user.id : null;
+  const userCanaryAllowed =
+    isCentralInvoiceAuthorityEventsCanaryUserAllowed(userId);
   const runningRef = useRef(false);
   const timerRef = useRef<number | null>(null);
   const realtimeWakeRef = useRef<() => void>(() => {});
@@ -47,6 +51,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     cloudEnabled,
     hasUser: Boolean(user),
     emailConfirmed,
+    userCanaryAllowed,
     syncCentralInvoiceAuthorityEvents,
   });
 
@@ -57,6 +62,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       cloudEnabled,
       hasUser: Boolean(user),
       emailConfirmed,
+      userCanaryAllowed,
       syncCentralInvoiceAuthorityEvents,
     };
   }, [
@@ -65,6 +71,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     cloudEnabled,
     user,
     emailConfirmed,
+    userCanaryAllowed,
     syncCentralInvoiceAuthorityEvents,
   ]);
 
@@ -97,6 +104,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
         cloudEnabled: latest.cloudEnabled,
         hasUser: latest.hasUser,
         emailConfirmed: latest.emailConfirmed,
+        userCanaryAllowed: latest.userCanaryAllowed,
         online: typeof navigator === "undefined" ? true : navigator.onLine,
         visible:
           typeof document === "undefined"
@@ -146,7 +154,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       window.removeEventListener("focus", wake);
       document.removeEventListener("visibilitychange", wake);
     };
-  }, [enabled]);
+  }, [enabled, userCanaryAllowed]);
 
   useEffect(() => {
     const decision = shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
@@ -156,6 +164,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       cloudEnabled,
       hasUser: Boolean(userId),
       emailConfirmed,
+      userCanaryAllowed,
     });
     const subscription =
       centralInvoiceAuthorityEventsRealtimeWakeupsSubscription(userId);
@@ -201,6 +210,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     cloudEnabled,
     userId,
     emailConfirmed,
+    userCanaryAllowed,
   ]);
 
   return null;

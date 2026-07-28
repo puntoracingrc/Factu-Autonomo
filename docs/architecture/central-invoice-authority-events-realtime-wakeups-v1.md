@@ -8,6 +8,15 @@ authority events. It is inert unless both flags are present at build time:
 - `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC=true`
 - `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS=true`
 
+The same browser canary scope used by auto-sync applies here:
+
+- `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS=<uuid>[,<uuid>]`
+
+If that optional list is present, only those Supabase user UUIDs subscribe to
+Realtime. Invalid entries are ignored and a non-empty list with no matching
+valid UUID fails closed. The list must not contain emails, customer names,
+NIFs, invoice numbers or any business payload.
+
 ## Contract
 
 Realtime is a wakeup only. It never becomes the source of truth and never

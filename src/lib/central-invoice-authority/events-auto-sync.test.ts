@@ -11,9 +11,11 @@ import {
   centralInvoiceAuthorityEventsRealtimeWakeupsSubscription,
   CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC,
   CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC_PUBLIC_FLAG,
+  CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS_PUBLIC_FLAG,
   CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS,
   CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_PUBLIC_FLAG,
   isCentralInvoiceAuthorityEventsAutoSyncEnabled,
+  isCentralInvoiceAuthorityEventsCanaryUserAllowed,
   isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled,
   nextCentralInvoiceAuthorityEventsAutoSyncDelay,
   shouldRunCentralInvoiceAuthorityEventsAutoSync,
@@ -31,6 +33,7 @@ const runnableInput = {
   cloudEnabled: true,
   hasUser: true,
   emailConfirmed: true,
+  userCanaryAllowed: true,
   online: true,
   visible: true,
   running: false,
@@ -94,6 +97,9 @@ describe("central invoice authority events auto sync policy", () => {
     expect(CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_PUBLIC_FLAG).toBe(
       "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS",
     );
+    expect(CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS_PUBLIC_FLAG).toBe(
+      "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS",
+    );
     expect(isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled("true")).toBe(
       true,
     );
@@ -103,6 +109,36 @@ describe("central invoice authority events auto sync policy", () => {
     expect(isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled(undefined)).toBe(
       false,
     );
+  });
+
+  it("limita el canario opcional por userId opaco y falla cerrado ante listas invalidas", () => {
+    const userId = "00000000-0000-4000-8000-000000000001";
+    const otherUserId = "00000000-0000-4000-8000-000000000002";
+
+    expect(isCentralInvoiceAuthorityEventsCanaryUserAllowed(userId, undefined)).toBe(
+      true,
+    );
+    expect(isCentralInvoiceAuthorityEventsCanaryUserAllowed(userId, "")).toBe(
+      true,
+    );
+    expect(
+      isCentralInvoiceAuthorityEventsCanaryUserAllowed(
+        userId,
+        ` ${otherUserId.toUpperCase()} , ${userId.toUpperCase()} `,
+      ),
+    ).toBe(true);
+    expect(
+      isCentralInvoiceAuthorityEventsCanaryUserAllowed(
+        otherUserId,
+        `${userId}`,
+      ),
+    ).toBe(false);
+    expect(isCentralInvoiceAuthorityEventsCanaryUserAllowed(userId, "bad")).toBe(
+      false,
+    );
+    expect(
+      isCentralInvoiceAuthorityEventsCanaryUserAllowed("bad", `${userId}`),
+    ).toBe(false);
   });
 
   it("solo ejecuta cuando sesion, nube, email, ventana y datos estan listos", () => {
@@ -134,6 +170,16 @@ describe("central invoice authority events auto sync policy", () => {
         emailConfirmed: false,
       }),
     ).toMatchObject({ shouldRun: false, reason: "email_unconfirmed" });
+    expect(
+      shouldRunCentralInvoiceAuthorityEventsAutoSync({
+        ...runnableInput,
+        userCanaryAllowed: false,
+      }),
+    ).toEqual({
+      shouldRun: false,
+      reason: "user_not_allowlisted",
+      retryAfterMs: null,
+    });
     expect(
       shouldRunCentralInvoiceAuthorityEventsAutoSync({
         ...runnableInput,
@@ -170,6 +216,7 @@ describe("central invoice authority events auto sync policy", () => {
         cloudEnabled: true,
         hasUser: true,
         emailConfirmed: true,
+        userCanaryAllowed: true,
       }),
     ).toEqual({ shouldSubscribe: true });
     expect(
@@ -180,6 +227,7 @@ describe("central invoice authority events auto sync policy", () => {
         cloudEnabled: true,
         hasUser: true,
         emailConfirmed: true,
+        userCanaryAllowed: true,
       }),
     ).toEqual({ shouldSubscribe: false, reason: "auto_sync_disabled" });
     expect(
@@ -190,6 +238,7 @@ describe("central invoice authority events auto sync policy", () => {
         cloudEnabled: true,
         hasUser: true,
         emailConfirmed: true,
+        userCanaryAllowed: true,
       }),
     ).toEqual({ shouldSubscribe: false, reason: "flag_disabled" });
     expect(
@@ -200,6 +249,7 @@ describe("central invoice authority events auto sync policy", () => {
         cloudEnabled: true,
         hasUser: true,
         emailConfirmed: true,
+        userCanaryAllowed: true,
       }),
     ).toEqual({ shouldSubscribe: false, reason: "workspace_not_ready" });
     expect(
@@ -210,6 +260,7 @@ describe("central invoice authority events auto sync policy", () => {
         cloudEnabled: false,
         hasUser: true,
         emailConfirmed: true,
+        userCanaryAllowed: true,
       }),
     ).toEqual({ shouldSubscribe: false, reason: "cloud_unavailable" });
     expect(
@@ -220,6 +271,7 @@ describe("central invoice authority events auto sync policy", () => {
         cloudEnabled: true,
         hasUser: false,
         emailConfirmed: true,
+        userCanaryAllowed: true,
       }),
     ).toEqual({ shouldSubscribe: false, reason: "session_unavailable" });
     expect(
@@ -230,8 +282,20 @@ describe("central invoice authority events auto sync policy", () => {
         cloudEnabled: true,
         hasUser: true,
         emailConfirmed: false,
+        userCanaryAllowed: true,
       }),
     ).toEqual({ shouldSubscribe: false, reason: "email_unconfirmed" });
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: true,
+        realtimeWakeupsEnabled: true,
+        ready: true,
+        cloudEnabled: true,
+        hasUser: true,
+        emailConfirmed: true,
+        userCanaryAllowed: false,
+      }),
+    ).toEqual({ shouldSubscribe: false, reason: "user_not_allowlisted" });
   });
 
   it("construye una suscripcion filtrada por usuario sin payload fiscal", () => {
