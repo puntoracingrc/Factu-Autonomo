@@ -96,6 +96,12 @@ export type CentralInvoiceAuthorityFormIssuePolicyReason =
   | "server_fiscal_writes_possible"
   | "last_known_central_authority"
   | "central_not_requested"
+  | "public_canary_not_ready"
+  | "status_unavailable";
+
+type CentralInvoiceAuthorityFormLocalPolicyReason =
+  | "central_not_requested"
+  | "public_canary_not_ready"
   | "status_unavailable";
 
 export type CentralInvoiceAuthorityFormLastKnownGuardReason =
@@ -116,7 +122,7 @@ export type CentralInvoiceAuthorityFormIssuePolicyDecision =
       failClosed: true;
       reason: Exclude<
         CentralInvoiceAuthorityFormIssuePolicyReason,
-        "central_not_requested" | "status_unavailable"
+        CentralInvoiceAuthorityFormLocalPolicyReason
       >;
       status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>;
     }
@@ -126,7 +132,7 @@ export type CentralInvoiceAuthorityFormIssuePolicyDecision =
       failClosed: false;
       reason: Extract<
         CentralInvoiceAuthorityFormIssuePolicyReason,
-        "central_not_requested" | "status_unavailable"
+        CentralInvoiceAuthorityFormLocalPolicyReason
       >;
       status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>;
       statusError?: Extract<CentralInvoiceAuthorityStatusResult, { ok: false }>;
@@ -156,7 +162,7 @@ export function isCentralInvoiceAuthorityFormRequiredEnabled(
 function enabledPolicy(
   reason: Exclude<
     CentralInvoiceAuthorityFormIssuePolicyReason,
-    "central_not_requested" | "status_unavailable"
+    CentralInvoiceAuthorityFormLocalPolicyReason
   >,
   status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>,
 ): CentralInvoiceAuthorityFormIssuePolicyDecision {
@@ -172,7 +178,7 @@ function enabledPolicy(
 function localPolicy(
   reason: Extract<
     CentralInvoiceAuthorityFormIssuePolicyReason,
-    "central_not_requested" | "status_unavailable"
+    CentralInvoiceAuthorityFormLocalPolicyReason
   >,
   details: {
     status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>;
@@ -259,7 +265,6 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
     rememberCentralAuthorityFormGuard(storage, "public_form_required", now);
     return enabledPolicy("public_form_required");
   }
-  if (publicCanaryEnabled) return enabledPolicy("public_form_canary");
 
   const status = await fetchCentralInvoiceAuthorityStatusFromBrowser({
     fetchImpl: dependencies.fetchImpl,
@@ -274,6 +279,13 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
   if (status.activation.requestedMode === "required") {
     rememberCentralAuthorityFormGuard(storage, "server_required", now);
     return enabledPolicy("server_required", status);
+  }
+  if (publicCanaryEnabled) {
+    if (status.summary.fiscalWritesPossible) {
+      rememberCentralAuthorityFormGuard(storage, "server_fiscal_writes_possible", now);
+      return enabledPolicy("public_form_canary", status);
+    }
+    return localPolicy("public_canary_not_ready", { status });
   }
   if (status.summary.fiscalWritesPossible) {
     rememberCentralAuthorityFormGuard(storage, "server_fiscal_writes_possible", now);

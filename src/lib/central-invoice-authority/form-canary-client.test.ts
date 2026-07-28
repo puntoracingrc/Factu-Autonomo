@@ -108,13 +108,17 @@ describe("central invoice authority form canary client", () => {
     ).toBe(true);
   });
 
-  it("resuelve politica runtime desde flags publicos sin contactar status", async () => {
-    const fetchImpl = vi.fn();
+  it("resuelve el canary publico solo cuando status confirma escrituras fiscales", async () => {
+    const storage = memoryStorage();
+    const fetchImpl = vi.fn(async () => jsonResponse(200, readyStatusPayload()));
 
     await expect(
       resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
         fetchImpl,
         env: { NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "true" },
+        getAccessToken: async () => "access-token",
+        getDeviceToken: () => "device-token",
+        storage,
       }),
     ).resolves.toMatchObject({
       schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
@@ -122,6 +126,80 @@ describe("central invoice authority form canary client", () => {
       failClosed: true,
       reason: "public_form_canary",
     });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/central-invoice-authority/status",
+      expect.objectContaining({
+        method: "GET",
+        cache: "no-store",
+      }),
+    );
+    expect(storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY))
+      .toContain("server_fiscal_writes_possible");
+  });
+
+  it("mantiene local el canary publico si status aun no declara gates listos", async () => {
+    const storage = memoryStorage();
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(
+        200,
+        readyStatusPayload({
+          activation: {
+            requestedMode: "canary",
+            effectiveMode: "shadow",
+            enabled: true,
+            fiscalWritesEnabled: false,
+            appliesToUser: true,
+            production: false,
+            reason: "readiness_blocked",
+          },
+          readiness: {
+            schema: "CENTRAL_INVOICE_AUTHORITY_STATUS_READINESS_V1",
+            checkedAt: "2026-07-28T08:30:00.000Z",
+            ready: false,
+            checks: [
+              {
+                id: "issue_rpc",
+                kind: "rpc",
+                status: "blocked",
+                message: "RPC de emision no disponible.",
+                noBusinessRows: true,
+                destructive: false,
+              },
+            ],
+            blockers: ["RPC de emision no disponible."],
+          },
+          summary: {
+            fiscalWritesPossible: false,
+            modeAllowsWrites: false,
+            serverSchemaReady: false,
+            deviceVerified: true,
+          },
+        }),
+      ),
+    );
+
+    await expect(
+      resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+        fetchImpl,
+        env: { NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "true" },
+        getAccessToken: async () => "access-token",
+        getDeviceToken: () => "device-token",
+        storage,
+      }),
+    ).resolves.toMatchObject({
+      schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+      shouldUseCentralAuthority: false,
+      failClosed: false,
+      reason: "public_canary_not_ready",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY))
+      .toBeNull();
+  });
+
+  it("mantiene el required publico como guardia fail-closed sin contactar status", async () => {
+    const fetchImpl = vi.fn();
+
     await expect(
       resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
         fetchImpl,

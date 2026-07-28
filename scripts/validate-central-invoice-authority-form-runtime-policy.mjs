@@ -48,6 +48,7 @@ for (const required of [
   "fetchCentralInvoiceAuthorityStatusFromBrowser",
   'status.activation.requestedMode === "required"',
   "status.summary.fiscalWritesPossible",
+  "public_canary_not_ready",
   "centralDocumentEligible",
   "centralRectificationEligible",
   "centralPolicy?.shouldUseCentralAuthority",
@@ -56,6 +57,24 @@ for (const required of [
 ]) {
   includes(body, required, "central authority form runtime policy");
 }
+
+const resolverStart = client.indexOf(
+  "export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser",
+);
+const resolverEnd = client.indexOf("async function defaultAccessToken", resolverStart);
+assert.ok(resolverStart >= 0, "Missing central authority form policy resolver");
+assert.ok(resolverEnd > resolverStart, "Cannot isolate central authority resolver");
+const resolver = client.slice(resolverStart, resolverEnd);
+assert.ok(
+  resolver.indexOf("fetchCentralInvoiceAuthorityStatusFromBrowser") <
+    resolver.indexOf('return enabledPolicy("public_form_canary", status)'),
+  "public form canary must be status-bound before using central authority",
+);
+assert.match(
+  resolver,
+  /return localPolicy\("public_canary_not_ready"/,
+  "public form canary must abstain when status gates are not ready",
+);
 
 const docBranchStart = documentForm.indexOf("const centralDocumentEligible");
 const docBranchEnd = documentForm.indexOf("recordDocumentCreated();", docBranchStart);

@@ -19,7 +19,9 @@ sin activarla por defecto ni sustituir todavia el flujo local.
    ya asignada por servidor, reutilizando el `localDocumentId` que se envio al
    endpoint si el formulario lo aporta;
 6. bandera publica opt-in
-   `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=true`.
+   `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=true`, tratada solo como
+   solicitud: el formulario no entra en canary si `/status` no confirma gates
+   listos.
 
 ## Seguridad
 
@@ -28,10 +30,13 @@ deriva en servidor. El store no reasigna numeracion local cuando recibe una
 identidad central y solo permite esta entrada para facturas emitidas, no para
 borradores ni presupuestos.
 
-Si el status central no se puede leer, no garantiza lectura no destructiva o
-declara que no hay escrituras fiscales posibles, el formulario falla cerrado:
-no llama a `/issue`, no crea factura local y muestra el motivo seguro devuelto
-por el preflight. El navegador sigue sin reservar ni decidir numeros fiscales.
+Si el cliente central de emision se invoca y el status no se puede leer, no
+garantiza lectura no destructiva o declara que no hay escrituras fiscales
+posibles, esa llamada falla cerrado: no llama a `/issue` y muestra el motivo
+seguro devuelto por el preflight. La politica runtime solo invoca ese cliente en
+canario publico cuando `/status` ya ha confirmado `summary.fiscalWritesPossible`;
+si no, el formulario sigue en el flujo local existente y no reserva ni decide
+numeros fiscales centrales. Una vez invocado el cliente central, no crea factura local alternativa.
 
 ## Siguiente corte
 
