@@ -121,6 +121,14 @@ const centralInvoiceAuthorityRealtimeWakeupsMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const centralInvoiceAuthoritySeriesReconciliationMigrationSource =
+  readFileSync(
+    new URL(
+      "../../supabase/migrations/20260728213000_central_invoice_authority_series_reconciliation.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -160,6 +168,7 @@ const serviceOnlyTables = [
 const browserSyncTables = ["user_backups", "sync_entities"];
 const browserReadOnlyTables = ["user_subscriptions", "user_usage"];
 const browserRealtimeWakeupTables = ["central_invoice_event_wakeups"];
+const serviceReadOnlyTables = ["central_invoice_series_reconciliations"];
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -183,6 +192,7 @@ const classifiedTables = new Set([
   ...browserSyncTables,
   ...browserReadOnlyTables,
   ...browserRealtimeWakeupTables,
+  ...serviceReadOnlyTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -480,6 +490,30 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         ),
       );
     }
+  });
+
+  it("keeps immutable series reconciliation evidence service-read-only", () => {
+    const table = "central_invoice_series_reconciliations";
+    expect(centralInvoiceAuthoritySeriesReconciliationMigrationSource).toContain(
+      `revoke all on table public.${table}\n  from public, anon, authenticated, service_role`,
+    );
+    expect(centralInvoiceAuthoritySeriesReconciliationMigrationSource).toContain(
+      `grant select on table public.${table}\n  to service_role`,
+    );
+    expect(
+      centralInvoiceAuthoritySeriesReconciliationMigrationSource,
+    ).not.toMatch(
+      new RegExp(
+        `grant\\s+(?:all|insert|update|delete|truncate)[^;]*public\\.${escapedTable(table)}[^;]*to\\s+service_role`,
+        "iu",
+      ),
+    );
+    expect(centralInvoiceAuthoritySeriesReconciliationMigrationSource).not.toMatch(
+      new RegExp(
+        `grant\\s+[^;]*public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
+        "iu",
+      ),
+    );
   });
 
   it("keeps distributed rate limit buckets service-only", () => {
