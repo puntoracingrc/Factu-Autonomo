@@ -67,6 +67,15 @@ import type {
   RectificationType,
 } from "@/lib/types";
 import { RECTIFICATION_REASONS } from "@/lib/types";
+import {
+  buildCentralInvoiceAuthorityRectificationFormIssueRequest,
+  shouldUseCentralInvoiceAuthorityRectificationFormCanary,
+  type CentralInvoiceAuthorityRectificationFormPayload,
+} from "@/lib/central-invoice-authority/document-form-canary";
+import {
+  isCentralInvoiceAuthorityFormCanaryEnabled,
+  issueCentralInvoiceAuthorityFromBrowser,
+} from "@/lib/central-invoice-authority/form-canary-client";
 
 interface RectificativaFormProps {
   original: Document;
@@ -87,6 +96,7 @@ export function RectificativaForm({
     data,
     updateProfile,
     addRectificativa,
+    addDocumentWithCentralIdentity,
     registerVerifactuForDocument,
   } = useAppStore();
   const {
@@ -101,8 +111,10 @@ export function RectificativaForm({
   const [saveAction, setSaveAction] = useState<
     "idle" | "draft" | "save" | "save-pdf"
   >("idle");
+  const [formError, setFormError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const saving = saveAction !== "idle";
+  const centralCanaryEnabled = isCentralInvoiceAuthorityFormCanaryEnabled();
   const vatExempt = isVatExempt(historicalProfile);
   const defaultIva = vatExempt
     ? 0
@@ -246,12 +258,11 @@ export function RectificativaForm({
     });
   }
 
-  function buildRectificativaDraft(status: Document["status"]): Document {
-    const now = new Date().toISOString();
+  function buildRectificativaPayload(
+    status: Document["status"],
+  ): CentralInvoiceAuthorityRectificationFormPayload {
     return {
-      id: "preview-rectificativa",
       type: "factura",
-      number: "BORRADOR",
       date,
       client: rectificativaClient(),
       customerId: original.customerId,
@@ -269,6 +280,15 @@ export function RectificativaForm({
         reason: finalReason,
         type: rectType,
       },
+    };
+  }
+
+  function buildRectificativaDraft(status: Document["status"]): Document {
+    const now = new Date().toISOString();
+    return {
+      ...buildRectificativaPayload(status),
+      id: "preview-rectificativa",
+      number: "BORRADOR",
       createdAt: now,
       updatedAt: now,
     };
@@ -323,6 +343,7 @@ export function RectificativaForm({
     if (!validateRectificativaBasics()) return;
 
     const isDraft = statusOverride === "borrador";
+    setFormError(null);
     setSaveAction(isDraft ? "draft" : download ? "save-pdf" : "save");
 
     const gate = checkCanCreateDocument(data.customers.length);
@@ -367,29 +388,44 @@ export function RectificativaForm({
       }
     }
 
+    const payload = buildRectificativaPayload(statusOverride);
     let saved: Document | null;
     try {
-      saved = await addRectificativa(original.id, {
-        date,
-        client: rectificativaClient(),
-        customerId: original.customerId,
-        items: rectificativaItemsForSave(),
-        notes: notes || undefined,
-        salesTerms: salesTerms.trim() || undefined,
-        paymentTerms: paymentTerms.trim() || undefined,
-        status: statusOverride,
-        sourceQuoteDocumentId: original.sourceQuoteDocumentId,
-        sourceQuoteNumber: original.sourceQuoteNumber,
-        rectification: {
-          originalDocumentId: original.id,
-          originalNumber: original.number,
-          originalDate: original.date,
-          reason: finalReason,
-          type: rectType,
-        },
-      });
+      if (
+        centralCanaryEnabled &&
+        shouldUseCentralInvoiceAuthorityRectificationFormCanary({
+          original,
+          payload,
+          resolvedStatus: statusOverride,
+        })
+      ) {
+        const localDocumentId = crypto.randomUUID();
+        const issuedAt = new Date().toISOString();
+        const centralRequest =
+          buildCentralInvoiceAuthorityRectificationFormIssueRequest({
+            localDocumentId,
+            payload,
+            original,
+            profile: historicalProfile,
+            issuedAt,
+          });
+        const centralResult =
+          await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
+
+        if (!centralResult.ok) {
+          setSaveAction("idle");
+          setFormError(centralResult.message);
+          return;
+        }
+
+        saved = addDocumentWithCentralIdentity(payload, centralResult.identity, {
+          localDocumentId,
+        });
+      } else {
+        saved = await addRectificativa(original.id, payload);
+      }
     } catch (error) {
-      alert(
+      setFormError(
         error instanceof Error
           ? error.message
           : "No se pudo crear la factura rectificativa.",
@@ -399,7 +435,7 @@ export function RectificativaForm({
     }
 
     if (!saved) {
-      alert("No se pudo crear la factura rectificativa");
+      setFormError("No se pudo crear la factura rectificativa");
       setSaveAction("idle");
       return;
     }
@@ -747,6 +783,14 @@ export function RectificativaForm({
       </Card>
 
       <div className="flex flex-col gap-3">
+        {formError ? (
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+          >
+            {formError}
+          </div>
+        ) : null}
         <Button
           variant="secondary"
           fullWidth
