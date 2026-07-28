@@ -48,4 +48,39 @@ describe("central invoice authority form store bridge", () => {
       bridge.indexOf("setAppData"),
     );
   });
+
+  it("materializa rectificativas centrales con el flujo canonico y actualiza la original", () => {
+    const bridge = functionSource(
+      "addDocumentWithCentralIdentity",
+      "updateDocument",
+    );
+    const rectificationBranchStart = bridge.indexOf("if (doc.rectification)");
+    const localNumberingIndex = bridge.indexOf("const createdDraft");
+
+    expect(rectificationBranchStart).toBeGreaterThanOrEqual(0);
+    expect(localNumberingIndex).toBeGreaterThan(rectificationBranchStart);
+    const rectificationBranch = bridge.slice(
+      rectificationBranchStart,
+      localNumberingIndex,
+    );
+
+    expect(rectificationBranch).toContain(
+      "requireUniqueRectificationOriginal",
+    );
+    expect(rectificationBranch).toContain(
+      "resolveCanonicalRectificationSource",
+    );
+    expect(rectificationBranch).toContain("canRectifyInvoice");
+    expect(rectificationBranch).toContain("hasPendingRectificationDraft");
+    expect(rectificationBranch).toContain("canonicalRectificationReference");
+    expect(rectificationBranch).toContain("canonicalRectificationItems");
+    expect(rectificationBranch).toContain("assertRectificationEmissionAllowed");
+    expect(rectificationBranch).toContain("assertDocumentEmissionValid");
+    expect(rectificationBranch).toContain("materializeRectificationDocument");
+    expect(rectificationBranch).toContain("applyEmittedRectificationToOriginal");
+    expect(rectificationBranch).toContain("identity.fullNumber");
+    expect(rectificationBranch).toContain("centralInvoiceAuthority");
+    expect(rectificationBranch).toContain("bumpNumberingAfterAssign");
+    expect(rectificationBranch).not.toContain("assignNextDocumentNumber");
+  });
 });
