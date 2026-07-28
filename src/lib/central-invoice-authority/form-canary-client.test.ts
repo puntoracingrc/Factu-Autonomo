@@ -2,8 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT,
+  CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
   isCentralInvoiceAuthorityFormCanaryEnabled,
+  isCentralInvoiceAuthorityFormRequiredEnabled,
   issueCentralInvoiceAuthorityFromBrowser,
+  resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
   type CentralInvoiceAuthorityFormIssueRequest,
 } from "./form-canary-client";
 
@@ -83,6 +86,121 @@ describe("central invoice authority form canary client", () => {
         NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "true",
       }),
     ).toBe(true);
+    expect(isCentralInvoiceAuthorityFormRequiredEnabled({})).toBe(false);
+    expect(
+      isCentralInvoiceAuthorityFormRequiredEnabled({
+        NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED: "true",
+      }),
+    ).toBe(true);
+  });
+
+  it("resuelve politica runtime desde flags publicos sin contactar status", async () => {
+    const fetchImpl = vi.fn();
+
+    await expect(
+      resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+        fetchImpl,
+        env: { NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "true" },
+      }),
+    ).resolves.toMatchObject({
+      schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+      shouldUseCentralAuthority: true,
+      failClosed: true,
+      reason: "public_form_canary",
+    });
+    await expect(
+      resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+        fetchImpl,
+        env: { NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED: "true" },
+      }),
+    ).resolves.toMatchObject({
+      schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+      shouldUseCentralAuthority: true,
+      failClosed: true,
+      reason: "public_form_required",
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("resuelve politica runtime desde status central", async () => {
+    const requiredBlocked = await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+      fetchImpl: vi.fn(async () =>
+        jsonResponse(
+          200,
+          readyStatusPayload({
+            activation: {
+              requestedMode: "required",
+              effectiveMode: "off",
+              enabled: false,
+              fiscalWritesEnabled: false,
+              appliesToUser: true,
+              production: false,
+              reason: "schema_not_ready",
+            },
+          }),
+        ),
+      ),
+      getAccessToken: async () => "access-token",
+      getDeviceToken: () => "device-token",
+    });
+
+    expect(requiredBlocked).toMatchObject({
+      shouldUseCentralAuthority: true,
+      failClosed: true,
+      reason: "server_required",
+    });
+
+    const canaryReady = await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+      fetchImpl: vi.fn(async () => jsonResponse(200, readyStatusPayload())),
+      getAccessToken: async () => "access-token",
+      getDeviceToken: () => "device-token",
+    });
+
+    expect(canaryReady).toMatchObject({
+      shouldUseCentralAuthority: true,
+      failClosed: true,
+      reason: "server_fiscal_writes_possible",
+    });
+  });
+
+  it("mantiene el flujo local si status no solicita autoridad central", async () => {
+    const off = await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+      fetchImpl: vi.fn(async () => jsonResponse(200, readyStatusPayload({
+        activation: {
+          requestedMode: "off",
+          effectiveMode: "off",
+          enabled: false,
+          fiscalWritesEnabled: false,
+          appliesToUser: false,
+          production: false,
+          reason: "disabled",
+        },
+        summary: {
+          fiscalWritesPossible: false,
+          modeAllowsWrites: false,
+          serverSchemaReady: true,
+          deviceVerified: true,
+        },
+      }))),
+      getAccessToken: async () => "access-token",
+      getDeviceToken: () => "device-token",
+    });
+    const noSession = await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+      fetchImpl: vi.fn(),
+      getAccessToken: async () => null,
+      getDeviceToken: () => "device-token",
+    });
+
+    expect(off).toMatchObject({
+      shouldUseCentralAuthority: false,
+      failClosed: false,
+      reason: "central_not_requested",
+    });
+    expect(noSession).toMatchObject({
+      shouldUseCentralAuthority: false,
+      failClosed: false,
+      reason: "status_unavailable",
+    });
   });
 
   it("no contacta la ruta sin sesion o dispositivo", async () => {

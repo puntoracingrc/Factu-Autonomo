@@ -102,6 +102,7 @@ import {
 import {
   isCentralInvoiceAuthorityFormCanaryEnabled,
   issueCentralInvoiceAuthorityFromBrowser,
+  resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
 } from "@/lib/central-invoice-authority/form-canary-client";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import {
@@ -1720,15 +1721,20 @@ export function DocumentForm({
         return;
       }
     } else {
-      if (
-        centralCanaryEnabled &&
+      const centralDocumentEligible =
         shouldUseCentralInvoiceAuthorityDocumentFormCanary({
           type,
           existing,
           payload,
           resolvedStatus,
-        })
-      ) {
+        });
+      const centralPolicy = centralDocumentEligible
+        ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+            publicFormCanaryEnabled: centralCanaryEnabled,
+          })
+        : null;
+
+      if (centralPolicy?.shouldUseCentralAuthority) {
         const localDocumentId = crypto.randomUUID();
         const issuedAt = new Date().toISOString();
         const centralRequest =
