@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY,
+  CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY,
   CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY,
   CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
   CENTRAL_INVOICE_AUTHORITY_MODE_KEY,
@@ -19,6 +20,7 @@ const userId = "00000000-0000-4000-8000-000000000001";
 const userEmail = "puntoracingrc@gmail.com";
 const activeEnv = {
   [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+  [CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY]: "true",
   [CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY]: userEmail,
   [CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY]:
     CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
@@ -27,6 +29,12 @@ const activeEnv = {
   [CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY]: "true",
   [CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY]: "true",
 };
+
+function stubActiveEnv() {
+  for (const [key, value] of Object.entries(activeEnv)) {
+    vi.stubEnv(key, value);
+  }
+}
 
 function body(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
@@ -181,31 +189,7 @@ describe("central invoice authority issue route handler", () => {
   });
 
   it("en canary activo deriva auth servidor y devuelve solo resumen seguro", async () => {
-    vi.stubEnv(CENTRAL_INVOICE_AUTHORITY_MODE_KEY, activeEnv[CENTRAL_INVOICE_AUTHORITY_MODE_KEY]);
-    vi.stubEnv(
-      CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY,
-      activeEnv[CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY],
-    );
-    vi.stubEnv(
-      CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY,
-      activeEnv[CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY],
-    );
-    vi.stubEnv(
-      CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY,
-      activeEnv[CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY],
-    );
-    vi.stubEnv(
-      CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY,
-      activeEnv[CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY],
-    );
-    vi.stubEnv(
-      CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY,
-      activeEnv[CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY],
-    );
-    vi.stubEnv(
-      CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
-      activeEnv[CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY],
-    );
+    stubActiveEnv();
     const rpc = vi.fn(async (_name, args) => ({
       error: null,
       data: {
@@ -236,6 +220,30 @@ describe("central invoice authority issue route handler", () => {
     expect(serialized).toContain("F-2026-0001");
     expect(serialized).not.toContain("fiscalPayloadShouldNotLeak");
     expect(serialized).not.toContain("emittedSnapshotShouldNotLeak");
+  });
+
+  it("bloquea en la ruta una serie production cuando el canario es test-only", async () => {
+    stubActiveEnv();
+    const rpc = vi.fn();
+    const dependencies = deps({
+      getRpcClient: vi.fn(() => ({ rpc })),
+    });
+    const response = await request(dependencies, {
+      rawBody: body({
+        series: {
+          environment: "production",
+          issuerNif: "B00000000",
+          seriesCode: "F-2026",
+          fiscalYear: 2026,
+        },
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({
+      error: { code: "CENTRAL_AUTHORITY_CANARY_TEST_ONLY" },
+    });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("rechaza payloads demasiado grandes antes del servicio", async () => {

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY,
+  CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY,
+  CENTRAL_INVOICE_AUTHORITY_CANARY_USERS_KEY,
   CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY,
   CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
   CENTRAL_INVOICE_AUTHORITY_MODE_KEY,
@@ -94,6 +96,46 @@ describe("central invoice authority issue service", () => {
     ).rejects.toMatchObject({
       code: "CENTRAL_AUTHORITY_SHADOW_ONLY",
     });
+  });
+
+  it("impide que un canario test-only cree identidades de produccion", async () => {
+    const rpc = vi.fn();
+    const input = serviceInput();
+    const activation = evaluateCentralInvoiceAuthorityActivation({
+      env: {
+        [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+        [CENTRAL_INVOICE_AUTHORITY_CANARY_USERS_KEY]: userId,
+        [CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY]:
+          CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
+        [CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY]: "true",
+        [CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY]: "true",
+        [CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY]: "true",
+        [CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY]: "true",
+      },
+      userId,
+    });
+
+    await expect(
+      issueCentralInvoiceWithAuthority({
+        ...input,
+        issueInput: {
+          ...input.issueInput,
+          series: {
+            ...input.issueInput.series,
+            environment: "production",
+          },
+        },
+        activation,
+        env: {
+          [CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY]: "true",
+        },
+        rpcClient: { rpc },
+      }),
+    ).rejects.toMatchObject({
+      code: "CENTRAL_AUTHORITY_CANARY_TEST_ONLY",
+      activation: { effectiveMode: "canary", fiscalWritesEnabled: true },
+    });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("emite mediante el adaptador RPC cuando la activacion permite escrituras", async () => {
