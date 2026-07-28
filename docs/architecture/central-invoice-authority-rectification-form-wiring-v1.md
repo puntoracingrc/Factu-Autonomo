@@ -4,8 +4,8 @@ Marker: `CENTRAL_INVOICE_AUTHORITY_RECTIFICATION_FORM_WIRING_V1`
 
 Esta fase conecta `RectificativaForm` con la ruta privada de autoridad central
 de facturas, pero solo como canary apagado por defecto. La web conserva el
-flujo local actual salvo que `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY`
-sea exactamente `true` y la factura original ya tenga una identidad central
+flujo local actual salvo que la politica runtime de autoridad central decida
+usar el camino central y la factura original ya tenga una identidad central
 coherente.
 
 ## Alcance
@@ -18,7 +18,9 @@ coherente.
 6. crea el documento local con el `fullNumber` devuelto por servidor mediante
    `addDocumentWithCentralIdentity`;
 7. no cae a numeracion local si la autoridad central rechaza una rectificativa
-   de una factura central.
+   de una factura central;
+8. desde `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1`, el canary publico
+   convive con el status servidor `required` o `fiscalWritesPossible`.
 
 ## Seguridad
 

@@ -4,8 +4,8 @@ Marker: `CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY_V1`
 
 Esta fase conecta `DocumentForm` con la ruta privada de autoridad central de
 facturas, pero solo como canary apagado por defecto. La web sigue usando el
-flujo local actual salvo que `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY`
-sea exactamente `true`.
+flujo local actual salvo que la politica runtime de autoridad central decida
+usar el camino central.
 
 ## Alcance
 
@@ -15,7 +15,9 @@ sea exactamente `true`.
 4. deriva serie, NIF emisor, entorno y ejercicio desde el perfil/documento;
 5. llama a `/api/central-invoice-authority/issue`;
 6. crea el documento local con el `fullNumber` devuelto por servidor;
-7. no cae a numeracion local si la autoridad central rechaza.
+7. no cae a numeracion local si la autoridad central rechaza;
+8. desde `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1`, el canary publico
+   convive con el status servidor `required` o `fiscalWritesPossible`.
 
 ## Seguridad
 

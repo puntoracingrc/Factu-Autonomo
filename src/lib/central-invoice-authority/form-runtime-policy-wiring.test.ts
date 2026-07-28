@@ -1,0 +1,72 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const client = readFileSync(
+  "src/lib/central-invoice-authority/form-canary-client.ts",
+  "utf8",
+);
+const documentForm = readFileSync("src/components/forms/DocumentForm.tsx", "utf8");
+const rectificationForm = readFileSync(
+  "src/components/forms/RectificativaForm.tsx",
+  "utf8",
+);
+
+function documentCreationBranch(): string {
+  const start = documentForm.indexOf("const centralDocumentEligible");
+  const end = documentForm.indexOf("recordDocumentCreated();", start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return documentForm.slice(start, end);
+}
+
+function rectificationCreationBranch(): string {
+  const start = rectificationForm.indexOf("const centralRectificationEligible");
+  const end = rectificationForm.indexOf("recordDocumentCreated();", start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return rectificationForm.slice(start, end);
+}
+
+describe("central invoice authority form runtime policy wiring", () => {
+  it("expone una politica runtime que cubre canary publico, required publico y status servidor", () => {
+    expect(client).toContain("CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1");
+    expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY");
+    expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED");
+    expect(client).toContain("resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser");
+    expect(client).toContain("fetchCentralInvoiceAuthorityStatusFromBrowser");
+    expect(client).toContain('status.activation.requestedMode === "required"');
+    expect(client).toContain("status.summary.fiscalWritesPossible");
+  });
+
+  it("DocumentForm consulta la politica antes de caer al alta local", () => {
+    const branch = documentCreationBranch();
+    const policyIndex = branch.indexOf(
+      "resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser",
+    );
+    const centralStoreIndex = branch.indexOf("addDocumentWithCentralIdentity");
+    const localStoreIndex = branch.indexOf("saved = addDocument(payload)");
+
+    expect(branch).toContain("centralDocumentEligible");
+    expect(branch).toContain("centralPolicy?.shouldUseCentralAuthority");
+    expect(policyIndex).toBeGreaterThanOrEqual(0);
+    expect(centralStoreIndex).toBeGreaterThan(policyIndex);
+    expect(localStoreIndex).toBeGreaterThan(centralStoreIndex);
+  });
+
+  it("RectificativaForm consulta la politica antes de caer al alta local", () => {
+    const branch = rectificationCreationBranch();
+    const policyIndex = branch.indexOf(
+      "resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser",
+    );
+    const centralStoreIndex = branch.indexOf("addDocumentWithCentralIdentity");
+    const localStoreIndex = branch.indexOf(
+      "saved = await addRectificativa(original.id, payload)",
+    );
+
+    expect(branch).toContain("centralRectificationEligible");
+    expect(branch).toContain("centralPolicy?.shouldUseCentralAuthority");
+    expect(policyIndex).toBeGreaterThanOrEqual(0);
+    expect(centralStoreIndex).toBeGreaterThan(policyIndex);
+    expect(localStoreIndex).toBeGreaterThan(centralStoreIndex);
+  });
+});

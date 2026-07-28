@@ -75,6 +75,7 @@ import {
 import {
   isCentralInvoiceAuthorityFormCanaryEnabled,
   issueCentralInvoiceAuthorityFromBrowser,
+  resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
 } from "@/lib/central-invoice-authority/form-canary-client";
 
 interface RectificativaFormProps {
@@ -391,14 +392,19 @@ export function RectificativaForm({
     const payload = buildRectificativaPayload(statusOverride);
     let saved: Document | null;
     try {
-      if (
-        centralCanaryEnabled &&
+      const centralRectificationEligible =
         shouldUseCentralInvoiceAuthorityRectificationFormCanary({
           original,
           payload,
           resolvedStatus: statusOverride,
-        })
-      ) {
+        });
+      const centralPolicy = centralRectificationEligible
+        ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+            publicFormCanaryEnabled: centralCanaryEnabled,
+          })
+        : null;
+
+      if (centralPolicy?.shouldUseCentralAuthority) {
         const localDocumentId = crypto.randomUUID();
         const issuedAt = new Date().toISOString();
         const centralRequest =

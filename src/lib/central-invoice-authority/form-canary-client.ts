@@ -10,10 +10,13 @@ import type { DocumentKind } from "@/lib/types";
 import {
   fetchCentralInvoiceAuthorityStatusFromBrowser,
   type CentralInvoiceAuthorityStatusResult,
+  type CentralInvoiceAuthorityStatusClientDependencies,
 } from "./status-client";
 
 export const CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT_V1";
+export const CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY =
+  "CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1";
 
 export type CentralInvoiceAuthorityFormJson =
   | null
@@ -82,10 +85,120 @@ export interface CentralInvoiceAuthorityFormIssueDependencies {
   getDeviceToken?: () => string | null;
 }
 
+export type CentralInvoiceAuthorityFormIssuePolicyReason =
+  | "public_form_canary"
+  | "public_form_required"
+  | "server_required"
+  | "server_fiscal_writes_possible"
+  | "central_not_requested"
+  | "status_unavailable";
+
+export type CentralInvoiceAuthorityFormIssuePolicyDecision =
+  | {
+      schema: typeof CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY;
+      shouldUseCentralAuthority: true;
+      failClosed: true;
+      reason: Exclude<
+        CentralInvoiceAuthorityFormIssuePolicyReason,
+        "central_not_requested" | "status_unavailable"
+      >;
+      status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>;
+    }
+  | {
+      schema: typeof CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY;
+      shouldUseCentralAuthority: false;
+      failClosed: false;
+      reason: Extract<
+        CentralInvoiceAuthorityFormIssuePolicyReason,
+        "central_not_requested" | "status_unavailable"
+      >;
+      status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>;
+      statusError?: Extract<CentralInvoiceAuthorityStatusResult, { ok: false }>;
+    };
+
+export interface CentralInvoiceAuthorityFormIssuePolicyDependencies
+  extends CentralInvoiceAuthorityStatusClientDependencies {
+  env?: Record<string, string | undefined>;
+  publicFormCanaryEnabled?: boolean;
+  publicFormRequiredEnabled?: boolean;
+}
+
 export function isCentralInvoiceAuthorityFormCanaryEnabled(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   return env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY === "true";
+}
+
+export function isCentralInvoiceAuthorityFormRequiredEnabled(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED === "true";
+}
+
+function enabledPolicy(
+  reason: Exclude<
+    CentralInvoiceAuthorityFormIssuePolicyReason,
+    "central_not_requested" | "status_unavailable"
+  >,
+  status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>,
+): CentralInvoiceAuthorityFormIssuePolicyDecision {
+  return {
+    schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+    shouldUseCentralAuthority: true,
+    failClosed: true,
+    reason,
+    status,
+  };
+}
+
+function localPolicy(
+  reason: Extract<
+    CentralInvoiceAuthorityFormIssuePolicyReason,
+    "central_not_requested" | "status_unavailable"
+  >,
+  details: {
+    status?: Extract<CentralInvoiceAuthorityStatusResult, { ok: true }>;
+    statusError?: Extract<CentralInvoiceAuthorityStatusResult, { ok: false }>;
+  } = {},
+): CentralInvoiceAuthorityFormIssuePolicyDecision {
+  return {
+    schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+    shouldUseCentralAuthority: false,
+    failClosed: false,
+    reason,
+    ...details,
+  };
+}
+
+export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
+  dependencies: CentralInvoiceAuthorityFormIssuePolicyDependencies = {},
+): Promise<CentralInvoiceAuthorityFormIssuePolicyDecision> {
+  const env = dependencies.env ?? process.env;
+  const publicCanaryEnabled =
+    dependencies.publicFormCanaryEnabled ??
+    isCentralInvoiceAuthorityFormCanaryEnabled(env);
+  const publicRequiredEnabled =
+    dependencies.publicFormRequiredEnabled ??
+    isCentralInvoiceAuthorityFormRequiredEnabled(env);
+
+  if (publicRequiredEnabled) return enabledPolicy("public_form_required");
+  if (publicCanaryEnabled) return enabledPolicy("public_form_canary");
+
+  const status = await fetchCentralInvoiceAuthorityStatusFromBrowser({
+    fetchImpl: dependencies.fetchImpl,
+    getAccessToken: dependencies.getAccessToken,
+    getDeviceToken: dependencies.getDeviceToken,
+  });
+  if (!status.ok) {
+    return localPolicy("status_unavailable", { statusError: status });
+  }
+  if (status.activation.requestedMode === "required") {
+    return enabledPolicy("server_required", status);
+  }
+  if (status.summary.fiscalWritesPossible) {
+    return enabledPolicy("server_fiscal_writes_possible", status);
+  }
+  return localPolicy("central_not_requested", { status });
 }
 
 async function defaultAccessToken(): Promise<string | null> {
