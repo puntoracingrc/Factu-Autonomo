@@ -6,11 +6,18 @@ import { EMPTY_DATA } from "@/lib/types";
 import {
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS,
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS,
+  CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_CHANNEL_PREFIX,
+  CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE,
+  centralInvoiceAuthorityEventsRealtimeWakeupsSubscription,
   CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC,
   CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC_PUBLIC_FLAG,
+  CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS,
+  CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_PUBLIC_FLAG,
   isCentralInvoiceAuthorityEventsAutoSyncEnabled,
+  isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled,
   nextCentralInvoiceAuthorityEventsAutoSyncDelay,
   shouldRunCentralInvoiceAuthorityEventsAutoSync,
+  shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups,
 } from "./events-auto-sync";
 import {
   CENTRAL_INVOICE_AUTHORITY_EVENTS_APP_DATA_SYNC,
@@ -81,6 +88,21 @@ describe("central invoice authority events auto sync policy", () => {
     expect(isCentralInvoiceAuthorityEventsAutoSyncEnabled("true")).toBe(true);
     expect(isCentralInvoiceAuthorityEventsAutoSyncEnabled("TRUE")).toBe(false);
     expect(isCentralInvoiceAuthorityEventsAutoSyncEnabled(undefined)).toBe(false);
+    expect(CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS).toBe(
+      "CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_V1",
+    );
+    expect(CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS_PUBLIC_FLAG).toBe(
+      "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS",
+    );
+    expect(isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled("true")).toBe(
+      true,
+    );
+    expect(isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled("TRUE")).toBe(
+      false,
+    );
+    expect(isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled(undefined)).toBe(
+      false,
+    );
   });
 
   it("solo ejecuta cuando sesion, nube, email, ventana y datos estan listos", () => {
@@ -137,6 +159,96 @@ describe("central invoice authority events auto sync policy", () => {
       reason: "conflict_paused",
       retryAfterMs: null,
     });
+  });
+
+  it("solo suscribe realtime si tambien esta activo el auto-sync seguro", () => {
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: true,
+        realtimeWakeupsEnabled: true,
+        ready: true,
+        cloudEnabled: true,
+        hasUser: true,
+        emailConfirmed: true,
+      }),
+    ).toEqual({ shouldSubscribe: true });
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: false,
+        realtimeWakeupsEnabled: true,
+        ready: true,
+        cloudEnabled: true,
+        hasUser: true,
+        emailConfirmed: true,
+      }),
+    ).toEqual({ shouldSubscribe: false, reason: "auto_sync_disabled" });
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: true,
+        realtimeWakeupsEnabled: false,
+        ready: true,
+        cloudEnabled: true,
+        hasUser: true,
+        emailConfirmed: true,
+      }),
+    ).toEqual({ shouldSubscribe: false, reason: "flag_disabled" });
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: true,
+        realtimeWakeupsEnabled: true,
+        ready: false,
+        cloudEnabled: true,
+        hasUser: true,
+        emailConfirmed: true,
+      }),
+    ).toEqual({ shouldSubscribe: false, reason: "workspace_not_ready" });
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: true,
+        realtimeWakeupsEnabled: true,
+        ready: true,
+        cloudEnabled: false,
+        hasUser: true,
+        emailConfirmed: true,
+      }),
+    ).toEqual({ shouldSubscribe: false, reason: "cloud_unavailable" });
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: true,
+        realtimeWakeupsEnabled: true,
+        ready: true,
+        cloudEnabled: true,
+        hasUser: false,
+        emailConfirmed: true,
+      }),
+    ).toEqual({ shouldSubscribe: false, reason: "session_unavailable" });
+    expect(
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: true,
+        realtimeWakeupsEnabled: true,
+        ready: true,
+        cloudEnabled: true,
+        hasUser: true,
+        emailConfirmed: false,
+      }),
+    ).toEqual({ shouldSubscribe: false, reason: "email_unconfirmed" });
+  });
+
+  it("construye una suscripcion filtrada por usuario sin payload fiscal", () => {
+    const userId = "00000000-0000-4000-8000-000000000001";
+
+    expect(
+      centralInvoiceAuthorityEventsRealtimeWakeupsSubscription(userId),
+    ).toEqual({
+      channelName: `${CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_CHANNEL_PREFIX}:${userId}`,
+      filter: `user_id=eq.${userId}`,
+    });
+    expect(CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE).toBe(
+      "central_invoice_event_wakeups",
+    );
+    expect(centralInvoiceAuthorityEventsRealtimeWakeupsSubscription("bad")).toBe(
+      null,
+    );
   });
 
   it("programa el siguiente intento segun el resultado durable", () => {

@@ -82,11 +82,14 @@ const allowedMaterializedSnapshotMigration =
   "20260727190823_central_invoice_authority_materialized_snapshot.sql";
 const allowedOutboxPullMigration =
   "20260727193609_central_invoice_authority_outbox_pull.sql";
+const allowedRealtimeWakeupsMigration =
+  "20260728100752_central_invoice_authority_realtime_wakeups.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
   allowedMaterializedSnapshotMigration,
   allowedOutboxPullMigration,
+  allowedRealtimeWakeupsMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -199,6 +202,58 @@ if (centralMigrations.includes(allowedOutboxPullMigration)) {
   assert.doesNotMatch(localOutboxPull, /\binsert\s+into\s+public\.(?!central_invoice_)/i);
   assert.doesNotMatch(localOutboxPull, /\buser_backups\b/i);
   assert.doesNotMatch(localOutboxPull, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedRealtimeWakeupsMigration)) {
+  const localRealtimeWakeups = read(
+    `supabase/migrations/${allowedRealtimeWakeupsMigration}`,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /CENTRAL_INVOICE_AUTHORITY_REALTIME_WAKEUPS_V1/,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /create table if not exists public\.central_invoice_event_wakeups/i,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /alter table public\.central_invoice_event_wakeups enable row level security/i,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /revoke all on table public\.central_invoice_event_wakeups from public, anon, authenticated/i,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /grant select on table public\.central_invoice_event_wakeups to authenticated/i,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /create policy central_invoice_event_wakeups_owner_select_v1[\s\S]*?to authenticated[\s\S]*?auth\.uid\(\)\) = user_id/i,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /after insert on public\.central_invoice_outbox/i,
+  );
+  assert.match(
+    localRealtimeWakeups,
+    /alter publication supabase_realtime[\s\S]*?add table public\.central_invoice_event_wakeups/i,
+  );
+  assert.doesNotMatch(
+    localRealtimeWakeups,
+    /\bgrant\s+.+central_invoice_outbox.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    localRealtimeWakeups,
+    /alter publication supabase_realtime[\s\S]*?central_invoice_outbox/i,
+  );
+  assert.doesNotMatch(localRealtimeWakeups, /\bdocument_payload\b/i);
+  assert.doesNotMatch(localRealtimeWakeups, /\bemitted_snapshot\b/i);
+  assert.doesNotMatch(localRealtimeWakeups, /\bemitted_hash\b/i);
+  assert.doesNotMatch(localRealtimeWakeups, /\bsafe_summary\b/i);
+  assert.doesNotMatch(localRealtimeWakeups, /\buser_backups\b/i);
+  assert.doesNotMatch(localRealtimeWakeups, /\bsync_entities\b/i);
 }
 
 runBin("npx", [
