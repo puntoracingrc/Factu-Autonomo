@@ -21,7 +21,14 @@ sin activarla por defecto ni sustituir todavia el flujo local.
 6. bandera publica opt-in
    `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=true`, tratada solo como
    solicitud: el formulario no entra en canary si `/status` no confirma gates
-   listos.
+   listos;
+7. allowlist publica opcional
+   `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS=<uuid>[,<uuid>]`
+   para limitar el aviso y la decision de canario a usuarios de prueba
+   concretos. La lista solo admite UUIDs opacos de Supabase, nunca emails.
+   Para pruebas internas por email se usa la allowlist privada de servidor
+   `CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS`, que solo influye en
+   `/status` y `/issue` tras autenticar la sesion.
 
 ## Seguridad
 
@@ -34,14 +41,17 @@ Si el cliente central de emision se invoca y el status no se puede leer, no
 garantiza lectura no destructiva o declara que no hay escrituras fiscales
 posibles, esa llamada falla cerrado: no llama a `/issue` y muestra el motivo
 seguro devuelto por el preflight. La politica runtime solo invoca ese cliente en
-canario publico cuando `/status` ya ha confirmado `summary.fiscalWritesPossible`;
-si no, el formulario sigue en el flujo local existente y no reserva ni decide
-numeros fiscales centrales. Una vez invocado el cliente central, no crea factura local alternativa.
+canario publico cuando el usuario esta incluido en la allowlist publica, si
+existe, y `/status` ya ha confirmado `summary.fiscalWritesPossible`; si no, el
+formulario sigue en el flujo local existente y no reserva ni decide numeros
+fiscales centrales. Una vez invocado el cliente central, no crea factura local
+alternativa.
 
 ## Corte posterior
 
 `CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1` y el aviso
 `CENTRAL_INVOICE_AUTHORITY_FORM_POLICY_NOTICE_V1` hacen visible si el formulario
 esta en canario central, en espera o sin comprobacion antes de emitir. La
-siguiente activacion ya debe limitarse a variables de entorno y usuario UUID
-allowlisted, sin cambiar este contrato cliente.
+siguiente activacion ya debe limitarse a variables de entorno y usuario
+allowlisted por UUID publico o email privado de servidor, sin cambiar este
+contrato cliente.

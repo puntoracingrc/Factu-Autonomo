@@ -2,10 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT,
+  CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS_PUBLIC_FLAG,
   CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD,
   CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY,
   CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+  isCentralInvoiceAuthorityFormCanaryEnabledForUser,
   isCentralInvoiceAuthorityFormCanaryEnabled,
+  isCentralInvoiceAuthorityFormCanaryUserAllowed,
   isCentralInvoiceAuthorityFormRequiredEnabled,
   issueCentralInvoiceAuthorityFromBrowser,
   resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
@@ -93,6 +96,52 @@ function memoryStorage(
 }
 
 describe("central invoice authority form canary client", () => {
+  it("limita el canario publico del formulario por UUID opaco", () => {
+    const userId = "00000000-0000-4000-8000-000000000001";
+    const otherUserId = "00000000-0000-4000-8000-000000000002";
+
+    expect(CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS_PUBLIC_FLAG).toBe(
+      "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS",
+    );
+    expect(isCentralInvoiceAuthorityFormCanaryUserAllowed(userId, undefined))
+      .toBe(true);
+    expect(isCentralInvoiceAuthorityFormCanaryUserAllowed(userId, "")).toBe(
+      true,
+    );
+    expect(
+      isCentralInvoiceAuthorityFormCanaryUserAllowed(
+        userId,
+        ` ${otherUserId.toUpperCase()} , ${userId.toUpperCase()} `,
+      ),
+    ).toBe(true);
+    expect(isCentralInvoiceAuthorityFormCanaryUserAllowed(otherUserId, userId))
+      .toBe(false);
+    expect(isCentralInvoiceAuthorityFormCanaryUserAllowed(userId, "bad")).toBe(
+      false,
+    );
+    expect(isCentralInvoiceAuthorityFormCanaryUserAllowed("bad", userId)).toBe(
+      false,
+    );
+    expect(
+      isCentralInvoiceAuthorityFormCanaryEnabledForUser({
+        env: {
+          NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "true",
+          NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS: userId,
+        },
+        userId,
+      }),
+    ).toBe(true);
+    expect(
+      isCentralInvoiceAuthorityFormCanaryEnabledForUser({
+        env: {
+          NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "true",
+          NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS: userId,
+        },
+        userId: otherUserId,
+      }),
+    ).toBe(false);
+  });
+
   it("permanece apagado salvo bandera publica explicita", () => {
     expect(isCentralInvoiceAuthorityFormCanaryEnabled({})).toBe(false);
     expect(
@@ -193,6 +242,109 @@ describe("central invoice authority form canary client", () => {
       reason: "public_canary_not_ready",
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY))
+      .toBeNull();
+  });
+
+  it("trata un canary publico no allowlisted como no solicitado", async () => {
+    const userId = "00000000-0000-4000-8000-000000000001";
+    const otherUserId = "00000000-0000-4000-8000-000000000002";
+    const storage = memoryStorage();
+    const fetchImpl = vi.fn(async () => jsonResponse(200, readyStatusPayload({
+      activation: {
+        requestedMode: "canary",
+        effectiveMode: "off",
+        enabled: false,
+        fiscalWritesEnabled: false,
+        appliesToUser: false,
+        production: false,
+        reason: "user_not_allowlisted",
+      },
+      summary: {
+        fiscalWritesPossible: false,
+        modeAllowsWrites: false,
+        serverSchemaReady: true,
+        deviceVerified: true,
+      },
+    })));
+
+    await expect(
+      resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+        fetchImpl,
+        env: {
+          NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "true",
+          NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS: userId,
+        },
+        publicFormCanaryUserId: otherUserId,
+        getAccessToken: async () => "access-token",
+        getDeviceToken: () => "device-token",
+        storage,
+      }),
+    ).resolves.toMatchObject({
+      schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+      shouldUseCentralAuthority: false,
+      failClosed: false,
+      reason: "central_not_requested",
+    });
+    expect(storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY))
+      .toBeNull();
+  });
+
+  it("muestra canary servidor en espera sin activar la emision central", async () => {
+    const storage = memoryStorage();
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(
+        200,
+        readyStatusPayload({
+          activation: {
+            requestedMode: "canary",
+            effectiveMode: "off",
+            enabled: false,
+            fiscalWritesEnabled: false,
+            appliesToUser: true,
+            production: false,
+            reason: "schema_not_ready",
+          },
+          readiness: {
+            schema: "CENTRAL_INVOICE_AUTHORITY_STATUS_READINESS_V1",
+            checkedAt: "2026-07-28T08:30:00.000Z",
+            ready: false,
+            checks: [
+              {
+                id: "schema_version",
+                kind: "configuration",
+                status: "blocked",
+                message: "Esquema central pendiente.",
+                noBusinessRows: true,
+                destructive: false,
+              },
+            ],
+            blockers: ["schema_not_ready"],
+          },
+          summary: {
+            fiscalWritesPossible: false,
+            modeAllowsWrites: false,
+            serverSchemaReady: false,
+            deviceVerified: true,
+          },
+        }),
+      ),
+    );
+
+    await expect(
+      resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+        fetchImpl,
+        env: { NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY: "false" },
+        getAccessToken: async () => "access-token",
+        getDeviceToken: () => "device-token",
+        storage,
+      }),
+    ).resolves.toMatchObject({
+      schema: CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY,
+      shouldUseCentralAuthority: false,
+      failClosed: false,
+      reason: "server_canary_not_ready",
+    });
     expect(storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY))
       .toBeNull();
   });

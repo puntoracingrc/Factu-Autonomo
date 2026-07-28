@@ -22,6 +22,8 @@ const packageJson = JSON.parse(read("package.json"));
 for (const required of [
   marker,
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY",
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS",
+  "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS",
   "fetchCentralInvoiceAuthorityStatusFromBrowser",
   "getSupabaseClientAsync",
   "getLocalCloudDeviceToken",

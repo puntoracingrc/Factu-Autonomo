@@ -28,6 +28,7 @@ export interface CentralInvoiceAuthorityIssueServiceInput
   issueInput: CentralInvoiceAuthorityIssueInput;
   rpcClient: CentralInvoiceAuthorityIssueRpcClient;
   activation?: CentralInvoiceAuthorityActivation;
+  userEmail?: string | null;
 }
 
 export interface CentralInvoiceAuthorityIssueServiceResult {
@@ -89,7 +90,10 @@ export async function issueCentralInvoiceWithAuthority(
   const command = buildCentralInvoiceAuthorityIssueCommand(input.issueInput);
   const activation =
     input.activation ??
-    evaluateCentralInvoiceAuthorityActivation({ userId: command.userId });
+    evaluateCentralInvoiceAuthorityActivation({
+      userId: command.userId,
+      userEmail: input.userEmail,
+    });
 
   assertFiscalWritesEnabled(activation);
 

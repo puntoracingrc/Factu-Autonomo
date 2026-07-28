@@ -11,6 +11,7 @@ import type { CentralInvoiceAuthorityStatusProbeClient } from "./status-readines
 
 const userId = "00000000-0000-4000-8000-000000000001";
 const sessionId = "00000000-0000-4000-8000-000000000002";
+const userEmail = "puntoracingrc@gmail.com";
 
 const activeActivation: CentralInvoiceAuthorityActivation = {
   requestedMode: "required",
@@ -67,7 +68,7 @@ function deps(
   overrides: Partial<CentralInvoiceAuthorityStatusRouteDependencies> = {},
 ): CentralInvoiceAuthorityStatusRouteDependencies {
   return {
-    authenticate: vi.fn(async () => ({ userId, sessionId })),
+    authenticate: vi.fn(async () => ({ userId, sessionId, userEmail })),
     rateLimit: vi.fn(async () => ({ allowed: true as const })),
     verifyDevice: vi.fn(async () => ({
       allowed: true as const,
@@ -186,7 +187,10 @@ describe("central invoice authority status route handler", () => {
         deviceVerified: true,
       },
     });
-    expect(dependencies.evaluateActivation).toHaveBeenCalledWith({ userId });
+    expect(dependencies.evaluateActivation).toHaveBeenCalledWith({
+      userId,
+      userEmail,
+    });
   });
 
   it("expone bloqueo de schema aunque los flags pidan activar", async () => {

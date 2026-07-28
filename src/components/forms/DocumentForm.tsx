@@ -1734,6 +1734,7 @@ export function DocumentForm({
       const centralPolicy = centralDocumentEligible
         ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
             publicFormCanaryEnabled: centralCanaryEnabled,
+            publicFormCanaryUserId: cloudUser?.id,
           })
         : null;
 
@@ -2650,6 +2651,7 @@ export function DocumentForm({
       <CentralInvoiceAuthorityFormPolicyNotice
         eligible={centralFormPolicyNoticeEligible}
         publicFormCanaryEnabled={centralCanaryEnabled}
+        userId={cloudUser?.id}
         documentLabel="factura"
       />
 

@@ -36,10 +36,16 @@ describe("central invoice authority form runtime policy wiring", () => {
   it("expone una politica runtime que cubre canary publico, required publico y status servidor", () => {
     expect(client).toContain("CENTRAL_INVOICE_AUTHORITY_FORM_RUNTIME_POLICY_V1");
     expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY");
+    expect(client).toContain(
+      "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS",
+    );
+    expect(envExample).toContain("CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS=");
+    expect(client).toContain("isCentralInvoiceAuthorityFormCanaryEnabledForUser");
     expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED");
     expect(client).toContain("CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_V1");
     expect(client).toContain("last_known_central_authority");
     expect(client).toContain("public_canary_not_ready");
+    expect(client).toContain("server_canary_not_ready");
     expect(client).toContain("localStorage");
     expect(client).toContain("resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser");
     expect(client).toContain("fetchCentralInvoiceAuthorityStatusFromBrowser");
@@ -49,7 +55,14 @@ describe("central invoice authority form runtime policy wiring", () => {
     expect(runtimeDoc).toContain("No cambia variables de Vercel");
     expect(envExample).toContain("CENTRAL_INVOICE_AUTHORITY_MODE=off");
     expect(envExample).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=false");
+    expect(envExample).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS=");
     expect(envExample).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED=false");
+    expect(runtimeDoc).toContain(
+      "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS=<uuid>[,<uuid>]",
+    );
+    expect(runtimeDoc).toContain(
+      "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS=<email>[,<email>]",
+    );
 
     const resolverStart = client.indexOf(
       "export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser",
@@ -72,6 +85,7 @@ describe("central invoice authority form runtime policy wiring", () => {
 
     expect(branch).toContain("centralDocumentEligible");
     expect(branch).toContain("centralPolicy?.shouldUseCentralAuthority");
+    expect(branch).toContain("publicFormCanaryUserId: cloudUser?.id");
     expect(policyIndex).toBeGreaterThanOrEqual(0);
     expect(centralStoreIndex).toBeGreaterThan(policyIndex);
     expect(localStoreIndex).toBeGreaterThan(centralStoreIndex);
@@ -89,6 +103,7 @@ describe("central invoice authority form runtime policy wiring", () => {
 
     expect(branch).toContain("centralRectificationEligible");
     expect(branch).toContain("centralPolicy?.shouldUseCentralAuthority");
+    expect(branch).toContain("publicFormCanaryUserId: cloudUser?.id");
     expect(policyIndex).toBeGreaterThanOrEqual(0);
     expect(centralStoreIndex).toBeGreaterThan(policyIndex);
     expect(localStoreIndex).toBeGreaterThan(centralStoreIndex);

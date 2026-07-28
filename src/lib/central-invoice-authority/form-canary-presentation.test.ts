@@ -53,6 +53,8 @@ describe("central invoice authority form canary presentation", () => {
   it("expone etiquetas de razon sin depender de texto de servidor", () => {
     expect(centralInvoiceAuthorityFormPolicyReasonLabel("public_form_canary"))
       .toBe("canario publico preparado");
+    expect(centralInvoiceAuthorityFormPolicyReasonLabel("server_canary_not_ready"))
+      .toBe("canario servidor en espera");
     expect(centralInvoiceAuthorityFormPolicyReasonLabel("status_unavailable"))
       .toBe("estado central no disponible");
   });
@@ -149,5 +151,49 @@ describe("central invoice authority form canary presentation", () => {
     });
     expect(notice.message).toContain("flujo local actual");
     expect(notice.message).toContain("central_invoice_issue_rpc_unavailable");
+  });
+
+  it("avisa cuando el canario servidor aplica al usuario pero aun no puede emitir", () => {
+    const notice = describeCentralInvoiceAuthorityFormPolicyNotice({
+      policy: localPolicy({
+        reason: "server_canary_not_ready",
+        status: {
+          ok: true,
+          schema: "CENTRAL_INVOICE_AUTHORITY_STATUS_CLIENT_V1",
+          activation: {
+            requestedMode: "canary",
+            effectiveMode: "off",
+            enabled: false,
+            fiscalWritesEnabled: false,
+            appliesToUser: true,
+            production: false,
+            reason: "schema_not_ready",
+          },
+          readiness: {
+            schema: "CENTRAL_INVOICE_AUTHORITY_STATUS_READINESS_V1",
+            checkedAt: "2026-07-28T08:30:00.000Z",
+            ready: false,
+            checks: [],
+            blockers: ["schema_not_ready"],
+          },
+          summary: {
+            fiscalWritesPossible: false,
+            modeAllowsWrites: false,
+            serverSchemaReady: false,
+            deviceVerified: true,
+          },
+        },
+      }),
+      documentLabel: "factura",
+    });
+
+    expect(notice).toMatchObject({
+      visible: true,
+      tone: "warning",
+      title: "Canario central en espera",
+    });
+    expect(notice.message).toContain("Tu cuenta esta incluida");
+    expect(notice.message).toContain("flujo local actual");
+    expect(notice.message).toContain("schema_not_ready");
   });
 });

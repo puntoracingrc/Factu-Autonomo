@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY,
+  CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY,
   CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
   CENTRAL_INVOICE_AUTHORITY_MODE_KEY,
   CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY,
@@ -17,6 +18,7 @@ import {
 } from "./issue-service";
 
 const userId = "00000000-0000-4000-8000-000000000001";
+const userEmail = "puntoracingrc@gmail.com";
 
 function serviceInput(): CentralInvoiceAuthorityIssueServiceInput {
   return {
@@ -69,6 +71,10 @@ function activeCanary() {
 }
 
 describe("central invoice authority issue service", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("bloquea por defecto sin llamar a la RPC", async () => {
     await expect(issueCentralInvoiceWithAuthority(serviceInput())).rejects.toMatchObject({
       code: "CENTRAL_AUTHORITY_DISABLED",
@@ -132,6 +138,51 @@ describe("central invoice authority issue service", () => {
       "enqueue_sync_outbox",
       "publish_realtime_hint",
     ]);
+  });
+
+  it("evalua la activacion por email privado cuando la ruta lo aporta", async () => {
+    vi.stubEnv(CENTRAL_INVOICE_AUTHORITY_MODE_KEY, "canary");
+    vi.stubEnv(CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY, userEmail);
+    vi.stubEnv(
+      CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY,
+      CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
+    );
+    vi.stubEnv(CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY, "true");
+    vi.stubEnv(CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY, "true");
+    vi.stubEnv(
+      CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY,
+      "true",
+    );
+    vi.stubEnv(
+      CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
+      "true",
+    );
+
+    const calls: unknown[] = [];
+    const result = await issueCentralInvoiceWithAuthority({
+      ...serviceInput(),
+      userEmail,
+      rpcClient: {
+        async rpc(name, args) {
+          calls.push([name, args]);
+          return {
+            error: null,
+            data: {
+              result_status: "committed",
+              document_id: "00000000-0000-4000-8000-000000000010",
+              identity_id: "00000000-0000-4000-8000-000000000011",
+              outbox_event_id: "00000000-0000-4000-8000-000000000012",
+              full_number: "F-2026-0001",
+              sequence: 1,
+              document_version: 1,
+            },
+          };
+        },
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(result.activation.reason).toBe("canary_enabled");
   });
 
   it("no devuelve payload fiscal completo ni snapshot emitido en el resultado", async () => {

@@ -24,7 +24,11 @@ const routeHandler = createCentralInvoiceAuthorityStatusRouteHandler({
       requireEmailConfirmed: true,
     });
     if (!identity) return null;
-    return { userId: identity.user.id, sessionId: identity.sessionId };
+    return {
+      userId: identity.user.id,
+      sessionId: identity.sessionId,
+      userEmail: identity.user.email ?? null,
+    };
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY,
+  CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY,
   CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
   CENTRAL_INVOICE_AUTHORITY_MODE_KEY,
   CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY,
@@ -15,8 +16,10 @@ import {
 } from "./issue-route-handler";
 
 const userId = "00000000-0000-4000-8000-000000000001";
+const userEmail = "puntoracingrc@gmail.com";
 const activeEnv = {
-  [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "required",
+  [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+  [CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY]: userEmail,
   [CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY]:
     CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
   [CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY]: "true",
@@ -60,6 +63,7 @@ function deps(
   return {
     authenticate: vi.fn(async () => ({
       userId,
+      userEmail,
       sessionId: "00000000-0000-4000-8000-000000000002",
     })),
     rateLimit: vi.fn(async () => ({ allowed: true as const })),
@@ -178,6 +182,10 @@ describe("central invoice authority issue route handler", () => {
 
   it("en canary activo deriva auth servidor y devuelve solo resumen seguro", async () => {
     vi.stubEnv(CENTRAL_INVOICE_AUTHORITY_MODE_KEY, activeEnv[CENTRAL_INVOICE_AUTHORITY_MODE_KEY]);
+    vi.stubEnv(
+      CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY,
+      activeEnv[CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY],
+    );
     vi.stubEnv(
       CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY,
       activeEnv[CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY],
