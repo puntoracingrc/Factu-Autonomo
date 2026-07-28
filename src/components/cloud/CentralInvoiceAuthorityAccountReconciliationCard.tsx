@@ -37,6 +37,7 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
     [data, ready],
   );
   const hasConflicts = Boolean(inventory?.conflicts.length);
+  const hasCleanSeries = Boolean(inventory?.summaries.length);
   const unavailableReason = !cloudEnabled
     ? "La conciliacion central no esta disponible ahora mismo."
     : !user
@@ -50,8 +51,7 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
     !reconciling &&
     confirmed &&
     !unavailableReason &&
-    !hasConflicts &&
-    Boolean(inventory?.summaries.length);
+    hasCleanSeries;
 
   async function handleReconcile() {
     if (!inventory || !canReconcile) return;
@@ -129,7 +129,7 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-950">
           <p className="font-bold">
             <ShieldAlert className="mr-2 inline h-4 w-4 align-text-bottom" />
-            No se puede conciliar: hay numeros duplicados.
+            Las series con numeros duplicados quedan bloqueadas.
           </p>
           <ul className="mt-1 list-disc pl-5">
             {inventory?.conflicts.map((conflict) => (
@@ -141,6 +141,12 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
               </li>
             ))}
           </ul>
+          {hasCleanSeries ? (
+            <p className="mt-2">
+              Puedes conciliar las series limpias mostradas en la tabla. Las
+              series en conflicto no se enviaran.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -149,7 +155,9 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
           type="checkbox"
           checked={confirmed}
           onChange={(event) => setConfirmed(event.target.checked)}
-          disabled={reconciling || Boolean(unavailableReason) || hasConflicts}
+          disabled={
+            reconciling || Boolean(unavailableReason) || !hasCleanSeries
+          }
           className="mt-1 h-4 w-4 shrink-0 accent-cyan-700"
         />
         <span>

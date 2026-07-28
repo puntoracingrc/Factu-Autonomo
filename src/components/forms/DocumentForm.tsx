@@ -105,6 +105,9 @@ import {
   issueCentralInvoiceAuthorityFromBrowser,
   resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
 } from "@/lib/central-invoice-authority/form-canary-client";
+import {
+  preflightCentralInvoiceAuthorityFormSeries,
+} from "@/lib/central-invoice-authority/form-series-preflight";
 import { runCentralInvoiceAuthorityClientOperation } from "@/lib/central-invoice-authority/client-operation-lock";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import {
@@ -1751,6 +1754,14 @@ export function DocumentForm({
           });
         const centralSave = await runCentralInvoiceAuthorityClientOperation(
           async () => {
+            const seriesPreflight =
+              await preflightCentralInvoiceAuthorityFormSeries({
+                data,
+                profile: effectiveDocumentProfile,
+                request: centralRequest,
+              });
+            if (!seriesPreflight.ok) return seriesPreflight;
+
             const centralResult =
               await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
 

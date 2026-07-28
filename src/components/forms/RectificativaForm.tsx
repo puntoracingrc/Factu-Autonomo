@@ -80,6 +80,9 @@ import {
   issueCentralInvoiceAuthorityFromBrowser,
   resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
 } from "@/lib/central-invoice-authority/form-canary-client";
+import {
+  preflightCentralInvoiceAuthorityFormSeries,
+} from "@/lib/central-invoice-authority/form-series-preflight";
 import { runCentralInvoiceAuthorityClientOperation } from "@/lib/central-invoice-authority/client-operation-lock";
 
 interface RectificativaFormProps {
@@ -426,6 +429,14 @@ export function RectificativaForm({
           });
         const centralSave = await runCentralInvoiceAuthorityClientOperation(
           async () => {
+            const seriesPreflight =
+              await preflightCentralInvoiceAuthorityFormSeries({
+                data,
+                profile: historicalProfile,
+                request: centralRequest,
+              });
+            if (!seriesPreflight.ok) return seriesPreflight;
+
             const centralResult =
               await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
 

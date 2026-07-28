@@ -21,6 +21,9 @@ describe("RectificativaForm central authority canary wiring", () => {
     );
     expect(form).toContain("isCentralInvoiceAuthorityFormCanaryEnabled");
     expect(form).toContain("issueCentralInvoiceAuthorityFromBrowser");
+    expect(form).toContain(
+      "preflightCentralInvoiceAuthorityFormSeries",
+    );
     expect(form).toContain("addDocumentWithCentralIdentity");
     expect(form).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(form).toContain("buildRectificativaPayload");
@@ -46,6 +49,9 @@ describe("RectificativaForm central authority canary wiring", () => {
       "buildCentralInvoiceAuthorityRectificationFormIssueRequest",
     );
     expect(branch).toContain("issueCentralInvoiceAuthorityFromBrowser");
+    expect(branch).toContain(
+      "preflightCentralInvoiceAuthorityFormSeries",
+    );
     expect(branch).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(branch).toContain("addDocumentWithCentralIdentity");
     expect(branch).toContain("localDocumentId");
@@ -73,5 +79,25 @@ describe("RectificativaForm central authority canary wiring", () => {
       "setFormError(centralSave.message)",
     );
     expect(branch.slice(rejectionIndex, centralStoreIndex)).toContain("return");
+  });
+
+  it("concilia la serie rectificativa antes de pedir identidad fiscal", () => {
+    const branch = saveBranch();
+    const preflightIndex = branch.indexOf(
+      "preflightCentralInvoiceAuthorityFormSeries",
+    );
+    const issueIndex = branch.indexOf(
+      "issueCentralInvoiceAuthorityFromBrowser",
+    );
+    const centralStoreIndex = branch.indexOf(
+      "addDocumentWithCentralIdentity",
+    );
+
+    expect(preflightIndex).toBeGreaterThanOrEqual(0);
+    expect(issueIndex).toBeGreaterThan(preflightIndex);
+    expect(centralStoreIndex).toBeGreaterThan(issueIndex);
+    expect(branch.slice(preflightIndex, issueIndex)).toContain(
+      "if (!seriesPreflight.ok) return seriesPreflight",
+    );
   });
 });

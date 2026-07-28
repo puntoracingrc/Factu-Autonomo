@@ -11,8 +11,8 @@ inventario local con la RPC monotona
 
 1. El navegador inspecciona facturas y rectificativas emitidas.
 2. Agrupa por entorno, NIF emisor, serie y ejercicio.
-3. Detecta secuencias duplicadas y excluye de conciliacion toda serie en
-   conflicto.
+3. Detecta secuencias duplicadas y excluye de conciliacion solamente la serie
+   en conflicto; las series limpias siguen disponibles.
 4. Calcula un resumen con maximo observado, cantidad y digest SHA-256.
 5. El usuario confirma expresamente el envio de esos resumenes.
 6. La ruta autenticada verifica sesion, email confirmado, dispositivo, rate
@@ -34,6 +34,8 @@ inventario local con la RPC monotona
 - Los clientes anonimos y autenticados no pueden ejecutar la RPC directamente;
   solo la ruta servidor usa `service_role`.
 - Una serie con duplicados no se concilia automaticamente.
+- Los formatos actuales y el formato legacy `F/FR-{year}-{num}` conservan su
+  serie real aunque el usuario cambie la plantilla de numeracion.
 
 ## Marcadores
 
