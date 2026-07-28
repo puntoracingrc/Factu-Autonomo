@@ -67,6 +67,12 @@ export interface BuildCentralInvoiceAuthorityRectificationFormIssueRequestInput 
   issuedAt: string;
 }
 
+export interface CentralInvoiceAuthorityRectificationFormCanaryInput {
+  original: Pick<Document, "id" | "centralInvoiceAuthority">;
+  payload: CentralInvoiceAuthorityRectificationFormPayload;
+  resolvedStatus: Document["status"];
+}
+
 function hashJson(value: unknown): string {
   return `sha256:${sha256Hex(stableStringifySnapshot(value))}`;
 }
@@ -193,6 +199,18 @@ export function resolveCentralInvoiceAuthorityRectificationTarget(
   };
 }
 
+export function shouldUseCentralInvoiceAuthorityRectificationFormCanary(
+  input: CentralInvoiceAuthorityRectificationFormCanaryInput,
+): boolean {
+  return (
+    input.payload.type === "factura" &&
+    input.resolvedStatus !== "borrador" &&
+    input.payload.status !== "borrador" &&
+    input.payload.rectification.originalDocumentId === input.original.id &&
+    Boolean(input.original.centralInvoiceAuthority)
+  );
+}
+
 export function buildCentralInvoiceAuthorityDocumentFormIssueRequest(
   input: BuildCentralInvoiceAuthorityDocumentFormIssueRequestInput,
 ): CentralInvoiceAuthorityFormIssueRequest {
@@ -258,6 +276,15 @@ export function buildCentralInvoiceAuthorityRectificationFormIssueRequest(
   if (!target) {
     throw new Error(
       "La rectificativa central exige una factura original con identidad central valida.",
+    );
+  }
+  if (
+    input.payload.rectification.originalDocumentId !==
+      target.originalDocumentId ||
+    input.payload.rectification.originalNumber !== target.originalFullNumber
+  ) {
+    throw new Error(
+      "La rectificativa central no coincide con la identidad central original.",
     );
   }
 

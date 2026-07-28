@@ -12,6 +12,7 @@ import {
   deriveCentralInvoiceAuthorityRectificationSeries,
   resolveCentralInvoiceAuthorityRectificationTarget,
   shouldUseCentralInvoiceAuthorityDocumentFormCanary,
+  shouldUseCentralInvoiceAuthorityRectificationFormCanary,
   type CentralInvoiceAuthorityDocumentFormPayload,
   type CentralInvoiceAuthorityRectificationFormPayload,
 } from "./document-form-canary";
@@ -294,6 +295,42 @@ describe("central invoice authority document form canary", () => {
     ).toBeNull();
   });
 
+  it("solo intercepta rectificativas emitidas de una original central", () => {
+    expect(
+      shouldUseCentralInvoiceAuthorityRectificationFormCanary({
+        original: centralOriginal(),
+        payload: rectificationPayload(),
+        resolvedStatus: "enviado",
+      }),
+    ).toBe(true);
+    expect(
+      shouldUseCentralInvoiceAuthorityRectificationFormCanary({
+        original: centralOriginal(),
+        payload: rectificationPayload({ status: "borrador" }),
+        resolvedStatus: "borrador",
+      }),
+    ).toBe(false);
+    expect(
+      shouldUseCentralInvoiceAuthorityRectificationFormCanary({
+        original: centralOriginal({ centralInvoiceAuthority: undefined }),
+        payload: rectificationPayload(),
+        resolvedStatus: "enviado",
+      }),
+    ).toBe(false);
+    expect(
+      shouldUseCentralInvoiceAuthorityRectificationFormCanary({
+        original: centralOriginal(),
+        payload: rectificationPayload({
+          rectification: {
+            ...rectificationPayload().rectification,
+            originalDocumentId: "another-original",
+          },
+        }),
+        resolvedStatus: "enviado",
+      }),
+    ).toBe(false);
+  });
+
   it("construye una rectificativa central enlazada a la identidad tecnica original", () => {
     const request = buildCentralInvoiceAuthorityRectificationFormIssueRequest({
       localDocumentId: "rect-local-1",
@@ -343,5 +380,22 @@ describe("central invoice authority document form canary", () => {
         issuedAt: "2026-07-27T12:30:00.000Z",
       }),
     ).toThrow(/identidad central/);
+  });
+
+  it("falla cerrado si la referencia local no coincide con la identidad original", () => {
+    expect(() =>
+      buildCentralInvoiceAuthorityRectificationFormIssueRequest({
+        localDocumentId: "rect-local-1",
+        payload: rectificationPayload({
+          rectification: {
+            ...rectificationPayload().rectification,
+            originalNumber: "F-2026-9999",
+          },
+        }),
+        original: centralOriginal(),
+        profile: { ...DEFAULT_PROFILE, nif: "B12345678" },
+        issuedAt: "2026-07-27T12:30:00.000Z",
+      }),
+    ).toThrow(/coincide/);
   });
 });
