@@ -113,6 +113,8 @@ const allowedTenantGuardMigration =
   "20260728164325_central_invoice_authority_tenant_guard.sql";
 const allowedIndexesMigration =
   "20260728172000_central_invoice_authority_indexes.sql";
+const allowedExplicitDeniesMigration =
+  "20260728175925_central_invoice_authority_explicit_denies.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -121,6 +123,7 @@ const allowedCentralMigrations = new Set([
   allowedRealtimeWakeupsMigration,
   allowedTenantGuardMigration,
   allowedIndexesMigration,
+  allowedExplicitDeniesMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -143,7 +146,7 @@ assert.deepEqual(
 assert.deepEqual(
   unexpectedCentralMigrations,
   [],
-  "Phase 2 only allows explicitly reviewed private central authority migrations before readiness gates pass.",
+  "Phase 2 only allows explicitly reviewed central authority migrations.",
 );
 
 if (centralMigrations.includes(allowedLocalLedgerSchemaMigration)) {
@@ -252,6 +255,27 @@ if (centralMigrations.includes(allowedIndexesMigration)) {
   assert.doesNotMatch(indexes, /\bcreate\s+table\b/i);
   assert.doesNotMatch(
     indexes,
+    /\bcreate\s+(?:or\s+replace\s+)?function\b/i,
+  );
+}
+
+if (centralMigrations.includes(allowedExplicitDeniesMigration)) {
+  const explicitDenies = read(
+    `supabase/migrations/${allowedExplicitDeniesMigration}`,
+  );
+  assert.match(
+    explicitDenies,
+    /CENTRAL_INVOICE_AUTHORITY_EXPLICIT_DENIES_V1/,
+  );
+  assert.match(explicitDenies, /\bas\s+restrictive\b/i);
+  assert.match(explicitDenies, /\bto\s+anon,\s*authenticated\b/i);
+  assert.match(explicitDenies, /\busing\s*\(false\)/i);
+  assert.match(explicitDenies, /\bwith\s+check\s*\(false\)/i);
+  assert.doesNotMatch(explicitDenies, /\bgrant\b/i);
+  assert.doesNotMatch(explicitDenies, /\brevoke\b/i);
+  assert.doesNotMatch(explicitDenies, /\bcreate\s+table\b/i);
+  assert.doesNotMatch(
+    explicitDenies,
     /\bcreate\s+(?:or\s+replace\s+)?function\b/i,
   );
 }

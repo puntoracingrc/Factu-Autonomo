@@ -40,6 +40,7 @@ const migrations = [
   "20260728100752_central_invoice_authority_realtime_wakeups.sql",
   "20260728164325_central_invoice_authority_tenant_guard.sql",
   "20260728172000_central_invoice_authority_indexes.sql",
+  "20260728175925_central_invoice_authority_explicit_denies.sql",
 ];
 
 function databaseUrlFor(name) {
