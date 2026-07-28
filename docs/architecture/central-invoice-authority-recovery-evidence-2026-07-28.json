@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "central-invoice-authority-recovery-evidence-v1",
+  "marker": "CENTRAL_INVOICE_AUTHORITY_RECOVERY_EVIDENCE_V1",
+  "capturedAt": "2026-07-28T17:21:05Z",
+  "project": {
+    "ref": "rnbmkkzptxbvtchluqrx",
+    "environment": "production"
+  },
+  "productionBackup": {
+    "provider": "supabase",
+    "plan": "pro",
+    "pitrEnabled": false,
+    "scheduledPhysicalBackupVisible": true,
+    "latestBackupAt": "2026-07-28T03:00:44Z",
+    "visibleDailyBackups": 8,
+    "restoreActionAvailable": true,
+    "storageObjectsIncluded": false,
+    "businessRowsRead": false,
+    "result": "restorable_backup_verified"
+  },
+  "isolatedRestoreDrill": {
+    "script": "scripts/test-central-invoice-authority-restore-drill.mjs",
+    "databaseEngine": "PostgreSQL 17.10",
+    "clientTools": "PostgreSQL 18.4",
+    "syntheticOnly": true,
+    "sourceAndTargetDatabasesWereTemporary": true,
+    "dumpFormat": "custom",
+    "checks": [
+      "all reviewed central authority migrations apply in order",
+      "concurrent issuance allocates distinct sequences",
+      "idempotent replay returns the original identity",
+      "cross-owner rectification is rejected",
+      "RPC privileges remain service-role-only",
+      "all required indexes survive restore",
+      "safe table counts match after restore",
+      "fiscal identity digest matches after restore",
+      "restored database accepts a second full PostgreSQL acceptance run"
+    ],
+    "result": "passed"
+  },
+  "activationBoundary": {
+    "productionSchemaApplied": false,
+    "canaryFiscalWritesEnabled": false,
+    "requiredModeEnabled": false,
+    "nextAllowedStep": "merge this evidence, close main gates, then apply the reviewed additive central migrations with canary writes still disabled"
+  }
+}
