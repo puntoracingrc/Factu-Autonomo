@@ -42,7 +42,9 @@ for (const required of [
   "central_invoice_outbox_wakeups_ai_v1",
   "supabase_realtime",
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_REALTIME_WAKEUPS",
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS",
   "isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled",
+  "isCentralInvoiceAuthorityEventsCanaryUserAllowed",
   "shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups",
   "centralInvoiceAuthorityEventsRealtimeWakeupsSubscription",
   "postgres_changes",
@@ -50,6 +52,7 @@ for (const required of [
   "commitDurableAppData",
   "Realtime is a wakeup only",
   "disabled by default",
+  "Invalid entries are ignored",
 ]) {
   assert.match(
     body,
@@ -100,9 +103,12 @@ for (const forbiddenComponentPattern of [
 assert.match(component, /void import\("@\/lib\/supabase\/client"\)/);
 assert.match(component, /event:\s*"INSERT"/);
 assert.match(component, /filter:\s*subscription\.filter/);
+assert.match(component, /userCanaryAllowed/);
 assert.match(helper, /user_id=eq\.\$\{userId\}/);
+assert.match(helper, /user_not_allowlisted/);
 assert.match(doc, /`central_invoice_outbox` remains private/i);
 assert.match(doc, /Lost wakeups remain recoverable/i);
+assert.match(doc, /must not contain emails/i);
 assert.match(autoDoc, /Realtime wakeups remain optional/i);
 assert.equal(
   packageJson.scripts[

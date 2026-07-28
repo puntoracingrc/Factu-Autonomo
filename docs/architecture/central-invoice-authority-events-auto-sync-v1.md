@@ -7,6 +7,13 @@ invoice authority event bridge automatically. The runtime is inert unless
 `NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC=true` is present at
 build time.
 
+An optional canary scope can further restrict the flag to explicit Supabase
+user UUIDs with
+`NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS=<uuid>[,<uuid>]`.
+When that variable is empty, the explicit auto-sync flag keeps its previous
+global semantics. When it is non-empty, a malformed or absent user ID does not
+run automatic sync and does not contact Realtime.
+
 Safety contract:
 
 - The component never renders fiscal data, document payloads, emitted hashes,

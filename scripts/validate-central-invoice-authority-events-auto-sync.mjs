@@ -33,12 +33,15 @@ const body = `${helper}\n${helperTest}\n${component}\n${componentTest}\n${appShe
 for (const required of [
   "CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC_V1",
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_AUTO_SYNC",
+  "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS",
   "isCentralInvoiceAuthorityEventsAutoSyncEnabled",
+  "isCentralInvoiceAuthorityEventsCanaryUserAllowed",
   "shouldRunCentralInvoiceAuthorityEventsAutoSync",
   "nextCentralInvoiceAuthorityEventsAutoSyncDelay",
   "syncCentralInvoiceAuthorityEvents",
   "commitDurableAppData",
   "conflict_paused",
+  "user_not_allowlisted",
   "CentralInvoiceAuthorityEventsAutoSync",
   "disabled by default",
 ]) {
@@ -68,6 +71,7 @@ for (const forbidden of [
 
 assert.match(doc, /commitDurableAppData/);
 assert.match(doc, /central local conflict pauses automatic polling/i);
+assert.match(doc, /optional canary scope/i);
 assert.equal(
   packageJson.scripts[
     "validate:central-invoice-authority-events-auto-sync"
