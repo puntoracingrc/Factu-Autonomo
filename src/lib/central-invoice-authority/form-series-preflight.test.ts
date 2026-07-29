@@ -27,6 +27,24 @@ function document(id: string, number: string): Document {
   };
 }
 
+function historicalImportedDocument(
+  id: string,
+  number: string,
+): Document {
+  return {
+    ...document(id, number),
+    legacyImportProvenance: {
+      schemaVersion: 2,
+      kind: "external_import",
+      importer: "generic_documents",
+      importedAt: "2026-07-28T09:00:00.000Z",
+      provenanceRecordedAt: "2026-07-28T10:00:00.000Z",
+      issuerOrigin: "source_document",
+      documentStateAtImport: "issued",
+    },
+  };
+}
+
 function appData(documents: Document[] = []): AppData {
   return {
     ...EMPTY_DATA,
@@ -131,7 +149,7 @@ describe("central authority form series preflight", () => {
     ]);
   });
 
-  it("no deja que un duplicado legacy bloquee una serie nueva limpia", async () => {
+  it("no deja que un duplicado de otra serie bloquee una serie nueva limpia", async () => {
     const data = appData([
       document("legacy-1", "F-2026-0002"),
       document("legacy-2", "F-2026-0002"),
@@ -160,6 +178,51 @@ describe("central authority form series preflight", () => {
     );
 
     expect(result.ok).toBe(true);
+    expect(reconcile).toHaveBeenCalledOnce();
+  });
+
+  it("reserva el maximo importado sin bloquear por duplicados historicos", async () => {
+    const data = appData([
+      historicalImportedDocument(
+        "generic-documents:factura:legacy-1",
+        "QA-F-2026-3001",
+      ),
+      historicalImportedDocument(
+        "generic-documents:factura:legacy-2",
+        "QA-F-2026-3001",
+      ),
+    ]);
+    const reconcile = vi.fn(
+      async (summaries: CentralInvoiceAuthorityAccountSeriesSummary[]) => ({
+        ok: true as const,
+        schema:
+          "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_CLIENT_V1" as const,
+        results: [
+          {
+            status: "committed" as const,
+            reconciliationId: "reconciliation-historical",
+            previousSequence: 2957,
+            resultingSequence: summaries[0].observedMaxSequence,
+            seriesCode: summaries[0].seriesCode,
+            fiscalYear: summaries[0].fiscalYear,
+          },
+        ],
+      }),
+    );
+
+    const result = await preflightCentralInvoiceAuthorityFormSeries(
+      { data, profile: data.profile, request: request() },
+      { reconcile },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      summary: {
+        observedMaxSequence: 3001,
+        sourceDocumentCount: 2,
+        historicalImportDocumentCount: 2,
+      },
+    });
     expect(reconcile).toHaveBeenCalledOnce();
   });
 

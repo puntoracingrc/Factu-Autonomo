@@ -26,6 +26,23 @@ function document(
   };
 }
 
+function historicalImportedDocument(
+  id: string,
+  number: string,
+): Document {
+  return document(id, number, {
+    legacyImportProvenance: {
+      schemaVersion: 2,
+      kind: "external_import",
+      importer: "generic_documents",
+      importedAt: "2026-07-28T09:00:00.000Z",
+      provenanceRecordedAt: "2026-07-28T10:00:00.000Z",
+      issuerOrigin: "source_document",
+      documentStateAtImport: "issued",
+    },
+  });
+}
+
 function appData(documents: Document[]): AppData {
   return {
     ...EMPTY_DATA,
@@ -85,6 +102,7 @@ describe("central authority account series inventory", () => {
         fiscalYear: 2026,
         observedMaxSequence: 12,
         sourceDocumentCount: 2,
+        historicalImportDocumentCount: 0,
         sourceDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
       }),
       expect.objectContaining({
@@ -132,6 +150,50 @@ describe("central authority account series inventory", () => {
     expect(
       inventory.summaries.some((summary) => summary.seriesCode === "FR-2026"),
     ).toBe(true);
+  });
+
+  it("reserva la numeracion historica importada sin convertirla en conflicto central", () => {
+    const inventory = buildCentralInvoiceAuthorityAccountSeriesInventory(
+      appData([
+        historicalImportedDocument(
+          "generic-documents:factura:legacy-1",
+          "F-2026-0042",
+        ),
+        historicalImportedDocument(
+          "generic-documents:factura:legacy-2",
+          "F-2026-0042",
+        ),
+      ]),
+    );
+
+    expect(inventory.conflicts).toEqual([]);
+    expect(inventory.summaries[0]).toMatchObject({
+      seriesCode: "F-2026",
+      observedMaxSequence: 42,
+      sourceDocumentCount: 2,
+      historicalImportDocumentCount: 2,
+    });
+  });
+
+  it("mantiene el bloqueo si el duplicado pertenece a documentos emitidos por Factu", () => {
+    const inventory = buildCentralInvoiceAuthorityAccountSeriesInventory(
+      appData([
+        historicalImportedDocument(
+          "generic-documents:factura:legacy-1",
+          "F-2026-0007",
+        ),
+        document("invoice-1", "F-2026-0007"),
+        document("invoice-2", "F-2026-0007"),
+      ]),
+    );
+
+    expect(inventory.conflicts).toEqual([
+      expect.objectContaining({
+        seriesCode: "F-2026",
+        sequence: 7,
+        documentNumbers: ["F-2026-0007", "F-2026-0007"],
+      }),
+    ]);
   });
 
   it("ignora formatos historicos ajenos a la serie configurada", () => {

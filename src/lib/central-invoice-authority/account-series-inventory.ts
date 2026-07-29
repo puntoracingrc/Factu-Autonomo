@@ -1,5 +1,6 @@
 import { sha256Hex } from "@/lib/document-integrity/snapshot-hash";
 import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
+import { hasLegacyImportOrigin } from "@/lib/document-integrity/legacy-import-attestation";
 import {
   formatDocumentNumberWithSettings,
   normalizeNumbering,
@@ -27,6 +28,7 @@ export interface CentralInvoiceAuthorityAccountSeriesSummary {
   fiscalYear: number;
   observedMaxSequence: number;
   sourceDocumentCount: number;
+  historicalImportDocumentCount: number;
   sourceDigest: string;
 }
 
@@ -55,7 +57,10 @@ export interface CentralInvoiceAuthorityRequiredSeries {
   kind: SupportedKind;
   series: Omit<
     CentralInvoiceAuthorityAccountSeriesSummary,
-    "observedMaxSequence" | "sourceDocumentCount" | "sourceDigest"
+    | "observedMaxSequence"
+    | "sourceDocumentCount"
+    | "historicalImportDocumentCount"
+    | "sourceDigest"
   >;
 }
 
@@ -66,9 +71,17 @@ export interface CentralInvoiceAuthorityAccountSeriesInventoryOptions {
 interface SeriesAccumulator {
   summary: Omit<
     CentralInvoiceAuthorityAccountSeriesSummary,
-    "observedMaxSequence" | "sourceDocumentCount" | "sourceDigest"
+    | "observedMaxSequence"
+    | "sourceDocumentCount"
+    | "historicalImportDocumentCount"
+    | "sourceDigest"
   >;
-  documents: Array<{ id: string; number: string; sequence: number }>;
+  documents: Array<{
+    id: string;
+    number: string;
+    sequence: number;
+    origin: "factu_issued" | "historical_import";
+  }>;
   configuredFloor: number;
 }
 
@@ -153,6 +166,7 @@ function digestSeriesDocuments(
       id: document.id,
       number: document.number,
       sequence: document.sequence,
+      origin: document.origin,
     }))
     .sort((left, right) =>
       `${left.number}\u0000${left.id}`.localeCompare(
@@ -238,6 +252,9 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
       id: document.id,
       number: document.number,
       sequence: parsed.sequence,
+      origin: hasLegacyImportOrigin(document)
+        ? "historical_import"
+        : "factu_issued",
     });
     accumulators.set(key, accumulator);
   }
@@ -246,6 +263,7 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
   for (const accumulator of accumulators.values()) {
     const bySequence = new Map<number, string[]>();
     for (const document of accumulator.documents) {
+      if (document.origin === "historical_import") continue;
       const numbers = bySequence.get(document.sequence) ?? [];
       numbers.push(document.number);
       bySequence.set(document.sequence, numbers);
@@ -281,6 +299,9 @@ export function buildCentralInvoiceAuthorityAccountSeriesInventory(
         0,
       ),
       sourceDocumentCount: accumulator.documents.length,
+      historicalImportDocumentCount: accumulator.documents.filter(
+        (document) => document.origin === "historical_import",
+      ).length,
       sourceDigest: digestSeriesDocuments(accumulator),
     }))
     .sort((left, right) =>

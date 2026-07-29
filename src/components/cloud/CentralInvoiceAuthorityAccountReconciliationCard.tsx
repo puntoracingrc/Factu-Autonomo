@@ -83,22 +83,25 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Revisa el ultimo numero local antes de permitir que el servidor
             asigne nuevas facturas. Solo se envia el maximo y un resumen
-            criptografico.
+            criptografico. Las importaciones historicas reservan su numeracion,
+            pero no se tratan como facturas emitidas por Factu ni bloquean una
+            serie por su integridad antigua.
           </p>
         </div>
       </div>
 
       {inventory ? (
         <div className="overflow-hidden rounded-lg border border-cyan-100 bg-white">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 border-b border-cyan-100 px-4 py-2 text-xs font-bold uppercase text-slate-500">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 border-b border-cyan-100 px-4 py-2 text-xs font-bold uppercase text-slate-500">
             <span>Serie</span>
             <span>Documentos</span>
+            <span>Historicos</span>
             <span>Ultimo</span>
           </div>
           {inventory.summaries.map((summary) => (
             <div
               key={`${summary.environment}:${summary.issuerNif}:${summary.seriesCode}:${summary.fiscalYear}`}
-              className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 border-b border-cyan-50 px-4 py-3 text-sm last:border-b-0"
+              className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 border-b border-cyan-50 px-4 py-3 text-sm last:border-b-0"
             >
               <span className="min-w-0 font-bold text-slate-900">
                 {summary.seriesCode}
@@ -108,6 +111,9 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
               </span>
               <span className="text-right text-slate-600">
                 {summary.sourceDocumentCount}
+              </span>
+              <span className="text-right text-slate-600">
+                {summary.historicalImportDocumentCount}
               </span>
               <span className="text-right font-bold text-slate-900">
                 {summary.observedMaxSequence}

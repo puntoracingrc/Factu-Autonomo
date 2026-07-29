@@ -13,6 +13,7 @@ const summary: CentralInvoiceAuthorityAccountSeriesSummary = {
   fiscalYear: 2026,
   observedMaxSequence: 2955,
   sourceDocumentCount: 936,
+  historicalImportDocumentCount: 0,
   sourceDigest: `sha256:${"a".repeat(64)}`,
 };
 
