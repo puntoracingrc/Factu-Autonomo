@@ -6,6 +6,10 @@ import {
   parseHoldedWorkbookBuffer,
   type HoldedInputSheet,
 } from "./holded";
+import {
+  inspectLegacyImportAttestation,
+  isDocumentUsableForFinancialCalculations,
+} from "../document-integrity/legacy-import-attestation";
 import { expenseFiscalAmounts } from "../expenses";
 import { EMPTY_DATA, type Document } from "../types";
 
@@ -308,6 +312,9 @@ describe("Holded importer", () => {
         name: "Cliente Holded",
       },
     });
+    expect(inspectLegacyImportAttestation(invoice!)).toMatchObject({ ok: true });
+    expect(isDocumentUsableForFinancialCalculations(invoice!)).toBe(true);
+    expect(invoice?.snapshotIntegrity?.status).not.toBe("blocked");
     const partial = result.data.documents.find((doc) => doc.id === "holded:factura:hol_inv_2");
     expect(partial?.paymentStatus).toBe("pending");
     expect(partial?.dueDate).toBeUndefined();

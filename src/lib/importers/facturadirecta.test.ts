@@ -7,6 +7,10 @@ import {
   detectFacturaDirectaRows,
   readFacturaDirectaFiles,
 } from "./facturadirecta";
+import {
+  inspectLegacyImportAttestation,
+  isDocumentUsableForFinancialCalculations,
+} from "../document-integrity/legacy-import-attestation";
 import { expenseFiscalAmounts } from "../expenses";
 import { EMPTY_DATA, type Document } from "../types";
 
@@ -274,6 +278,9 @@ describe("FacturaDirecta importer", () => {
         name: "Cliente Importador Demo",
       },
     });
+    expect(inspectLegacyImportAttestation(invoice!)).toMatchObject({ ok: true });
+    expect(isDocumentUsableForFinancialCalculations(invoice!)).toBe(true);
+    expect(invoice?.snapshotIntegrity?.status).not.toBe("blocked");
     expect(invoice?.notes).not.toContain("No debe hacerse visible");
     expect(invoice?.items[0]).toMatchObject({
       description: "Kit de persiana demo",
