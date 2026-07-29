@@ -1,5 +1,9 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import {
+  inspectLegacyImportAttestation,
+  isDocumentUsableForFinancialCalculations,
+} from "../document-integrity/legacy-import-attestation";
 import { EMPTY_DATA, type Document } from "../types";
 import {
   GENERIC_DOCUMENTS_SOURCE_NAME,
@@ -382,14 +386,22 @@ describe("readGenericDocumentFiles", () => {
       name: "Cliente Uno SL",
       nif: "B11111111",
     });
-    expect(
-      result.data.documents.find((document) => document.number === "F2026-0001"),
-    ).toMatchObject({
+    const importedInvoice = result.data.documents.find(
+      (document) => document.number === "F2026-0001",
+    );
+    expect(importedInvoice).toMatchObject({
       client: {
         customerType: "company",
         name: "Cliente Uno SL",
       },
     });
+    expect(inspectLegacyImportAttestation(importedInvoice!)).toMatchObject({
+      ok: true,
+    });
+    expect(isDocumentUsableForFinancialCalculations(importedInvoice!)).toBe(
+      true,
+    );
+    expect(importedInvoice?.snapshotIntegrity?.status).not.toBe("blocked");
     expect(result.warnings.join("\n")).toContain("PDF");
     expect(result.unsupported.map((item) => item.label)).toContain(
       "Adjuntos y documento visual original",

@@ -7,7 +7,10 @@ import {
 } from "./pcfacturacion";
 import { applyBusinessProfileAutofillSuggestion } from "../business-profile-autofill";
 import { EMPTY_DATA, type Document } from "../types";
-import { inspectLegacyImportAttestation } from "../document-integrity/legacy-import-attestation";
+import {
+  inspectLegacyImportAttestation,
+  isDocumentUsableForFinancialCalculations,
+} from "../document-integrity/legacy-import-attestation";
 
 const TEST_DATA = {
   ...EMPTY_DATA,
@@ -235,6 +238,8 @@ describe("PC Facturacion importer", () => {
 
     expect(invoice).toBeDefined();
     expect(inspectLegacyImportAttestation(invoice!)).toMatchObject({ ok: true });
+    expect(isDocumentUsableForFinancialCalculations(invoice!)).toBe(true);
+    expect(invoice?.snapshotIntegrity?.status).not.toBe("blocked");
     expect(
       invoice?.legacyImportAttestation?.schemaVersion === 2
         ? invoice.legacyImportAttestation.acceptedContentPolicy
