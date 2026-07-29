@@ -233,7 +233,9 @@ describe("central customer create canary", () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
-      fetchStatus: vi.fn(() => new Promise(() => {})),
+      fetchStatus: vi.fn(
+        () => new Promise<CentralBusinessAuthorityStatusResult>(() => {}),
+      ),
       statusTimeoutMs: 1,
     });
 
