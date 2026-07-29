@@ -232,6 +232,25 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
         payload: null,
       }),
     );
+
+    const pulled = await admin.rpc("list_central_business_events_v1", {
+      p_user_id: userId,
+      p_device_id: "synthetic-reader",
+      p_after_sequence: events?.[0]?.event_sequence ?? 0,
+      p_limit: 10,
+    });
+    expect(pulled.error).toBeNull();
+    expect(pulled.data).toEqual([
+      expect.objectContaining({
+        entity_version: 2,
+        operation_kind: "upsert",
+      }),
+      expect.objectContaining({
+        entity_version: 3,
+        operation_kind: "delete",
+        payload: null,
+      }),
+    ]);
   });
 
   it("denies direct browser-role reads", async () => {
@@ -241,5 +260,17 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       .limit(1);
     expect(data).toBeNull();
     expect(error).not.toBeNull();
+
+    const browserPull = await signedInUser.rpc(
+      "list_central_business_events_v1",
+      {
+        p_user_id: userId,
+        p_device_id: "synthetic-reader",
+        p_after_sequence: 0,
+        p_limit: 10,
+      },
+    );
+    expect(browserPull.data).toBeNull();
+    expect(browserPull.error).not.toBeNull();
   });
 });

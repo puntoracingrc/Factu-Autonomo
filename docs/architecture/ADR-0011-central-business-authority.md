@@ -50,6 +50,10 @@ La ruta de mutacion de la fase 2 permanece apagada por defecto. Para escribir
 exige esquema, gate operativo, aprobacion de produccion y allowlist explicita.
 El navegador no recibe `service_role` ni puede ejecutar directamente la RPC.
 
+La lectura usa el `event_sequence` monotono del outbox como cursor. Cada
+dispositivo solicita solo eventos posteriores al ultimo confirmado; no decide
+por marcas de tiempo ni accede directamente a las tablas centrales.
+
 ## Rollback
 
 Antes del corte, desactivar el canario conserva el flujo local actual. Las
