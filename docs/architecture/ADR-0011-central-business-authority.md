@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 1
+- Version: 2
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -53,6 +53,13 @@ El navegador no recibe `service_role` ni puede ejecutar directamente la RPC.
 La lectura usa el `event_sequence` monotono del outbox como cursor. Cada
 dispositivo solicita solo eventos posteriores al ultimo confirmado; no decide
 por marcas de tiempo ni accede directamente a las tablas centrales.
+
+El preflight autenticado de la fase 2 comprueba las tres tablas con lecturas
+`HEAD` sin filas y ejecuta ambas RPC con entradas invalidas a proposito. Solo
+declara `writesPossible` cuando el dispositivo esta vigente, el canario aplica,
+los gates de entorno permiten escribir y todos los rechazos seguros responden
+como se espera. Este estado se consulta con `no-store` y no sustituye una
+confirmacion de escritura.
 
 ## Rollback
 
