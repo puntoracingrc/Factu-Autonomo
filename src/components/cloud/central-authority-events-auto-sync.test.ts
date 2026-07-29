@@ -30,6 +30,7 @@ describe("central authority events automatic sync shell", () => {
   it("escucha senales ligeras del navegador sin renderizar datos fiscales", () => {
     expect(component).toContain('window.addEventListener("online"');
     expect(component).toContain('window.addEventListener("focus"');
+    expect(component).toContain("CLOUD_DEVICE_REACTIVATED_EVENT");
     expect(component).toContain('document.addEventListener("visibilitychange"');
     expect(component).not.toContain("documentPayload");
     expect(component).not.toContain("emittedHash");

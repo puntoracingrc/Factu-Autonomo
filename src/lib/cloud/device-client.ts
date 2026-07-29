@@ -5,6 +5,7 @@ import {
   getLocalCloudDeviceToken,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
+import { notifyCloudDeviceReactivated } from "@/lib/cloud/device-events";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
 export interface CloudDeviceApiPayload {
@@ -90,6 +91,20 @@ export async function registerCurrentCloudDevice(
       markSynced: options.markSynced === true,
     }),
   });
+}
+
+export async function recoverRevokedCloudDeviceAfterFreshSignIn(): Promise<
+  CloudDeviceApiPayload
+> {
+  const current = await registerCurrentCloudDevice();
+  if (current.reason !== "device_revoked") return current;
+
+  forgetLocalCloudDeviceToken();
+  const replacement = await registerCurrentCloudDevice();
+  if (replacement.allowed !== false && !replacement.error) {
+    notifyCloudDeviceReactivated();
+  }
+  return replacement;
 }
 
 export async function listCloudDevices(): Promise<CloudDeviceApiPayload> {

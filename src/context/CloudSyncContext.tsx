@@ -87,6 +87,7 @@ import {
 import { getGoogleAuthClientId } from "@/lib/google-auth/config";
 import { clearDriveAccessToken } from "@/lib/google-drive/backup";
 import {
+  recoverRevokedCloudDeviceAfterFreshSignIn,
   registerCurrentCloudDevice,
   releaseCurrentCloudDeviceSession,
   retireCurrentCloudDevice,
@@ -2544,8 +2545,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) return error.message;
 
+      const deviceAccess = await recoverRevokedCloudDeviceAfterFreshSignIn();
       pulledForUser.current = null;
-      setSyncMessage("Sesión iniciada.");
+      setSyncMessage(
+        deviceAccess.allowed === false || deviceAccess.error
+          ? `Sesión iniciada. ${
+              deviceAccess.message ??
+              deviceAccess.error ??
+              "Este dispositivo todavía no puede conectarse a la nube."
+            }`
+          : "Sesión iniciada. Dispositivo verificado.",
+      );
       return null;
     },
     [email],
