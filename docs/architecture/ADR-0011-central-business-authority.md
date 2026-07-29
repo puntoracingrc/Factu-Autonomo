@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 10
+- Version: 11
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -53,6 +53,10 @@ El navegador no recibe `service_role` ni puede ejecutar directamente la RPC.
 La lectura usa el `event_sequence` monotono del outbox como cursor. Cada
 dispositivo solicita solo eventos posteriores al ultimo confirmado; no decide
 por marcas de tiempo ni accede directamente a las tablas centrales.
+
+El despertar de negocio usa Broadcast privado por propietario y solo contiene
+`event_sequence`; no publica fichas, importes, NIF, hashes ni el contenido del
+outbox. Si el WebSocket falla, el sondeo por cursor continua como respaldo.
 
 El preflight autenticado de la fase 2 comprueba las tres tablas con lecturas
 `HEAD` sin filas y ejecuta ambas RPC con entradas invalidas a proposito. Solo

@@ -4,6 +4,12 @@ import type { CentralBusinessEventsAppDataSyncResult } from "./events-app-data-s
 
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC =
   "CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_V1";
+export const CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUPS =
+  "CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUPS_V1";
+export const CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT =
+  "central_business_changed";
+export const CENTRAL_BUSINESS_EVENTS_REALTIME_CHANNEL_PREFIX =
+  "central-business";
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_START_DELAY_MS = 0;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS = 15_000;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS = 30_000;
@@ -15,10 +21,30 @@ export interface CentralBusinessEventsAutoSyncEnvironment {
   userIds?: string;
 }
 
+export interface CentralBusinessEventsRealtimeWakeupsEnvironment {
+  enabled?: string;
+  userIds?: string;
+}
+
+export interface CentralBusinessEventsRealtimeSubscription {
+  channelName: string;
+}
+
 const publicEnvironment: CentralBusinessEventsAutoSyncEnvironment = {
   enabled: process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_ENABLED,
   userIds: process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_USER_IDS,
 };
+
+const publicRealtimeEnvironment: CentralBusinessEventsRealtimeWakeupsEnvironment =
+  {
+    enabled:
+      process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUPS_ENABLED,
+    userIds:
+      process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUPS_USER_IDS,
+  };
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function values(value: string | undefined): Set<string> {
   return new Set(
@@ -38,6 +64,27 @@ export function isCentralBusinessEventsAutoSyncEnabledForUser(
     typeof userId === "string" &&
     values(environment.userIds).has(userId)
   );
+}
+
+export function isCentralBusinessEventsRealtimeWakeupsEnabledForUser(
+  userId: string | null | undefined,
+  environment: CentralBusinessEventsRealtimeWakeupsEnvironment = publicRealtimeEnvironment,
+): boolean {
+  return (
+    environment.enabled?.trim().toLowerCase() === "true" &&
+    typeof userId === "string" &&
+    UUID_PATTERN.test(userId) &&
+    values(environment.userIds).has(userId)
+  );
+}
+
+export function centralBusinessEventsRealtimeSubscription(
+  userId: string | null | undefined,
+): CentralBusinessEventsRealtimeSubscription | null {
+  if (!userId || !UUID_PATTERN.test(userId)) return null;
+  return {
+    channelName: `${CENTRAL_BUSINESS_EVENTS_REALTIME_CHANNEL_PREFIX}:${userId}`,
+  };
 }
 
 export function nextCentralBusinessEventsAutoSyncDelay(
