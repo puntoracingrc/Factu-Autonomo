@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 6
+- Version: 7
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -102,6 +102,20 @@ central comparten ID y timestamp. Las altas automaticas, duplicados y ediciones
 del catalogo permanecen locales hasta que sus flujos tengan control de version
 propio; activar este canario no los convierte implicitamente en escrituras
 centrales.
+
+La recepcion de clientes y productos centrales se ejecuta al arrancar la
+sesion, al volver a la pestaña, al recuperar conexion y mediante polling corto
+como respaldo. Cada alta del canario fuerza ademas una lectura justo antes del
+preflight de escritura: un conflicto local bloquea la operacion, mientras una
+caida transitoria de red conserva el modo offline y su cola durable.
+
+El navegador valida la forma completa de la ficha recibida, su ID, version y
+hash antes de incorporarla. Nunca pisa una ficha local divergente sin una
+version central previa conocida. La aplicacion local se confirma con readback
+antes de avanzar el cursor; si el proceso cae entre ambos pasos, la repeticion
+es idempotente. Incluso un evento cuyo hash ya estaba confirmado vuelve a
+verificar la presencia de su ficha local, de modo que puede reparar una
+ausencia sin ocultarla detras del cursor.
 
 ## Rollback
 

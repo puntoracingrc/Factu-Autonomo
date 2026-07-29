@@ -1,0 +1,557 @@
+"use client";
+
+import type {
+  AppDataDurabilityResult,
+  AppDataTransition,
+} from "@/lib/app-data-durability";
+import { migrateCustomer } from "@/lib/customers";
+import { normalizeProductCatalogItem } from "@/lib/purchase-products";
+import type { AppData, Customer, Product } from "@/lib/types";
+
+import {
+  applyCentralBusinessEventPage,
+  loadCentralBusinessDurableQueue,
+  type CentralBusinessEntityVersion,
+  type CentralBusinessQueueStorage,
+  withCentralBusinessQueueLock,
+} from "./durable-queue";
+import {
+  pullCentralBusinessEventsFromBrowser,
+  type CentralBusinessBrowserEvent,
+  type CentralBusinessEventsPullResult,
+} from "./events-client";
+
+export const CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC =
+  "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1";
+
+type SupportedEntityType = "customer" | "product";
+
+export type CentralBusinessEventLocalAction =
+  "added" | "updated" | "deleted" | "unchanged";
+
+export interface CentralBusinessEventLocalApplyValue {
+  schema: typeof CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC;
+  entityType: SupportedEntityType;
+  entityId: string;
+  action: CentralBusinessEventLocalAction;
+}
+
+export type CentralBusinessEventsAppDataSyncResult =
+  | {
+      ok: true;
+      schema: typeof CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC;
+      pulled: number;
+      applied: number;
+      skipped: number;
+      nextSequence: number;
+      hasMore: boolean;
+    }
+  | {
+      ok: false;
+      schema: typeof CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC;
+      code: string;
+      message: string;
+      retryable: boolean;
+      nextSequence: number;
+    };
+
+export interface CentralBusinessEventsAppDataSyncDependencies {
+  getCurrentData(): AppData;
+  commit(
+    expected: AppData,
+    build: (
+      previous: AppData,
+    ) => AppDataTransition<CentralBusinessEventLocalApplyValue>,
+  ): AppDataDurabilityResult<CentralBusinessEventLocalApplyValue>;
+  pull?: (input: {
+    afterSequence: number;
+    limit: number;
+  }) => Promise<CentralBusinessEventsPullResult>;
+  verifyContentHash?: (event: CentralBusinessBrowserEvent) => Promise<boolean>;
+  storage?: CentralBusinessQueueStorage;
+}
+
+class CentralBusinessLocalApplyError extends Error {
+  readonly code: string;
+  readonly retryable: boolean;
+
+  constructor(code: string, message: string, retryable = false) {
+    super(message);
+    this.name = "CentralBusinessLocalApplyError";
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function optionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === "string";
+}
+
+function optionalNumber(value: unknown): value is number | undefined {
+  return (
+    value === undefined || (typeof value === "number" && Number.isFinite(value))
+  );
+}
+
+function optionalBoolean(value: unknown): value is boolean | undefined {
+  return value === undefined || typeof value === "boolean";
+}
+
+function parseCustomerPayload(
+  payload: CentralBusinessBrowserEvent["payload"],
+  entityId: string,
+): Customer | null {
+  if (
+    !isObject(payload) ||
+    payload.id !== entityId ||
+    typeof payload.firstName !== "string" ||
+    typeof payload.lastName !== "string" ||
+    typeof payload.name !== "string" ||
+    typeof payload.createdAt !== "string" ||
+    typeof payload.updatedAt !== "string" ||
+    (payload.customerType !== undefined &&
+      payload.customerType !== "person" &&
+      payload.customerType !== "company") ||
+    !optionalString(payload.contactName) ||
+    !optionalString(payload.nif) ||
+    !optionalString(payload.email) ||
+    !optionalString(payload.phone) ||
+    !optionalString(payload.streetType) ||
+    !optionalString(payload.addressExtra) ||
+    !optionalString(payload.residenceType) ||
+    !optionalString(payload.address) ||
+    !optionalString(payload.city) ||
+    !optionalString(payload.postalCode) ||
+    !optionalString(payload.notes) ||
+    (payload.mergedCustomerIds !== undefined &&
+      (!Array.isArray(payload.mergedCustomerIds) ||
+        !payload.mergedCustomerIds.every((value) => typeof value === "string")))
+  ) {
+    return null;
+  }
+
+  try {
+    return migrateCustomer({
+      id: payload.id,
+      customerType: payload.customerType,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      name: payload.name,
+      contactName: payload.contactName,
+      mergedCustomerIds: payload.mergedCustomerIds,
+      nif: payload.nif,
+      email: payload.email,
+      phone: payload.phone,
+      streetType: payload.streetType,
+      addressExtra: payload.addressExtra,
+      residenceType: payload.residenceType as Customer["residenceType"],
+      address: payload.address,
+      city: payload.city,
+      postalCode: payload.postalCode,
+      notes: payload.notes,
+      createdAt: payload.createdAt,
+      updatedAt: payload.updatedAt,
+    });
+  } catch {
+    return null;
+  }
+}
+
+function parseProductFacet(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isObject(value)) return false;
+  return (
+    optionalBoolean(value.enabled) &&
+    optionalString(value.description) &&
+    optionalString(value.unit) &&
+    optionalNumber(value.unitPrice) &&
+    optionalNumber(value.listPrice) &&
+    optionalNumber(value.discountPercent) &&
+    optionalNumber(value.netUnitCost) &&
+    optionalNumber(value.ivaPercent) &&
+    optionalString(value.supplierId) &&
+    optionalString(value.supplierName) &&
+    optionalString(value.supplierReference) &&
+    optionalNumber(value.purchaseToSaleFactor)
+  );
+}
+
+function parseProductPayload(
+  payload: CentralBusinessBrowserEvent["payload"],
+  entityId: string,
+): Product | null {
+  if (
+    !isObject(payload) ||
+    payload.id !== entityId ||
+    typeof payload.key !== "string" ||
+    typeof payload.name !== "string" ||
+    typeof payload.family !== "string" ||
+    (payload.source !== "manual" && payload.source !== "detected") ||
+    typeof payload.createdAt !== "string" ||
+    typeof payload.updatedAt !== "string" ||
+    (payload.aliases !== undefined &&
+      (!Array.isArray(payload.aliases) ||
+        !payload.aliases.every((value) => typeof value === "string"))) ||
+    !optionalString(payload.subfamily) ||
+    !optionalString(payload.sku) ||
+    !optionalString(payload.externalId) ||
+    !optionalString(payload.unit) ||
+    !optionalString(payload.supplierId) ||
+    !optionalString(payload.supplierName) ||
+    !optionalNumber(payload.pvp) ||
+    !optionalNumber(payload.cost) ||
+    !optionalNumber(payload.ivaPercent) ||
+    !optionalString(payload.notes) ||
+    !optionalBoolean(payload.hidden) ||
+    !parseProductFacet(payload.sales) ||
+    !parseProductFacet(payload.purchase) ||
+    (payload.calculation !== undefined &&
+      (!isObject(payload.calculation) ||
+        !["none", "linear", "area", "volume"].includes(
+          String(payload.calculation.kind),
+        ) ||
+        !optionalString(payload.calculation.unit) ||
+        !optionalNumber(payload.calculation.roundingDecimals))) ||
+    (payload.attributes !== undefined &&
+      (!Array.isArray(payload.attributes) ||
+        !payload.attributes.every(
+          (attribute) =>
+            isObject(attribute) &&
+            typeof attribute.key === "string" &&
+            typeof attribute.label === "string" &&
+            typeof attribute.value === "string" &&
+            optionalString(attribute.unit),
+        )))
+  ) {
+    return null;
+  }
+
+  try {
+    return normalizeProductCatalogItem(payload as unknown as Product);
+  } catch {
+    return null;
+  }
+}
+
+function stableJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
+    .join(",")}}`;
+}
+
+async function sha256(value: string): Promise<string | null> {
+  if (!globalThis.crypto?.subtle) return null;
+  try {
+    const bytes = new TextEncoder().encode(value);
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
+
+export async function verifyCentralBusinessEventContentHash(
+  event: CentralBusinessBrowserEvent,
+): Promise<boolean> {
+  const canonical =
+    event.operationKind === "delete"
+      ? "central-business-tombstone-v1"
+      : stableJson(event.payload);
+  const calculated = await sha256(canonical);
+  return calculated !== null && calculated === event.contentHash;
+}
+
+function sameEntity(left: Customer | Product, right: Customer | Product) {
+  return stableJson(left) === stableJson(right);
+}
+
+function localConflict(message: string): never {
+  throw new CentralBusinessLocalApplyError(
+    "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT",
+    message,
+  );
+}
+
+export function buildCentralBusinessEventAppDataTransition(input: {
+  data: AppData;
+  event: CentralBusinessBrowserEvent;
+  knownVersion?: CentralBusinessEntityVersion;
+}): AppDataTransition<CentralBusinessEventLocalApplyValue> {
+  const { data, event, knownVersion } = input;
+  if (event.entityType !== "customer" && event.entityType !== "product") {
+    throw new CentralBusinessLocalApplyError(
+      "CENTRAL_BUSINESS_ENTITY_NOT_SUPPORTED",
+      "Este dispositivo todavía no puede aplicar este tipo de dato central.",
+    );
+  }
+
+  const knownPrevious =
+    knownVersion &&
+    (event.entityVersion === knownVersion.version ||
+      event.entityVersion === knownVersion.version + 1);
+  const value = (
+    action: CentralBusinessEventLocalAction,
+  ): CentralBusinessEventLocalApplyValue => ({
+    schema: CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC,
+    entityType: event.entityType as SupportedEntityType,
+    entityId: event.entityId,
+    action,
+  });
+
+  if (event.entityType === "customer") {
+    const existing = data.customers.find(
+      (customer) => customer.id === event.entityId,
+    );
+    if (event.operationKind === "delete") {
+      if (!existing) return { data, value: value("unchanged") };
+      if (!knownPrevious) {
+        return localConflict(
+          "El cliente local no tiene una versión central confirmada para borrarlo.",
+        );
+      }
+      return {
+        data: {
+          ...data,
+          customers: data.customers.filter(
+            (customer) => customer.id !== event.entityId,
+          ),
+        },
+        value: value("deleted"),
+      };
+    }
+    const incoming = parseCustomerPayload(event.payload, event.entityId);
+    if (!incoming) {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_CUSTOMER_EVENT",
+        "El servidor devolvió un cliente incompleto.",
+      );
+    }
+    if (!existing) {
+      return {
+        data: { ...data, customers: [...data.customers, incoming] },
+        value: value("added"),
+      };
+    }
+    if (sameEntity(existing, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (!knownPrevious) {
+      return localConflict(
+        "El cliente local difiere de la primera versión recibida del servidor.",
+      );
+    }
+    return {
+      data: {
+        ...data,
+        customers: data.customers.map((customer) =>
+          customer.id === event.entityId ? incoming : customer,
+        ),
+      },
+      value: value("updated"),
+    };
+  }
+
+  const existing = data.products.find(
+    (product) => product.id === event.entityId,
+  );
+  if (event.operationKind === "delete") {
+    if (!existing) return { data, value: value("unchanged") };
+    if (!knownPrevious) {
+      return localConflict(
+        "El producto local no tiene una versión central confirmada para borrarlo.",
+      );
+    }
+    return {
+      data: {
+        ...data,
+        products: data.products.filter(
+          (product) => product.id !== event.entityId,
+        ),
+      },
+      value: value("deleted"),
+    };
+  }
+  const incoming = parseProductPayload(event.payload, event.entityId);
+  if (!incoming) {
+    throw new CentralBusinessLocalApplyError(
+      "CENTRAL_BUSINESS_INVALID_PRODUCT_EVENT",
+      "El servidor devolvió un producto incompleto.",
+    );
+  }
+  if (!existing) {
+    return {
+      data: { ...data, products: [...data.products, incoming] },
+      value: value("added"),
+    };
+  }
+  if (sameEntity(existing, incoming)) {
+    return { data, value: value("unchanged") };
+  }
+  if (!knownPrevious) {
+    return localConflict(
+      "El producto local difiere de la primera versión recibida del servidor.",
+    );
+  }
+  return {
+    data: {
+      ...data,
+      products: data.products.map((product) =>
+        product.id === event.entityId ? incoming : product,
+      ),
+    },
+    value: value("updated"),
+  };
+}
+
+function failed(
+  code: string,
+  message: string,
+  nextSequence: number,
+  retryable = false,
+): CentralBusinessEventsAppDataSyncResult {
+  return {
+    ok: false,
+    schema: CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC,
+    code,
+    message,
+    retryable,
+    nextSequence,
+  };
+}
+
+export async function syncCentralBusinessEventsIntoAppData(
+  input: { ownerScope: string; limit?: number },
+  dependencies: CentralBusinessEventsAppDataSyncDependencies,
+): Promise<CentralBusinessEventsAppDataSyncResult> {
+  const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
+
+  try {
+    return await withCentralBusinessQueueLock(input.ownerScope, async () => {
+      const state = loadCentralBusinessDurableQueue(
+        input.ownerScope,
+        dependencies.storage,
+      );
+      const pulled = await (
+        dependencies.pull ?? pullCentralBusinessEventsFromBrowser
+      )({
+        afterSequence: state.lastAppliedEventSequence,
+        limit,
+      });
+      if (!pulled.ok) {
+        return failed(
+          pulled.code,
+          pulled.message,
+          state.lastAppliedEventSequence,
+          pulled.retryable,
+        );
+      }
+      const verifyContentHash =
+        dependencies.verifyContentHash ?? verifyCentralBusinessEventContentHash;
+      for (const event of pulled.events) {
+        if (!(await verifyContentHash(event))) {
+          return failed(
+            "CENTRAL_BUSINESS_EVENT_HASH_MISMATCH",
+            "Un evento central no supera la comprobación de integridad.",
+            state.lastAppliedEventSequence,
+          );
+        }
+      }
+
+      const localFailure: {
+        current: CentralBusinessLocalApplyError | null;
+      } = { current: null };
+      let locallyApplied = 0;
+      const workingVersions = { ...state.entityVersions };
+      const page = await applyCentralBusinessEventPage({
+        ownerScope: input.ownerScope,
+        events: pulled.events,
+        nextSequence: pulled.nextSequence,
+        storage: dependencies.storage,
+        applyEvent: async (event) => {
+          const key = `${event.entityType}:${event.entityId}`;
+          const expected = dependencies.getCurrentData();
+          let transition:
+            AppDataTransition<CentralBusinessEventLocalApplyValue> | undefined;
+          try {
+            transition = buildCentralBusinessEventAppDataTransition({
+              data: expected,
+              event,
+              knownVersion: workingVersions[key],
+            });
+          } catch (error) {
+            localFailure.current =
+              error instanceof CentralBusinessLocalApplyError
+                ? error
+                : new CentralBusinessLocalApplyError(
+                    "CENTRAL_BUSINESS_EVENT_TRANSITION_FAILED",
+                    "No se pudo preparar el cambio central.",
+                  );
+            throw error;
+          }
+
+          if (transition.value.action !== "unchanged") {
+            const committed = dependencies.commit(expected, () => transition!);
+            if (committed.status !== "applied") {
+              localFailure.current = new CentralBusinessLocalApplyError(
+                committed.status === "indeterminate"
+                  ? "CENTRAL_BUSINESS_LOCAL_STORAGE_UNKNOWN"
+                  : "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED",
+                committed.status === "indeterminate"
+                  ? "No se pudo confirmar el guardado local del evento central."
+                  : "Los datos locales cambiaron mientras se aplicaba el evento central.",
+                committed.status === "blocked" &&
+                  committed.reason === "stale_precondition",
+              );
+              throw localFailure.current;
+            }
+            locallyApplied += 1;
+          }
+          workingVersions[key] = {
+            entityType: event.entityType,
+            entityId: event.entityId,
+            version: event.entityVersion,
+            deleted: event.operationKind === "delete",
+            contentHash: event.contentHash,
+          };
+        },
+      });
+
+      if (!page.ok) {
+        return failed(
+          localFailure.current?.code ?? page.code,
+          localFailure.current?.message ?? page.message,
+          state.lastAppliedEventSequence,
+          localFailure.current?.retryable ?? false,
+        );
+      }
+
+      return {
+        ok: true,
+        schema: CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC,
+        pulled: pulled.events.length,
+        applied: locallyApplied,
+        skipped: pulled.events.length - locallyApplied,
+        nextSequence: page.state.lastAppliedEventSequence,
+        hasMore: pulled.hasMore,
+      };
+    });
+  } catch (error) {
+    return failed(
+      "CENTRAL_BUSINESS_EVENTS_LOCAL_STATE_FAILED",
+      error instanceof Error
+        ? error.message
+        : "No se pudo comprobar el estado central local.",
+      0,
+    );
+  }
+}

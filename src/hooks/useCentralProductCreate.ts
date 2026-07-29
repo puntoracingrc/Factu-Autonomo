@@ -15,21 +15,36 @@ type ProductDraft = Omit<Product, "id" | "createdAt" | "updatedAt">;
 export function useCentralProductCreate(): {
   createProduct: (draft: ProductDraft) => Promise<CentralProductCreateResult>;
 } {
-  const { addProduct, addProductDurably, getCurrentData } = useAppStore();
+  const {
+    addProduct,
+    addProductDurably,
+    getCurrentData,
+    syncCentralBusinessEvents,
+  } = useAppStore();
   const { user } = useCloudSync();
+  const userId = user?.id;
 
   const createProduct = useCallback(
     (draft: ProductDraft) =>
       createProductWithCentralCanary({
-        userId: user?.id,
+        userId,
         draft,
         dependencies: {
           getCurrentData,
           addProductFallback: addProduct,
           addProductDurably,
+          syncEventsBeforeWrite: userId
+            ? () => syncCentralBusinessEvents(userId)
+            : undefined,
         },
       }),
-    [addProduct, addProductDurably, getCurrentData, user?.id],
+    [
+      addProduct,
+      addProductDurably,
+      getCurrentData,
+      syncCentralBusinessEvents,
+      userId,
+    ],
   );
 
   return { createProduct };

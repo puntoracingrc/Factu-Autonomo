@@ -247,4 +247,27 @@ describe("central product create canary", () => {
     expect(result).toMatchObject({ ok: false });
     expect(deps.addProductDurably).not.toHaveBeenCalled();
   });
+
+  it("comprueba eventos antes del estado y bloquea un conflicto", async () => {
+    const syncEventsBeforeWrite = vi.fn(async () => ({
+      ok: false as const,
+      schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1" as const,
+      code: "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT",
+      message: "review",
+      retryable: false,
+      nextSequence: 0,
+    }));
+    const deps = dependencies({ syncEventsBeforeWrite });
+
+    const result = await createProductWithCentralCanary({
+      userId,
+      draft,
+      dependencies: deps,
+    });
+
+    expect(syncEventsBeforeWrite).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.fetchStatus).not.toHaveBeenCalled();
+    expect(deps.addProductDurably).not.toHaveBeenCalled();
+  });
 });

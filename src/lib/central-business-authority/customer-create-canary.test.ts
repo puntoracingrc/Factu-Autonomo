@@ -115,18 +115,16 @@ function dependencies(
       appliedCustomer(expected, identity.id, identity.now),
     ),
     fetchStatus: vi.fn(async () => readyStatus()),
-    mutate: vi.fn(
-      async (): Promise<CentralBusinessBrowserMutationResult> => ({
-        ok: true,
-        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
-        status: "committed",
-        eventId: "event-synthetic-0001",
-        eventSequence: 1,
-        entityVersion: 1,
-        deleted: false,
-        contentHash: "hash-synthetic-0001",
-      }),
-    ),
+    mutate: vi.fn(async (): Promise<CentralBusinessBrowserMutationResult> => ({
+      ok: true,
+      schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+      status: "committed",
+      eventId: "event-synthetic-0001",
+      eventSequence: 1,
+      entityVersion: 1,
+      deleted: false,
+      contentHash: "hash-synthetic-0001",
+    })),
     storage: new MemoryStorage(),
     createId: () => customerId,
     now: () => now,
@@ -141,7 +139,10 @@ describe("central customer create canary", () => {
       isCentralCustomerCreateCanaryEnabledForUser(userId, environment),
     ).toBe(true);
     expect(
-      isCentralCustomerCreateCanaryEnabledForUser("persianas-user", environment),
+      isCentralCustomerCreateCanaryEnabledForUser(
+        "persianas-user",
+        environment,
+      ),
     ).toBe(false);
     expect(
       isCentralCustomerCreateCanaryEnabledForUser(userId, {
@@ -224,9 +225,9 @@ describe("central customer create canary", () => {
 
     expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
     expect(deps.mutate).not.toHaveBeenCalled();
-    expect(loadCentralBusinessDurableQueue(userId, storage).operations).toHaveLength(
-      1,
-    );
+    expect(
+      loadCentralBusinessDurableQueue(userId, storage).operations,
+    ).toHaveLength(1);
   });
 
   it("no congela el formulario si el preflight queda colgado", async () => {
@@ -246,9 +247,9 @@ describe("central customer create canary", () => {
     });
 
     expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
-    expect(loadCentralBusinessDurableQueue(userId, storage).operations).toHaveLength(
-      1,
-    );
+    expect(
+      loadCentralBusinessDurableQueue(userId, storage).operations,
+    ).toHaveLength(1);
   });
 
   it("falla cerrado si el servidor responde que el canario no esta listo", async () => {
@@ -274,16 +275,68 @@ describe("central customer create canary", () => {
     expect(deps.addCustomerDurably).not.toHaveBeenCalled();
   });
 
+  it("recibe eventos antes de escribir y bloquea un conflicto local", async () => {
+    const syncEventsBeforeWrite = vi.fn(async () => ({
+      ok: false as const,
+      schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1" as const,
+      code: "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT",
+      message: "review",
+      retryable: false,
+      nextSequence: 0,
+    }));
+    const deps = dependencies({ syncEventsBeforeWrite });
+
+    const result = await createCustomerWithCentralCanary({
+      userId,
+      draft,
+      dependencies: deps,
+    });
+
+    expect(syncEventsBeforeWrite).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.fetchStatus).not.toHaveBeenCalled();
+    expect(deps.addCustomerDurably).not.toHaveBeenCalled();
+  });
+
+  it("permite la cola offline si la recepción falla solo por red", async () => {
+    const syncEventsBeforeWrite = vi.fn(async () => ({
+      ok: false as const,
+      schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1" as const,
+      code: "CENTRAL_BUSINESS_EVENTS_NETWORK_ERROR",
+      message: "offline",
+      retryable: true,
+      nextSequence: 0,
+    }));
+    const deps = dependencies({
+      syncEventsBeforeWrite,
+      fetchStatus: vi.fn(
+        async (): Promise<CentralBusinessAuthorityStatusResult> => ({
+          ok: false,
+          status: 0,
+          code: "CENTRAL_BUSINESS_STATUS_NETWORK_ERROR",
+          message: "offline",
+        }),
+      ),
+    });
+
+    const result = await createCustomerWithCentralCanary({
+      userId,
+      draft,
+      dependencies: deps,
+    });
+
+    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(deps.addCustomerDurably).toHaveBeenCalledOnce();
+  });
+
   it("retira la operacion si el commit local queda bloqueado", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
-      addCustomerDurably: vi.fn(
-        (): AppDataDurabilityResult<Customer> => ({
-          status: "blocked",
-          reason: "stale_precondition",
-        }),
-      ),
+      addCustomerDurably: vi.fn((): AppDataDurabilityResult<Customer> => ({
+        status: "blocked",
+        reason: "stale_precondition",
+      })),
     });
 
     const result = await createCustomerWithCentralCanary({

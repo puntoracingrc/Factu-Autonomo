@@ -19,6 +19,7 @@ import {
   CloudSyncPendingBanner,
 } from "@/components/cloud/CloudSyncIndicator";
 import { CentralInvoiceAuthorityEventsAutoSync } from "@/components/cloud/CentralInvoiceAuthorityEventsAutoSync";
+import { CentralBusinessAuthorityEventsAutoSync } from "@/components/cloud/CentralBusinessAuthorityEventsAutoSync";
 import { GoogleDriveAutoBackup } from "@/components/cloud/GoogleDriveAutoBackup";
 import { DataAccessEventReporter } from "@/components/security/DataAccessEventReporter";
 import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
@@ -289,6 +290,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ReferralRedeemOnLogin />
       <GoogleDriveAutoBackup />
       <CentralInvoiceAuthorityEventsAutoSync />
+      <CentralBusinessAuthorityEventsAutoSync />
       <DataAccessEventReporter />
       <AppNavigationFeedback
         navigation={pendingNavigation}
@@ -495,7 +497,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                     plan === "trial"
                       ? "bg-violet-100 text-violet-800"
-                      : "bg-amber-100 text-amber-800"
+                    : "bg-amber-100 text-amber-800"
                   }`}
                 >
                   <Crown className="h-3.5 w-3.5" />
@@ -560,7 +562,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     ? "bg-violet-100 text-violet-800"
                     : plan === "pro_plus"
                       ? "bg-emerald-100 text-emerald-800"
-                    : "bg-amber-100 text-amber-800"
+                      : "bg-amber-100 text-amber-800"
                 }`}
               >
                 <Crown className="h-3.5 w-3.5" />
