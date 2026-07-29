@@ -40,6 +40,7 @@ describe("central invoice authority form runtime policy wiring", () => {
       "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS",
     );
     expect(envExample).toContain("CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS=");
+    expect(envExample).toContain("CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS=");
     expect(client).toContain("isCentralInvoiceAuthorityFormCanaryEnabledForUser");
     expect(client).toContain("NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_REQUIRED");
     expect(client).toContain(
@@ -71,6 +72,9 @@ describe("central invoice authority form runtime policy wiring", () => {
     );
     expect(runtimeDoc).toContain(
       "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS=<email>[,<email>]",
+    );
+    expect(runtimeDoc).toContain(
+      "CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS=<email>[,<email>]",
     );
 
     const resolverStart = client.indexOf(
