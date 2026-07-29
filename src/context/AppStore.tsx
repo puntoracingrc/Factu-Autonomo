@@ -24,6 +24,7 @@ import type {
 } from "@/lib/types";
 import type { CentralInvoiceAuthorityFormIssueIdentity } from "@/lib/central-invoice-authority/form-canary-client";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
+import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -388,6 +389,10 @@ interface AppStoreValue {
     expected: AppData,
     options?: { limit?: number | null; receivedAt?: string },
   ) => Promise<AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>>;
+  syncCentralBusinessEvents: (
+    ownerScope: string,
+    options?: { limit?: number },
+  ) => Promise<CentralBusinessEventsAppDataSyncResult>;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
@@ -1294,6 +1299,24 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           }),
         );
       });
+    },
+    [commitDurableAppData],
+  );
+
+  const syncCentralBusinessEvents = useCallback(
+    async (
+      ownerScope: string,
+      options: { limit?: number } = {},
+    ): Promise<CentralBusinessEventsAppDataSyncResult> => {
+      const { syncCentralBusinessEventsIntoAppData } =
+        await import("@/lib/central-business-authority/events-app-data-sync");
+      return syncCentralBusinessEventsIntoAppData(
+        { ownerScope, limit: options.limit },
+        {
+          getCurrentData: () => dataRef.current,
+          commit: (expected, build) => commitDurableAppData(expected, build),
+        },
+      );
     },
     [commitDurableAppData],
   );
@@ -2971,6 +2994,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteAllFiscalNotificationDocuments,
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
+      syncCentralBusinessEvents,
       updateProfile,
       addDocument,
       addDocumentWithCentralIdentity,
@@ -3047,6 +3071,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deleteAllFiscalNotificationDocuments,
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
+      syncCentralBusinessEvents,
       updateProfile,
       addDocument,
       addDocumentWithCentralIdentity,

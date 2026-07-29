@@ -673,6 +673,17 @@ export async function applyCentralBusinessEventPage(input: {
         event.entityVersion === known.version &&
         event.contentHash === known.contentHash
       ) {
+        try {
+          await input.applyEvent(event);
+        } catch {
+          return {
+            ok: false,
+            code: "EVENT_APPLY_FAILED",
+            message:
+              "No se verifico toda la pagina. El cursor se conserva para reintentar.",
+            state,
+          };
+        }
         skipped += 1;
         continue;
       }

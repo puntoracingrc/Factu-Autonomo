@@ -19,6 +19,7 @@ import {
   fetchCentralBusinessAuthorityStatusFromBrowser,
   type CentralBusinessAuthorityStatusResult,
 } from "./status-client";
+import type { CentralBusinessEventsAppDataSyncResult } from "./events-app-data-sync";
 
 export const CENTRAL_CUSTOMER_CREATE_CANARY =
   "CENTRAL_CUSTOMER_CREATE_CANARY_V1";
@@ -62,6 +63,7 @@ export interface CentralCustomerCreateCanaryDependencies {
   createId?: () => string;
   now?: () => string;
   statusTimeoutMs?: number;
+  syncEventsBeforeWrite?: () => Promise<CentralBusinessEventsAppDataSyncResult>;
   environment?: CentralCustomerCreateCanaryEnvironment;
 }
 
@@ -162,6 +164,14 @@ export async function createCustomerWithCentralCanary(input: {
   }
 
   const ownerScope = input.userId as string;
+  const eventSync = await dependencies.syncEventsBeforeWrite?.();
+  if (eventSync && !eventSync.ok && !eventSync.retryable) {
+    return {
+      ok: false,
+      error:
+        "Hay cambios centrales que este dispositivo no pudo aplicar. Revisa la sincronización antes de guardar el cliente.",
+    };
+  }
   const status = await statusWithTimeout(
     dependencies.fetchStatus ??
       fetchCentralBusinessAuthorityStatusFromBrowser,
