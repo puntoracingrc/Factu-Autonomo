@@ -13,6 +13,7 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralCustomerCreate } from "@/hooks/useCentralCustomerCreate";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import { RESIDENCE_TYPES, residenceTypeAllowsAddressExtra } from "@/lib/customer-address";
 import {
@@ -56,10 +57,12 @@ export default function NuevoClientePage() {
     () => safeReturnPath(searchParams.get("from")),
     [searchParams],
   );
-  const { data, addCustomer } = useAppStore();
+  const { data } = useAppStore();
+  const { createCustomer } = useCentralCustomerCreate();
   const { checkCanAddCustomer } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
 
@@ -106,7 +109,8 @@ export default function NuevoClientePage() {
     }));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (savingCustomer) return;
     const validation = validateCustomerInput(data.customers, form);
     if (!validation.ok) {
       setFormError(validation.error ?? "Revisa los datos del cliente");
@@ -120,31 +124,35 @@ export default function NuevoClientePage() {
       return;
     }
 
-    maybeCelebrateFirstCustomer(data.customers.length);
-    const result = addCustomer({
-      ...customerPayloadFromInput({
-        firstName: validation.firstName ?? form.firstName,
-        lastName: validation.lastName ?? form.lastName,
-        customerType: form.customerType,
-        contactName: form.contactName,
-        nif: form.nif,
-        email: validation.email,
-        phone: validation.phone,
-        streetType: form.streetType,
-        residenceType: form.residenceType,
-        address: form.address,
-        addressExtra: form.addressExtra,
-      }),
-      city: form.city.trim() || undefined,
-      postalCode: form.postalCode.trim() || undefined,
-      notes: form.notes.trim() || undefined,
-    });
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
+    setSavingCustomer(true);
+    try {
+      maybeCelebrateFirstCustomer(data.customers.length);
+      const result = await createCustomer({
+        ...customerPayloadFromInput({
+          firstName: validation.firstName ?? form.firstName,
+          lastName: validation.lastName ?? form.lastName,
+          customerType: form.customerType,
+          contactName: form.contactName,
+          nif: form.nif,
+          email: validation.email,
+          phone: validation.phone,
+          streetType: form.streetType,
+          residenceType: form.residenceType,
+          address: form.address,
+          addressExtra: form.addressExtra,
+        }),
+        city: form.city.trim() || undefined,
+        postalCode: form.postalCode.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+      });
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
+      router.push(returnPath);
+    } finally {
+      setSavingCustomer(false);
     }
-
-    router.push(returnPath);
   }
 
   const formCustomerType = normalizeCustomerType(form.customerType);
@@ -353,8 +361,8 @@ export default function NuevoClientePage() {
           </p>
         )}
 
-        <Button onClick={handleSave} fullWidth>
-          Guardar cliente
+        <Button onClick={handleSave} fullWidth disabled={savingCustomer}>
+          {savingCustomer ? "Guardando..." : "Guardar cliente"}
         </Button>
       </Card>
 
