@@ -5,6 +5,7 @@ import { EMPTY_DATA } from "@/lib/types";
 
 import {
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS,
+  CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS,
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS,
   CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_CHANNEL_PREFIX,
   CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE,
@@ -194,7 +195,7 @@ describe("central invoice authority events auto sync policy", () => {
     ).toMatchObject({ shouldRun: false, reason: "document_hidden" });
   });
 
-  it("pausa la automatizacion ante conflictos centrales", () => {
+  it("mantiene el conflicto fail-closed y lo vuelve a comprobar de forma espaciada", () => {
     expect(
       shouldRunCentralInvoiceAuthorityEventsAutoSync({
         ...runnableInput,
@@ -203,7 +204,7 @@ describe("central invoice authority events auto sync policy", () => {
     ).toEqual({
       shouldRun: false,
       reason: "conflict_paused",
-      retryAfterMs: null,
+      retryAfterMs: CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS,
     });
   });
 
@@ -358,6 +359,6 @@ describe("central invoice authority events auto sync policy", () => {
           },
         }),
       ),
-    ).toBeNull();
+    ).toBe(CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS);
   });
 });

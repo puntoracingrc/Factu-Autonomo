@@ -32,6 +32,7 @@ export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT = 50;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_START_DELAY_MS = 3_000;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS = 60_000;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS = 30_000;
+export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS = 60_000;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_NOT_READY_RETRY_MS = 5_000;
 
 export type CentralInvoiceAuthorityEventsAutoSyncSkipReason =
@@ -174,7 +175,10 @@ export function shouldRunCentralInvoiceAuthorityEventsAutoSync(
     return skipped("document_hidden", CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS);
   }
   if (input.lastStatus === "conflict") {
-    return skipped("conflict_paused", null);
+    return skipped(
+      "conflict_paused",
+      CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS,
+    );
   }
   return { shouldRun: true };
 }
@@ -225,7 +229,9 @@ export function nextCentralInvoiceAuthorityEventsAutoSyncDelay(
   }
 
   const sync = result.value.localSync;
-  if (!sync.ok && sync.conflicts.length > 0) return null;
+  if (!sync.ok && sync.conflicts.length > 0) {
+    return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS;
+  }
   if (!sync.ok) return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS;
   return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS;
 }
