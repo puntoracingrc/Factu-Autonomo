@@ -145,6 +145,37 @@ function parseBody(raw: string): MutationBody {
   return value as unknown as MutationBody;
 }
 
+function rpcRejection(error: CentralBusinessMutationRpcError) {
+  if (error.causeCode === "P4102") {
+    return {
+      status: 409,
+      code: "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT",
+      message:
+        "La clave de operacion ya se utilizo para un cambio diferente.",
+    };
+  }
+  if (error.causeCode === "P4103") {
+    return {
+      status: 409,
+      code: "CENTRAL_BUSINESS_VERSION_CONFLICT",
+      message:
+        "El registro cambio en otro dispositivo. Revisa la version central antes de continuar.",
+    };
+  }
+  if (error.causeCode === "P4104") {
+    return {
+      status: 404,
+      code: "CENTRAL_BUSINESS_ENTITY_NOT_FOUND",
+      message: "El registro central ya no existe.",
+    };
+  }
+  return {
+    status: error.code === "RPC_REJECTED" ? 409 : 502,
+    code: error.code,
+    message: error.message,
+  };
+}
+
 export function createCentralBusinessMutationRouteHandler(
   dependencies: CentralBusinessMutationRouteDependencies,
 ) {
@@ -262,11 +293,12 @@ export function createCentralBusinessMutationRouteHandler(
           });
         }
         if (error instanceof CentralBusinessMutationRpcError) {
-          return json(error.code === "RPC_REJECTED" ? 409 : 502, {
+          const rejection = rpcRejection(error);
+          return json(rejection.status, {
             ok: false,
             error: {
-              code: error.code,
-              message: error.message,
+              code: rejection.code,
+              message: rejection.message,
               causeCode: error.causeCode,
             },
           });

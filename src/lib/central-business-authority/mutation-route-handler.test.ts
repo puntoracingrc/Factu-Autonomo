@@ -181,11 +181,53 @@ describe("central business mutation route", () => {
         async rpc() {
           return {
             data: null,
-            error: { code: "P0001", message: "version mismatch" },
+            error: { code: "P4103", message: "version mismatch" },
           };
         },
       })),
     });
-    expect((await request(conflict)).status).toBe(409);
+    expect(await request(conflict)).toMatchObject({
+      status: 409,
+      body: {
+        error: {
+          code: "CENTRAL_BUSINESS_VERSION_CONFLICT",
+          causeCode: "P4103",
+        },
+      },
+    });
+  });
+
+  it("distingue idempotencia reutilizada y entidad inexistente", async () => {
+    enableCanary();
+    const rejected = (code: "P4102" | "P4104") =>
+      dependencies({
+        getRpcClient: vi.fn(() => ({
+          async rpc() {
+            return {
+              data: null,
+              error: { code, message: "synthetic rejection" },
+            };
+          },
+        })),
+      });
+
+    expect(await request(rejected("P4102"))).toMatchObject({
+      status: 409,
+      body: {
+        error: {
+          code: "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT",
+          causeCode: "P4102",
+        },
+      },
+    });
+    expect(await request(rejected("P4104"))).toMatchObject({
+      status: 404,
+      body: {
+        error: {
+          code: "CENTRAL_BUSINESS_ENTITY_NOT_FOUND",
+          causeCode: "P4104",
+        },
+      },
+    });
   });
 });
