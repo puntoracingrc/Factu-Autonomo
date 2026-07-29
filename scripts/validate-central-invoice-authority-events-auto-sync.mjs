@@ -70,7 +70,8 @@ for (const forbidden of [
 }
 
 assert.match(doc, /commitDurableAppData/);
-assert.match(doc, /central local conflict pauses automatic polling/i);
+assert.match(doc, /central local conflict remains fail-closed/i);
+assert.match(doc, /retries at a bounded interval/i);
 assert.match(doc, /optional canary scope/i);
 assert.equal(
   packageJson.scripts[

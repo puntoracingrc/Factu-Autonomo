@@ -28,8 +28,10 @@ Safety contract:
 - It does not overlap polls in the same tab.
 - A durable blocked or indeterminate result retries later without changing the
   cursor outside the durable bridge.
-- A central local conflict pauses automatic polling. The user-facing manual
-  card in Cuenta remains the recovery surface.
+- A central local conflict remains fail-closed: no document changes and the
+  cursor does not advance. Polling retries at a bounded interval so a stale
+  conflict can recover automatically; the user-facing manual card in Cuenta
+  remains the immediate recovery surface.
 - Browser `online`, `focus` and `visibilitychange` are wakeup signals only.
 - Realtime wakeups remain optional in
   `central-invoice-authority-events-realtime-wakeups-v1.md` and, per ADR-0010,
