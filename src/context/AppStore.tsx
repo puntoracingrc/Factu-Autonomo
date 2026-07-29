@@ -446,6 +446,11 @@ interface AppStoreValue {
   addProduct: (
     product: Omit<Product, "id" | "createdAt" | "updatedAt">,
   ) => Product;
+  addProductDurably: (
+    product: Omit<Product, "id" | "createdAt" | "updatedAt">,
+    identity: { id: string; now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<Product>;
   updateProduct: (product: Product) => void;
   renameProductFamily: (
     sourceFamily: string,
@@ -530,6 +535,19 @@ const AppStoreContext = createContext<AppStoreValue | null>(null);
 
 function newId(): string {
   return crypto.randomUUID();
+}
+
+function createProductWithIdentity(
+  product: Omit<Product, "id" | "createdAt" | "updatedAt">,
+  identity: { id: string; now: string },
+): Product {
+  return normalizeProductCatalogItem({
+    ...product,
+    id: identity.id,
+    key: product.key || purchaseProductKey(product.name),
+    createdAt: identity.now,
+    updatedAt: identity.now,
+  });
 }
 
 function findUniqueDocumentById(
@@ -2232,12 +2250,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const addProduct = useCallback(
     (product: Omit<Product, "id" | "createdAt" | "updatedAt">): Product => {
       const now = new Date().toISOString();
-      const created = normalizeProductCatalogItem({
-        ...product,
+      const created = createProductWithIdentity(product, {
         id: newId(),
-        key: product.key || purchaseProductKey(product.name),
-        createdAt: now,
-        updatedAt: now,
+        now,
       });
       setAppData((prev) => ({
         ...prev,
@@ -2246,6 +2261,22 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       return created;
     },
     [setAppData],
+  );
+
+  const addProductDurably = useCallback(
+    (
+      product: Omit<Product, "id" | "createdAt" | "updatedAt">,
+      identity: { id: string; now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<Product> =>
+      commitDurableAppData(expected, (previous) => {
+        const created = createProductWithIdentity(product, identity);
+        return {
+          data: { ...previous, products: [...previous.products, created] },
+          value: created,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const updateProduct = useCallback(
@@ -2964,6 +2995,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveScannedExpenseDurably,
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
+      addProductDurably,
       updateProduct,
       renameProductFamily,
       applyProductCatalogStructure,
@@ -3039,6 +3071,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveScannedExpenseDurably,
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
+      addProductDurably,
       updateProduct,
       renameProductFamily,
       applyProductCatalogStructure,

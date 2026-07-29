@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 5
+- Version: 6
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -95,6 +95,13 @@ estado durable local queda indeterminado, la operacion se conserva para
 revision y nunca se confirma silenciosamente. Una confirmacion de escritura
 actualiza la version conocida de la entidad, pero no adelanta el cursor del
 outbox.
+
+La creacion manual de productos desde su formulario dedicado reutiliza el
+mismo contrato. El producto normalizado, la copia local durable y el comando
+central comparten ID y timestamp. Las altas automaticas, duplicados y ediciones
+del catalogo permanecen locales hasta que sus flujos tengan control de version
+propio; activar este canario no los convierte implicitamente en escrituras
+centrales.
 
 ## Rollback
 
