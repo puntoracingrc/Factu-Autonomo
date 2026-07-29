@@ -140,6 +140,15 @@ export function CloudDevicesCard() {
           </p>
         </div>
       )}
+      {payload?.reason === "device_revoked" && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-bold">Este dispositivo está desactivado.</p>
+          <p className="mt-1">
+            Cierra sesión y vuelve a iniciarla para vincularlo de nuevo con una
+            identidad segura.
+          </p>
+        </div>
+      )}
 
       <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
         {loading && devices.length === 0 ? (

@@ -7,6 +7,9 @@ import {
   clearPendingGoogleLoginState,
   getPendingGoogleLoginState,
 } from "@/lib/google-auth/browser";
+import {
+  recoverRevokedCloudDeviceAfterFreshSignIn,
+} from "@/lib/cloud/device-client";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
 type GoogleAuthTokenPayload =
@@ -60,6 +63,7 @@ async function completeGoogleLogin(): Promise<void> {
   });
   if (signInError) throw new Error(signInError.message);
 
+  await recoverRevokedCloudDeviceAfterFreshSignIn();
   clearPendingGoogleLoginState();
 }
 
