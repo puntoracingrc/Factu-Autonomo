@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralProductCreate } from "@/hooks/useCentralProductCreate";
 import { normalizeDocumentUnitId } from "@/lib/document-units";
 import {
   clearDocumentProductPickRequest,
@@ -50,7 +51,8 @@ import {
 
 export default function NuevoProductoPage() {
   const router = useRouter();
-  const { data, addProduct } = useAppStore();
+  const { data } = useAppStore();
+  const { createProduct } = useCentralProductCreate();
   const { checkCanAddProduct } = useBilling();
   const [form, setForm] = useState<ProductFormDraft>(EMPTY_PRODUCT_FORM_DRAFT);
   const [initialForm, setInitialForm] = useState<ProductFormDraft>(
@@ -195,7 +197,7 @@ export default function NuevoProductoPage() {
     setError(null);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (savingRef.current) return;
     const name = form.name.trim();
     if (!name) {
@@ -272,65 +274,64 @@ export default function NuevoProductoPage() {
         form.purchaseUnit.trim()) ||
       saleUnit;
 
-    let created: ReturnType<typeof addProduct>;
-    try {
-      created = addProduct({
-        key,
-        aliases: [],
-        sku: form.sku.trim() || undefined,
-        name,
-        family: form.family.trim() || "Sin familia",
-        subfamily: form.subfamily.trim() || undefined,
+    const result = await createProduct({
+      key,
+      aliases: [],
+      sku: form.sku.trim() || undefined,
+      name,
+      family: form.family.trim() || "Sin familia",
+      subfamily: form.subfamily.trim() || undefined,
+      unit: saleUnit,
+      supplierId: supplier?.id,
+      supplierName: supplier?.name ?? (supplierName || undefined),
+      pvp: purchaseListPrice,
+      cost: purchaseNetUnitCost,
+      ivaPercent: saleIvaPercent,
+      sales: {
+        enabled: true,
+        description: form.saleDescription.trim() || undefined,
         unit: saleUnit,
+        unitPrice: salePrice,
+        ivaPercent: saleIvaPercent,
+      },
+      purchase: {
+        enabled: Boolean(
+          supplierName ||
+          form.purchaseDescription.trim() ||
+          form.supplierReference.trim() ||
+          purchaseListPrice ||
+          purchaseDiscountPercent ||
+          purchaseNetUnitCost,
+        ),
+        description: form.purchaseDescription.trim() || undefined,
+        unit: purchaseUnit,
+        listPrice: purchaseListPrice,
+        discountPercent: purchaseDiscountPercent,
+        netUnitCost: purchaseNetUnitCost,
+        ivaPercent: saleIvaPercent,
         supplierId: supplier?.id,
         supplierName: supplier?.name ?? (supplierName || undefined),
-        pvp: purchaseListPrice,
-        cost: purchaseNetUnitCost,
-        ivaPercent: saleIvaPercent,
-        sales: {
-          enabled: true,
-          description: form.saleDescription.trim() || undefined,
-          unit: saleUnit,
-          unitPrice: salePrice,
-          ivaPercent: saleIvaPercent,
-        },
-        purchase: {
-          enabled: Boolean(
-            supplierName ||
-            form.purchaseDescription.trim() ||
-            form.supplierReference.trim() ||
-            purchaseListPrice ||
-            purchaseDiscountPercent ||
-            purchaseNetUnitCost,
-          ),
-          description: form.purchaseDescription.trim() || undefined,
-          unit: purchaseUnit,
-          listPrice: purchaseListPrice,
-          discountPercent: purchaseDiscountPercent,
-          netUnitCost: purchaseNetUnitCost,
-          ivaPercent: saleIvaPercent,
-          supplierId: supplier?.id,
-          supplierName: supplier?.name ?? (supplierName || undefined),
-          supplierReference: form.supplierReference.trim() || undefined,
-        },
-        calculation:
-          calculationKind !== "none"
-            ? {
-                kind: calculationKind,
-                unit: saleUnit,
-                roundingDecimals: form.calculationRoundingDecimals,
-              }
-            : undefined,
-        attributes: productAttributesFromText(form.attributesText),
-        notes: form.notes.trim() || undefined,
-        source: "manual",
-      });
-    } catch {
+        supplierReference: form.supplierReference.trim() || undefined,
+      },
+      calculation:
+        calculationKind !== "none"
+          ? {
+              kind: calculationKind,
+              unit: saleUnit,
+              roundingDecimals: form.calculationRoundingDecimals,
+            }
+          : undefined,
+      attributes: productAttributesFromText(form.attributesText),
+      notes: form.notes.trim() || undefined,
+      source: "manual",
+    });
+    if (!result.ok) {
       savingRef.current = false;
       setSaving(false);
-      setError("No se ha podido guardar el producto. Inténtalo de nuevo.");
+      setError(result.error);
       return;
     }
+    const created = result.product;
 
     if (documentPickRequest) {
       const createdSummary = buildPurchaseProductSummaries([], [created])[0];
