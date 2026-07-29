@@ -10,6 +10,7 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralSupplierCreate } from "@/hooks/useCentralSupplierCreate";
 import {
   findBestSupplierMatch,
   SUPPLIER_AUTO_LINK_SCORE,
@@ -45,9 +46,11 @@ export default function NuevoProveedorPage() {
     () => safeReturnPath(searchParams.get("from")),
     [searchParams],
   );
-  const { data, addSupplier } = useAppStore();
+  const { data } = useAppStore();
+  const { createSupplier } = useCentralSupplierCreate();
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [savingSupplier, setSavingSupplier] = useState(false);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
   function updateFormField(field: keyof typeof EMPTY_FORM, value: string) {
@@ -66,7 +69,8 @@ export default function NuevoProveedorPage() {
     }));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (savingSupplier) return;
     const name = form.name.trim();
     if (!name) {
       setFormError("Escribe el nombre del proveedor");
@@ -101,7 +105,14 @@ export default function NuevoProveedorPage() {
       return;
     }
 
-    addSupplier(payload);
+    setSavingSupplier(true);
+    const result = await createSupplier(payload).finally(() =>
+      setSavingSupplier(false),
+    );
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
     router.push(returnPath);
   }
 
@@ -143,7 +154,9 @@ export default function NuevoProveedorPage() {
             <Field label="Nombre *">
               <Input
                 value={form.name}
-                onChange={(event) => updateFormField("name", event.target.value)}
+                onChange={(event) =>
+                  updateFormField("name", event.target.value)
+                }
                 placeholder="Nombre de la empresa"
                 aria-invalid={Boolean(formError && !form.name.trim())}
               />
@@ -157,7 +170,9 @@ export default function NuevoProveedorPage() {
             <Field label="Teléfono">
               <Input
                 value={form.phone}
-                onChange={(event) => updateFormField("phone", event.target.value)}
+                onChange={(event) =>
+                  updateFormField("phone", event.target.value)
+                }
                 autoComplete="tel"
               />
             </Field>
@@ -166,7 +181,9 @@ export default function NuevoProveedorPage() {
                 ref={emailInputRef}
                 type="email"
                 value={form.email}
-                onChange={(event) => updateFormField("email", event.target.value)}
+                onChange={(event) =>
+                  updateFormField("email", event.target.value)
+                }
                 autoComplete="email"
                 placeholder="compras@proveedor.com"
                 aria-invalid={formError === SUPPLIER_EMAIL_FORMAT_ERROR}
@@ -239,7 +256,9 @@ export default function NuevoProveedorPage() {
             <Field label="Ciudad">
               <Input
                 value={form.city}
-                onChange={(event) => updateFormField("city", event.target.value)}
+                onChange={(event) =>
+                  updateFormField("city", event.target.value)
+                }
               />
             </Field>
             <div className="sm:col-span-2">
@@ -265,8 +284,8 @@ export default function NuevoProveedorPage() {
           </p>
         )}
 
-        <Button onClick={handleSave} fullWidth>
-          Guardar proveedor
+        <Button onClick={handleSave} fullWidth disabled={savingSupplier}>
+          {savingSupplier ? "Guardando..." : "Guardar proveedor"}
         </Button>
       </Card>
     </div>

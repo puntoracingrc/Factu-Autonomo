@@ -70,4 +70,36 @@ describe("central business conflict presentation", () => {
 
     expect(items[0].canKeepServer).toBe(false);
   });
+
+  it("presenta los conflictos de proveedor como una única ficha", () => {
+    const items = buildCentralBusinessConflictReviewItems(
+      {
+        ...EMPTY_DATA,
+        suppliers: [
+          {
+            id: "supplier-1",
+            name: "Proveedor local",
+            createdAt: "2026-07-29T17:00:00.000Z",
+          },
+        ],
+      },
+      [
+        operation({
+          input: {
+            ...operation().input,
+            entityType: "supplier",
+            entityId: "supplier-1",
+          },
+        }),
+      ],
+    );
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        key: "supplier:supplier-1",
+        entityType: "supplier",
+        label: "Proveedor local",
+      }),
+    ]);
+  });
 });

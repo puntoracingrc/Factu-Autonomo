@@ -1,6 +1,4 @@
-import type {
-  CentralBusinessQueuedOperation,
-} from "@/lib/central-business-authority/durable-queue";
+import type { CentralBusinessQueuedOperation } from "@/lib/central-business-authority/durable-queue";
 import type { AppData } from "@/lib/types";
 
 const AUTOMATIC_SERVER_RESOLUTION_CODES = new Set([
@@ -11,7 +9,7 @@ const AUTOMATIC_SERVER_RESOLUTION_CODES = new Set([
 
 export interface CentralBusinessConflictReviewItem {
   key: string;
-  entityType: "customer" | "product";
+  entityType: "customer" | "supplier" | "product";
   entityId: string;
   label: string;
   operationCount: number;
@@ -25,7 +23,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function payloadLabel(operation: CentralBusinessQueuedOperation): string | null {
+function payloadLabel(
+  operation: CentralBusinessQueuedOperation,
+): string | null {
   const payload = operation.input.payload;
   if (!isObject(payload)) return null;
   const name = payload.name;
@@ -43,6 +43,15 @@ function localEntityLabel(
       )?.name ??
       payloadLabel(operation) ??
       "Cliente sin nombre"
+    );
+  }
+  if (operation.input.entityType === "supplier") {
+    return (
+      data.suppliers.find(
+        (supplier) => supplier.id === operation.input.entityId,
+      )?.name ??
+      payloadLabel(operation) ??
+      "Proveedor sin nombre"
     );
   }
   return (
@@ -81,6 +90,7 @@ export function buildCentralBusinessConflictReviewItems(
     if (
       operation.status !== "conflict" ||
       (operation.input.entityType !== "customer" &&
+        operation.input.entityType !== "supplier" &&
         operation.input.entityType !== "product")
     ) {
       continue;
@@ -94,7 +104,7 @@ export function buildCentralBusinessConflictReviewItems(
     const codes = matching.map((operation) => operation.lastError?.code ?? "");
     return {
       key,
-      entityType: first.input.entityType as "customer" | "product",
+      entityType: first.input.entityType as "customer" | "supplier" | "product",
       entityId: first.input.entityId,
       label: localEntityLabel(data, first),
       operationCount: matching.length,

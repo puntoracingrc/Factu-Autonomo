@@ -7,6 +7,7 @@ import {
   type AppData,
   type Customer,
   type Product,
+  type Supplier,
 } from "@/lib/types";
 
 import {
@@ -16,6 +17,7 @@ import {
   type CentralBusinessQueueStorage,
 } from "./durable-queue";
 import {
+  buildCentralBusinessEventAppDataTransition,
   syncCentralBusinessEventsIntoAppData,
   verifyCentralBusinessEventContentHash,
   type CentralBusinessEventLocalApplyValue,
@@ -62,15 +64,30 @@ function product(overrides: Partial<Product> = {}): Product {
   };
 }
 
+function supplier(overrides: Partial<Supplier> = {}): Supplier {
+  return {
+    id: "supplier-1",
+    name: "Proveedor central",
+    nif: "B00000000",
+    createdAt: "2026-07-29T19:00:00.000Z",
+    ...overrides,
+  };
+}
+
 function event(
-  entity: Customer | Product,
+  entity: Customer | Supplier | Product,
   overrides: Partial<CentralBusinessBrowserEvent> = {},
 ): CentralBusinessBrowserEvent {
   return {
     schema: "CENTRAL_BUSINESS_EVENTS_RPC_ADAPTER_V1",
     eventId: "event-1",
     eventSequence: 1,
-    entityType: "firstName" in entity ? "customer" : "product",
+    entityType:
+      "firstName" in entity
+        ? "customer"
+        : "key" in entity
+          ? "product"
+          : "supplier",
     entityId: entity.id,
     entityVersion: 1,
     operationKind: "upsert",
@@ -141,16 +158,21 @@ describe("central business events app data sync", () => {
     ).resolves.toBe(false);
   });
 
-  it("añade clientes y productos ausentes y solo entonces avanza el cursor", async () => {
+  it("añade clientes, proveedores y productos ausentes antes de avanzar el cursor", async () => {
     const target = harness({
       ...EMPTY_DATA,
       customers: [],
+      suppliers: [],
       products: [],
     });
     const customerEvent = event(customer());
     const productEvent = event(product(), {
       eventId: "event-2",
       eventSequence: 2,
+    });
+    const supplierEvent = event(supplier(), {
+      eventId: "event-3",
+      eventSequence: 3,
     });
     const result = await syncCentralBusinessEventsIntoAppData(
       { ownerScope },
@@ -159,8 +181,8 @@ describe("central business events app data sync", () => {
         pull: async () => ({
           ok: true,
           schema: "CENTRAL_BUSINESS_EVENTS_CLIENT_V1",
-          events: [customerEvent, productEvent],
-          nextSequence: 2,
+          events: [customerEvent, productEvent, supplierEvent],
+          nextSequence: 3,
           hasMore: false,
         }),
       },
@@ -168,17 +190,56 @@ describe("central business events app data sync", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      pulled: 2,
-      applied: 2,
-      nextSequence: 2,
+      pulled: 3,
+      applied: 3,
+      nextSequence: 3,
     });
     expect(target.data.customers).toEqual([
       expect.objectContaining(customer()),
     ]);
     expect(target.data.products).toEqual([expect.objectContaining(product())]);
+    expect(target.data.suppliers).toEqual([
+      expect.objectContaining(supplier()),
+    ]);
     expect(
       loadCentralBusinessDurableQueue(ownerScope, target.storage),
-    ).toMatchObject({ lastAppliedEventSequence: 2 });
+    ).toMatchObject({ lastAppliedEventSequence: 3 });
+  });
+
+  it("aplica el borrado remoto de proveedor sin borrar el histórico del producto", () => {
+    const linkedProduct = product({
+      supplierId: "supplier-1",
+      supplierName: "Proveedor central",
+    });
+    const transition = buildCentralBusinessEventAppDataTransition({
+      data: {
+        ...EMPTY_DATA,
+        suppliers: [supplier()],
+        products: [linkedProduct],
+      },
+      event: event(supplier(), {
+        operationKind: "delete",
+        payload: null,
+        entityVersion: 2,
+      }),
+      knownVersion: {
+        entityType: "supplier",
+        entityId: "supplier-1",
+        version: 1,
+        deleted: false,
+        contentHash: "hash-v1",
+      },
+    });
+
+    expect(transition.value.action).toBe("deleted");
+    expect(transition.data.suppliers).toEqual([]);
+    expect(transition.data.products).toEqual([
+      expect.objectContaining({
+        id: linkedProduct.id,
+        supplierName: "Proveedor central",
+      }),
+    ]);
+    expect(transition.data.products[0]).not.toHaveProperty("supplierId");
   });
 
   it("repara una ficha ausente aunque la versión ya estuviera confirmada", async () => {

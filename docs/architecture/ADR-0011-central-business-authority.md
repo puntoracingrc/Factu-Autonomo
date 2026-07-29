@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 9
+- Version: 10
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -101,6 +101,13 @@ mismo contrato. El producto normalizado, la copia local durable y el comando
 central comparten ID y timestamp. Las altas automaticas y duplicados permanecen
 locales hasta que sus flujos tengan control de version propio; activar este
 canario no los convierte implicitamente en escrituras centrales.
+
+La creacion, edicion y borrado manual de proveedores reutilizan ese contrato.
+El borrado central aplica la retirada completa de la ficha maestra en una unica
+transicion local: desvincula gastos y productos, pero conserva sus nombres, NIF,
+lineas, precios, costes y snapshots historicos. Las altas automaticas de
+proveedores dentro de gastos permanecen locales hasta que gasto y proveedor
+puedan confirmarse juntos como una operacion atomica.
 
 La recepcion de clientes y productos centrales se ejecuta al arrancar la
 sesion, al volver a la pestaña, al recuperar conexion y mediante polling corto
