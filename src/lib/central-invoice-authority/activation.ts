@@ -6,6 +6,8 @@ export const CENTRAL_INVOICE_AUTHORITY_CANARY_USERS_KEY =
   "CENTRAL_INVOICE_AUTHORITY_CANARY_USERS";
 export const CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY =
   "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS";
+export const CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS_KEY =
+  "CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS";
 export const CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY =
   "CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY";
 export const CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY =
@@ -119,6 +121,15 @@ function canaryUserEmails(env: EnvLike): Set<string> {
   );
 }
 
+function shadowUserEmails(env: EnvLike): Set<string> {
+  return new Set(
+    (env[CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS_KEY] ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 function normalizeCanaryEmail(value: string | null | undefined): string | null {
   const normalized = value?.trim().toLowerCase() ?? "";
   return normalized.includes("@") ? normalized : null;
@@ -188,11 +199,30 @@ export function evaluateCentralInvoiceAuthorityActivation(
   }
 
   const normalizedUserEmail = normalizeCanaryEmail(input.userEmail);
-  const appliesToUser =
+  const canaryAppliesToUser =
     parsedMode === "required" ||
     Boolean(input.userId && canaryUsers(env).has(input.userId.toLowerCase())) ||
     Boolean(normalizedUserEmail && canaryUserEmails(env).has(normalizedUserEmail));
-  if (!appliesToUser) {
+  const shadowAppliesToUser =
+    parsedMode === "canary" &&
+    Boolean(
+      normalizedUserEmail &&
+        shadowUserEmails(env).has(normalizedUserEmail),
+    );
+
+  if (!canaryAppliesToUser && shadowAppliesToUser) {
+    return {
+      requestedMode: parsedMode,
+      effectiveMode: "shadow",
+      enabled: true,
+      fiscalWritesEnabled: false,
+      appliesToUser: true,
+      production,
+      reason: "shadow_only",
+    };
+  }
+
+  if (!canaryAppliesToUser) {
     return disabled(parsedMode, production, "user_not_allowlisted", false);
   }
 

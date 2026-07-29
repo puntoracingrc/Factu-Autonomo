@@ -10,6 +10,7 @@ import {
   CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY,
   CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
   CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY,
+  CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS_KEY,
   evaluateCentralInvoiceAuthorityActivation,
 } from "./activation";
 
@@ -107,6 +108,65 @@ describe("central invoice authority activation", () => {
         userEmail: "otro@example.com",
       }).reason,
     ).toBe("user_not_allowlisted");
+  });
+
+  it("permite observar una cuenta concreta sin habilitar escrituras fiscales", () => {
+    const result = evaluateCentralInvoiceAuthorityActivation({
+      env: {
+        NODE_ENV: "production",
+        [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+        [CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS_KEY]:
+          " PERSIANASALMAR@GMAIL.COM ",
+      },
+      userEmail: "persianasalmar@gmail.com",
+    });
+
+    expect(result).toEqual({
+      requestedMode: "canary",
+      effectiveMode: "shadow",
+      enabled: true,
+      fiscalWritesEnabled: false,
+      appliesToUser: true,
+      production: true,
+      reason: "shadow_only",
+    });
+  });
+
+  it("prioriza el canario de escritura cuando un email esta en ambas listas", () => {
+    const result = evaluateCentralInvoiceAuthorityActivation({
+      env: {
+        [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+        [CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS_KEY]: USER_EMAIL,
+        [CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS_KEY]: USER_EMAIL,
+        [CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY]:
+          CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
+        ...READY_PRIVATE_GATES,
+      },
+      userEmail: USER_EMAIL,
+    });
+
+    expect(result).toMatchObject({
+      requestedMode: "canary",
+      effectiveMode: "canary",
+      fiscalWritesEnabled: true,
+      appliesToUser: true,
+      reason: "canary_enabled",
+    });
+  });
+
+  it("no aplica la observacion a otros usuarios", () => {
+    const result = evaluateCentralInvoiceAuthorityActivation({
+      env: {
+        [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+        [CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS_KEY]:
+          "persianasalmar@gmail.com",
+      },
+      userEmail: "otro@example.com",
+    });
+
+    expect(result.reason).toBe("user_not_allowlisted");
+    expect(result.appliesToUser).toBe(false);
+    expect(result.fiscalWritesEnabled).toBe(false);
   });
 
   it("bloquea canary cuando el esquema no esta listo", () => {

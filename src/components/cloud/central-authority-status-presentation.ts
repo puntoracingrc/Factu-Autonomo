@@ -148,6 +148,18 @@ export function describeCentralInvoiceAuthorityNextStep(
     };
   }
 
+  if (
+    result.activation.effectiveMode === "shadow" &&
+    result.activation.appliesToUser
+  ) {
+    return {
+      tone: "warning",
+      title: "Observacion activa",
+      message:
+        "Esta cuenta puede comprobar el servidor y revisar sus series, pero la emision central sigue bloqueada hasta una promocion explicita al canario.",
+    };
+  }
+
   if (result.summary.serverSchemaReady && !result.summary.modeAllowsWrites) {
     return {
       tone: "warning",

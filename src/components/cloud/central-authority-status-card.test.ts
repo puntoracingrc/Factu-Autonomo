@@ -209,4 +209,40 @@ describe("central authority status account card", () => {
       title: "Formulario obligatorio protegido",
     });
   });
+
+  it("explica la observacion por cuenta sin sugerir que ya puede emitir", () => {
+    const result: CentralInvoiceAuthorityStatusResult = {
+      ok: true,
+      schema: "CENTRAL_INVOICE_AUTHORITY_STATUS_CLIENT_V1",
+      activation: {
+        requestedMode: "canary",
+        effectiveMode: "shadow",
+        enabled: true,
+        fiscalWritesEnabled: false,
+        appliesToUser: true,
+        production: true,
+        reason: "shadow_only",
+      },
+      readiness: {
+        schema: "CENTRAL_INVOICE_AUTHORITY_STATUS_READINESS_V1",
+        checkedAt: "2026-07-29T08:00:00.000Z",
+        ready: true,
+        checks: [],
+        blockers: [],
+      },
+      summary: {
+        fiscalWritesPossible: false,
+        modeAllowsWrites: false,
+        serverSchemaReady: true,
+        deviceVerified: true,
+      },
+    };
+
+    expect(describeCentralInvoiceAuthorityNextStep(result)).toEqual({
+      tone: "warning",
+      title: "Observacion activa",
+      message:
+        "Esta cuenta puede comprobar el servidor y revisar sus series, pero la emision central sigue bloqueada hasta una promocion explicita al canario.",
+    });
+  });
 });
