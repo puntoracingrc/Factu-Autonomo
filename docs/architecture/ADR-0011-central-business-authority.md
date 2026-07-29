@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 4
+- Version: 5
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -78,6 +78,23 @@ con una operacion local pendiente, ambas versiones quedan en conflicto
 explicito. Las transiciones de la cola se ejecutan bajo Web Locks por
 propietario cuando el navegador lo soporta, con serializacion local de respaldo
 para evitar que dos acciones de la misma pestaña se pisen.
+
+El primer flujo funcional es la creacion de clientes y permanece limitado por
+una allowlist publica de UUIDs sin datos fiscales, ademas del canario privado
+del servidor. Fuera de esa lista se conserva exactamente el guardado local
+anterior. Dentro del canario, el cliente consulta el preflight: un rechazo
+autenticado o un servidor no preparado bloquean antes de escribir; un fallo
+transitorio de red permite guardar offline solo despues de persistir y releer
+la operacion. La ficha local y el comando central comparten ID y timestamp. El
+boton queda ocupado durante el commit para evitar dobles operaciones. El
+preflight tiene un limite corto: si una red degradada lo deja colgado, se trata
+como fallo transitorio y no congela el formulario.
+
+Un commit local bloqueado retira el comando antes de cualquier envio. Si el
+estado durable local queda indeterminado, la operacion se conserva para
+revision y nunca se confirma silenciosamente. Una confirmacion de escritura
+actualiza la version conocida de la entidad, pero no adelanta el cursor del
+outbox.
 
 ## Rollback
 

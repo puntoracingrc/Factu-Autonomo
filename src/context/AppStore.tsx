@@ -503,6 +503,11 @@ interface AppStoreValue {
   addCustomer: (
     customer: Omit<Customer, "id" | "createdAt" | "updatedAt">,
   ) => { ok: true; customer: Customer } | { ok: false; error: string };
+  addCustomerDurably: (
+    customer: Omit<Customer, "id" | "createdAt" | "updatedAt">,
+    identity: { id: string; now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<Customer>;
   updateCustomer: (
     customer: Customer,
   ) => { ok: true; customer: Customer } | { ok: false; error: string };
@@ -2748,6 +2753,28 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const addCustomerDurably = useCallback(
+    (
+      customer: Omit<Customer, "id" | "createdAt" | "updatedAt">,
+      identity: { id: string; now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<Customer> =>
+      commitDurableAppData(expected, (previous) => {
+        const write = createCustomerInCollection(
+          previous.customers,
+          customer,
+          identity.id,
+          identity.now,
+        );
+        if (!write.ok) throw new Error(write.error);
+        return {
+          data: { ...previous, customers: write.customers },
+          value: write.customer,
+        };
+      }),
+    [commitDurableAppData],
+  );
+
   const updateCustomer = useCallback(
     (
       customer: Customer,
@@ -2958,6 +2985,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       mergeSuppliers,
       mergeCustomers,
       addCustomer,
+      addCustomerDurably,
       updateCustomer,
       deleteCustomer,
       upsertCustomerForDocument,
@@ -3032,6 +3060,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       mergeSuppliers,
       mergeCustomers,
       addCustomer,
+      addCustomerDurably,
       updateCustomer,
       deleteCustomer,
       upsertCustomerForDocument,

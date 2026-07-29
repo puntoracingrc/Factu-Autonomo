@@ -29,6 +29,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralCustomerCreate } from "@/hooks/useCentralCustomerCreate";
 import { formatMoney } from "@/lib/calculations";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import {
@@ -178,13 +179,18 @@ function DuplicateCustomerChoiceCard({
 export default function ClientesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, addCustomer, updateCustomer, deleteCustomer, mergeCustomers } =
+  const { data, updateCustomer, deleteCustomer, mergeCustomers } =
     useAppStore();
+  const { createCustomer } = useCentralCustomerCreate();
   const { checkCanAddCustomer } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(
+    "Cliente guardado correctamente",
+  );
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
@@ -410,7 +416,8 @@ export default function ClientesPage() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (savingCustomer) return;
     const validation = validateCustomerInput(
       data.customers,
       form,
@@ -449,6 +456,7 @@ export default function ClientesPage() {
         setFormError(result.error);
         return;
       }
+      setSavedMessage("Cliente guardado correctamente");
     } else {
       const gate = checkCanAddCustomer(data.customers.length);
       if (!gate.allowed) {
@@ -457,11 +465,21 @@ export default function ClientesPage() {
         return;
       }
       maybeCelebrateFirstCustomer(data.customers.length);
-      const result = addCustomer(payload);
+      setSavingCustomer(true);
+      const result = await createCustomer(payload).finally(() =>
+        setSavingCustomer(false),
+      );
       if (!result.ok) {
         setFormError(result.error);
         return;
       }
+      setSavedMessage(
+        result.delivery === "central_pending"
+          ? "Cliente guardado en este dispositivo y pendiente de confirmar en el servidor"
+          : result.delivery === "central_review"
+            ? "Cliente guardado; la sincronización requiere revisión"
+            : "Cliente guardado correctamente",
+      );
     }
 
     closeForm();
@@ -647,7 +665,7 @@ export default function ClientesPage() {
 
       {saved && !formOpen && (
         <p className="mb-4 text-center text-sm font-medium text-green-600">
-          Cliente guardado correctamente
+          {savedMessage}
         </p>
       )}
 
@@ -835,8 +853,12 @@ export default function ClientesPage() {
               </p>
             )}
 
-            <Button onClick={handleSave} fullWidth>
-              {editingId ? "Guardar cambios" : "Guardar cliente"}
+            <Button onClick={handleSave} fullWidth disabled={savingCustomer}>
+              {savingCustomer
+                ? "Guardando..."
+                : editingId
+                  ? "Guardar cambios"
+                  : "Guardar cliente"}
             </Button>
           </div>
         </ResponsiveEntityPanel>
