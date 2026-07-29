@@ -118,6 +118,7 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     const rejected = [left, right].filter((result) => result.error);
     expect(accepted).toHaveLength(1);
     expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.error?.code).toBe("P4103");
     expect(rejected[0]?.error?.message).toContain("version mismatch");
     expect(accepted[0]?.data).toEqual([
       expect.objectContaining({
@@ -150,6 +151,14 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
         entity_version: 1,
       }),
     ]);
+
+    const reused = await mutate({
+      ...winningArgs,
+      p_request_hash: "different-request",
+      p_payload: { name: "Different" },
+      p_content_hash: "different-hash",
+    });
+    expect(reused.error?.code).toBe("P4102");
   });
 
   it("rejects stale updates and commits the matching version", async () => {
@@ -180,7 +189,10 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
         contentHash: "hash-stale",
       }),
     );
-    expect(stale.error?.message).toContain("version mismatch");
+    expect(stale.error).toMatchObject({
+      code: "P4103",
+      message: expect.stringContaining("version mismatch"),
+    });
 
     const { data, error } = await admin
       .from("central_business_entities")

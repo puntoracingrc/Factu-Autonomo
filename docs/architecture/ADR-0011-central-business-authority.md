@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 2
+- Version: 3
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -60,6 +60,13 @@ declara `writesPossible` cuando el dispositivo esta vigente, el canario aplica,
 los gates de entorno permiten escribir y todos los rechazos seguros responden
 como se espera. Este estado se consulta con `no-store` y no sustituye una
 confirmacion de escritura.
+
+Los clientes clasifican un fallo de red o servidor como reintentable, pero
+nunca reintentan automaticamente un conflicto de version, una clave
+idempotente reutilizada o una entidad ya eliminada. PostgreSQL expone esos
+casos con SQLSTATE estables (`P4103`, `P4102` y `P4104`) y la API los traduce a
+codigos de dominio. La cola cliente debe conservar esos conflictos hasta una
+decision explicita.
 
 ## Rollback
 
