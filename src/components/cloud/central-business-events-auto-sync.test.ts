@@ -35,5 +35,17 @@ describe("central business events auto sync wiring", () => {
     expect(component).toContain(
       'document.addEventListener("visibilitychange", wake)',
     );
+    expect(component).toContain(
+      "isCentralBusinessEventsRealtimeWakeupsEnabledForUser",
+    );
+    expect(component).toContain("centralBusinessEventsRealtimeSubscription");
+    expect(component).toContain("await supabase.realtime.setAuth()");
+    expect(component).toContain("config: { private: true }");
+    expect(component).toContain('"broadcast"');
+    expect(component).toContain(
+      "CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT",
+    );
+    expect(component).toContain("realtimeWakeRef.current()");
+    expect(component).toContain("pendingWakeRef.current = true");
   });
 });

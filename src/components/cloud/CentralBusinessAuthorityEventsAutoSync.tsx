@@ -8,9 +8,16 @@ import {
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_START_DELAY_MS,
+  CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT,
+  centralBusinessEventsRealtimeSubscription,
   isCentralBusinessEventsAutoSyncEnabledForUser,
+  isCentralBusinessEventsRealtimeWakeupsEnabledForUser,
   nextCentralBusinessEventsAutoSyncDelay,
 } from "@/lib/central-business-authority/events-auto-sync";
+
+type CentralBusinessRealtimeChannel = {
+  unsubscribe: () => unknown;
+};
 
 type LatestState = {
   ready: boolean;
@@ -24,8 +31,13 @@ export function CentralBusinessAuthorityEventsAutoSync() {
   const userId = typeof user?.id === "string" ? user.id : null;
   const enabled =
     emailConfirmed && isCentralBusinessEventsAutoSyncEnabledForUser(userId);
+  const realtimeWakeupsEnabled =
+    emailConfirmed &&
+    isCentralBusinessEventsRealtimeWakeupsEnabledForUser(userId);
   const runningRef = useRef(false);
+  const pendingWakeRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  const realtimeWakeRef = useRef<() => void>(() => {});
   const latestRef = useRef<LatestState>({
     ready,
     userId,
@@ -82,13 +94,22 @@ export function CentralBusinessAuthorityEventsAutoSync() {
         schedule(CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS);
       } finally {
         runningRef.current = false;
+        if (pendingWakeRef.current) {
+          pendingWakeRef.current = false;
+          schedule(0);
+        }
       }
     }
 
     function wake() {
+      if (runningRef.current) {
+        pendingWakeRef.current = true;
+        return;
+      }
       schedule(0);
     }
 
+    realtimeWakeRef.current = wake;
     schedule(CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_START_DELAY_MS);
     window.addEventListener("online", wake);
     window.addEventListener("focus", wake);
@@ -96,12 +117,59 @@ export function CentralBusinessAuthorityEventsAutoSync() {
 
     return () => {
       cancelled = true;
+      realtimeWakeRef.current = () => {};
+      pendingWakeRef.current = false;
       clearTimer();
       window.removeEventListener("online", wake);
       window.removeEventListener("focus", wake);
       document.removeEventListener("visibilitychange", wake);
     };
   }, [enabled]);
+
+  useEffect(() => {
+    const subscription = centralBusinessEventsRealtimeSubscription(userId);
+    if (
+      !enabled ||
+      !realtimeWakeupsEnabled ||
+      !ready ||
+      subscription === null
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let channel: CentralBusinessRealtimeChannel | null = null;
+
+    void import("@/lib/supabase/client")
+      .then(async ({ getSupabaseClientAsync }) => getSupabaseClientAsync())
+      .then(async (supabase) => {
+        if (cancelled || supabase === null) return;
+
+        await supabase.realtime.setAuth();
+        if (cancelled) return;
+
+        channel = supabase
+          .channel(subscription.channelName, {
+            config: { private: true },
+          })
+          .on(
+            "broadcast",
+            { event: CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT },
+            () => {
+              realtimeWakeRef.current();
+            },
+          )
+          .subscribe();
+      })
+      .catch(() => {
+        // The cursor-based polling loop remains the durable fallback.
+      });
+
+    return () => {
+      cancelled = true;
+      if (channel) void channel.unsubscribe();
+    };
+  }, [enabled, ready, realtimeWakeupsEnabled, userId]);
 
   return null;
 }
