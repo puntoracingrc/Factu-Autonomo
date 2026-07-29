@@ -136,6 +136,13 @@ const centralBusinessAuthorityFoundationMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const centralBusinessBootstrapMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260729233658_central_business_bootstrap_commit.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -173,6 +180,7 @@ const serviceOnlyTables = [
   "central_business_entities",
   "central_business_commands",
   "central_business_outbox",
+  "central_business_bootstraps",
 ];
 
 const browserSyncTables = ["user_backups", "sync_entities"];
@@ -475,6 +483,8 @@ describe("Supabase table-by-table RLS audit hardening", () => {
           ? userDevicesMigrationSource
           : table === "affiliate_reward_entries"
             ? affiliateRewardMigrationSource
+            : table === "central_business_bootstraps"
+              ? centralBusinessBootstrapMigrationSource
             : table.startsWith("central_business_")
               ? centralBusinessAuthorityFoundationMigrationSource
             : table.startsWith("central_invoice_")
