@@ -15,7 +15,9 @@ type MasterDeleteConfirmationModalProps =
       name: string;
       impact: CustomerDeletionImpact;
       onClose: () => void;
-      onConfirm: () => void;
+      onConfirm: () => void | Promise<void>;
+      busy?: boolean;
+      error?: string | null;
     }
   | {
       open: boolean;
@@ -23,7 +25,9 @@ type MasterDeleteConfirmationModalProps =
       name: string;
       impact: SupplierDeletionImpact;
       onClose: () => void;
-      onConfirm: () => void;
+      onConfirm: () => void | Promise<void>;
+      busy?: boolean;
+      error?: string | null;
     };
 
 function recordLabel(count: number, singular: string, plural: string): string {
@@ -99,18 +103,33 @@ export function MasterDeleteConfirmationModal(
         </p>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-5 flex flex-col flex-wrap gap-3 sm:flex-row">
+        {props.error ? (
+          <p
+            role="alert"
+            className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
+          >
+            {props.error}
+          </p>
+        ) : null}
         <Button
           type="button"
           variant="secondary"
           fullWidth
           onClick={props.onClose}
+          disabled={props.busy}
           data-modal-initial-focus
         >
           Cancelar
         </Button>
-        <Button type="button" variant="danger" fullWidth onClick={props.onConfirm}>
-          Sí, borrar ficha
+        <Button
+          type="button"
+          variant="danger"
+          fullWidth
+          onClick={props.onConfirm}
+          disabled={props.busy}
+        >
+          {props.busy ? "Borrando..." : "Sí, borrar ficha"}
         </Button>
       </div>
     </Modal>

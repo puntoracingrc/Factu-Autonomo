@@ -7,8 +7,10 @@ function source(relativePath: string) {
 
 const appStore = source("../../context/AppStore.tsx");
 const hook = source("../../hooks/useCentralCustomerCreate.ts");
+const mutationHook = source("../../hooks/useCentralCustomerMutations.ts");
 const customersPage = source("../../app/clientes/page.tsx");
 const newCustomerPage = source("../../app/clientes/nuevo/page.tsx");
+const eventApply = source("./events-app-data-sync.ts");
 
 describe("central customer create canary wiring", () => {
   it("expone un commit durable con identidad compartida", () => {
@@ -18,21 +20,29 @@ describe("central customer create canary wiring", () => {
     expect(appStore).toContain("identity.now");
   });
 
-  it("conecta ambos formularios sin reemplazar edicion ni borrado", () => {
+  it("conecta altas, edicion y borrado mediante autoridad central gradual", () => {
     expect(hook).toContain("createCustomerWithCentralCanary");
+    expect(mutationHook).toContain("updateCustomerWithCentralCanary");
+    expect(mutationHook).toContain("deleteCustomerWithCentralCanary");
     expect(customersPage).toContain("useCentralCustomerCreate");
     expect(customersPage).toContain("await createCustomer(payload)");
-    expect(customersPage).toContain("updateCustomer({ ...existing, ...payload })");
+    expect(customersPage).toContain("await updateCustomer({");
+    expect(customersPage).toContain("await deleteCustomer(deleteCandidate.id)");
     expect(newCustomerPage).toContain("useCentralCustomerCreate");
     expect(newCustomerPage).toContain("await createCustomer({");
+  });
+
+  it("aplica un borrado remoto con el contrato completo del maestro", () => {
+    expect(eventApply).toContain("deleteCustomerMasterFromData");
+    expect(appStore).toContain("deleteCustomerDurably");
+    expect(appStore).toContain("updateCustomerDurably");
   });
 
   it("impide dobles envios mientras se confirma el guardado", () => {
     expect(customersPage).toContain("disabled={savingCustomer}");
     expect(newCustomerPage).toContain("disabled={savingCustomer}");
     expect(customersPage).toMatch(/savingCustomer\s*\?\s*"Guardando\.\.\."/u);
-    expect(newCustomerPage).toMatch(
-      /savingCustomer\s*\?\s*"Guardando\.\.\."/u,
-    );
+    expect(newCustomerPage).toMatch(/savingCustomer\s*\?\s*"Guardando\.\.\."/u);
+    expect(customersPage).toContain("busy={deletingCustomer}");
   });
 });

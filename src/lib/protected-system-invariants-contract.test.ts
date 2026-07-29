@@ -18,6 +18,7 @@ const protectedAdrs = [
   "ADR-0006-customer-master-reliability.md",
   "ADR-0007-paid-affiliate-rewards.md",
   "ADR-0010-central-invoice-authority.md",
+  "ADR-0011-central-business-authority.md",
 ] as const;
 
 describe("mandatory protected-system registry", () => {
@@ -52,6 +53,12 @@ describe("mandatory protected-system registry", () => {
       "Una serie activada en modo central nunca vuelve a numeración local",
     );
     expect(registry).toContain("PITR es opcional");
+    expect(registry).toContain(
+      "Una ficha antigua sin versión central permanece local",
+    );
+    expect(registry).toContain(
+      "Fusiones y cambios masivos con entidades centrales exigen un comando atómico",
+    );
   });
 
   it("protege las instrucciones y el registro con CODEOWNERS", () => {

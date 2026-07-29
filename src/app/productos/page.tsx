@@ -35,6 +35,7 @@ import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralProductMutations } from "@/hooks/useCentralProductMutations";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { normalizeDocumentUnitId, unitShortLabel } from "@/lib/document-units";
 import {
@@ -201,12 +202,12 @@ export default function ProductosPage() {
   const {
     data,
     addProduct,
-    updateProduct,
     renameProductFamily: renameProductFamilyInStore,
     applyProductCatalogStructure,
-    deleteProduct,
     mergeProducts,
   } = useAppStore();
+  const { updateProduct, deleteProduct, isCentralProduct } =
+    useCentralProductMutations();
   const { checkCanAddProduct } = useBilling();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
@@ -657,8 +658,9 @@ export default function ProductosPage() {
     setSort("newest");
   }
 
-  function restoreHiddenProduct(product: Product) {
-    updateProduct({ ...product, hidden: false });
+  async function restoreHiddenProduct(product: Product) {
+    const result = await updateProduct({ ...product, hidden: false });
+    if (!result.ok) setFamilyNotice(result.error);
   }
 
   function selectVisibleProducts() {
@@ -802,17 +804,21 @@ export default function ProductosPage() {
     return false;
   }
 
-  function saveProductPatch(
+  async function saveProductPatch(
     product: PurchaseProductSummary,
     patch: Partial<Product>,
-  ): Product | null {
+  ): Promise<Product | null> {
     const existing = product.productId
       ? data.products.find((entry) => entry.id === product.productId)
       : data.products.find((entry) => entry.key === product.key);
     if (existing) {
       const updated = { ...existing, ...patch };
-      updateProduct(updated);
-      return updated;
+      const result = await updateProduct(updated);
+      if (!result.ok) {
+        setFamilyNotice(result.error);
+        return null;
+      }
+      return result.value;
     }
     if (!canAddCatalogProduct()) return null;
     return addProduct({ ...productFromSummary(product), ...patch });
@@ -846,10 +852,24 @@ export default function ProductosPage() {
     return false;
   }
 
+  function includesCentralProducts(
+    affectedProducts: PurchaseProductSummary[],
+  ): boolean {
+    return affectedProducts.some(
+      (product) => product.productId && isCentralProduct(product.productId),
+    );
+  }
+
   function runCatalogStructureOperation(
     operation: ProductCatalogStructureOperation,
     affectedProducts: PurchaseProductSummary[],
   ) {
+    if (includesCentralProducts(affectedProducts)) {
+      setFamilyNotice(
+        "La organización masiva de productos centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado el catálogo.",
+      );
+      return null;
+    }
     if (!canMaterializeStructureProducts(affectedProducts)) return null;
     const result = applyProductCatalogStructure(operation);
     if (!result.ok) {
@@ -973,6 +993,12 @@ export default function ProductosPage() {
     const affectedProducts = products.filter(
       (product) => product.family === sourceFamily,
     );
+    if (includesCentralProducts(affectedProducts)) {
+      setFamilyNotice(
+        "El cambio de una familia con productos centrales necesita una operación atómica. No se ha cambiado el catálogo.",
+      );
+      return false;
+    }
     if (!canMaterializeStructureProducts(affectedProducts)) return false;
 
     const result = renameProductFamilyInStore(sourceFamily, targetFamily);
@@ -1127,14 +1153,23 @@ export default function ProductosPage() {
     return true;
   }
 
-  function handleMergeProducts(
+  async function handleMergeProducts(
     keep: PurchaseProductSummary,
     removeKey: string,
   ) {
     const remove = products.find((product) => product.key === removeKey);
     if (!remove) return;
+    if (
+      (keep.productId && isCentralProduct(keep.productId)) ||
+      (remove.productId && isCentralProduct(remove.productId))
+    ) {
+      setFamilyNotice(
+        "La fusión de productos centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado el catálogo.",
+      );
+      return;
+    }
 
-    const keepProduct = saveProductPatch(keep, {
+    const keepProduct = await saveProductPatch(keep, {
       aliases: [
         ...new Set([...(keep.aliases ?? []), remove.key, ...remove.aliases]),
       ],
@@ -1192,14 +1227,18 @@ export default function ProductosPage() {
     setEditingProductKey(created.key);
   }
 
-  function removeProduct(product: PurchaseProductSummary) {
+  async function removeProduct(product: PurchaseProductSummary) {
     const existing = product.productId
       ? data.products.find((entry) => entry.id === product.productId)
       : undefined;
 
     if (existing && product.purchaseCount === 0) {
       if (confirm("¿Eliminar este producto?")) {
-        deleteProduct(existing.id);
+        const result = await deleteProduct(existing.id);
+        if (!result.ok) {
+          setFamilyNotice(result.error);
+          return;
+        }
         setSelectedProductKeys((current) =>
           current.filter((key) => key !== product.key),
         );
@@ -1212,7 +1251,11 @@ export default function ProductosPage() {
     if (!confirm(message)) return;
 
     if (existing) {
-      updateProduct({ ...existing, hidden: true });
+      const result = await updateProduct({ ...existing, hidden: true });
+      if (!result.ok) {
+        setFamilyNotice(result.error);
+        return;
+      }
     } else {
       addProduct({
         ...productFromSummary(product),
@@ -1783,7 +1826,7 @@ export default function ProductosPage() {
                 <HiddenProductRow
                   key={product.id}
                   product={product}
-                  onRestore={() => restoreHiddenProduct(product)}
+                  onRestore={() => void restoreHiddenProduct(product)}
                 />
               ))}
             </div>
@@ -1828,10 +1871,10 @@ export default function ProductosPage() {
                         onPickSavedProduct={handlePickSavedProductForDocument}
                         onSave={(patch) => saveProductPatch(product, patch)}
                         onDuplicate={() => duplicateProduct(product)}
-                        onRemove={() => removeProduct(product)}
+                        onRemove={() => void removeProduct(product)}
                         onAutoEditConsumed={() => setEditingProductKey(null)}
                         onMerge={(removeKey) =>
-                          handleMergeProducts(product, removeKey)
+                          void handleMergeProducts(product, removeKey)
                         }
                       />
                     );
@@ -2034,7 +2077,7 @@ function ProductCard({
   onToggleSelected: () => void;
   onPickForDocument: () => void;
   onPickSavedProduct?: (product: Product) => void;
-  onSave: (patch: Partial<Product>) => Product | null;
+  onSave: (patch: Partial<Product>) => Promise<Product | null>;
   onDuplicate: () => void;
   onRemove: () => void;
   onAutoEditConsumed: () => void;
@@ -2259,7 +2302,7 @@ function ProductCard({
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [dirty, panelOpen]);
 
-  function saveEdits() {
+  async function saveEdits() {
     if (savingRef.current) return;
     if (product.source === "manual" && !draft.name.trim()) {
       setFormError("Escribe el nombre del producto.");
@@ -2330,7 +2373,7 @@ function ProductCard({
 
     let savedProduct: Product | null;
     try {
-      savedProduct = onSave({
+      savedProduct = await onSave({
         sku: draft.sku.trim() || undefined,
         name:
           product.source === "detected"
@@ -2384,6 +2427,8 @@ function ProductCard({
       setFormError("No se ha podido guardar el producto. Inténtalo de nuevo.");
       return;
     }
+    savingRef.current = false;
+    setSaving(false);
     setInitialDraft(draft);
     setPanelOpen(false);
     if (pickMode) {
