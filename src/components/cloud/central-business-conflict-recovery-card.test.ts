@@ -21,6 +21,9 @@ describe("central business conflict recovery account wiring", () => {
     expect(component).toContain("Conservar versión del servidor");
     expect(component).toContain("acknowledged[item.key]");
     expect(component).toContain(
+      "(!loadError && items.length === 0 && !notice)",
+    );
+    expect(component).toContain(
       "resolveCentralBusinessConflictKeepingServer",
     );
   });

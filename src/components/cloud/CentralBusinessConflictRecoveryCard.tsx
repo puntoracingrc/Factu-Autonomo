@@ -94,7 +94,11 @@ export function CentralBusinessConflictRecoveryCard() {
     [data, operations],
   );
 
-  if (!ownerScope || !emailConfirmed || (!loadError && items.length === 0)) {
+  if (
+    !ownerScope ||
+    !emailConfirmed ||
+    (!loadError && items.length === 0 && !notice)
+  ) {
     return null;
   }
 
