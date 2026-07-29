@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 3
+- Version: 4
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -67,6 +67,17 @@ idempotente reutilizada o una entidad ya eliminada. PostgreSQL expone esos
 casos con SQLSTATE estables (`P4103`, `P4102` y `P4104`) y la API los traduce a
 codigos de dominio. La cola cliente debe conservar esos conflictos hasta una
 decision explicita.
+
+La cola duradera se separa por propietario y se escribe y relee antes de
+permitir la mutacion local. Procesa en FIFO, conserva la misma clave idempotente
+en todos los reintentos y no usa la secuencia devuelta por una escritura para
+adelantar el cursor de descarga: podria haber eventos intermedios de otro
+dispositivo. Una pagina descargada solo confirma su cursor despues de aplicar
+todos sus eventos. Si falla a mitad, se repite de forma idempotente; si coincide
+con una operacion local pendiente, ambas versiones quedan en conflicto
+explicito. Las transiciones de la cola se ejecutan bajo Web Locks por
+propietario cuando el navegador lo soporta, con serializacion local de respaldo
+para evitar que dos acciones de la misma pestaña se pisen.
 
 ## Rollback
 
