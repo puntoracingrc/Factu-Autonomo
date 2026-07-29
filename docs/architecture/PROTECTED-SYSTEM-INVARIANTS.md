@@ -230,6 +230,10 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
 - La cola local se conserva y relee antes del cambio local. Al recuperar
   conexión se vacía en FIFO antes de descargar eventos; un conflicto de
   versión nunca sobrescribe silenciosamente.
+- Conservar la versión central exige decisión explícita, agrupa todas las
+  operaciones de la entidad y solo las retira después de aplicar y verificar
+  una versión autoritativa superior. Los conflictos de idempotencia no se
+  resuelven automáticamente.
 - Una ficha antigua sin versión central permanece local hasta su bootstrap
   explícito. Una red incierta no autoriza a inventar esa clasificación.
 - Fusiones y cambios masivos con entidades centrales exigen un comando atómico;

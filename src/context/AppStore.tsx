@@ -26,6 +26,8 @@ import type { CentralInvoiceAuthorityFormIssueIdentity } from "@/lib/central-inv
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
 import type { CentralBusinessDrainResult } from "@/lib/central-business-authority/durable-queue";
+import type { CentralBusinessConflictRecoveryResult } from "@/lib/central-business-authority/conflict-recovery";
+import type { CentralBusinessEntityType } from "@/lib/central-business-authority/mutation-command";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -394,6 +396,11 @@ interface AppStoreValue {
     ownerScope: string,
     options?: { limit?: number },
   ) => Promise<CentralBusinessEventsAppDataSyncResult>;
+  resolveCentralBusinessConflictKeepingServer: (input: {
+    ownerScope: string;
+    entityType: CentralBusinessEntityType;
+    entityId: string;
+  }) => Promise<CentralBusinessConflictRecoveryResult>;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
@@ -1322,6 +1329,24 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [commitDurableAppData],
   );
 
+  const pullCentralBusinessEvents = useCallback(
+    async (
+      ownerScope: string,
+      options: { limit?: number } = {},
+    ): Promise<CentralBusinessEventsAppDataSyncResult> => {
+      const { syncCentralBusinessEventsIntoAppData } =
+        await import("@/lib/central-business-authority/events-app-data-sync");
+      return syncCentralBusinessEventsIntoAppData(
+        { ownerScope, limit: options.limit },
+        {
+          getCurrentData: () => dataRef.current,
+          commit: (expected, build) => commitDurableAppData(expected, build),
+        },
+      );
+    },
+    [commitDurableAppData],
+  );
+
   const syncCentralBusinessEvents = useCallback(
     async (
       ownerScope: string,
@@ -1369,17 +1394,27 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      const { syncCentralBusinessEventsIntoAppData } =
-        await import("@/lib/central-business-authority/events-app-data-sync");
-      return syncCentralBusinessEventsIntoAppData(
-        { ownerScope, limit: options.limit },
-        {
-          getCurrentData: () => dataRef.current,
-          commit: (expected, build) => commitDurableAppData(expected, build),
-        },
-      );
+      return pullCentralBusinessEvents(ownerScope, options);
     },
-    [commitDurableAppData],
+    [pullCentralBusinessEvents],
+  );
+
+  const resolveCentralBusinessConflictKeepingServer = useCallback(
+    async (input: {
+      ownerScope: string;
+      entityType: CentralBusinessEntityType;
+      entityId: string;
+    }): Promise<CentralBusinessConflictRecoveryResult> => {
+      const { resolveCentralBusinessConflictKeepingServer: resolve } =
+        await import(
+          "@/lib/central-business-authority/conflict-recovery"
+        );
+      return resolve(input, {
+        syncServerEvents: () =>
+          pullCentralBusinessEvents(input.ownerScope, { limit: 100 }),
+      });
+    },
+    [pullCentralBusinessEvents],
   );
 
   const updateProfile = useCallback(
@@ -3135,6 +3170,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
+      resolveCentralBusinessConflictKeepingServer,
       updateProfile,
       addDocument,
       addDocumentWithCentralIdentity,
@@ -3216,6 +3252,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
+      resolveCentralBusinessConflictKeepingServer,
       updateProfile,
       addDocument,
       addDocumentWithCentralIdentity,
