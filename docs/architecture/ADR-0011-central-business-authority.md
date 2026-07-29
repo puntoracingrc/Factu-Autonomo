@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 11
+- Version: 12
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -150,6 +150,14 @@ explicito. Si la lectura previa termino correctamente, la ausencia de version
 permite ese fallback; si la red impide saberlo, el cambio se bloquea en vez de
 centralizar o sobrescribir por conjetura. Dos cambios pendientes sobre la misma
 entidad no se encadenan con una version obsoleta.
+
+El bootstrap empieza por una vista previa autenticada y vinculada al
+dispositivo. El servidor calcula por separado la huella del snapshot local y
+la del estado central, y clasifica altas, coincidencias, conflictos y registros
+solo centrales sin devolver payloads. Un tombstone central frente a una ficha
+local es conflicto, nunca una resurreccion automatica. La vista previa no
+escribe, y solo declara el commit posible cuando no hay conflictos ni registros
+activos ausentes del snapshot local.
 
 El borrado remoto de un cliente aplica el contrato completo del maestro:
 desvincula borradores y recordatorios operativos, pero conserva
