@@ -30,6 +30,7 @@ import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCentralCustomerCreate } from "@/hooks/useCentralCustomerCreate";
+import { useCentralCustomerMutations } from "@/hooks/useCentralCustomerMutations";
 import { formatMoney } from "@/lib/calculations";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import {
@@ -179,9 +180,10 @@ function DuplicateCustomerChoiceCard({
 export default function ClientesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, updateCustomer, deleteCustomer, mergeCustomers } =
-    useAppStore();
+  const { data, mergeCustomers } = useAppStore();
   const { createCustomer } = useCentralCustomerCreate();
+  const { updateCustomer, deleteCustomer, isCentralCustomer } =
+    useCentralCustomerMutations();
   const { checkCanAddCustomer } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -213,6 +215,9 @@ export default function ClientesPage() {
     CUSTOMER_LIST_BATCH_SIZE,
   );
   const [deleteCandidate, setDeleteCandidate] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   const customerInvoicedTotals = useMemo(
     () => buildCustomerInvoicedTotals(data.customers, data.documents),
@@ -353,6 +358,12 @@ export default function ClientesPage() {
 
   function handleManualMerge() {
     if (selectedIds.length < 2 || !keepId) return;
+    if (selectedIds.some(isCentralCustomer)) {
+      setPageError(
+        "La unificación de clientes centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
+      );
+      return;
+    }
     const keep = data.customers.find((customer) => customer.id === keepId);
     if (!keep) return;
     const removeIds = selectedIds.filter((id) => id !== keepId);
@@ -451,12 +462,22 @@ export default function ClientesPage() {
       ? data.customers.find((c) => c.id === editingId)
       : null;
     if (existing) {
-      const result = updateCustomer({ ...existing, ...payload });
+      setSavingCustomer(true);
+      const result = await updateCustomer({
+        ...existing,
+        ...payload,
+      }).finally(() => setSavingCustomer(false));
       if (!result.ok) {
         setFormError(result.error);
         return;
       }
-      setSavedMessage("Cliente guardado correctamente");
+      setSavedMessage(
+        result.delivery === "central_pending"
+          ? "Cliente actualizado en este dispositivo y pendiente de confirmar en el servidor"
+          : result.delivery === "central_review"
+            ? "Cliente actualizado; la sincronización requiere revisión"
+            : "Cliente guardado correctamente",
+      );
     } else {
       const gate = checkCanAddCustomer(data.customers.length);
       if (!gate.allowed) {
@@ -502,6 +523,15 @@ export default function ClientesPage() {
         title="Clientes"
         subtitle="Nombre, apellidos y NIF únicos. Se usan en facturas, recibos y presupuestos"
       />
+
+      {pageError ? (
+        <p
+          role="alert"
+          className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
+        >
+          {pageError}
+        </p>
+      ) : null}
 
       {mergeMode && (
         <Card className="mb-6 border-blue-200 bg-blue-50/70">
@@ -592,6 +622,14 @@ export default function ClientesPage() {
                     const removeIds = group
                       .filter((customer) => customer.id !== selectedKeep.id)
                       .map((customer) => customer.id);
+                    if (
+                      [selectedKeep.id, ...removeIds].some(isCentralCustomer)
+                    ) {
+                      setPageError(
+                        "La unificación de clientes centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
+                      );
+                      return;
+                    }
                     if (
                       confirm(
                         `¿Unificar ${group.length} clientes en «${getCustomerDisplayName(selectedKeep)}»? Los documentos emitidos conservarán el cliente original por integridad histórica.`,
@@ -1021,7 +1059,10 @@ export default function ClientesPage() {
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => setDeleteCandidate(customer)}
+                          onClick={() => {
+                            setDeleteError(null);
+                            setDeleteCandidate(customer);
+                          }}
                           className="rounded-xl bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
                           title="Borrar"
                           aria-label={`Borrar ${getCustomerDisplayName(customer)}`}
@@ -1126,9 +1167,21 @@ export default function ClientesPage() {
           kind="customer"
           name={getCustomerDisplayName(deleteCandidate)}
           impact={analyzeCustomerDeletion(data, deleteCandidate.id)}
-          onClose={() => setDeleteCandidate(null)}
-          onConfirm={() => {
-            deleteCustomer(deleteCandidate.id);
+          busy={deletingCustomer}
+          error={deleteError}
+          onClose={() => {
+            if (!deletingCustomer) setDeleteCandidate(null);
+          }}
+          onConfirm={async () => {
+            setDeleteError(null);
+            setDeletingCustomer(true);
+            const result = await deleteCustomer(deleteCandidate.id).finally(
+              () => setDeletingCustomer(false),
+            );
+            if (!result.ok) {
+              setDeleteError(result.error);
+              return;
+            }
             if (listFilterId === deleteCandidate.id) setListFilterId(null);
             setDeleteCandidate(null);
           }}

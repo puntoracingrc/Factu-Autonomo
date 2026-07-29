@@ -25,6 +25,7 @@ import type {
 import type { CentralInvoiceAuthorityFormIssueIdentity } from "@/lib/central-invoice-authority/form-canary-client";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
+import type { CentralBusinessDrainResult } from "@/lib/central-business-authority/durable-queue";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -456,6 +457,11 @@ interface AppStoreValue {
     identity: { id: string; now: string },
     expected: AppData,
   ) => AppDataDurabilityResult<Product>;
+  updateProductDurably: (
+    product: Product,
+    identity: { now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<Product>;
   updateProduct: (product: Product) => void;
   renameProductFamily: (
     sourceFamily: string,
@@ -465,6 +471,10 @@ interface AppStoreValue {
     operation: ProductCatalogStructureOperation,
   ) => ProductCatalogStructureResult;
   deleteProduct: (id: string) => void;
+  deleteProductDurably: (
+    id: string,
+    expected: AppData,
+  ) => AppDataDurabilityResult<string>;
   mergeProducts: (keepId: string, removeIds: string[]) => void;
   addRecurringExpense: (
     item: RecurringExpenseDraft,
@@ -518,10 +528,19 @@ interface AppStoreValue {
     identity: { id: string; now: string },
     expected: AppData,
   ) => AppDataDurabilityResult<Customer>;
+  updateCustomerDurably: (
+    customer: Customer,
+    identity: { now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<Customer>;
   updateCustomer: (
     customer: Customer,
   ) => { ok: true; customer: Customer } | { ok: false; error: string };
   deleteCustomer: (id: string) => void;
+  deleteCustomerDurably: (
+    id: string,
+    expected: AppData,
+  ) => AppDataDurabilityResult<string>;
   upsertCustomerForDocument: (
     input: ClientInput,
     selectedCustomerId: string | null,
@@ -1308,6 +1327,48 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ownerScope: string,
       options: { limit?: number } = {},
     ): Promise<CentralBusinessEventsAppDataSyncResult> => {
+      let drained: CentralBusinessDrainResult;
+      try {
+        const {
+          drainCentralBusinessDurableQueue,
+          withCentralBusinessQueueLock,
+        } = await import("@/lib/central-business-authority/durable-queue");
+        const { mutateCentralBusinessFromBrowser } =
+          await import("@/lib/central-business-authority/mutation-client");
+        drained = await withCentralBusinessQueueLock(ownerScope, () =>
+          drainCentralBusinessDurableQueue({
+            ownerScope,
+            mutate: mutateCentralBusinessFromBrowser,
+          }),
+        );
+      } catch {
+        return {
+          ok: false,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          code: "CENTRAL_BUSINESS_QUEUE_STATE_FAILED",
+          message:
+            "No se pudo verificar la cola central guardada en este dispositivo.",
+          retryable: false,
+          nextSequence: 0,
+        };
+      }
+      if (drained.stoppedBy !== "empty") {
+        return {
+          ok: false,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          code:
+            drained.stoppedBy === "retryable"
+              ? "CENTRAL_BUSINESS_PENDING_RETRY"
+              : "CENTRAL_BUSINESS_PENDING_REVIEW",
+          message:
+            drained.stoppedBy === "retryable"
+              ? "La cola central sigue pendiente por un fallo transitorio."
+              : "La cola central requiere revisión antes de descargar cambios.",
+          retryable: drained.stoppedBy === "retryable",
+          nextSequence: drained.state.lastAppliedEventSequence,
+        };
+      }
+
       const { syncCentralBusinessEventsIntoAppData } =
         await import("@/lib/central-business-authority/events-app-data-sync");
       return syncCentralBusinessEventsIntoAppData(
@@ -2318,6 +2379,33 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const updateProductDurably = useCallback(
+    (
+      product: Product,
+      identity: { now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<Product> =>
+      commitDurableAppData(expected, (previous) => {
+        if (!previous.products.some((entry) => entry.id === product.id)) {
+          throw new Error("PRODUCT_NOT_FOUND");
+        }
+        const updated = normalizeProductCatalogItem({
+          ...product,
+          updatedAt: identity.now,
+        });
+        return {
+          data: {
+            ...previous,
+            products: previous.products.map((entry) =>
+              entry.id === product.id ? updated : entry,
+            ),
+          },
+          value: updated,
+        };
+      }),
+    [commitDurableAppData],
+  );
+
   const renameProductFamily = useCallback(
     (sourceFamily: string, targetFamily: string): ProductFamilyRenameResult => {
       const result = renameProductFamilyInAppData(
@@ -2353,6 +2441,23 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }));
     },
     [setAppData],
+  );
+
+  const deleteProductDurably = useCallback(
+    (id: string, expected: AppData): AppDataDurabilityResult<string> =>
+      commitDurableAppData(expected, (previous) => {
+        if (!previous.products.some((product) => product.id === id)) {
+          throw new Error("PRODUCT_NOT_FOUND");
+        }
+        return {
+          data: {
+            ...previous,
+            products: previous.products.filter((product) => product.id !== id),
+          },
+          value: id,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const mergeProducts = useCallback(
@@ -2853,11 +2958,46 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const updateCustomerDurably = useCallback(
+    (
+      customer: Customer,
+      identity: { now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<Customer> =>
+      commitDurableAppData(expected, (previous) => {
+        const write = updateCustomerInCollection(
+          previous.customers,
+          customer,
+          identity.now,
+        );
+        if (!write.ok) throw new Error(write.error);
+        return {
+          data: { ...previous, customers: write.customers },
+          value: write.customer,
+        };
+      }),
+    [commitDurableAppData],
+  );
+
   const deleteCustomer = useCallback(
     (id: string) => {
       setAppData((prev) => deleteCustomerMasterFromData(prev, id));
     },
     [setAppData],
+  );
+
+  const deleteCustomerDurably = useCallback(
+    (id: string, expected: AppData): AppDataDurabilityResult<string> =>
+      commitDurableAppData(expected, (previous) => {
+        if (!previous.customers.some((customer) => customer.id === id)) {
+          throw new Error("CUSTOMER_NOT_FOUND");
+        }
+        return {
+          data: deleteCustomerMasterFromData(previous, id),
+          value: id,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const mergeCustomers = useCallback(
@@ -3020,10 +3160,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
       addProductDurably,
+      updateProductDurably,
       updateProduct,
       renameProductFamily,
       applyProductCatalogStructure,
       deleteProduct,
+      deleteProductDurably,
       mergeProducts,
       addRecurringExpense,
       setRecurringExpenseEnabled,
@@ -3042,8 +3184,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       mergeCustomers,
       addCustomer,
       addCustomerDurably,
+      updateCustomerDurably,
       updateCustomer,
       deleteCustomer,
+      deleteCustomerDurably,
       upsertCustomerForDocument,
       getDocumentsByType,
       registerVerifactuForDocument,
@@ -3097,10 +3241,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
       addProductDurably,
+      updateProductDurably,
       updateProduct,
       renameProductFamily,
       applyProductCatalogStructure,
       deleteProduct,
+      deleteProductDurably,
       mergeProducts,
       addRecurringExpense,
       setRecurringExpenseEnabled,
@@ -3119,8 +3265,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       mergeCustomers,
       addCustomer,
       addCustomerDurably,
+      updateCustomerDurably,
       updateCustomer,
       deleteCustomer,
+      deleteCustomerDurably,
       upsertCustomerForDocument,
       getDocumentsByType,
       registerVerifactuForDocument,

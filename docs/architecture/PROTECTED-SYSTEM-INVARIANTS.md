@@ -219,6 +219,28 @@ Regresiones mínimas: `central-invoice-authority/activation.test.ts`,
 `protected-system-invariants-contract.test.ts` y
 `validate:central-invoice-authority-phase1`.
 
+### 9. Autoridad central para datos operativos
+
+Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
+
+- Clientes, proveedores, productos y demás datos operativos migran de forma
+  aditiva y por canario hacia PostgreSQL como autoridad canónica.
+- Cada mutación central exige versión esperada, clave idempotente y una
+  transacción que confirme estado, comando y evento de salida.
+- La cola local se conserva y relee antes del cambio local. Al recuperar
+  conexión se vacía en FIFO antes de descargar eventos; un conflicto de
+  versión nunca sobrescribe silenciosamente.
+- Una ficha antigua sin versión central permanece local hasta su bootstrap
+  explícito. Una red incierta no autoriza a inventar esa clasificación.
+- Fusiones y cambios masivos con entidades centrales exigen un comando atómico;
+  no pueden ejecutarse como escrituras parciales.
+
+Regresiones mínimas: `central-business-authority/activation.test.ts`,
+`central-business-authority/durable-queue.test.ts`,
+`central-business-authority/entity-mutation-canary.test.ts`,
+`central-business-authority/events-app-data-sync.test.ts` y
+`protected-system-invariants-contract.test.ts`.
+
 ## Prohibido sin autorización expresa
 
 - Debilitar el fail-closed de documentos nuevos emitidos por la app.
@@ -239,6 +261,8 @@ Regresiones mínimas: `central-invoice-authority/activation.test.ts`,
 - Permitir que un navegador asigne una identidad fiscal definitiva después de
   activar la autoridad central para esa serie o usar un fallback local tras un
   fallo del servidor.
+- Sobrescribir una entidad operativa central sin `expectedVersion`, limpiar su
+  cola antes de confirmar o tratar una operación masiva parcial como atómica.
 
 ## Procedimiento para cualquier task nuevo
 
@@ -252,5 +276,5 @@ Regresiones mínimas: `central-invoice-authority/activation.test.ts`,
    sistema nuevo.
 
 `src/lib/protected-system-invariants-contract.test.ts` hace fallar CI si esta
-lectura deja de estar enlazada desde la raíz, si falta alguno de los siete ADR o
+lectura deja de estar enlazada desde la raíz, si falta alguno de los nueve ADR o
 si el registro deja de estar protegido por `CODEOWNERS`.

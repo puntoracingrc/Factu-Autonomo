@@ -5,6 +5,7 @@ import type {
   AppDataTransition,
 } from "@/lib/app-data-durability";
 import { migrateCustomer } from "@/lib/customers";
+import { deleteCustomerMasterFromData } from "@/lib/master-record-deletion";
 import { normalizeProductCatalogItem } from "@/lib/purchase-products";
 import type { AppData, Customer, Product } from "@/lib/types";
 
@@ -320,12 +321,7 @@ export function buildCentralBusinessEventAppDataTransition(input: {
         );
       }
       return {
-        data: {
-          ...data,
-          customers: data.customers.filter(
-            (customer) => customer.id !== event.entityId,
-          ),
-        },
+        data: deleteCustomerMasterFromData(data, event.entityId),
         value: value("deleted"),
       };
     }

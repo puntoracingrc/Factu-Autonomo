@@ -11,6 +11,7 @@
 /docs/architecture/ADR-0006-customer-master-reliability.md @puntoracingrc
 /docs/architecture/ADR-0007-paid-affiliate-rewards.md @puntoracingrc
 /docs/architecture/ADR-0010-central-invoice-authority.md @puntoracingrc
+/docs/architecture/ADR-0011-central-business-authority.md @puntoracingrc
 /docs/architecture/central-invoice-authority-schema-v1.md @puntoracingrc
 /docs/architecture/central-invoice-authority-production-baseline-*.json @puntoracingrc
 /docs/architecture/central-invoice-authority-phase2-readiness-gates.md @puntoracingrc
@@ -61,6 +62,13 @@
 /src/app/api/invoices/issue/**                        @puntoracingrc
 /supabase/migrations/*central_invoice*                @puntoracingrc
 /scripts/validate-central-invoice-authority-*          @puntoracingrc
+
+# Central business authority and versioned operational data.
+# ADR-0011 must be reviewed before these contracts change.
+/src/lib/central-business-authority/**                 @puntoracingrc
+/src/app/api/central-business-authority/**             @puntoracingrc
+/src/components/cloud/CentralBusinessAuthority*       @puntoracingrc
+/supabase/migrations/*central_business*               @puntoracingrc
 
 # Paid Affiliate attribution, Stripe rewards and private reward ledger.
 # ADR-0007 and its contract tests must be reviewed before these paths change.

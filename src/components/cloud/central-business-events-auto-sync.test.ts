@@ -9,6 +9,10 @@ const appShell = readFileSync(
   new URL("../layout/AppShell.tsx", import.meta.url),
   "utf8",
 );
+const appStore = readFileSync(
+  new URL("../../context/AppStore.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("central business events auto sync wiring", () => {
   it("se monta en AppShell y comprueba inmediatamente al recuperar actividad", () => {
@@ -17,6 +21,9 @@ describe("central business events auto sync wiring", () => {
       "isCentralBusinessEventsAutoSyncEnabledForUser",
     );
     expect(component).toContain("syncCentralBusinessEvents");
+    expect(appStore.indexOf("drainCentralBusinessDurableQueue")).toBeLessThan(
+      appStore.indexOf("syncCentralBusinessEventsIntoAppData"),
+    );
     expect(component).toContain('window.addEventListener("online", wake)');
     expect(component).toContain('window.addEventListener("focus", wake)');
     expect(component).toContain(

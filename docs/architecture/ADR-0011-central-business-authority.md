@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 7
+- Version: 8
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -98,10 +98,9 @@ outbox.
 
 La creacion manual de productos desde su formulario dedicado reutiliza el
 mismo contrato. El producto normalizado, la copia local durable y el comando
-central comparten ID y timestamp. Las altas automaticas, duplicados y ediciones
-del catalogo permanecen locales hasta que sus flujos tengan control de version
-propio; activar este canario no los convierte implicitamente en escrituras
-centrales.
+central comparten ID y timestamp. Las altas automaticas y duplicados permanecen
+locales hasta que sus flujos tengan control de version propio; activar este
+canario no los convierte implicitamente en escrituras centrales.
 
 La recepcion de clientes y productos centrales se ejecuta al arrancar la
 sesion, al volver a la pestaña, al recuperar conexion y mediante polling corto
@@ -116,6 +115,27 @@ antes de avanzar el cursor; si el proceso cae entre ambos pasos, la repeticion
 es idempotente. Incluso un evento cuyo hash ya estaba confirmado vuelve a
 verificar la presencia de su ficha local, de modo que puede reparar una
 ausencia sin ocultarla detras del cursor.
+
+Las ediciones y borrados de clientes y productos que ya tienen una version
+central confirmada usan esa version como `expectedVersion`. Primero descargan
+eventos, despues conservan la operacion y su clave idempotente, confirman el
+cambio local durable y finalmente envian la cola FIFO. Al recuperar conexion,
+foco o visibilidad, el cliente vacia siempre la cola antes de descargar el
+outbox; asi un evento propio confirmado no se confunde con una operacion local
+todavia pendiente.
+
+Una ficha antigua sin version en el ledger sigue local hasta el bootstrap
+explicito. Si la lectura previa termino correctamente, la ausencia de version
+permite ese fallback; si la red impide saberlo, el cambio se bloquea en vez de
+centralizar o sobrescribir por conjetura. Dos cambios pendientes sobre la misma
+entidad no se encadenan con una version obsoleta.
+
+El borrado remoto de un cliente aplica el contrato completo del maestro:
+desvincula borradores y recordatorios operativos, pero conserva
+byte-semanticamente el cliente congelado, snapshots, PDF, sellos, hashes y
+evidencia de documentos emitidos. Las fusiones y reorganizaciones masivas que
+incluyen entidades centrales quedan bloqueadas hasta disponer de un comando
+atomico propio; nunca se descomponen en varias escrituras parciales.
 
 ## Rollback
 

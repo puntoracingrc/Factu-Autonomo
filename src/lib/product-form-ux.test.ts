@@ -44,10 +44,13 @@ describe("product form UX contract", () => {
     );
 
     const savePatch = productsPageSource.slice(
-      productsPageSource.indexOf("savedProduct = onSave({"),
+      productsPageSource.indexOf("savedProduct = await onSave({"),
       productsPageSource.indexOf("if (!savedProduct)"),
     );
     expect(savePatch).not.toContain("aliases:");
+    expect(productsPageSource).toContain(
+      "savingRef.current = false;\n    setSaving(false);\n    setInitialDraft(draft);",
+    );
     expect(savePatch).not.toContain("key:");
   });
 
@@ -76,7 +79,7 @@ describe("product form UX contract", () => {
     expect(newProductPageSource).toContain("validateProductNumericInputs");
     expect(productsPageSource).toContain("validateProductNumericInputs");
     expect(productsPageSource.indexOf("validateProductNumericInputs")).toBeLessThan(
-      productsPageSource.indexOf("savedProduct = onSave({"),
+      productsPageSource.indexOf("savedProduct = await onSave({"),
     );
   });
 });
