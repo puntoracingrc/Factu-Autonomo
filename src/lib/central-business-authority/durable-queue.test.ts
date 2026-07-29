@@ -1,0 +1,419 @@
+import { describe, expect, it, vi } from "vitest";
+
+import type { CentralBusinessBrowserEvent } from "./events-client";
+import {
+  applyCentralBusinessEventPage,
+  CentralBusinessDurableQueueError,
+  discardCentralBusinessOperation,
+  drainCentralBusinessDurableQueue,
+  enqueueCentralBusinessOperation,
+  loadCentralBusinessDurableQueue,
+  retryCentralBusinessOperation,
+  type CentralBusinessQueueStorage,
+  withCentralBusinessQueueLock,
+} from "./durable-queue";
+
+class MemoryStorage implements CentralBusinessQueueStorage {
+  value = new Map<string, string>();
+  failWrite = false;
+  corruptReadback = false;
+
+  getItem(key: string) {
+    const value = this.value.get(key) ?? null;
+    return this.corruptReadback && value ? `${value}corrupt` : value;
+  }
+
+  setItem(key: string, value: string) {
+    if (this.failWrite) throw new Error("quota");
+    this.value.set(key, value);
+  }
+}
+
+const ownerScope = "synthetic-user-0001";
+const mutation = {
+  idempotencyKey: "CENTRAL_OP_SYNTHETIC_0001",
+  operationKind: "upsert" as const,
+  entityType: "customer" as const,
+  entityId: "customer-1",
+  expectedVersion: 0,
+  payload: { id: "customer-1", name: "Synthetic" },
+};
+
+function event(
+  overrides: Partial<CentralBusinessBrowserEvent> = {},
+): CentralBusinessBrowserEvent {
+  return {
+    schema: "CENTRAL_BUSINESS_EVENTS_RPC_ADAPTER_V1",
+    eventId: "event-1",
+    eventSequence: 1,
+    entityType: "customer",
+    entityId: "customer-1",
+    entityVersion: 1,
+    operationKind: "upsert",
+    payload: { id: "customer-1", name: "Synthetic" },
+    contentHash: "hash-v1",
+    actorDeviceId: "device-a",
+    createdAt: "2026-07-29T17:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("central business durable queue", () => {
+  it("persiste y relee la operacion antes de permitir el cambio local", () => {
+    const storage = new MemoryStorage();
+    const result = enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+      now: () => "2026-07-29T17:00:00.000Z",
+    });
+
+    expect(result.replayed).toBe(false);
+    expect(result.state.revision).toBe(1);
+    expect(loadCentralBusinessDurableQueue(ownerScope, storage).operations).toEqual([
+      expect.objectContaining({
+        operationId: mutation.idempotencyKey,
+        status: "pending",
+        attemptCount: 0,
+      }),
+    ]);
+  });
+
+  it("repite la misma identidad sin duplicar y rechaza reutilizarla", () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    expect(
+      enqueueCentralBusinessOperation({
+        ownerScope,
+        operationId: mutation.idempotencyKey,
+        mutation: { ...mutation, payload: { name: "Synthetic", id: "customer-1" } },
+        storage,
+      }).replayed,
+    ).toBe(true);
+    expect(() =>
+      enqueueCentralBusinessOperation({
+        ownerScope,
+        operationId: mutation.idempotencyKey,
+        mutation: { ...mutation, payload: { id: "customer-1", name: "Other" } },
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "IDEMPOTENCY_KEY_REUSED",
+      }),
+    );
+  });
+
+  it("falla cerrado si localStorage no escribe o no conserva el valor exacto", () => {
+    const storage = new MemoryStorage();
+    storage.failWrite = true;
+    expect(() =>
+      enqueueCentralBusinessOperation({
+        ownerScope,
+        operationId: mutation.idempotencyKey,
+        mutation,
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "STORAGE_WRITE_FAILED",
+      }),
+    );
+
+    storage.failWrite = false;
+    storage.corruptReadback = true;
+    expect(() =>
+      enqueueCentralBusinessOperation({
+        ownerScope,
+        operationId: mutation.idempotencyKey,
+        mutation,
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "STORAGE_WRITE_FAILED",
+      }),
+    );
+  });
+
+  it("drena FIFO y conserva versiones sin adelantar el cursor de eventos", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: "CENTRAL_OP_SYNTHETIC_0002",
+      mutation: {
+        ...mutation,
+        idempotencyKey: "CENTRAL_OP_SYNTHETIC_0002",
+        entityId: "customer-2",
+      },
+      storage,
+    });
+    const mutate = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: "event-10",
+        eventSequence: 10,
+        entityVersion: 1,
+        deleted: false,
+        contentHash: "hash-1",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: "event-12",
+        eventSequence: 12,
+        entityVersion: 1,
+        deleted: false,
+        contentHash: "hash-2",
+      });
+
+    const result = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate,
+    });
+
+    expect(mutate.mock.calls.map(([input]) => input.entityId)).toEqual([
+      "customer-1",
+      "customer-2",
+    ]);
+    expect(result).toMatchObject({
+      processed: 2,
+      remaining: 0,
+      stoppedBy: "empty",
+      state: { lastAppliedEventSequence: 0 },
+    });
+    expect(result.state.entityVersions["customer:customer-2"]?.version).toBe(1);
+  });
+
+  it("conserva un fallo reintentable y detiene los siguientes", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    const result = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async () => ({
+        ok: false,
+        status: 0,
+        code: "CENTRAL_BUSINESS_MUTATION_NETWORK_ERROR",
+        message: "offline",
+        retryable: true,
+        conflict: false,
+      }),
+      now: () => "2026-07-29T17:01:00.000Z",
+    });
+
+    expect(result).toMatchObject({
+      processed: 0,
+      remaining: 1,
+      stoppedBy: "retryable",
+      state: {
+        operations: [
+          {
+            status: "pending",
+            attemptCount: 1,
+            lastAttemptAt: "2026-07-29T17:01:00.000Z",
+          },
+        ],
+      },
+    });
+  });
+
+  it("retiene conflictos hasta una decision explicita", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    const result = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async () => ({
+        ok: false,
+        status: 409,
+        code: "CENTRAL_BUSINESS_VERSION_CONFLICT",
+        message: "stale",
+        retryable: false,
+        conflict: true,
+      }),
+    });
+    expect(result.stoppedBy).toBe("conflict");
+    expect(
+      retryCentralBusinessOperation({
+        ownerScope,
+        operationId: mutation.idempotencyKey,
+        storage,
+      }).operations[0].status,
+    ).toBe("pending");
+    expect(
+      discardCentralBusinessOperation({
+        ownerScope,
+        operationId: mutation.idempotencyKey,
+        storage,
+      }).operations,
+    ).toEqual([]);
+  });
+
+  it("no aplica eventos sobre una entidad con escritura local pendiente", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    const applyEvent = vi.fn();
+    const result = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [event()],
+      nextSequence: 1,
+      storage,
+      applyEvent,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "LOCAL_OPERATION_CONFLICT",
+      state: { operations: [{ status: "conflict" }] },
+    });
+    expect(applyEvent).not.toHaveBeenCalled();
+    expect(result.state.lastAppliedEventSequence).toBe(0);
+  });
+
+  it("solo confirma el cursor despues de aplicar toda la pagina", async () => {
+    const storage = new MemoryStorage();
+    const applyEvent = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("local failure"));
+    const failed = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [
+        event(),
+        event({
+          eventId: "event-2",
+          eventSequence: 2,
+          entityVersion: 2,
+          contentHash: "hash-v2",
+        }),
+      ],
+      nextSequence: 2,
+      storage,
+      applyEvent,
+    });
+    expect(failed).toMatchObject({
+      ok: false,
+      code: "EVENT_APPLY_FAILED",
+      state: { lastAppliedEventSequence: 0, entityVersions: {} },
+    });
+    expect(loadCentralBusinessDurableQueue(ownerScope, storage)).toMatchObject({
+      lastAppliedEventSequence: 0,
+      entityVersions: {},
+    });
+
+    const succeeded = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [
+        event(),
+        event({
+          eventId: "event-2",
+          eventSequence: 2,
+          entityVersion: 2,
+          contentHash: "hash-v2",
+        }),
+      ],
+      nextSequence: 2,
+      storage,
+      applyEvent: async () => undefined,
+    });
+    expect(succeeded).toMatchObject({
+      ok: true,
+      applied: 2,
+      state: {
+        lastAppliedEventSequence: 2,
+        entityVersions: {
+          "customer:customer-1": { version: 2, contentHash: "hash-v2" },
+        },
+      },
+    });
+  });
+
+  it("rechaza paginas desordenadas, saltos de version y estado corrupto", async () => {
+    const storage = new MemoryStorage();
+    await expect(
+      applyCentralBusinessEventPage({
+        ownerScope,
+        events: [event({ eventSequence: 2 })],
+        nextSequence: 3,
+        storage,
+        applyEvent: async () => undefined,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "EVENT_PAGE_INVALID" });
+    await expect(
+      applyCentralBusinessEventPage({
+        ownerScope,
+        events: [event({ entityVersion: 2 })],
+        nextSequence: 1,
+        storage,
+        applyEvent: async () => undefined,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: "EVENT_VERSION_CONFLICT" });
+
+    storage.value.set(
+      "factu:central-business-authority:durable-queue:v1:synthetic-user-0001",
+      "{broken",
+    );
+    expect(() =>
+      loadCentralBusinessDurableQueue(ownerScope, storage),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "STORAGE_CORRUPTED",
+      }),
+    );
+  });
+
+  it("serializa operaciones concurrentes tambien sin Web Locks", async () => {
+    const order: string[] = [];
+    let releaseFirst: () => void = () => {};
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const first = withCentralBusinessQueueLock(ownerScope, async () => {
+      order.push("first:start");
+      await firstGate;
+      order.push("first:end");
+    });
+    const second = withCentralBusinessQueueLock(ownerScope, async () => {
+      order.push("second");
+    });
+
+    await Promise.resolve();
+    expect(order).toEqual(["first:start"]);
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(order).toEqual(["first:start", "first:end", "second"]);
+  });
+});
