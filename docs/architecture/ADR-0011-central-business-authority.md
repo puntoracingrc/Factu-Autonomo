@@ -46,6 +46,10 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
 6. Comparar y hacer bootstrap de la cuenta real; despues retirar la escritura
    de `sync_entities`.
 
+La ruta de mutacion de la fase 2 permanece apagada por defecto. Para escribir
+exige esquema, gate operativo, aprobacion de produccion y allowlist explicita.
+El navegador no recibe `service_role` ni puede ejecutar directamente la RPC.
+
 ## Rollback
 
 Antes del corte, desactivar el canario conserva el flujo local actual. Las
