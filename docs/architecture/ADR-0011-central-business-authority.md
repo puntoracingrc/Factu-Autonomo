@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 8
+- Version: 9
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -123,6 +123,16 @@ cambio local durable y finalmente envian la cola FIFO. Al recuperar conexion,
 foco o visibilidad, el cliente vacia siempre la cola antes de descargar el
 outbox; asi un evento propio confirmado no se confunde con una operacion local
 todavia pendiente.
+
+Un conflicto de version o un evento remoto concurrente se presenta en Cuenta
+como una revision agrupada por entidad. Conservar la version del servidor exige
+una confirmacion explicita del usuario y prepara todas las operaciones
+pendientes de esa entidad, no solo la primera. La descarga autoritativa evita
+esas operaciones preparadas al comprobar conflictos locales, pero siguen
+retenidas en la cola y no se descartan hasta que el evento haya superado hash,
+forma, escritura local durable y una version central superior a todas las
+versiones esperadas. Una descarga parcial o fallida deja la resolucion
+reintentable. Un conflicto de idempotencia no ofrece reparacion automatica.
 
 Una ficha antigua sin version en el ledger sigue local hasta el bootstrap
 explicito. Si la lectura previa termino correctamente, la ausencia de version

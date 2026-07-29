@@ -12,6 +12,8 @@ import type {
 
 export const CENTRAL_BUSINESS_DURABLE_QUEUE =
   "CENTRAL_BUSINESS_DURABLE_QUEUE_V1";
+export const CENTRAL_BUSINESS_DURABLE_QUEUE_CHANGED_EVENT =
+  "factu:central-business-authority:durable-queue-changed";
 
 const STORAGE_PREFIX = "factu:central-business-authority:durable-queue:v1:";
 const MAX_OPERATIONS = 1_000;
@@ -43,6 +45,7 @@ export interface CentralBusinessQueuedOperation {
     message: string;
     status: number;
   };
+  resolution?: "accept_server";
 }
 
 export interface CentralBusinessEntityVersion {
@@ -256,7 +259,9 @@ function parseState(
           operation.status !== "blocked") ||
         typeof operation.enqueuedAt !== "string" ||
         !Number.isSafeInteger(operation.attemptCount) ||
-        (operation.attemptCount as number) < 0
+        (operation.attemptCount as number) < 0 ||
+        (operation.resolution !== undefined &&
+          operation.resolution !== "accept_server")
       ) {
         return null;
       }
@@ -354,6 +359,13 @@ function persistState(
     throw new CentralBusinessDurableQueueError(
       "STORAGE_WRITE_FAILED",
       "No se pudo guardar y verificar la cola central. El cambio local debe cancelarse.",
+    );
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(CENTRAL_BUSINESS_DURABLE_QUEUE_CHANGED_EVENT, {
+        detail: { ownerScope: next.ownerScope, revision: next.revision },
+      }),
     );
   }
   return next;
@@ -547,10 +559,113 @@ export function retryCentralBusinessOperation(input: {
           ...operation,
           status: "pending" as const,
           lastError: undefined,
+          resolution: undefined,
         }
       : operation,
   );
   return persistState({ ...state, operations }, storage);
+}
+
+export function prepareCentralBusinessEntityServerResolution(input: {
+  ownerScope: string;
+  entityType: CentralBusinessEntityType;
+  entityId: string;
+  storage?: CentralBusinessQueueStorage;
+}): {
+  prepared: number;
+  state: CentralBusinessDurableQueueState;
+} {
+  const storage = resolveStorage(input.storage);
+  const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  const matching = state.operations.filter(
+    (operation) =>
+      operation.input.entityType === input.entityType &&
+      operation.input.entityId === input.entityId,
+  );
+  if (
+    matching.length === 0 ||
+    !matching.some((operation) => operation.status === "conflict") ||
+    matching.some(
+      (operation) =>
+        (operation.status !== "pending" &&
+          operation.status !== "conflict") ||
+        operation.lastError?.code ===
+          "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT",
+    )
+  ) {
+    throw new CentralBusinessDurableQueueError(
+      "INVALID_OPERATION",
+      "Este conflicto no admite conservar automaticamente la version central.",
+    );
+  }
+  const operationIds = new Set(
+    matching.map((operation) => operation.operationId),
+  );
+  return {
+    prepared: matching.length,
+    state: persistState(
+      {
+        ...state,
+        operations: state.operations.map((operation) =>
+          operationIds.has(operation.operationId)
+            ? { ...operation, resolution: "accept_server" as const }
+            : operation,
+        ),
+      },
+      storage,
+    ),
+  };
+}
+
+export function finalizeCentralBusinessEntityServerResolution(input: {
+  ownerScope: string;
+  entityType: CentralBusinessEntityType;
+  entityId: string;
+  storage?: CentralBusinessQueueStorage;
+}): {
+  discarded: number;
+  state: CentralBusinessDurableQueueState;
+} {
+  const storage = resolveStorage(input.storage);
+  const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  const matching = state.operations.filter(
+    (operation) =>
+      operation.input.entityType === input.entityType &&
+      operation.input.entityId === input.entityId &&
+      operation.resolution === "accept_server",
+  );
+  if (matching.length === 0) {
+    throw new CentralBusinessDurableQueueError(
+      "INVALID_OPERATION",
+      "No hay una resolucion central preparada para este elemento.",
+    );
+  }
+  const known =
+    state.entityVersions[entityKey(input.entityType, input.entityId)];
+  const highestExpectedVersion = Math.max(
+    ...matching.map((operation) => operation.input.expectedVersion),
+  );
+  if (!known || known.version <= highestExpectedVersion) {
+    throw new CentralBusinessDurableQueueError(
+      "EVENT_VERSION_CONFLICT",
+      "La version central todavia no supera el cambio local pendiente.",
+    );
+  }
+  const operationIds = new Set(
+    matching.map((operation) => operation.operationId),
+  );
+  return {
+    discarded: matching.length,
+    state: persistState(
+      {
+        ...state,
+        operations: state.operations.filter(
+          (operation) => !operationIds.has(operation.operationId),
+        ),
+      },
+      storage,
+    ),
+  };
 }
 
 export function discardCentralBusinessOperation(input: {
@@ -625,6 +740,7 @@ export async function applyCentralBusinessEventPage(input: {
     events.map((event) => entityKey(event.entityType, event.entityId)),
   );
   const localConflicts = state.operations.filter((operation) =>
+    operation.resolution !== "accept_server" &&
     conflictingKeys.has(
       entityKey(operation.input.entityType, operation.input.entityId),
     ),

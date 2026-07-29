@@ -17,6 +17,7 @@ import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { CloudDevicesCard } from "@/components/cloud/CloudDevicesCard";
+import { CentralBusinessConflictRecoveryCard } from "@/components/cloud/CentralBusinessConflictRecoveryCard";
 import { CentralInvoiceAuthorityEventsSyncCard } from "@/components/cloud/CentralInvoiceAuthorityEventsSyncCard";
 import { CentralInvoiceAuthorityAccountReconciliationCard } from "@/components/cloud/CentralInvoiceAuthorityAccountReconciliationCard";
 import { CentralInvoiceAuthorityStatusCard } from "@/components/cloud/CentralInvoiceAuthorityStatusCard";
@@ -171,6 +172,7 @@ export default function CuentaPage() {
             Ir a Acceso
           </ButtonLink>
         </Card>
+        <CentralBusinessConflictRecoveryCard />
         <CentralInvoiceAuthorityStatusCard />
         <CentralInvoiceAuthorityAccountReconciliationCard />
         <CentralInvoiceAuthorityEventsSyncCard />

@@ -7,7 +7,9 @@ import {
   discardCentralBusinessOperation,
   drainCentralBusinessDurableQueue,
   enqueueCentralBusinessOperation,
+  finalizeCentralBusinessEntityServerResolution,
   loadCentralBusinessDurableQueue,
+  prepareCentralBusinessEntityServerResolution,
   retryCentralBusinessOperation,
   type CentralBusinessQueueStorage,
   withCentralBusinessQueueLock,
@@ -275,6 +277,142 @@ describe("central business durable queue", () => {
         storage,
       }).operations,
     ).toEqual([]);
+  });
+
+  it("solo retira cambios locales tras aplicar una version central superior", async () => {
+    const storage = new MemoryStorage();
+    await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [event()],
+      nextSequence: 1,
+      storage,
+      applyEvent: async () => undefined,
+    });
+    const first = { ...mutation, expectedVersion: 1 };
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: first.idempotencyKey,
+      mutation: first,
+      storage,
+    });
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: "CENTRAL_OP_SYNTHETIC_0002",
+      mutation: {
+        ...first,
+        idempotencyKey: "CENTRAL_OP_SYNTHETIC_0002",
+        payload: { id: "customer-1", name: "Synthetic final" },
+      },
+      storage,
+    });
+    await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async () => ({
+        ok: false,
+        status: 409,
+        code: "CENTRAL_BUSINESS_VERSION_CONFLICT",
+        message: "stale",
+        retryable: false,
+        conflict: true,
+      }),
+    });
+
+    expect(
+      prepareCentralBusinessEntityServerResolution({
+        ownerScope,
+        entityType: "customer",
+        entityId: "customer-1",
+        storage,
+      }),
+    ).toMatchObject({
+      prepared: 2,
+      state: {
+        operations: [
+          { status: "conflict", resolution: "accept_server" },
+          { status: "pending", resolution: "accept_server" },
+        ],
+      },
+    });
+    expect(() =>
+      finalizeCentralBusinessEntityServerResolution({
+        ownerScope,
+        entityType: "customer",
+        entityId: "customer-1",
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "EVENT_VERSION_CONFLICT",
+      }),
+    );
+
+    const applied = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [
+        event({
+          eventId: "event-2",
+          eventSequence: 2,
+          entityVersion: 2,
+          contentHash: "hash-v2",
+        }),
+      ],
+      nextSequence: 2,
+      storage,
+      applyEvent: async () => undefined,
+    });
+    expect(applied.ok).toBe(true);
+    expect(
+      finalizeCentralBusinessEntityServerResolution({
+        ownerScope,
+        entityType: "customer",
+        entityId: "customer-1",
+        storage,
+      }),
+    ).toMatchObject({
+      discarded: 2,
+      state: {
+        operations: [],
+        entityVersions: {
+          "customer:customer-1": { version: 2 },
+        },
+      },
+    });
+  });
+
+  it("no prepara una sustitucion automatica ante conflicto de idempotencia", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async () => ({
+        ok: false,
+        status: 409,
+        code: "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT",
+        message: "identity mismatch",
+        retryable: false,
+        conflict: true,
+      }),
+    });
+
+    expect(() =>
+      prepareCentralBusinessEntityServerResolution({
+        ownerScope,
+        entityType: "customer",
+        entityId: "customer-1",
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "INVALID_OPERATION",
+      }),
+    );
   });
 
   it("no aplica eventos sobre una entidad con escritura local pendiente", async () => {

@@ -21,8 +21,14 @@ describe("central business events auto sync wiring", () => {
       "isCentralBusinessEventsAutoSyncEnabledForUser",
     );
     expect(component).toContain("syncCentralBusinessEvents");
-    expect(appStore.indexOf("drainCentralBusinessDurableQueue")).toBeLessThan(
-      appStore.indexOf("syncCentralBusinessEventsIntoAppData"),
+    const normalSync = appStore.slice(
+      appStore.indexOf("const syncCentralBusinessEvents = useCallback"),
+      appStore.indexOf(
+        "const resolveCentralBusinessConflictKeepingServer = useCallback",
+      ),
+    );
+    expect(normalSync.indexOf("drainCentralBusinessDurableQueue")).toBeLessThan(
+      normalSync.indexOf("return pullCentralBusinessEvents"),
     );
     expect(component).toContain('window.addEventListener("online", wake)');
     expect(component).toContain('window.addEventListener("focus", wake)');
