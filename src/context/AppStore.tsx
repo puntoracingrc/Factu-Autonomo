@@ -516,11 +516,24 @@ interface AppStoreValue {
   reopenUserReminder: (id: string) => void;
   deleteUserReminder: (id: string) => void;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
+  addSupplierDurably: (
+    supplier: Omit<Supplier, "id" | "createdAt">,
+    identity: { id: string; now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<Supplier>;
   ensureExpenseSupplier: (
     input: SupplierForExpenseInput,
   ) => StoredSupplierForExpenseResolution;
   updateSupplier: (supplier: Supplier) => void;
+  updateSupplierDurably: (
+    supplier: Supplier,
+    expected: AppData,
+  ) => AppDataDurabilityResult<Supplier>;
   deleteSupplier: (id: string) => void;
+  deleteSupplierDurably: (
+    id: string,
+    expected: AppData,
+  ) => AppDataDurabilityResult<string>;
   mergeSuppliers: (keepId: string, removeIds: string[]) => void;
   mergeCustomers: (
     keepId: string,
@@ -2782,6 +2795,29 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const addSupplierDurably = useCallback(
+    (
+      supplier: Omit<Supplier, "id" | "createdAt">,
+      identity: { id: string; now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<Supplier> =>
+      commitDurableAppData(expected, (previous) => {
+        if (previous.suppliers.some((entry) => entry.id === identity.id)) {
+          throw new Error("SUPPLIER_IDENTIFIER_COLLISION");
+        }
+        const created: Supplier = {
+          ...supplier,
+          id: identity.id,
+          createdAt: identity.now,
+        };
+        return {
+          data: { ...previous, suppliers: [...previous.suppliers, created] },
+          value: created,
+        };
+      }),
+    [commitDurableAppData],
+  );
+
   const ensureExpenseSupplier = useCallback(
     (input: SupplierForExpenseInput): StoredSupplierForExpenseResolution => {
       let resolution: StoredSupplierForExpenseResolution | undefined;
@@ -2817,6 +2853,20 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const deleteSupplierDurably = useCallback(
+    (id: string, expected: AppData): AppDataDurabilityResult<string> =>
+      commitDurableAppData(expected, (previous) => {
+        if (!previous.suppliers.some((supplier) => supplier.id === id)) {
+          throw new Error("SUPPLIER_NOT_FOUND");
+        }
+        return {
+          data: deleteSupplierMasterFromData(previous, id),
+          value: id,
+        };
+      }),
+    [commitDurableAppData],
+  );
+
   const updateSupplier = useCallback(
     (supplier: Supplier) => {
       setAppData((prev) => ({
@@ -2832,6 +2882,33 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }));
     },
     [setAppData],
+  );
+
+  const updateSupplierDurably = useCallback(
+    (
+      supplier: Supplier,
+      expected: AppData,
+    ): AppDataDurabilityResult<Supplier> =>
+      commitDurableAppData(expected, (previous) => {
+        if (!previous.suppliers.some((entry) => entry.id === supplier.id)) {
+          throw new Error("SUPPLIER_NOT_FOUND");
+        }
+        return {
+          data: {
+            ...previous,
+            suppliers: previous.suppliers.map((entry) =>
+              entry.id === supplier.id ? supplier : entry,
+            ),
+            expenses: previous.expenses.map((expense) =>
+              expense.supplierId === supplier.id
+                ? { ...expense, supplierName: supplier.name }
+                : expense,
+            ),
+          },
+          value: supplier,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const mergeSuppliers = useCallback(
@@ -3213,9 +3290,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reopenUserReminder,
       deleteUserReminder,
       addSupplier,
+      addSupplierDurably,
       ensureExpenseSupplier,
       updateSupplier,
+      updateSupplierDurably,
       deleteSupplier,
+      deleteSupplierDurably,
       mergeSuppliers,
       mergeCustomers,
       addCustomer,
@@ -3295,9 +3375,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reopenUserReminder,
       deleteUserReminder,
       addSupplier,
+      addSupplierDurably,
       ensureExpenseSupplier,
       updateSupplier,
+      updateSupplierDurably,
       deleteSupplier,
+      deleteSupplierDurably,
       mergeSuppliers,
       mergeCustomers,
       addCustomer,

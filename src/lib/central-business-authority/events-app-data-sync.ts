@@ -5,9 +5,12 @@ import type {
   AppDataTransition,
 } from "@/lib/app-data-durability";
 import { migrateCustomer } from "@/lib/customers";
-import { deleteCustomerMasterFromData } from "@/lib/master-record-deletion";
+import {
+  deleteCustomerMasterFromData,
+  deleteSupplierMasterFromData,
+} from "@/lib/master-record-deletion";
 import { normalizeProductCatalogItem } from "@/lib/purchase-products";
-import type { AppData, Customer, Product } from "@/lib/types";
+import type { AppData, Customer, Product, Supplier } from "@/lib/types";
 
 import {
   applyCentralBusinessEventPage,
@@ -25,7 +28,7 @@ import {
 export const CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC =
   "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1";
 
-type SupportedEntityType = "customer" | "product";
+type SupportedEntityType = "customer" | "supplier" | "product";
 
 export type CentralBusinessEventLocalAction =
   "added" | "updated" | "deleted" | "unchanged";
@@ -162,6 +165,47 @@ function parseCustomerPayload(
   }
 }
 
+function parseSupplierPayload(
+  payload: CentralBusinessBrowserEvent["payload"],
+  entityId: string,
+): Supplier | null {
+  if (
+    !isObject(payload) ||
+    payload.id !== entityId ||
+    typeof payload.name !== "string" ||
+    !payload.name.trim() ||
+    typeof payload.createdAt !== "string" ||
+    !optionalString(payload.nif) ||
+    !optionalString(payload.email) ||
+    !optionalString(payload.phone) ||
+    !optionalString(payload.website) ||
+    !optionalString(payload.streetType) ||
+    !optionalString(payload.address) ||
+    !optionalString(payload.city) ||
+    !optionalString(payload.postalCode) ||
+    !optionalString(payload.category) ||
+    !optionalString(payload.notes)
+  ) {
+    return null;
+  }
+
+  return {
+    id: payload.id,
+    name: payload.name,
+    nif: payload.nif,
+    email: payload.email,
+    phone: payload.phone,
+    website: payload.website,
+    streetType: payload.streetType,
+    address: payload.address,
+    city: payload.city,
+    postalCode: payload.postalCode,
+    category: payload.category,
+    notes: payload.notes,
+    createdAt: payload.createdAt,
+  };
+}
+
 function parseProductFacet(value: unknown): boolean {
   if (value === undefined) return true;
   if (!isObject(value)) return false;
@@ -272,7 +316,10 @@ export async function verifyCentralBusinessEventContentHash(
   return calculated !== null && calculated === event.contentHash;
 }
 
-function sameEntity(left: Customer | Product, right: Customer | Product) {
+function sameEntity(
+  left: Customer | Supplier | Product,
+  right: Customer | Supplier | Product,
+) {
   return stableJson(left) === stableJson(right);
 }
 
@@ -289,7 +336,11 @@ export function buildCentralBusinessEventAppDataTransition(input: {
   knownVersion?: CentralBusinessEntityVersion;
 }): AppDataTransition<CentralBusinessEventLocalApplyValue> {
   const { data, event, knownVersion } = input;
-  if (event.entityType !== "customer" && event.entityType !== "product") {
+  if (
+    event.entityType !== "customer" &&
+    event.entityType !== "supplier" &&
+    event.entityType !== "product"
+  ) {
     throw new CentralBusinessLocalApplyError(
       "CENTRAL_BUSINESS_ENTITY_NOT_SUPPORTED",
       "Este dispositivo todavía no puede aplicar este tipo de dato central.",
@@ -351,6 +402,59 @@ export function buildCentralBusinessEventAppDataTransition(input: {
         ...data,
         customers: data.customers.map((customer) =>
           customer.id === event.entityId ? incoming : customer,
+        ),
+      },
+      value: value("updated"),
+    };
+  }
+
+  if (event.entityType === "supplier") {
+    const existing = data.suppliers.find(
+      (supplier) => supplier.id === event.entityId,
+    );
+    if (event.operationKind === "delete") {
+      if (!existing) return { data, value: value("unchanged") };
+      if (!knownPrevious) {
+        return localConflict(
+          "El proveedor local no tiene una versión central confirmada para borrarlo.",
+        );
+      }
+      return {
+        data: deleteSupplierMasterFromData(data, event.entityId),
+        value: value("deleted"),
+      };
+    }
+    const incoming = parseSupplierPayload(event.payload, event.entityId);
+    if (!incoming) {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_SUPPLIER_EVENT",
+        "El servidor devolvió un proveedor incompleto.",
+      );
+    }
+    if (!existing) {
+      return {
+        data: { ...data, suppliers: [...data.suppliers, incoming] },
+        value: value("added"),
+      };
+    }
+    if (sameEntity(existing, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (!knownPrevious) {
+      return localConflict(
+        "El proveedor local difiere de la primera versión recibida del servidor.",
+      );
+    }
+    return {
+      data: {
+        ...data,
+        suppliers: data.suppliers.map((supplier) =>
+          supplier.id === event.entityId ? incoming : supplier,
+        ),
+        expenses: data.expenses.map((expense) =>
+          expense.supplierId === event.entityId
+            ? { ...expense, supplierName: incoming.name }
+            : expense,
         ),
       },
       value: value("updated"),

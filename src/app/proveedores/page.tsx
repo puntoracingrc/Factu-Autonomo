@@ -15,6 +15,8 @@ import { Field, Input, Textarea } from "@/components/ui/Field";
 import { FormSection } from "@/components/ui/FormSection";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralSupplierCreate } from "@/hooks/useCentralSupplierCreate";
+import { useCentralSupplierMutations } from "@/hooks/useCentralSupplierMutations";
 import { formatMoney } from "@/lib/calculations";
 import { formatStreetLine } from "@/lib/customer-address";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
@@ -51,14 +53,21 @@ const EMPTY_FORM = {
 };
 
 export default function ProveedoresPage() {
-  const { data, addSupplier, updateSupplier, deleteSupplier, mergeSuppliers } =
-    useAppStore();
+  const { data, mergeSuppliers } = useAppStore();
+  const { createSupplier } = useCentralSupplierCreate();
+  const { updateSupplier, deleteSupplier, isCentralSupplier } =
+    useCentralSupplierMutations();
   const vatExempt = isVatExempt(data.profile);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [savingSupplier, setSavingSupplier] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(
+    "Proveedor guardado correctamente",
+  );
+  const [pageError, setPageError] = useState<string | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
   const [mergeSearch, setMergeSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -69,6 +78,8 @@ export default function ProveedoresPage() {
     useState<SupplierSortDirection>("asc");
   const emailInputRef = useRef<HTMLInputElement>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Supplier | null>(null);
+  const [deletingSupplier, setDeletingSupplier] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const suppliers = useMemo(
     () =>
@@ -177,6 +188,12 @@ export default function ProveedoresPage() {
 
   function handleManualMerge() {
     if (selectedIds.length < 2 || !keepId) return;
+    if (selectedIds.some(isCentralSupplier)) {
+      setPageError(
+        "La unificación de proveedores centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
+      );
+      return;
+    }
     const keep = data.suppliers.find((supplier) => supplier.id === keepId);
     if (!keep) return;
     const removeIds = selectedIds.filter((id) => id !== keepId);
@@ -211,7 +228,8 @@ export default function ProveedoresPage() {
     }));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (savingSupplier) return;
     if (!form.name.trim()) {
       setFormError("Escribe el nombre del proveedor");
       return;
@@ -240,17 +258,46 @@ export default function ProveedoresPage() {
     const existing = editingId
       ? data.suppliers.find((supplier) => supplier.id === editingId)
       : null;
+    setSavingSupplier(true);
     if (existing) {
-      updateSupplier({ ...existing, ...payload });
+      const result = await updateSupplier({
+        ...existing,
+        ...payload,
+      }).finally(() => setSavingSupplier(false));
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
+      setSavedMessage(
+        result.delivery === "central_pending"
+          ? "Proveedor actualizado en este dispositivo y pendiente de confirmar en el servidor"
+          : result.delivery === "central_review"
+            ? "Proveedor actualizado; la sincronización requiere revisión"
+            : "Proveedor guardado correctamente",
+      );
     } else {
       const match = findBestSupplierMatch(data.suppliers, payload);
       if (match?.score && match.score >= SUPPLIER_AUTO_LINK_SCORE) {
+        setSavingSupplier(false);
         setFormError(
           `Ya existe un proveedor muy parecido: ${match.supplier.name}. Revísalo antes de crear otro.`,
         );
         return;
       }
-      addSupplier(payload);
+      const result = await createSupplier(payload).finally(() =>
+        setSavingSupplier(false),
+      );
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
+      setSavedMessage(
+        result.delivery === "central_pending"
+          ? "Proveedor guardado en este dispositivo y pendiente de confirmar en el servidor"
+          : result.delivery === "central_review"
+            ? "Proveedor guardado; la sincronización requiere revisión"
+            : "Proveedor guardado correctamente",
+      );
     }
 
     closeForm();
@@ -270,6 +317,15 @@ export default function ProveedoresPage() {
         title="Proveedores"
         subtitle="Quién te vende material o servicios"
       />
+
+      {pageError ? (
+        <p
+          role="alert"
+          className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+        >
+          {pageError}
+        </p>
+      ) : null}
 
       {mergeMode && (
         <Card className="mb-6 border-blue-200 bg-blue-50/70">
@@ -309,6 +365,14 @@ export default function ProveedoresPage() {
                   icon={GitMerge}
                   label={`Unificar en «${canonical.name}»`}
                   onClick={() => {
+                    if (
+                      group.some((supplier) => isCentralSupplier(supplier.id))
+                    ) {
+                      setPageError(
+                        "La unificación de proveedores centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
+                      );
+                      return;
+                    }
                     if (
                       confirm(
                         `¿Unificar ${group.length} proveedores en «${canonical.name}»? Los gastos se moverán ahí.`,
@@ -369,7 +433,7 @@ export default function ProveedoresPage() {
 
       {saved && !formOpen && (
         <p className="mb-4 text-center text-sm font-medium text-green-600">
-          Proveedor guardado correctamente
+          {savedMessage}
         </p>
       )}
 
@@ -506,8 +570,12 @@ export default function ProveedoresPage() {
                 {formError}
               </p>
             ) : null}
-            <Button onClick={handleSave} fullWidth>
-              {editingId ? "Guardar cambios" : "Guardar proveedor"}
+            <Button onClick={handleSave} fullWidth disabled={savingSupplier}>
+              {savingSupplier
+                ? "Guardando..."
+                : editingId
+                  ? "Guardar cambios"
+                  : "Guardar proveedor"}
             </Button>
           </div>
         </ResponsiveEntityPanel>
@@ -722,9 +790,21 @@ export default function ProveedoresPage() {
           kind="supplier"
           name={deleteCandidate.name}
           impact={analyzeSupplierDeletion(data, deleteCandidate.id)}
-          onClose={() => setDeleteCandidate(null)}
-          onConfirm={() => {
-            deleteSupplier(deleteCandidate.id);
+          busy={deletingSupplier}
+          error={deleteError}
+          onClose={() => {
+            if (!deletingSupplier) setDeleteCandidate(null);
+          }}
+          onConfirm={async () => {
+            setDeleteError(null);
+            setDeletingSupplier(true);
+            const result = await deleteSupplier(deleteCandidate.id).finally(
+              () => setDeletingSupplier(false),
+            );
+            if (!result.ok) {
+              setDeleteError(result.error);
+              return;
+            }
             if (listFilterId === deleteCandidate.id) setListFilterId(null);
             setDeleteCandidate(null);
           }}
