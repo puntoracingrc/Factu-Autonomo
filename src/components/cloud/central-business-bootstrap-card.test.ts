@@ -20,6 +20,12 @@ describe("central business bootstrap account card", () => {
     expect(accountPage).toContain("CentralBusinessBootstrapCard");
   });
 
+  it("no depende de que el sincronizador legacy este activo", () => {
+    expect(component).not.toContain("cloudEnabled");
+    expect(component).toContain("!ownerScope");
+    expect(component).toContain("requiresEmailConfirmation");
+  });
+
   it("compara antes de confirmar y revalida el snapshot local", () => {
     expect(component).toContain(
       "previewCentralBusinessBootstrapFromBrowser",

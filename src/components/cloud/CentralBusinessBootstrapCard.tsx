@@ -56,7 +56,7 @@ export function CentralBusinessBootstrapCard() {
     getCurrentData,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { cloudEnabled, user, requiresEmailConfirmation } = useCloudSync();
+  const { user, requiresEmailConfirmation } = useCloudSync();
   const ownerScope = user?.id ?? null;
   const [status, setStatus] =
     useState<CentralBusinessAuthorityBrowserStatus | null>(null);
@@ -76,7 +76,6 @@ export function CentralBusinessBootstrapCard() {
 
   useEffect(() => {
     if (
-      !cloudEnabled ||
       !ownerScope ||
       requiresEmailConfirmation ||
       !ready
@@ -96,7 +95,7 @@ export function CentralBusinessBootstrapCard() {
     return () => {
       cancelled = true;
     };
-  }, [cloudEnabled, ownerScope, ready, requiresEmailConfirmation]);
+  }, [ownerScope, ready, requiresEmailConfirmation]);
 
   const appliesToUser = Boolean(status?.activation.appliesToUser);
   if (
