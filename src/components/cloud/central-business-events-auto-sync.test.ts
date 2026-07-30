@@ -30,6 +30,10 @@ describe("central business events auto sync wiring", () => {
     expect(normalSync.indexOf("drainCentralBusinessDurableQueue")).toBeLessThan(
       normalSync.indexOf("return pullCentralBusinessEvents"),
     );
+    expect(normalSync).toContain("mutateCentralBusinessBatchFromBrowser");
+    expect(normalSync).toContain(
+      "mutateBatch: mutateCentralBusinessBatchFromBrowser",
+    );
     expect(component).toContain('window.addEventListener("online", wake)');
     expect(component).toContain('window.addEventListener("focus", wake)');
     expect(component).toContain(
