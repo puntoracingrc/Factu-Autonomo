@@ -117,7 +117,7 @@ function durableFailure<T>(
     return "El cambio quedó pendiente de revisión porque no se pudo confirmar el almacenamiento local.";
   }
   if (result.reason === "stale_precondition") {
-    return "Los datos cambiaron mientras se guardaba. Revisa el listado y vuelve a intentarlo.";
+    return "Otro dispositivo cambió los datos mientras guardabas. No se ha sobrescrito nada. Revisa la información actual y vuelve a guardar para confirmar tu cambio.";
   }
   return "No se pudo guardar y verificar el cambio en este dispositivo.";
 }
