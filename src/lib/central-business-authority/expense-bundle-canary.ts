@@ -23,6 +23,7 @@ import {
   mutateCentralBusinessBatchFromBrowser,
   type CentralBusinessBrowserBatchMutationResult,
 } from "./batch-mutation-client";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
 import {
   mutateCentralBusinessFromBrowser,
   type CentralBusinessBrowserMutationResult,
@@ -148,7 +149,12 @@ function durableFailure<T>(
 function validatePreparedMutations(
   mutations: CentralExpenseBundlePreparedMutation[],
 ): boolean {
-  if (mutations.length < 1 || mutations.length > 20) return false;
+  if (
+    mutations.length < 1 ||
+    mutations.length > CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS
+  ) {
+    return false;
+  }
   const entities = new Set<string>();
   for (const mutation of mutations) {
     if (

@@ -1,9 +1,6 @@
-import {
-  evaluateCentralBusinessAuthorityActivation,
-} from "./activation";
-import {
-  mutateCentralBusinessBatch,
-} from "./batch-mutation-service";
+import { evaluateCentralBusinessAuthorityActivation } from "./activation";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
+import { mutateCentralBusinessBatch } from "./batch-mutation-service";
 import {
   CentralBusinessBatchMutationRpcError,
   type CentralBusinessBatchMutationRpcClient,
@@ -21,7 +18,6 @@ assertServerOnlyModule();
 export const CENTRAL_BUSINESS_BATCH_MUTATION_ROUTE =
   "CENTRAL_BUSINESS_BATCH_MUTATION_ROUTE_V1";
 const MAX_BODY_BYTES = 1024 * 1024;
-const MAX_OPERATIONS = 20;
 
 export interface CentralBusinessBatchMutationRouteAuth {
   userId: string;
@@ -136,7 +132,7 @@ function parseBody(raw: string): BatchMutationBodyItem[] {
     !isObject(value) ||
     !Array.isArray(value.operations) ||
     value.operations.length < 1 ||
-    value.operations.length > MAX_OPERATIONS ||
+    value.operations.length > CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS ||
     !value.operations.every(
       (operation) =>
         isObject(operation) &&

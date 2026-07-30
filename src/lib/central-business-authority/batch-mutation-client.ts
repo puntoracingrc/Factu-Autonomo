@@ -11,6 +11,7 @@ import type {
   CentralBusinessJson,
   CentralBusinessOperationKind,
 } from "./mutation-command";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
 
 export const CENTRAL_BUSINESS_BATCH_MUTATION_CLIENT =
   "CENTRAL_BUSINESS_BATCH_MUTATION_CLIENT_V1";
@@ -77,9 +78,7 @@ function failure(input: {
     ok: false,
     ...input,
     retryable:
-      input.status === 0 ||
-      input.status === 429 ||
-      input.status >= 500,
+      input.status === 0 || input.status === 429 || input.status >= 500,
     conflict:
       input.code === "CENTRAL_BUSINESS_VERSION_CONFLICT" ||
       input.code === "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT" ||
@@ -109,8 +108,7 @@ function parseSuccess(
       !isObject(operation) ||
       typeof operation.operationIndex !== "number" ||
       !Number.isInteger(operation.operationIndex) ||
-      (operation.status !== "committed" &&
-        operation.status !== "replayed") ||
+      (operation.status !== "committed" && operation.status !== "replayed") ||
       typeof operation.eventId !== "string" ||
       typeof operation.eventSequence !== "number" ||
       !Number.isSafeInteger(operation.eventSequence) ||
@@ -125,9 +123,7 @@ function parseSuccess(
   });
   if (
     operations.some((operation) => operation === null) ||
-    operations.some(
-      (operation, index) => operation?.operationIndex !== index,
-    )
+    operations.some((operation, index) => operation?.operationIndex !== index)
   ) {
     return null;
   }
@@ -142,11 +138,14 @@ export async function mutateCentralBusinessBatchFromBrowser(
   operations: CentralBusinessBrowserBatchMutationInput[],
   dependencies: CentralBusinessBatchMutationClientDependencies = {},
 ): Promise<CentralBusinessBrowserBatchMutationResult> {
-  if (operations.length < 1 || operations.length > 20) {
+  if (
+    operations.length < 1 ||
+    operations.length > CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS
+  ) {
     return failure({
       status: 400,
       code: "CENTRAL_BUSINESS_BATCH_INVALID_SIZE",
-      message: "El lote central debe contener entre 1 y 20 operaciones.",
+      message: `El lote central debe contener entre 1 y ${CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS} operaciones.`,
     });
   }
   const accessToken = await (

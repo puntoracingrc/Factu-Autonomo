@@ -19,7 +19,9 @@ function requireEnv(name: string): string {
 
 function assertLocalUrl(value: string): void {
   if (!localHosts.has(new URL(value).hostname)) {
-    throw new Error("Central business authority acceptance requires localhost.");
+    throw new Error(
+      "Central business authority acceptance requires localhost.",
+    );
   }
 }
 
@@ -90,9 +92,15 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       .from("central_business_bootstraps")
       .delete()
       .eq("user_id", userId);
-    await admin.from("central_business_commands").delete().eq("user_id", userId);
+    await admin
+      .from("central_business_commands")
+      .delete()
+      .eq("user_id", userId);
     await admin.from("central_business_outbox").delete().eq("user_id", userId);
-    await admin.from("central_business_entities").delete().eq("user_id", userId);
+    await admin
+      .from("central_business_entities")
+      .delete()
+      .eq("user_id", userId);
     await admin.auth.admin.deleteUser(userId);
   });
 
@@ -475,6 +483,79 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     expect(rolledBack.data).toEqual([]);
   });
 
+  it("commits exactly 100 operations and rejects 101", async () => {
+    const maximum = Array.from({ length: 100 }, (_, index) => ({
+      operationIndex: index,
+      idempotencyKeyHash: `capacity-idempotency-${index}`,
+      requestHash: `capacity-request-${index}`,
+      operationKind: "upsert",
+      entityType: "customer",
+      entityId: `capacity-customer-${index}`,
+      expectedVersion: 0,
+      payload: {
+        id: `capacity-customer-${index}`,
+        name: `Capacity customer ${index}`,
+      },
+      contentHash: `capacity-hash-${index}`,
+    }));
+    const committed = await admin.rpc("mutate_central_business_batch_v1", {
+      p_user_id: userId,
+      p_device_id: "synthetic-capacity-device",
+      p_session_hash: "synthetic-capacity-session",
+      p_operations: maximum,
+    });
+    expect(committed.error).toBeNull();
+    expect(committed.data).toHaveLength(100);
+    expect(committed.data?.at(-1)).toMatchObject({
+      operation_index: 99,
+      result_status: "committed",
+      entity_version: 1,
+    });
+
+    const overflow = await admin.rpc("mutate_central_business_batch_v1", {
+      p_user_id: userId,
+      p_device_id: "synthetic-capacity-device",
+      p_session_hash: "synthetic-capacity-session",
+      p_operations: [
+        ...maximum.map((operation, index) => ({
+          ...operation,
+          operationIndex: index,
+          idempotencyKeyHash: `overflow-idempotency-${index}`,
+          requestHash: `overflow-request-${index}`,
+          entityId: `overflow-customer-${index}`,
+          payload: {
+            id: `overflow-customer-${index}`,
+            name: `Overflow customer ${index}`,
+          },
+          contentHash: `overflow-hash-${index}`,
+        })),
+        {
+          operationIndex: 100,
+          idempotencyKeyHash: "overflow-idempotency-100",
+          requestHash: "overflow-request-100",
+          operationKind: "upsert",
+          entityType: "customer",
+          entityId: "overflow-customer-100",
+          expectedVersion: 0,
+          payload: {
+            id: "overflow-customer-100",
+            name: "Overflow customer 100",
+          },
+          contentHash: "overflow-hash-100",
+        },
+      ],
+    });
+    expect(overflow.error?.code).toBe("P4120");
+
+    const partial = await admin
+      .from("central_business_entities")
+      .select("id")
+      .eq("user_id", userId)
+      .like("entity_id", "overflow-customer-%");
+    expect(partial.error).toBeNull();
+    expect(partial.data).toEqual([]);
+  });
+
   it("allows one recurring occurrence and rolls back a duplicate batch", async () => {
     const occurrenceKey = "synthetic-rule:2026-07-30";
     const recurringArgs = (side: "left" | "right") => ({
@@ -521,46 +602,43 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     expect(active.error).toBeNull();
     expect(active.data).toHaveLength(1);
 
-    const duplicateBatch = await admin.rpc(
-      "mutate_central_business_batch_v1",
-      {
-        p_user_id: userId,
-        p_device_id: "synthetic-recurring-batch",
-        p_session_hash: "synthetic-recurring-batch-session",
-        p_operations: [
-          {
-            operationIndex: 0,
-            idempotencyKeyHash: "recurring-rollback-customer",
-            requestHash: "recurring-rollback-customer-request",
-            operationKind: "upsert",
-            entityType: "customer",
-            entityId: "must-roll-back-with-recurring-duplicate",
-            expectedVersion: 0,
-            payload: {
-              id: "must-roll-back-with-recurring-duplicate",
-              name: "Must roll back",
-            },
-            contentHash: "recurring-rollback-customer-hash",
+    const duplicateBatch = await admin.rpc("mutate_central_business_batch_v1", {
+      p_user_id: userId,
+      p_device_id: "synthetic-recurring-batch",
+      p_session_hash: "synthetic-recurring-batch-session",
+      p_operations: [
+        {
+          operationIndex: 0,
+          idempotencyKeyHash: "recurring-rollback-customer",
+          requestHash: "recurring-rollback-customer-request",
+          operationKind: "upsert",
+          entityType: "customer",
+          entityId: "must-roll-back-with-recurring-duplicate",
+          expectedVersion: 0,
+          payload: {
+            id: "must-roll-back-with-recurring-duplicate",
+            name: "Must roll back",
           },
-          {
-            operationIndex: 1,
-            idempotencyKeyHash: "recurring-duplicate-batch-expense",
-            requestHash: "recurring-duplicate-batch-expense-request",
-            operationKind: "upsert",
-            entityType: "expense",
-            entityId: "recurring-occurrence-batch-duplicate",
-            expectedVersion: 0,
-            payload: {
-              id: "recurring-occurrence-batch-duplicate",
-              description: "Must not duplicate",
-              recurringExpenseId: "synthetic-rule",
-              recurringOccurrenceKey: occurrenceKey,
-            },
-            contentHash: "recurring-duplicate-batch-expense-hash",
+          contentHash: "recurring-rollback-customer-hash",
+        },
+        {
+          operationIndex: 1,
+          idempotencyKeyHash: "recurring-duplicate-batch-expense",
+          requestHash: "recurring-duplicate-batch-expense-request",
+          operationKind: "upsert",
+          entityType: "expense",
+          entityId: "recurring-occurrence-batch-duplicate",
+          expectedVersion: 0,
+          payload: {
+            id: "recurring-occurrence-batch-duplicate",
+            description: "Must not duplicate",
+            recurringExpenseId: "synthetic-rule",
+            recurringOccurrenceKey: occurrenceKey,
           },
-        ],
-      },
-    );
+          contentHash: "recurring-duplicate-batch-expense-hash",
+        },
+      ],
+    });
     expect(duplicateBatch.error?.code).toBe("P4105");
 
     const rolledBack = await admin

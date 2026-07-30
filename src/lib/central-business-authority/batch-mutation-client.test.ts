@@ -4,6 +4,7 @@ import {
   mutateCentralBusinessBatchFromBrowser,
   type CentralBusinessBrowserBatchMutationInput,
 } from "./batch-mutation-client";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
 
 const operations: CentralBusinessBrowserBatchMutationInput[] = [
   {
@@ -134,5 +135,72 @@ describe("central business batch mutation client", () => {
       retryable: false,
       causeCode: "P4105",
     });
+  });
+
+  it("acepta el maximo atomico y rechaza una operacion adicional", async () => {
+    const maximum = Array.from(
+      { length: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS },
+      (_, index): CentralBusinessBrowserBatchMutationInput => ({
+        idempotencyKey: `synthetic-capacity-${index}`,
+        operationKind: "upsert",
+        entityType: "expense",
+        entityId: `expense-capacity-${index}`,
+        expectedVersion: 0,
+        payload: {
+          id: `expense-capacity-${index}`,
+          description: `Synthetic expense ${index}`,
+        },
+      }),
+    );
+    const fetchImpl = vi.fn(async () =>
+      Response.json({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_BATCH_MUTATION_ROUTE_V1",
+        result: {
+          schema: "CENTRAL_BUSINESS_BATCH_MUTATION_RPC_ADAPTER_V1",
+          operations: maximum.map((_, operationIndex) => ({
+            operationIndex,
+            status: "committed",
+            eventId: `event-capacity-${operationIndex}`,
+            eventSequence: operationIndex + 1,
+            entityVersion: 1,
+            deleted: false,
+            contentHash: `hash-capacity-${operationIndex}`,
+          })),
+        },
+      }),
+    );
+
+    await expect(
+      mutateCentralBusinessBatchFromBrowser(maximum, {
+        fetchImpl,
+        getAccessToken: async () => "token",
+        getDeviceToken: () => "device",
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      operations: { length: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS },
+    });
+    await expect(
+      mutateCentralBusinessBatchFromBrowser(
+        [
+          ...maximum,
+          {
+            ...maximum[0],
+            idempotencyKey: "synthetic-capacity-overflow",
+            entityId: "expense-capacity-overflow",
+          },
+        ],
+        {
+          fetchImpl,
+          getAccessToken: async () => "token",
+          getDeviceToken: () => "device",
+        },
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "CENTRAL_BUSINESS_BATCH_INVALID_SIZE",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

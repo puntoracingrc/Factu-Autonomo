@@ -12,6 +12,7 @@ import {
   createCentralBusinessBatchMutationRouteHandler,
   type CentralBusinessBatchMutationRouteDependencies,
 } from "./batch-mutation-route-handler";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
 import type { CentralBusinessBatchMutationRpcArgs } from "./batch-mutation-rpc-adapter";
 
 const userId = "00000000-0000-4000-8000-000000000001";
@@ -152,12 +153,12 @@ describe("central business batch mutation route", () => {
 
   it("rechaza lotes vacios, grandes o con una ficha repetida", async () => {
     enableCanary();
-    expect(await request(dependencies(), body({ operations: [] }))).toMatchObject(
-      {
-        status: 400,
-        body: { error: { code: "INVALID_BODY" } },
-      },
-    );
+    expect(
+      await request(dependencies(), body({ operations: [] })),
+    ).toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_BODY" } },
+    });
     const repeated = JSON.stringify({
       operations: [
         JSON.parse(body()).operations[0],
@@ -172,18 +173,53 @@ describe("central business batch mutation route", () => {
       body: { error: { code: "DUPLICATE_ENTITY" } },
     });
     const tooMany = JSON.stringify({
-      operations: Array.from({ length: 21 }, (_, index) => ({
-        idempotencyKey: `SYNTHETIC_BATCH_${index.toString().padStart(2, "0")}`,
-        operationKind: "upsert",
-        entityType: "customer",
-        entityId: `customer-${index}`,
-        expectedVersion: 0,
-        payload: { id: `customer-${index}` },
-      })),
+      operations: Array.from(
+        { length: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS + 1 },
+        (_, index) => ({
+          idempotencyKey: `SYNTHETIC_BATCH_${index.toString().padStart(2, "0")}`,
+          operationKind: "upsert",
+          entityType: "customer",
+          entityId: `customer-${index}`,
+          expectedVersion: 0,
+          payload: { id: `customer-${index}` },
+        }),
+      ),
     });
     expect(await request(dependencies(), tooMany)).toMatchObject({
       status: 400,
       body: { error: { code: "INVALID_BODY" } },
+    });
+  });
+
+  it("acepta el maximo de operaciones atomicas", async () => {
+    enableCanary();
+    const maximum = JSON.stringify({
+      operations: Array.from(
+        { length: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS },
+        (_, index) => ({
+          idempotencyKey: `SYNTHETIC_CAPACITY_${index}`,
+          operationKind: "upsert",
+          entityType: "expense",
+          entityId: `expense-capacity-${index}`,
+          expectedVersion: 0,
+          payload: {
+            id: `expense-capacity-${index}`,
+            description: `Synthetic expense ${index}`,
+          },
+        }),
+      ),
+    });
+
+    const result = await request(dependencies(), maximum);
+    expect(result).toMatchObject({
+      status: 200,
+      body: {
+        result: {
+          operations: {
+            length: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS,
+          },
+        },
+      },
     });
   });
 
