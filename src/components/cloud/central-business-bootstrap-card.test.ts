@@ -53,4 +53,15 @@ describe("central business bootstrap account card", () => {
       "recordCentralBusinessBootstrapCheckpoint",
     );
   });
+
+  it("restaura fichas solo centrales releyendo el historial sin escribir servidor", () => {
+    expect(component).toContain("reconcileCentralBusinessEvents");
+    expect(component).toContain("handleRestoreCentralOnly");
+    expect(component).toContain("preview.summary.conflict === 0");
+    expect(component).toContain("preview.summary.centralOnly > 0");
+    expect(component).toContain(
+      "previewCentralBusinessBootstrapFromBrowser(restoredEntities)",
+    );
+    expect(component).toContain("Restaurar ${preview.summary.centralOnly}");
+  });
 });

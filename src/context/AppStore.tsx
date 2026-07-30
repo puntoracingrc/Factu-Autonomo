@@ -27,6 +27,7 @@ import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/centra
 import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
 import type { CentralBusinessDrainResult } from "@/lib/central-business-authority/durable-queue";
 import type { CentralBusinessConflictRecoveryResult } from "@/lib/central-business-authority/conflict-recovery";
+import type { CentralBusinessEventReconciliationResult } from "@/lib/central-business-authority/event-reconciliation";
 import type { CentralBusinessEntityType } from "@/lib/central-business-authority/mutation-command";
 import {
   applyRecurringExpenseChangeToData,
@@ -404,6 +405,10 @@ interface AppStoreValue {
     ownerScope: string,
     options?: { limit?: number },
   ) => Promise<CentralBusinessEventsAppDataSyncResult>;
+  reconcileCentralBusinessEvents: (
+    ownerScope: string,
+    options?: { limit?: number; maxPages?: number },
+  ) => Promise<CentralBusinessEventReconciliationResult>;
   resolveCentralBusinessConflictKeepingServer: (input: {
     ownerScope: string;
     entityType: CentralBusinessEntityType;
@@ -1493,6 +1498,43 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       return pullCentralBusinessEvents(ownerScope, options);
+    },
+    [pullCentralBusinessEvents],
+  );
+
+  const reconcileCentralBusinessEvents = useCallback(
+    async (
+      ownerScope: string,
+      options: { limit?: number; maxPages?: number } = {},
+    ): Promise<CentralBusinessEventReconciliationResult> => {
+      const { reconcileCentralBusinessEventHistory } = await import(
+        "@/lib/central-business-authority/event-reconciliation"
+      );
+      const {
+        loadCentralBusinessDurableQueue,
+        rewindCentralBusinessEventCursorForReconciliation,
+        withCentralBusinessQueueLock,
+      } = await import(
+        "@/lib/central-business-authority/durable-queue"
+      );
+
+      return reconcileCentralBusinessEventHistory(
+        { maxPages: options.maxPages },
+        {
+          rewind: () =>
+            withCentralBusinessQueueLock(ownerScope, () =>
+              rewindCentralBusinessEventCursorForReconciliation({
+                ownerScope,
+              }),
+            ),
+          hasPendingOperations: () =>
+            loadCentralBusinessDurableQueue(ownerScope).operations.length > 0,
+          syncPage: () =>
+            pullCentralBusinessEvents(ownerScope, {
+              limit: options.limit ?? 500,
+            }),
+        },
+      );
     },
     [pullCentralBusinessEvents],
   );
@@ -3457,6 +3499,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
+      reconcileCentralBusinessEvents,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
       updateProfile,
@@ -3550,6 +3593,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
+      reconcileCentralBusinessEvents,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
       updateProfile,

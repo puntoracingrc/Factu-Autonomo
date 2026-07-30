@@ -513,6 +513,28 @@ export function recordCentralBusinessEntityVersionCheckpoint(input: {
   return persistState({ ...state, entityVersions }, storage);
 }
 
+export function rewindCentralBusinessEventCursorForReconciliation(input: {
+  ownerScope: string;
+  storage?: CentralBusinessQueueStorage;
+}): CentralBusinessDurableQueueState {
+  const storage = resolveStorage(input.storage);
+  const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  if (state.operations.length > 0) {
+    throw new CentralBusinessDurableQueueError(
+      "LOCAL_OPERATION_CONFLICT",
+      "No se puede releer el historial central mientras haya cambios pendientes.",
+    );
+  }
+  if (state.lastAppliedEventSequence === 0) return state;
+  return persistState(
+    {
+      ...state,
+      lastAppliedEventSequence: 0,
+    },
+    storage,
+  );
+}
+
 export function enqueueCentralBusinessOperation(input: {
   ownerScope: string;
   operationId: string;
