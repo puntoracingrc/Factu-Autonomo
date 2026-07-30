@@ -105,6 +105,46 @@ function successSync() {
 }
 
 describe("central business entity mutation canary", () => {
+  it("explica un choque local entre dispositivos sin sugerir que se guardó", async () => {
+    const storage = new MemoryStorage();
+    await seedVersion(storage);
+
+    const result = await mutateCentralBusinessEntityWithCanary({
+      enabled: true,
+      userId: ownerScope,
+      entityType: "customer",
+      entityId,
+      operationKind: "upsert",
+      operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
+      entityLabel: "este cliente",
+      dependencies: {
+        storage,
+        getCurrentData: () => EMPTY_DATA,
+        fallback: () => ({ ok: false, error: "not expected" }),
+        prepareLocal: ({ data }) => ({
+          ok: true,
+          payload: { id: entityId, name: "Cambio local" },
+          transition: { data, value: entityId },
+        }),
+        commitLocal: () => ({
+          status: "blocked",
+          reason: "stale_precondition",
+        }),
+        syncEventsBeforeWrite: async () => successSync(),
+        fetchStatus: async () => readyStatus(),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "Otro dispositivo cambió los datos mientras guardabas. No se ha sobrescrito nada. Revisa la información actual y vuelve a guardar para confirmar tu cambio.",
+    });
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage).operations,
+    ).toEqual([]);
+  });
+
   it("usa la versión confirmada y persiste local antes de confirmar el cambio", async () => {
     const storage = new MemoryStorage();
     await seedVersion(storage);
