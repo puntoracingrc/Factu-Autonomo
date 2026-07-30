@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   CheckCircle2,
@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralExpenseMutations } from "@/hooks/useCentralExpenseMutations";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import {
   decimalInputFromNumber,
@@ -65,7 +66,8 @@ function confirmationText(
   return relevantWarnings ? `${message}\n\n${relevantWarnings}` : message;
 }
 
-const EMPTY_EXPENSE_LINK_CANDIDATES: RentabilidadRealExpenseLinkCandidate[] = [];
+const EMPTY_EXPENSE_LINK_CANDIDATES: RentabilidadRealExpenseLinkCandidate[] =
+  [];
 const CANDIDATE_PAGE_SIZE = 10;
 
 export function WorkExpenseLinkingPanel({
@@ -79,13 +81,17 @@ export function WorkExpenseLinkingPanel({
     allocations: ExpenseCostAllocationsByExpenseId,
   ) => void;
 }) {
-  const { data, updateExpense } = useAppStore();
+  const { data } = useAppStore();
+  const { updateExpense } = useCentralExpenseMutations();
   const [notice, setNotice] = useState<string | null>(null);
+  const [savingExpenseId, setSavingExpenseId] = useState<string | null>(null);
+  const savingExpenseIdRef = useRef<string | null>(null);
   const targetDocumentId = profitabilityInput.source.sourceDocumentId;
   const linkedExpenses =
     profitabilityInput.linkedExpenses ?? EMPTY_EXPENSE_LINK_CANDIDATES;
   const candidates =
-    profitabilityInput.candidateUnlinkedExpenses ?? EMPTY_EXPENSE_LINK_CANDIDATES;
+    profitabilityInput.candidateUnlinkedExpenses ??
+    EMPTY_EXPENSE_LINK_CANDIDATES;
   const [candidateSearch, setCandidateSearch] = useState("");
   const [candidateSupplierFilter, setCandidateSupplierFilter] = useState<
     string | null
@@ -154,7 +160,9 @@ export function WorkExpenseLinkingPanel({
       : `Mostrando ${pagedVisibleCandidates.length} de ${visibleCandidates.length}`;
 
   useEffect(() => {
-    setHiddenCandidateIds(getHiddenExpenseCandidateIdsForWork(targetDocumentId));
+    setHiddenCandidateIds(
+      getHiddenExpenseCandidateIdsForWork(targetDocumentId),
+    );
     setCandidateSearch("");
     setCandidateSupplierFilter(null);
     setPanelCollapsed(false);
@@ -165,7 +173,24 @@ export function WorkExpenseLinkingPanel({
     setVisibleCandidateLimit(CANDIDATE_PAGE_SIZE);
   }, [candidateSearch, candidateSupplierFilter]);
 
-  function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
+  async function saveExpenseUpdate(expense: Expense): Promise<boolean> {
+    if (savingExpenseIdRef.current) return false;
+    savingExpenseIdRef.current = expense.id;
+    setSavingExpenseId(expense.id);
+    try {
+      const result = await updateExpense(expense);
+      if (!result.ok) {
+        setNotice(result.error);
+        return false;
+      }
+      return true;
+    } finally {
+      savingExpenseIdRef.current = null;
+      setSavingExpenseId(null);
+    }
+  }
+
+  async function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
     const expense = candidate.expense;
     const impact = buildExpenseLinkImpact(expense, targetDocumentId);
     if (!canLinkExpenseToWork(expense, targetDocumentId)) {
@@ -179,11 +204,17 @@ export function WorkExpenseLinkingPanel({
     );
     if (!confirmed) return;
 
-    updateExpense(createExpenseWorkDocumentUpdatePayload(expense, targetDocumentId));
+    const updated = createExpenseWorkDocumentUpdatePayload(
+      expense,
+      targetDocumentId,
+    );
+    if (!(await saveExpenseUpdate(updated))) return;
     setNotice("El cálculo se ha actualizado usando tus gastos existentes.");
   }
 
-  function unlinkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
+  async function unlinkExpense(
+    candidate: RentabilidadRealExpenseLinkCandidate,
+  ) {
     const expense = candidate.expense;
     const impact = buildExpenseUnlinkImpact(expense);
     const confirmed = window.confirm(
@@ -191,7 +222,13 @@ export function WorkExpenseLinkingPanel({
     );
     if (!confirmed) return;
 
-    updateExpense(createExpenseWorkDocumentUnlinkPayload(expense));
+    if (
+      !(await saveExpenseUpdate(
+        createExpenseWorkDocumentUnlinkPayload(expense),
+      ))
+    ) {
+      return;
+    }
     setNotice("El cálculo se ha actualizado usando tus gastos existentes.");
   }
 
@@ -318,10 +355,13 @@ export function WorkExpenseLinkingPanel({
                       type="button"
                       variant="secondary"
                       className="min-h-10 px-3 text-sm"
-                      onClick={() => unlinkExpense(candidate)}
+                      disabled={savingExpenseId === candidate.expense.id}
+                      onClick={() => void unlinkExpense(candidate)}
                     >
                       <Unlink className="h-4 w-4" />
-                      Desvincular
+                      {savingExpenseId === candidate.expense.id
+                        ? "Guardando..."
+                        : "Desvincular"}
                     </Button>
                   }
                 />
@@ -414,10 +454,13 @@ export function WorkExpenseLinkingPanel({
                           <Button
                             type="button"
                             className="min-h-10 px-3 text-sm"
-                            onClick={() => linkExpense(candidate)}
+                            disabled={savingExpenseId === candidate.expense.id}
+                            onClick={() => void linkExpense(candidate)}
                           >
                             <Link2 className="h-4 w-4" />
-                            Asignar a este trabajo
+                            {savingExpenseId === candidate.expense.id
+                              ? "Guardando..."
+                              : "Asignar a este trabajo"}
                           </Button>
                           <Button
                             type="button"
