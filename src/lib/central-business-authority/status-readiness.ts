@@ -18,6 +18,7 @@ export type CentralBusinessAuthorityStatusBlocker =
   | "missing_admin_client"
   | "central_business_table_unavailable"
   | "central_business_mutation_rpc_unavailable"
+  | "central_business_batch_mutation_rpc_unavailable"
   | "central_business_events_rpc_unavailable"
   | "central_business_bootstrap_rpc_unavailable";
 
@@ -43,6 +44,7 @@ export interface CentralBusinessAuthorityStatusProbeClient {
   rpc(
     name:
       | "mutate_central_business_entity_v1"
+      | "mutate_central_business_batch_v1"
       | "list_central_business_events_v1"
       | "bootstrap_central_business_entities_v1",
     args: Record<string, unknown>,
@@ -174,6 +176,33 @@ async function probeMutationRpc(
       );
 }
 
+async function probeBatchMutationRpc(
+  client: CentralBusinessAuthorityStatusProbeClient,
+) {
+  const result = await client.rpc("mutate_central_business_batch_v1", {
+    p_user_id: null,
+    p_device_id: "",
+    p_session_hash: "",
+    p_operations: [],
+  });
+  return expectedError(
+    result.error,
+    "invalid central business batch command",
+  )
+    ? ready(
+        "rpc:mutate_central_business_batch_v1:dry_invalid",
+        "rpc",
+        "RPC atomica existe y corta el dry-run antes de escribir.",
+      )
+    : blocked(
+        "rpc:mutate_central_business_batch_v1:dry_invalid",
+        "rpc",
+        "central_business_batch_mutation_rpc_unavailable",
+        "La RPC atomica no devolvio el rechazo seguro esperado.",
+        result.error,
+      );
+}
+
 async function probeEventsRpc(
   client: CentralBusinessAuthorityStatusProbeClient,
 ) {
@@ -259,6 +288,7 @@ export async function probeCentralBusinessAuthorityStatusReadiness(input: {
       probeTable(input.client!, table),
     ),
     probeMutationRpc(input.client),
+    probeBatchMutationRpc(input.client),
     probeEventsRpc(input.client),
     probeBootstrapRpc(input.client),
   ]);
