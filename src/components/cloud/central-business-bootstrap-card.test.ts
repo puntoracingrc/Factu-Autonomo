@@ -49,5 +49,8 @@ describe("central business bootstrap account card", () => {
     expect(component).toContain("queue.operations.length > 0");
     expect(component).toContain("syncCentralBusinessEvents");
     expect(component).toContain("if (!result.hasMore) return null");
+    expect(component).toContain(
+      "recordCentralBusinessBootstrapCheckpoint",
+    );
   });
 });

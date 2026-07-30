@@ -63,6 +63,13 @@ export interface CentralBusinessEntityVersion {
   contentHash: string;
 }
 
+export interface CentralBusinessEntityVersionCheckpoint {
+  entityType: CentralBusinessEntityType;
+  entityId: string;
+  version: number;
+  contentHash: string;
+}
+
 export interface CentralBusinessDurableQueueState {
   schema: typeof CENTRAL_BUSINESS_DURABLE_QUEUE;
   ownerScope: string;
@@ -465,6 +472,48 @@ export function loadCentralBusinessDurableQueue(
     );
   }
   return state;
+}
+
+export function recordCentralBusinessEntityVersionCheckpoint(input: {
+  ownerScope: string;
+  entities: CentralBusinessEntityVersionCheckpoint[];
+  storage?: CentralBusinessQueueStorage;
+}): CentralBusinessDurableQueueState {
+  const storage = resolveStorage(input.storage);
+  const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  if (state.operations.length > 0) {
+    throw new CentralBusinessDurableQueueError(
+      "LOCAL_OPERATION_CONFLICT",
+      "No se puede enlazar la copia central mientras haya cambios pendientes.",
+    );
+  }
+
+  const entityVersions = { ...state.entityVersions };
+  const seen = new Set<string>();
+  for (const entity of input.entities) {
+    const key = entityKey(entity.entityType, entity.entityId);
+    if (
+      seen.has(key) ||
+      !ENTITY_TYPES.has(entity.entityType) ||
+      !entity.entityId ||
+      entity.entityId.length > 200 ||
+      !Number.isInteger(entity.version) ||
+      entity.version < 1 ||
+      !/^[0-9a-f]{64}$/u.test(entity.contentHash)
+    ) {
+      throw new CentralBusinessDurableQueueError(
+        "INVALID_OPERATION",
+        "El punto de enlace central contiene una versión inválida.",
+      );
+    }
+    seen.add(key);
+    entityVersions[key] = {
+      ...entity,
+      deleted: false,
+    };
+  }
+
+  return persistState({ ...state, entityVersions }, storage);
 }
 
 export function enqueueCentralBusinessOperation(input: {
