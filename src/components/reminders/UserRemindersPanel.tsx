@@ -11,6 +11,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCentralUserReminders } from "@/hooks/useCentralUserReminders";
 import {
   completedUserReminders,
   pendingUserReminders,
@@ -52,13 +53,9 @@ type RectifyReminderDocumentType = Extract<
 type GenerateCustomerMode = "none" | "customer";
 
 export function UserRemindersPanel() {
-  const {
-    data,
-    addUserReminder,
-    completeUserReminder,
-    reopenUserReminder,
-    deleteUserReminder,
-  } = useAppStore();
+  const { data } = useAppStore();
+  const { createReminder, setReminderCompleted, deleteReminder } =
+    useCentralUserReminders();
   const { limits, loading: billingLoading } = useBilling();
   const { user, syncNow } = useCloudSync();
 
@@ -79,10 +76,14 @@ export function UserRemindersPanel() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [sentToOffice, setSentToOffice] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
+  const [operationNotice, setOperationNotice] = useState<string | null>(null);
+  const [savingReminder, setSavingReminder] = useState(false);
+  const [busyReminderId, setBusyReminderId] = useState<string | null>(null);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
-  const [calendarDraftNotice, setCalendarDraftNotice] = useState<
-    string | null
-  >(null);
+  const [calendarDraftNotice, setCalendarDraftNotice] = useState<string | null>(
+    null,
+  );
   const initialRouteHandled = useRef(false);
 
   const pending = useMemo(
@@ -325,31 +326,95 @@ export function UserRemindersPanel() {
     return { kind: "rectify", entityId: selectedDocumentId };
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  function deliveryMessage(delivery: string, action: string): string | null {
+    if (delivery === "central_pending") {
+      return `${action} en este dispositivo y pendiente de confirmar en el servidor central.`;
+    }
+    if (delivery === "central_review") {
+      return `${action}; la sincronización central requiere revisión.`;
+    }
+    if (delivery === "central_confirmed") {
+      return `${action} y confirmado por el servidor central.`;
+    }
+    return null;
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (savingReminder) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     setFormError(null);
+    setOperationError(null);
+    setOperationNotice(null);
     const link = buildReminderLink();
     if (!link) return;
 
-    addUserReminder({
+    setSavingReminder(true);
+    const result = await createReminder({
       text: trimmed,
       target,
       origin: guessReminderOrigin(),
       link,
-    });
+    }).finally(() => setSavingReminder(false));
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
 
-    if (target === "office" && user) {
+    if (result.delivery === "local" && target === "office" && user) {
       void syncNow();
     }
 
     if (target === "office") {
       setSentToOffice(true);
     }
+    setOperationNotice(
+      deliveryMessage(result.delivery, "Recordatorio guardado"),
+    );
 
     resetForm();
     setShowForm(false);
+  }
+
+  async function handleReminderCompleted(
+    reminderId: string,
+    completed: boolean,
+  ) {
+    if (busyReminderId) return;
+    setBusyReminderId(reminderId);
+    setOperationError(null);
+    setOperationNotice(null);
+    const result = await setReminderCompleted(reminderId, completed).finally(
+      () => setBusyReminderId(null),
+    );
+    if (!result.ok) {
+      setOperationError(result.error);
+      return;
+    }
+    setOperationNotice(
+      deliveryMessage(
+        result.delivery,
+        completed ? "Recordatorio completado" : "Recordatorio reabierto",
+      ),
+    );
+  }
+
+  async function handleDeleteReminder(reminderId: string) {
+    if (busyReminderId) return;
+    setBusyReminderId(reminderId);
+    setOperationError(null);
+    setOperationNotice(null);
+    const result = await deleteReminder(reminderId).finally(() =>
+      setBusyReminderId(null),
+    );
+    if (!result.ok) {
+      setOperationError(result.error);
+      return;
+    }
+    setOperationNotice(
+      deliveryMessage(result.delivery, "Recordatorio eliminado"),
+    );
   }
 
   return (
@@ -376,6 +441,24 @@ export function UserRemindersPanel() {
         <p className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
           Enviado a oficina. Si hay nube activa, se sincronizará con el otro
           dispositivo.
+        </p>
+      ) : null}
+
+      {operationError ? (
+        <p
+          className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+          role="alert"
+        >
+          {operationError}
+        </p>
+      ) : null}
+
+      {operationNotice ? (
+        <p
+          className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800"
+          role="status"
+        >
+          {operationNotice}
         </p>
       ) : null}
 
@@ -587,12 +670,14 @@ export function UserRemindersPanel() {
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <Button type="submit">
+              <Button type="submit" disabled={savingReminder}>
                 {target === "office" ? (
                   <>
                     <Send className="h-4 w-4" />
-                    Enviar a oficina
+                    {savingReminder ? "Enviando…" : "Enviar a oficina"}
                   </>
+                ) : savingReminder ? (
+                  "Guardando…"
                 ) : (
                   "Guardar recordatorio"
                 )}
@@ -627,7 +712,8 @@ export function UserRemindersPanel() {
               <UserReminderRow
                 reminder={item}
                 href={resolveReminderHref(data, item.link)}
-                onComplete={() => completeUserReminder(item.id)}
+                onComplete={() => void handleReminderCompleted(item.id, true)}
+                busy={busyReminderId === item.id}
               />
             </li>
           ))}
@@ -671,8 +757,11 @@ export function UserRemindersPanel() {
                     <div className="flex shrink-0 gap-1">
                       <button
                         type="button"
-                        onClick={() => reopenUserReminder(item.id)}
-                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-white"
+                        onClick={() =>
+                          void handleReminderCompleted(item.id, false)
+                        }
+                        disabled={busyReminderId === item.id}
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-white disabled:cursor-wait disabled:opacity-50"
                         title="Marcar como pendiente"
                         aria-label="Marcar recordatorio como pendiente"
                       >
@@ -680,8 +769,9 @@ export function UserRemindersPanel() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteUserReminder(item.id)}
-                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-red-500 hover:bg-white"
+                        onClick={() => void handleDeleteReminder(item.id)}
+                        disabled={busyReminderId === item.id}
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-red-500 hover:bg-white disabled:cursor-wait disabled:opacity-50"
                         title="Eliminar"
                         aria-label="Eliminar recordatorio"
                       >
@@ -848,10 +938,7 @@ function DocumentPickerSearch({
           className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"
         >
           {results.length === 0 ? (
-            <li
-              role="status"
-              className="px-4 py-3 text-sm text-slate-500"
-            >
+            <li role="status" className="px-4 py-3 text-sm text-slate-500">
               No hay documentos que coincidan
             </li>
           ) : (

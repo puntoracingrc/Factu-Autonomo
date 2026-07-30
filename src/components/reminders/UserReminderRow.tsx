@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import {
-  isReminderOverdue,
-  reminderDueLabel,
-} from "@/lib/user-reminders";
+import { isReminderOverdue, reminderDueLabel } from "@/lib/user-reminders";
 import {
   isUnseenOfficeReminder,
   reminderOriginLabel,
@@ -19,6 +16,7 @@ interface UserReminderRowProps {
   href?: string;
   onComplete: () => void;
   compact?: boolean;
+  busy?: boolean;
 }
 
 export function UserReminderRow({
@@ -26,6 +24,7 @@ export function UserReminderRow({
   href,
   onComplete,
   compact = false,
+  busy = false,
 }: UserReminderRowProps) {
   const overdue = isReminderOverdue(reminder);
   const dueLabel = reminderDueLabel(reminder);
@@ -49,11 +48,12 @@ export function UserReminderRow({
         <button
           type="button"
           onClick={onComplete}
+          disabled={busy}
           className={`${compact ? "h-6 w-6" : "h-7 w-7"} mt-0.5 flex shrink-0 items-center justify-center rounded-lg border-2 ${
             isOffice
               ? "border-sky-500 text-sky-700 hover:bg-sky-100"
               : "border-violet-400 text-violet-700 hover:bg-violet-100"
-          } bg-white transition`}
+          } bg-white transition disabled:cursor-wait disabled:opacity-50`}
           title="Marcar como hecho"
           aria-label="Marcar recordatorio como hecho"
         >
@@ -72,10 +72,14 @@ export function UserReminderRow({
               </span>
             ) : null}
             {originLabel ? (
-              <span className="text-[10px] font-medium text-slate-500">{originLabel}</span>
+              <span className="text-[10px] font-medium text-slate-500">
+                {originLabel}
+              </span>
             ) : null}
           </div>
-          <p className={`font-semibold text-slate-900 ${compact ? "text-sm" : ""}`}>
+          <p
+            className={`font-semibold text-slate-900 ${compact ? "text-sm" : ""}`}
+          >
             {reminder.text}
           </p>
           {dueLabel ? (
