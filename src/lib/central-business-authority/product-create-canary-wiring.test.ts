@@ -11,6 +11,9 @@ describe("central product create canary wiring", () => {
   const mutationHook = source("../../hooks/useCentralProductMutations.ts");
   const productsPage = source("../../app/productos/page.tsx");
   const newProductPage = source("../../app/productos/nuevo/page.tsx");
+  const structureManager = source(
+    "../../components/products/ProductCatalogStructureManager.tsx",
+  );
 
   it("expone un commit durable con identidad preparada", () => {
     expect(appStore).toContain("addProductDurably");
@@ -33,5 +36,18 @@ describe("central product create canary wiring", () => {
     expect(productsPage).toContain("includesCentralProducts");
     expect(appStore).toContain("updateProductDurably");
     expect(appStore).toContain("deleteProductDurably");
+  });
+
+  it("canaliza todas las altas de la pantalla principal por el commit central", () => {
+    expect(productsPage).toContain("useCentralProductCreate");
+    expect(productsPage).toContain("const { createProduct }");
+    expect(productsPage).not.toContain("addProduct(");
+    expect(productsPage).toContain("await createProduct({");
+    expect(structureManager).toContain(
+      "onCreateFamily: (name: string) => Promise<boolean>",
+    );
+    expect(structureManager).toContain("await onCreateFamily(nameDraft)");
+    expect(structureManager).toContain("if (!action || submitting) return");
+    expect(structureManager).toContain("disabled={submitting}");
   });
 });
