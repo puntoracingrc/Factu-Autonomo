@@ -31,6 +31,7 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { DOCUMENT_EMPTY_ACTION_LABELS } from "@/lib/document-list-copy";
 import { deriveDocumentLifecycle } from "@/lib/document-integrity";
@@ -111,6 +112,7 @@ import {
   documentStatusLabel,
 } from "@/lib/invoice-status-actions";
 import { getCentralInvoiceAuthorityOperationState } from "@/lib/central-invoice-authority/operation-state";
+import { showFactuToast } from "@/lib/factu/occasional";
 import {
   canShareFileNatively,
   hasClientEmail,
@@ -257,8 +259,8 @@ interface InvoiceExportScope {
 }
 
 export function DocumentList({ type, basePath }: DocumentListProps) {
-  const { data, getDocumentsByType, repairDocumentCustomer, updateProfile } =
-    useAppStore();
+  const { data, getDocumentsByType, repairDocumentCustomer } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const { limits } = useBilling();
   const vatExempt = isVatExempt(data.profile);
   const [search, setSearch] = useState("");
@@ -457,7 +459,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   }
 
   function saveInvoiceEmailMethod(method: ConcreteEmailMethod) {
-    updateProfile({
+    return updateProfile({
       ...data.profile,
       appPreferences: normalizeAppPreferences({
         ...appPreferences,
@@ -520,9 +522,16 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   async function chooseInvoiceEmailMethod(method: ConcreteEmailMethod) {
     const target = invoiceEmailTarget;
     if (!target) return;
-    if (rememberInvoiceEmailMethod) saveInvoiceEmailMethod(method);
     setInvoiceEmailTarget(null);
     await handleExportInvoicePdfs(target, method);
+    if (!rememberInvoiceEmailMethod) return;
+    const result = await saveInvoiceEmailMethod(method);
+    if (!result.ok) {
+      showFactuToast(
+        `La exportación terminó, pero no se pudo recordar el método: ${result.error}`,
+        5000,
+      );
+    }
   }
 
   async function handleExportInvoicePdfs(

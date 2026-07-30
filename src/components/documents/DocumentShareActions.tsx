@@ -6,6 +6,7 @@ import { IconActionButton } from "@/components/ui/IconAction";
 import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS,
@@ -89,8 +90,8 @@ export function DocumentShareActions({
   variant = "icons",
   onActionInvoked,
 }: DocumentShareActionsProps) {
-  const { data, issueDocument, markDocumentSent, updateProfile } =
-    useAppStore();
+  const { data, issueDocument, markDocumentSent } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const { user, emailConfirmed } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
   const [busy, setBusy] = useState<ShareChannel | null>(null);
@@ -138,7 +139,7 @@ export function DocumentShareActions({
   }
 
   function saveEmailMethod(method: ConcreteEmailMethod) {
-    updateProfile({
+    return updateProfile({
       ...data.profile,
       appPreferences: normalizeAppPreferences({
         ...appPreferences,
@@ -148,7 +149,7 @@ export function DocumentShareActions({
   }
 
   function saveWhatsAppMethod(method: ConcreteWhatsAppMethod) {
-    updateProfile({
+    return updateProfile({
       ...data.profile,
       appPreferences: normalizeAppPreferences({
         ...appPreferences,
@@ -307,17 +308,31 @@ export function DocumentShareActions({
   }
 
   async function chooseEmailMethod(method: ConcreteEmailMethod) {
-    if (rememberMethod) saveEmailMethod(method);
     setChooser(null);
     onActionInvoked?.();
     await runEmail(method);
+    if (!rememberMethod) return;
+    const result = await saveEmailMethod(method);
+    if (!result.ok) {
+      showFactuToast(
+        `El envío terminó, pero no se pudo recordar el método: ${result.error}`,
+        5000,
+      );
+    }
   }
 
   async function chooseWhatsAppMethod(method: ConcreteWhatsAppMethod) {
-    if (rememberMethod) saveWhatsAppMethod(method);
     setChooser(null);
     onActionInvoked?.();
     await runWhatsApp(method);
+    if (!rememberMethod) return;
+    const result = await saveWhatsAppMethod(method);
+    if (!result.ok) {
+      showFactuToast(
+        `El envío terminó, pero no se pudo recordar el método: ${result.error}`,
+        5000,
+      );
+    }
   }
 
   const emailTooltip = demoMode

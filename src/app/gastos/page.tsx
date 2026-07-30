@@ -38,6 +38,7 @@ import { Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useCentralExpenseMutations } from "@/hooks/useCentralExpenseMutations";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "@/lib/central-business-authority/batch-contract";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
@@ -58,6 +59,7 @@ import {
   resolveExpenseVat,
 } from "@/lib/expenses";
 import { documentShortNumber } from "@/lib/document-links";
+import { showFactuToast } from "@/lib/factu/occasional";
 import { explicitExpenseWorkAllocations } from "@/lib/expense-work-allocations";
 import { expenseEditHref } from "@/lib/expense-links";
 import {
@@ -425,9 +427,10 @@ function expenseKindTone(kind: ExpenseBusinessKind): string {
 }
 
 export default function GastosPage() {
-  const { data, updateProfile } = useAppStore();
+  const { data } = useAppStore();
   const { deleteExpense, saveProviderSummaryExpenses } =
     useCentralExpenseMutations();
+  const { updateProfile } = useCentralProfileMutation();
   const vatExempt = isVatExempt(data.profile);
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const defaultPeriod = getDefaultExpensePeriod();
@@ -709,7 +712,7 @@ export default function GastosPage() {
   }
 
   function saveExpenseEmailMethod(method: ConcreteEmailMethod) {
-    updateProfile({
+    return updateProfile({
       ...data.profile,
       appPreferences: normalizeAppPreferences({
         ...appPreferences,
@@ -748,9 +751,16 @@ export default function GastosPage() {
   }
 
   async function chooseExpenseEmailMethod(method: ConcreteEmailMethod) {
-    if (rememberExpenseEmailMethod) saveExpenseEmailMethod(method);
     setExpenseEmailMethodOpen(false);
     await handleExpenseArchiveExport("advisor", method);
+    if (!rememberExpenseEmailMethod) return;
+    const result = await saveExpenseEmailMethod(method);
+    if (!result.ok) {
+      showFactuToast(
+        `La exportación terminó, pero no se pudo recordar el método: ${result.error}`,
+        5000,
+      );
+    }
   }
 
   async function handleExpenseArchiveExport(
