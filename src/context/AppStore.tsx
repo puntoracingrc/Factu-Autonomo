@@ -195,6 +195,7 @@ import {
 } from "@/lib/product-family-markups";
 import {
   applyProductCatalogStructureOperation,
+  mergeProductRecordsInAppData,
   type ProductCatalogStructureOperation,
   type ProductCatalogStructureResult,
 } from "@/lib/product-catalog-structure";
@@ -2708,70 +2709,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const mergeProducts = useCallback(
     (keepId: string, removeIds: string[]) => {
-      const uniqueRemoveIds = [...new Set(removeIds)].filter(
-        (id) => id !== keepId,
-      );
-      if (uniqueRemoveIds.length === 0) return;
-
       setAppData((prev) => {
-        const keep = prev.products.find((product) => product.id === keepId);
-        if (!keep) return prev;
-
-        const removed = prev.products.filter((product) =>
-          uniqueRemoveIds.includes(product.id),
-        );
-        if (removed.length === 0) return prev;
-
-        const aliases = [
-          ...(keep.aliases ?? []),
-          ...removed.flatMap((product) => [
-            product.key,
-            ...(product.aliases ?? []),
-          ]),
-        ];
-        const merged = normalizeProductCatalogItem({
-          ...keep,
-          aliases,
-          sku: keep.sku ?? removed.find((product) => product.sku)?.sku,
-          externalId:
-            keep.externalId ??
-            removed.find((product) => product.externalId)?.externalId,
-          unit: keep.unit ?? removed.find((product) => product.unit)?.unit,
-          supplierId:
-            keep.supplierId ??
-            removed.find((product) => product.supplierId)?.supplierId,
-          supplierName:
-            keep.supplierName ??
-            removed.find((product) => product.supplierName)?.supplierName,
-          pvp:
-            keep.pvp ??
-            removed.find((product) => product.pvp !== undefined)?.pvp,
-          cost:
-            keep.cost ??
-            removed.find((product) => product.cost !== undefined)?.cost,
-          ivaPercent:
-            keep.ivaPercent ??
-            removed.find((product) => product.ivaPercent !== undefined)
-              ?.ivaPercent,
-          sales: keep.sales ?? removed.find((product) => product.sales)?.sales,
-          purchase:
-            keep.purchase ??
-            removed.find((product) => product.purchase)?.purchase,
-          calculation:
-            keep.calculation ??
-            removed.find((product) => product.calculation)?.calculation,
-          attributes:
-            keep.attributes ??
-            removed.find((product) => product.attributes?.length)?.attributes,
-          updatedAt: new Date().toISOString(),
-        });
-
-        return {
-          ...prev,
-          products: prev.products
-            .filter((product) => !uniqueRemoveIds.includes(product.id))
-            .map((product) => (product.id === keepId ? merged : product)),
-        };
+        const result = mergeProductRecordsInAppData(prev, keepId, removeIds);
+        return result.ok ? result.data : prev;
       });
     },
     [setAppData],

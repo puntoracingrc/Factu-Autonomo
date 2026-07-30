@@ -262,6 +262,42 @@ describe("central product catalog batch canary", () => {
     ]);
   });
 
+  it("confirma la actualización y la baja de una fusión como un único lote", async () => {
+    const deps = dependencies();
+
+    const result = await applyProductCatalogBatchWithCentralCanary({
+      userId,
+      operation: {
+        type: "merge_products",
+        keepProductKey: "product source",
+        removeProductKeys: ["product target"],
+      },
+      dependencies: deps,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      delivery: "central_confirmed",
+      result: { productCount: 1, ruleMigrated: false },
+    });
+    expect(deps.mutateBatch).toHaveBeenCalledWith([
+      expect.objectContaining({
+        operationKind: "upsert",
+        entityType: "product",
+        entityId: "product-source",
+        expectedVersion: 3,
+      }),
+      expect.objectContaining({
+        operationKind: "delete",
+        entityType: "product",
+        entityId: "product-target",
+        expectedVersion: 5,
+        payload: null,
+      }),
+    ]);
+    expect(deps.commitLocal).toHaveBeenCalledOnce();
+  });
+
   it("no aplica nada si falta la versión central de una ficha afectada", async () => {
     const storage = new MemoryStorage();
     recordCentralBusinessEntityVersionCheckpoint({

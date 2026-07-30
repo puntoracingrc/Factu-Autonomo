@@ -201,11 +201,10 @@ function productMatchesDocumentPickRequest(
 
 export default function ProductosPage() {
   const router = useRouter();
-  const { data, mergeProducts } = useAppStore();
+  const { data } = useAppStore();
   const { createProduct } = useCentralProductCreate();
   const { applyCatalogStructure } = useCentralProductCatalogStructure();
-  const { updateProduct, deleteProduct, isCentralProduct } =
-    useCentralProductMutations();
+  const { updateProduct, deleteProduct } = useCentralProductMutations();
   const { checkCanAddProduct } = useBilling();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
@@ -1172,29 +1171,22 @@ export default function ProductosPage() {
   async function handleMergeProducts(
     keep: PurchaseProductSummary,
     removeKey: string,
-  ) {
+  ): Promise<boolean> {
     const remove = products.find((product) => product.key === removeKey);
-    if (!remove) return;
-    if (
-      (keep.productId && isCentralProduct(keep.productId)) ||
-      (remove.productId && isCentralProduct(remove.productId))
-    ) {
-      setFamilyNotice(
-        "La fusión de productos centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado el catálogo.",
-      );
-      return;
-    }
-
-    const keepProduct = await saveProductPatch(keep, {
-      aliases: [
-        ...new Set([...(keep.aliases ?? []), remove.key, ...remove.aliases]),
-      ],
-      source: keep.source === "manual" ? "manual" : "detected",
-    });
-    if (!keepProduct) return;
-    if (remove.productId) {
-      mergeProducts(keepProduct.id, [remove.productId]);
-    }
+    if (!remove) return false;
+    const result = await runCatalogStructureOperation(
+      {
+        type: "merge_products",
+        keepProductKey: keep.key,
+        removeProductKeys: [remove.key],
+      },
+      [keep],
+    );
+    if (!result) return false;
+    setFamilyNotice(
+      `Producto unificado. "${remove.name}" queda asociado a "${keep.name}" sin perder su historial de compras.`,
+    );
+    return true;
   }
 
   function uniqueDuplicateProductParts(product: PurchaseProductSummary): {
@@ -1902,7 +1894,7 @@ export default function ProductosPage() {
                         onRemove={() => void removeProduct(product)}
                         onAutoEditConsumed={() => setEditingProductKey(null)}
                         onMerge={(removeKey) =>
-                          void handleMergeProducts(product, removeKey)
+                          handleMergeProducts(product, removeKey)
                         }
                       />
                     );
@@ -2109,7 +2101,7 @@ function ProductCard({
   onDuplicate: () => void;
   onRemove: () => void;
   onAutoEditConsumed: () => void;
-  onMerge: (removeKey: string) => void;
+  onMerge: (removeKey: string) => Promise<boolean>;
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -2125,6 +2117,7 @@ function ProductCard({
   const [fieldErrors, setFieldErrors] = useState<ProductNumericErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [mergeKey, setMergeKey] = useState("");
   const [mergeSearch, setMergeSearch] = useState("");
@@ -2464,11 +2457,17 @@ function ProductCard({
     }
   }
 
-  function mergeSelectedProduct() {
-    if (!mergeKey) return;
-    onMerge(mergeKey);
-    setMergeKey("");
-    setMergeSearch("");
+  async function mergeSelectedProduct() {
+    if (!mergeKey || merging) return;
+    setMerging(true);
+    try {
+      const merged = await onMerge(mergeKey);
+      if (!merged) return;
+      setMergeKey("");
+      setMergeSearch("");
+    } finally {
+      setMerging(false);
+    }
   }
 
   return (
@@ -2831,12 +2830,12 @@ function ProductCard({
                 </select>
                 <button
                   type="button"
-                  onClick={mergeSelectedProduct}
-                  disabled={!mergeKey}
+                  onClick={() => void mergeSelectedProduct()}
+                  disabled={!mergeKey || merging}
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   <GitMerge className="h-4 w-4" />
-                  Unificar
+                  {merging ? "Unificando..." : "Unificar"}
                 </button>
               </div>
             </div>
