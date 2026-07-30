@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { CentralBusinessBrowserEvent } from "./events-client";
+import type { CentralBusinessBrowserBatchMutationInput } from "./batch-mutation-client";
 import {
   applyCentralBusinessEventPage,
   CentralBusinessDurableQueueError,
   discardCentralBusinessOperation,
   drainCentralBusinessDurableQueue,
+  enqueueCentralBusinessBatch,
   enqueueCentralBusinessOperation,
   finalizeCentralBusinessEntityServerResolution,
   loadCentralBusinessDurableQueue,
@@ -40,6 +42,22 @@ const mutation = {
   expectedVersion: 0,
   payload: { id: "customer-1", name: "Synthetic" },
 };
+const batchMutations: CentralBusinessBrowserBatchMutationInput[] = [
+  {
+    ...mutation,
+    idempotencyKey: "CENTRAL_BATCH_SUPPLIER_0001",
+    entityType: "supplier" as const,
+    entityId: "supplier-1",
+    payload: { id: "supplier-1", name: "Synthetic Supplier" },
+  },
+  {
+    ...mutation,
+    idempotencyKey: "CENTRAL_BATCH_EXPENSE_0001",
+    entityType: "expense" as const,
+    entityId: "expense-1",
+    payload: { id: "expense-1", description: "Synthetic Expense" },
+  },
+];
 
 function event(
   overrides: Partial<CentralBusinessBrowserEvent> = {},
@@ -202,6 +220,163 @@ describe("central business durable queue", () => {
       state: { lastAppliedEventSequence: 0 },
     });
     expect(result.state.entityVersions["customer:customer-2"]?.version).toBe(1);
+  });
+
+  it("persiste y confirma un lote como una sola unidad", async () => {
+    const storage = new MemoryStorage();
+    const enqueued = enqueueCentralBusinessBatch({
+      ownerScope,
+      batchId: "CENTRAL_BATCH_SYNTHETIC_0001",
+      mutations: batchMutations,
+      storage,
+      now: () => "2026-07-29T17:00:00.000Z",
+    });
+    expect(enqueued).toMatchObject({
+      replayed: false,
+      state: {
+        revision: 1,
+        operations: [
+          { batchIndex: 0, batchSize: 2, status: "pending" },
+          { batchIndex: 1, batchSize: 2, status: "pending" },
+        ],
+      },
+    });
+
+    const mutate = vi.fn();
+    const mutateBatch = vi.fn(async () => ({
+      ok: true as const,
+      schema: "CENTRAL_BUSINESS_BATCH_MUTATION_CLIENT_V1" as const,
+      operations: [
+        {
+          operationIndex: 0,
+          status: "committed" as const,
+          eventId: "event-batch-1",
+          eventSequence: 11,
+          entityVersion: 1,
+          deleted: false,
+          contentHash: "hash-supplier",
+        },
+        {
+          operationIndex: 1,
+          status: "committed" as const,
+          eventId: "event-batch-2",
+          eventSequence: 12,
+          entityVersion: 1,
+          deleted: false,
+          contentHash: "hash-expense",
+        },
+      ],
+    }));
+    const drained = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate,
+      mutateBatch,
+    });
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(mutateBatch).toHaveBeenCalledWith(batchMutations);
+    expect(drained).toMatchObject({
+      processed: 2,
+      remaining: 0,
+      stoppedBy: "empty",
+      state: {
+        operations: [],
+        entityVersions: {
+          "supplier:supplier-1": {
+            version: 1,
+            contentHash: "hash-supplier",
+          },
+          "expense:expense-1": {
+            version: 1,
+            contentHash: "hash-expense",
+          },
+        },
+      },
+    });
+  });
+
+  it("reintenta, bloquea y descarta siempre el lote completo", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessBatch({
+      ownerScope,
+      batchId: "CENTRAL_BATCH_SYNTHETIC_0002",
+      mutations: batchMutations,
+      storage,
+    });
+    const drained = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: vi.fn(),
+      mutateBatch: async () => ({
+        ok: false,
+        status: 0,
+        code: "CENTRAL_BUSINESS_BATCH_NETWORK_ERROR",
+        message: "offline",
+        retryable: true,
+        conflict: false,
+      }),
+    });
+    expect(drained.state.operations).toEqual([
+      expect.objectContaining({ status: "pending", attemptCount: 1 }),
+      expect.objectContaining({ status: "pending", attemptCount: 1 }),
+    ]);
+
+    const retried = retryCentralBusinessOperation({
+      ownerScope,
+      operationId: batchMutations[1].idempotencyKey,
+      storage,
+    });
+    expect(retried.operations.every((operation) => operation.status === "pending"))
+      .toBe(true);
+    const discarded = discardCentralBusinessOperation({
+      ownerScope,
+      operationId: batchMutations[0].idempotencyKey,
+      storage,
+    });
+    expect(discarded.operations).toEqual([]);
+  });
+
+  it("marca todo el lote si un evento remoto toca una de sus fichas", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessBatch({
+      ownerScope,
+      batchId: "CENTRAL_BATCH_SYNTHETIC_0003",
+      mutations: batchMutations,
+      storage,
+    });
+    const result = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [
+        event({
+          entityType: "supplier",
+          entityId: "supplier-1",
+        }),
+      ],
+      nextSequence: 1,
+      storage,
+      applyEvent: vi.fn(),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "LOCAL_OPERATION_CONFLICT",
+      state: {
+        operations: [{ status: "conflict" }, { status: "conflict" }],
+      },
+    });
+    expect(() =>
+      prepareCentralBusinessEntityServerResolution({
+        ownerScope,
+        entityType: "supplier",
+        entityId: "supplier-1",
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "INVALID_OPERATION",
+      }),
+    );
   });
 
   it("conserva un fallo reintentable y detiene los siguientes", async () => {

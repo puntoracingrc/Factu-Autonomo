@@ -6,6 +6,10 @@ import type {
   CentralBusinessBrowserMutationResult,
 } from "./mutation-client";
 import type {
+  CentralBusinessBrowserBatchMutationInput,
+  CentralBusinessBrowserBatchMutationResult,
+} from "./batch-mutation-client";
+import type {
   CentralBusinessEntityType,
   CentralBusinessJson,
 } from "./mutation-command";
@@ -36,6 +40,9 @@ export type CentralBusinessQueuedOperationStatus =
 export interface CentralBusinessQueuedOperation {
   operationId: string;
   input: CentralBusinessBrowserMutationInput;
+  batchId?: string;
+  batchIndex?: number;
+  batchSize?: number;
   status: CentralBusinessQueuedOperationStatus;
   enqueuedAt: string;
   attemptCount: number;
@@ -191,6 +198,62 @@ function assertMutationInput(input: CentralBusinessBrowserMutationInput) {
   }
 }
 
+function validBatchId(value: string): boolean {
+  return /^[a-zA-Z0-9:_-]{12,200}$/u.test(value);
+}
+
+function validateBatchGroups(
+  operations: CentralBusinessQueuedOperation[],
+): boolean {
+  const batches = new Map<
+    string,
+    Array<{ operation: CentralBusinessQueuedOperation; position: number }>
+  >();
+  for (const [position, operation] of operations.entries()) {
+    const metadata = [
+      operation.batchId,
+      operation.batchIndex,
+      operation.batchSize,
+    ];
+    const metadataCount = metadata.filter(
+      (value) => value !== undefined,
+    ).length;
+    if (metadataCount === 0) continue;
+    if (
+      metadataCount !== 3 ||
+      typeof operation.batchId !== "string" ||
+      !validBatchId(operation.batchId) ||
+      !Number.isInteger(operation.batchIndex) ||
+      !Number.isInteger(operation.batchSize) ||
+      operation.batchIndex! < 0 ||
+      operation.batchSize! < 1 ||
+      operation.batchSize! > 20 ||
+      operation.batchIndex! >= operation.batchSize!
+    ) {
+      return false;
+    }
+    const entries = batches.get(operation.batchId) ?? [];
+    entries.push({ operation, position });
+    batches.set(operation.batchId, entries);
+  }
+
+  for (const entries of batches.values()) {
+    const size = entries[0].operation.batchSize!;
+    if (entries.length !== size) return false;
+    const firstPosition = entries[0].position;
+    for (const [index, entry] of entries.entries()) {
+      if (
+        entry.position !== firstPosition + index ||
+        entry.operation.batchSize !== size ||
+        entry.operation.batchIndex !== index
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function emptyState(ownerScope: string): CentralBusinessDurableQueueState {
   return {
     schema: CENTRAL_BUSINESS_DURABLE_QUEUE,
@@ -268,6 +331,13 @@ function parseState(
       assertMutationInput(
         operation.input as unknown as CentralBusinessBrowserMutationInput,
       );
+    }
+    if (
+      !validateBatchGroups(
+        value.operations as unknown as CentralBusinessQueuedOperation[],
+      )
+    ) {
+      return null;
     }
     for (const [key, version] of Object.entries(value.entityVersions)) {
       if (
@@ -458,12 +528,117 @@ export function enqueueCentralBusinessOperation(input: {
   return { queued, replayed: false, state: persisted };
 }
 
+export function enqueueCentralBusinessBatch(input: {
+  ownerScope: string;
+  batchId: string;
+  mutations: CentralBusinessBrowserBatchMutationInput[];
+  storage?: CentralBusinessQueueStorage;
+  now?: () => string;
+}): {
+  queued: CentralBusinessQueuedOperation[];
+  replayed: boolean;
+  state: CentralBusinessDurableQueueState;
+} {
+  assertOwnerScope(input.ownerScope);
+  if (
+    !validBatchId(input.batchId) ||
+    input.mutations.length < 1 ||
+    input.mutations.length > 20
+  ) {
+    throw new CentralBusinessDurableQueueError(
+      "INVALID_OPERATION",
+      "El lote central no tiene una identidad o tamaño válidos.",
+    );
+  }
+  for (const mutation of input.mutations) assertMutationInput(mutation);
+  const entityKeys = input.mutations.map((mutation) =>
+    entityKey(mutation.entityType, mutation.entityId),
+  );
+  const operationIds = input.mutations.map(
+    (mutation) => mutation.idempotencyKey,
+  );
+  if (
+    new Set(entityKeys).size !== entityKeys.length ||
+    new Set(operationIds).size !== operationIds.length
+  ) {
+    throw new CentralBusinessDurableQueueError(
+      "INVALID_OPERATION",
+      "Un lote central no puede repetir ficha ni identidad de operación.",
+    );
+  }
+
+  const storage = resolveStorage(input.storage);
+  const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  const existingBatch = state.operations.filter(
+    (operation) => operation.batchId === input.batchId,
+  );
+  if (existingBatch.length > 0) {
+    const replayed =
+      existingBatch.length === input.mutations.length &&
+      existingBatch.every(
+        (operation, index) =>
+          operation.batchIndex === index &&
+          stableJson(operation.input as unknown as CentralBusinessJson) ===
+            stableJson(
+              input.mutations[index] as unknown as CentralBusinessJson,
+            ),
+      );
+    if (!replayed) {
+      throw new CentralBusinessDurableQueueError(
+        "IDEMPOTENCY_KEY_REUSED",
+        "La identidad del lote pendiente no puede reutilizarse con otro contenido.",
+      );
+    }
+    return { queued: existingBatch, replayed: true, state };
+  }
+  if (
+    state.operations.some(
+      (operation) =>
+        operationIds.includes(operation.operationId) ||
+        operationIds.includes(operation.input.idempotencyKey),
+    )
+  ) {
+    throw new CentralBusinessDurableQueueError(
+      "IDEMPOTENCY_KEY_REUSED",
+      "Una identidad del lote ya pertenece a otra operación pendiente.",
+    );
+  }
+  if (state.operations.length + input.mutations.length > MAX_OPERATIONS) {
+    throw new CentralBusinessDurableQueueError(
+      "QUEUE_LIMIT_REACHED",
+      "La cola central no tiene espacio para conservar el lote completo.",
+    );
+  }
+
+  const enqueuedAt = (input.now ?? (() => new Date().toISOString()))();
+  const queued = input.mutations.map(
+    (mutation, batchIndex): CentralBusinessQueuedOperation => ({
+      operationId: mutation.idempotencyKey,
+      input: { ...mutation },
+      batchId: input.batchId,
+      batchIndex,
+      batchSize: input.mutations.length,
+      status: "pending",
+      enqueuedAt,
+      attemptCount: 0,
+    }),
+  );
+  const persisted = persistState(
+    { ...state, operations: [...state.operations, ...queued] },
+    storage,
+  );
+  return { queued, replayed: false, state: persisted };
+}
+
 export async function drainCentralBusinessDurableQueue(input: {
   ownerScope: string;
   storage?: CentralBusinessQueueStorage;
   mutate: (
     mutation: CentralBusinessBrowserMutationInput,
   ) => Promise<CentralBusinessBrowserMutationResult>;
+  mutateBatch?: (
+    mutations: CentralBusinessBrowserBatchMutationInput[],
+  ) => Promise<CentralBusinessBrowserBatchMutationResult>;
   now?: () => string;
 }): Promise<CentralBusinessDrainResult> {
   const storage = resolveStorage(input.storage);
@@ -472,48 +647,98 @@ export async function drainCentralBusinessDurableQueue(input: {
 
   while (state.operations.length > 0) {
     const current = state.operations[0];
-    if (current.status === "conflict" || current.status === "blocked") {
+    const group = current.batchId
+      ? state.operations.slice(0, current.batchSize)
+      : [current];
+    const stopped = group.find(
+      (operation) =>
+        operation.status === "conflict" || operation.status === "blocked",
+    )?.status;
+    if (stopped === "conflict" || stopped === "blocked") {
       return {
         processed,
         remaining: state.operations.length,
-        stoppedBy: current.status,
+        stoppedBy: stopped,
         state,
       };
     }
-    const attempted: CentralBusinessQueuedOperation = {
-      ...current,
-      attemptCount: current.attemptCount + 1,
-      lastAttemptAt: (input.now ?? (() => new Date().toISOString()))(),
-    };
+    const lastAttemptAt = (input.now ?? (() => new Date().toISOString()))();
+    const attempted = group.map(
+      (operation): CentralBusinessQueuedOperation => ({
+        ...operation,
+        attemptCount: operation.attemptCount + 1,
+        lastAttemptAt,
+      }),
+    );
     state = persistState(
-      { ...state, operations: [attempted, ...state.operations.slice(1)] },
+      {
+        ...state,
+        operations: [
+          ...attempted,
+          ...state.operations.slice(attempted.length),
+        ],
+      },
       storage,
     );
 
-    const result = await input.mutate(attempted.input);
+    const result =
+      attempted.length > 1 || attempted[0].batchId
+        ? input.mutateBatch
+          ? await input.mutateBatch(
+              attempted.map((operation) => operation.input),
+            )
+          : {
+              ok: false as const,
+              status: 503,
+              code: "CENTRAL_BUSINESS_BATCH_MUTATOR_REQUIRED",
+              message:
+                "La cola contiene un lote atómico y necesita el transporte por lotes.",
+              retryable: false,
+              conflict: false,
+            }
+        : await input.mutate(attempted[0].input);
     if (result.ok) {
-      const key = entityKey(
-        attempted.input.entityType,
-        attempted.input.entityId,
-      );
+      const confirmations =
+        "operations" in result
+          ? result.operations
+          : [
+              {
+                operationIndex: 0,
+                entityVersion: result.entityVersion,
+                deleted: result.deleted,
+                contentHash: result.contentHash,
+              },
+            ];
+      const entityVersions = { ...state.entityVersions };
+      for (const [index, operation] of attempted.entries()) {
+        const confirmation = confirmations[index];
+        if (!confirmation || confirmation.operationIndex !== index) {
+          throw new CentralBusinessDurableQueueError(
+            "INVALID_OPERATION",
+            "La confirmación del lote no coincide con la cola persistida.",
+          );
+        }
+        const key = entityKey(
+          operation.input.entityType,
+          operation.input.entityId,
+        );
+        entityVersions[key] = {
+          entityType: operation.input.entityType,
+          entityId: operation.input.entityId,
+          version: confirmation.entityVersion,
+          deleted: confirmation.deleted,
+          contentHash: confirmation.contentHash,
+        };
+      }
       state = persistState(
         {
           ...state,
-          operations: state.operations.slice(1),
-          entityVersions: {
-            ...state.entityVersions,
-            [key]: {
-              entityType: attempted.input.entityType,
-              entityId: attempted.input.entityId,
-              version: result.entityVersion,
-              deleted: result.deleted,
-              contentHash: result.contentHash,
-            },
-          },
+          operations: state.operations.slice(attempted.length),
+          entityVersions,
         },
         storage,
       );
-      processed += 1;
+      processed += attempted.length;
       continue;
     }
 
@@ -522,17 +747,27 @@ export async function drainCentralBusinessDurableQueue(input: {
       : result.conflict
         ? "conflict"
         : "blocked";
-    const failed: CentralBusinessQueuedOperation = {
-      ...state.operations[0],
-      status: stoppedBy === "retryable" ? "pending" : stoppedBy,
-      lastError: {
-        code: result.code,
-        message: result.message,
-        status: result.status,
-      },
-    };
+    const failed = state.operations
+      .slice(0, attempted.length)
+      .map(
+        (operation): CentralBusinessQueuedOperation => ({
+          ...operation,
+          status: stoppedBy === "retryable" ? "pending" : stoppedBy,
+          lastError: {
+            code: result.code,
+            message: result.message,
+            status: result.status,
+          },
+        }),
+      );
     state = persistState(
-      { ...state, operations: [failed, ...state.operations.slice(1)] },
+      {
+        ...state,
+        operations: [
+          ...failed,
+          ...state.operations.slice(attempted.length),
+        ],
+      },
       storage,
     );
     return {
@@ -553,8 +788,12 @@ export function retryCentralBusinessOperation(input: {
 }): CentralBusinessDurableQueueState {
   const storage = resolveStorage(input.storage);
   const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  const selected = state.operations.find(
+    (operation) => operation.operationId === input.operationId,
+  );
   const operations = state.operations.map((operation) =>
-    operation.operationId === input.operationId
+    operation.operationId === input.operationId ||
+    (selected?.batchId && operation.batchId === selected.batchId)
       ? {
           ...operation,
           status: "pending" as const,
@@ -582,6 +821,12 @@ export function prepareCentralBusinessEntityServerResolution(input: {
       operation.input.entityType === input.entityType &&
       operation.input.entityId === input.entityId,
   );
+  if (matching.some((operation) => operation.batchId)) {
+    throw new CentralBusinessDurableQueueError(
+      "INVALID_OPERATION",
+      "Un conflicto de lote atómico requiere revisar juntas todas sus fichas.",
+    );
+  }
   if (
     matching.length === 0 ||
     !matching.some((operation) => operation.status === "conflict") ||
@@ -675,11 +920,16 @@ export function discardCentralBusinessOperation(input: {
 }): CentralBusinessDurableQueueState {
   const storage = resolveStorage(input.storage);
   const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  const selected = state.operations.find(
+    (operation) => operation.operationId === input.operationId,
+  );
   return persistState(
     {
       ...state,
       operations: state.operations.filter(
-        (operation) => operation.operationId !== input.operationId,
+        (operation) =>
+          operation.operationId !== input.operationId &&
+          (!selected?.batchId || operation.batchId !== selected.batchId),
       ),
     },
     storage,
@@ -746,8 +996,19 @@ export async function applyCentralBusinessEventPage(input: {
     ),
   );
   if (localConflicts.length > 0) {
+    const batchIds = new Set(
+      localConflicts
+        .map((operation) => operation.batchId)
+        .filter((batchId): batchId is string => Boolean(batchId)),
+    );
     const operationIds = new Set(
-      localConflicts.map((operation) => operation.operationId),
+      state.operations
+        .filter(
+          (operation) =>
+            localConflicts.includes(operation) ||
+            (operation.batchId && batchIds.has(operation.batchId)),
+        )
+        .map((operation) => operation.operationId),
     );
     const conflictState = persistState(
       {
