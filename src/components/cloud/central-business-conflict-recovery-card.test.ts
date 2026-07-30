@@ -20,12 +20,11 @@ describe("central business conflict recovery account wiring", () => {
     expect(component).toContain('type="checkbox"');
     expect(component).toContain("Conservar versión del servidor");
     expect(component).toContain("acknowledged[item.key]");
-    expect(component).toContain(
-      "(!loadError && items.length === 0 && !notice)",
-    );
-    expect(component).toContain(
-      "resolveCentralBusinessConflictKeepingServer",
-    );
+    expect(component).toContain("blockedItems.length === 0");
+    expect(component).toContain("resolveCentralBusinessConflictKeepingServer");
+    expect(component).toContain("Reintentar lote completo");
+    expect(component).toContain("retryCentralBusinessOperation");
+    expect(component).toContain("syncCentralBusinessEvents(ownerScope)");
   });
 
   it("queda visible en Cuenta y descarga eventos antes de finalizar", () => {

@@ -157,6 +157,14 @@ function parseBody(raw: string): BatchMutationBodyItem[] {
 }
 
 function rpcRejection(error: CentralBusinessBatchMutationRpcError) {
+  if (error.causeCode === "P4120") {
+    return {
+      status: 400,
+      code: "CENTRAL_BUSINESS_BATCH_INVALID_COMMAND",
+      message:
+        "El servidor central rechazó el contrato técnico del lote. No se aplicó ninguna operación (P4120).",
+    };
+  }
   if (error.causeCode === "P4102") {
     return {
       status: 409,

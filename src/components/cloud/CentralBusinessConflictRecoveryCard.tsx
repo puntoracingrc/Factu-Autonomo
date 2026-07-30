@@ -1,10 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CloudDownload, ShieldAlert, TriangleAlert } from "lucide-react";
+import {
+  CloudDownload,
+  RotateCcw,
+  ShieldAlert,
+  TriangleAlert,
+} from "lucide-react";
 
 import {
+  buildCentralBusinessBlockedReviewItems,
   buildCentralBusinessConflictReviewItems,
+  type CentralBusinessBlockedReviewItem,
   type CentralBusinessConflictReviewItem,
 } from "@/components/cloud/central-business-conflict-presentation";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +21,9 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   CENTRAL_BUSINESS_DURABLE_QUEUE_CHANGED_EVENT,
   loadCentralBusinessDurableQueue,
+  retryCentralBusinessOperation,
   type CentralBusinessQueuedOperation,
+  withCentralBusinessQueueLock,
 } from "@/lib/central-business-authority/durable-queue";
 
 type Notice = {
@@ -33,6 +42,7 @@ export function CentralBusinessConflictRecoveryCard() {
     data,
     ready,
     resolveCentralBusinessConflictKeepingServer,
+    syncCentralBusinessEvents,
   } = useAppStore();
   const { user, emailConfirmed } = useCloudSync();
   const ownerScope = user?.id ?? null;
@@ -93,11 +103,15 @@ export function CentralBusinessConflictRecoveryCard() {
     () => buildCentralBusinessConflictReviewItems(data, operations),
     [data, operations],
   );
+  const blockedItems = useMemo(
+    () => buildCentralBusinessBlockedReviewItems(operations),
+    [operations],
+  );
 
   if (
     !ownerScope ||
     !emailConfirmed ||
-    (!loadError && items.length === 0 && !notice)
+    (!loadError && items.length === 0 && blockedItems.length === 0 && !notice)
   ) {
     return null;
   }
@@ -127,6 +141,45 @@ export function CentralBusinessConflictRecoveryCard() {
     }
   }
 
+  async function retryBlocked(item: CentralBusinessBlockedReviewItem) {
+    const acknowledgedKey = `blocked:${item.key}`;
+    if (!ownerScope || !acknowledged[acknowledgedKey]) return;
+    setResolvingKey(acknowledgedKey);
+    setNotice(null);
+    try {
+      await withCentralBusinessQueueLock(ownerScope, () =>
+        retryCentralBusinessOperation({
+          ownerScope,
+          operationId: item.retryOperationId,
+        }),
+      );
+      const result = await syncCentralBusinessEvents(ownerScope);
+      if (result.ok) {
+        setAcknowledged((current) => ({
+          ...current,
+          [acknowledgedKey]: false,
+        }));
+        setNotice({
+          tone: "success",
+          message: `Operación central confirmada. Se procesaron ${item.operationCount} cambio(s) como un solo lote.`,
+        });
+      } else {
+        setNotice({ tone: "error", message: result.message });
+      }
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo reintentar la operación central.",
+      });
+    } finally {
+      setResolvingKey(null);
+      refresh();
+    }
+  }
+
   return (
     <Card className="mb-6 space-y-4 border-amber-200 bg-amber-50/70">
       <div className="flex items-start gap-3">
@@ -150,6 +203,56 @@ export function CentralBusinessConflictRecoveryCard() {
           {loadError}
         </p>
       ) : null}
+
+      {blockedItems.map((item) => {
+        const acknowledgedKey = `blocked:${item.key}`;
+        const resolving = resolvingKey === acknowledgedKey;
+        return (
+          <section
+            key={acknowledgedKey}
+            className="space-y-3 border-t border-amber-200 pt-4 first:border-t-0 first:pt-0"
+          >
+            <div>
+              <p className="font-bold text-slate-950">{item.label}</p>
+              <p className="mt-1 text-sm text-slate-700">{item.issue}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                El servidor no confirmó ninguna parte. El lote seguirá detenido
+                hasta que autorices un reintento completo.
+              </p>
+            </div>
+            <label className="flex items-start gap-3 rounded-lg border border-amber-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0"
+                checked={Boolean(acknowledged[acknowledgedKey])}
+                onChange={(event) =>
+                  setAcknowledged((current) => ({
+                    ...current,
+                    [acknowledgedKey]: event.target.checked,
+                  }))
+                }
+                disabled={resolving}
+              />
+              <span>
+                He revisado el aviso y autorizo reintentar las{" "}
+                {item.operationCount} operaciones juntas.
+              </span>
+            </label>
+            <Button
+              variant="secondary"
+              disabled={
+                !ready ||
+                !acknowledged[acknowledgedKey] ||
+                resolvingKey !== null
+              }
+              onClick={() => void retryBlocked(item)}
+            >
+              <RotateCcw className="h-5 w-5" />
+              {resolving ? "Reintentando lote…" : "Reintentar lote completo"}
+            </Button>
+          </section>
+        );
+      })}
 
       {items.map((item) => {
         const resolving = resolvingKey === item.key;

@@ -248,6 +248,32 @@ describe("central business batch mutation route", () => {
     });
   });
 
+  it("distingue un contrato de lote invalido sin ocultar el rollback atomico", async () => {
+    enableCanary();
+    const result = await request(
+      dependencies({
+        getRpcClient: () => ({
+          async rpc() {
+            return {
+              data: null,
+              error: { code: "P4120", message: "invalid batch command" },
+            };
+          },
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      status: 400,
+      body: {
+        error: {
+          code: "CENTRAL_BUSINESS_BATCH_INVALID_COMMAND",
+          causeCode: "P4120",
+          message: expect.stringContaining("No se aplicó ninguna operación"),
+        },
+      },
+    });
+  });
+
   it("mapea una ocurrencia recurrente duplicada como conflicto atomico", async () => {
     enableCanary();
     const result = await request(
