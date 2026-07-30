@@ -1,0 +1,337 @@
+-- CENTRAL_BUSINESS_IDENTICAL_MUTATION_REPLAY_V1
+-- A retry with a new idempotency key but the exact current payload is a
+-- successful replay. It must not create another entity version or outbox row.
+
+begin;
+
+create or replace function public.mutate_central_business_entity_v1(
+  p_user_id uuid,
+  p_device_id text,
+  p_session_hash text,
+  p_idempotency_key_hash text,
+  p_request_hash text,
+  p_operation_kind text,
+  p_entity_type text,
+  p_entity_id text,
+  p_expected_version integer,
+  p_payload jsonb,
+  p_content_hash text
+)
+returns table (
+  result_status text,
+  event_id uuid,
+  event_sequence bigint,
+  entity_version integer,
+  deleted boolean,
+  content_hash text
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_command public.central_business_commands%rowtype;
+  v_entity public.central_business_entities%rowtype;
+  v_event public.central_business_outbox%rowtype;
+  v_next_version integer;
+  v_deleted boolean;
+  v_constraint_name text;
+begin
+  if (select auth.role()) <> 'service_role' then
+    raise exception using
+      errcode = 'P4100',
+      message = 'mutate_central_business_entity_v1 requires service_role';
+  end if;
+
+  if p_user_id is null
+    or coalesce(p_device_id, '') = ''
+    or coalesce(p_session_hash, '') = ''
+    or coalesce(p_idempotency_key_hash, '') = ''
+    or coalesce(p_request_hash, '') = ''
+    or coalesce(p_operation_kind, '') not in ('upsert', 'delete')
+    or coalesce(p_entity_type, '') not in (
+      'customer',
+      'supplier',
+      'product',
+      'expense',
+      'recurring_expense',
+      'user_reminder',
+      'profile'
+    )
+    or length(coalesce(p_entity_id, '')) not between 1 and 200
+    or p_expected_version is null
+    or p_expected_version < 0
+    or coalesce(p_content_hash, '') = ''
+    or (p_operation_kind = 'upsert' and p_payload is null)
+    or (p_operation_kind = 'delete' and p_payload is not null)
+  then
+    raise exception using
+      errcode = 'P4100',
+      message = 'invalid central business mutation command';
+  end if;
+
+  if p_entity_type = 'profile' and p_entity_id <> 'profile' then
+    raise exception using
+      errcode = 'P4100',
+      message = 'central business profile identifier mismatch';
+  end if;
+
+  insert into public.central_business_commands (
+    user_id,
+    idempotency_key_hash,
+    request_hash,
+    operation_kind,
+    entity_type,
+    entity_id,
+    expected_version,
+    device_id,
+    session_hash
+  )
+  values (
+    p_user_id,
+    p_idempotency_key_hash,
+    p_request_hash,
+    p_operation_kind,
+    p_entity_type,
+    p_entity_id,
+    p_expected_version,
+    p_device_id,
+    p_session_hash
+  )
+  on conflict (user_id, idempotency_key_hash)
+  do update set idempotency_key_hash = excluded.idempotency_key_hash
+  returning * into v_command;
+
+  if v_command.request_hash <> p_request_hash then
+    raise exception using
+      errcode = 'P4102',
+      message = 'idempotency key reused with different request';
+  end if;
+
+  if v_command.status = 'committed' then
+    return query
+      select
+        'replayed'::text,
+        outbox.id,
+        outbox.event_sequence,
+        command.result_entity_version,
+        outbox.operation_kind = 'delete',
+        outbox.content_hash
+      from public.central_business_commands as command
+      join public.central_business_outbox as outbox
+        on outbox.id = command.result_event_id
+      where command.id = v_command.id;
+    return;
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      p_user_id::text || ':' || p_entity_type || ':' || p_entity_id,
+      0
+    )
+  );
+
+  select *
+    into v_entity
+    from public.central_business_entities
+    where user_id = p_user_id
+      and entity_type = p_entity_type
+      and entity_id = p_entity_id
+    for update;
+
+  if found
+    and p_operation_kind = 'upsert'
+    and v_entity.deleted = false
+    and v_entity.content_hash = p_content_hash
+    and v_entity.current_payload = p_payload
+  then
+    select outbox.*
+      into v_event
+      from public.central_business_outbox as outbox
+      where outbox.user_id = p_user_id
+        and outbox.entity_type = p_entity_type
+        and outbox.entity_id = p_entity_id
+        and outbox.entity_version = v_entity.current_version
+        and outbox.operation_kind = 'upsert'
+        and outbox.content_hash = v_entity.content_hash
+      order by outbox.event_sequence desc
+      limit 1;
+
+    if not found then
+      raise exception using
+        errcode = 'P4106',
+        message = 'central business entity is missing its current outbox event';
+    end if;
+
+    update public.central_business_commands
+      set
+        status = 'committed',
+        result_entity_version = v_entity.current_version,
+        result_event_id = v_event.id,
+        completed_at = statement_timestamp()
+      where id = v_command.id;
+
+    return query
+      select
+        'replayed'::text,
+        v_event.id,
+        v_event.event_sequence,
+        v_entity.current_version,
+        false,
+        v_entity.content_hash;
+    return;
+  end if;
+
+  if p_expected_version = 0 then
+    if found then
+      raise exception using
+        errcode = 'P4103',
+        message = 'central business entity version mismatch';
+    end if;
+    if p_operation_kind = 'delete' then
+      raise exception using
+        errcode = 'P4104',
+        message = 'central business entity not found';
+    end if;
+    v_next_version := 1;
+  else
+    if not found or v_entity.current_version <> p_expected_version then
+      raise exception using
+        errcode = 'P4103',
+        message = 'central business entity version mismatch';
+    end if;
+    v_next_version := v_entity.current_version + 1;
+  end if;
+
+  v_deleted := p_operation_kind = 'delete';
+
+  begin
+    insert into public.central_business_entities (
+      user_id,
+      entity_type,
+      entity_id,
+      current_version,
+      deleted,
+      current_payload,
+      content_hash,
+      actor_device_id,
+      actor_session_hash
+    )
+    values (
+      p_user_id,
+      p_entity_type,
+      p_entity_id,
+      v_next_version,
+      v_deleted,
+      p_payload,
+      p_content_hash,
+      p_device_id,
+      p_session_hash
+    )
+    on conflict (user_id, entity_type, entity_id)
+    do update set
+      current_version = excluded.current_version,
+      deleted = excluded.deleted,
+      current_payload = excluded.current_payload,
+      content_hash = excluded.content_hash,
+      actor_device_id = excluded.actor_device_id,
+      actor_session_hash = excluded.actor_session_hash,
+      updated_at = statement_timestamp();
+  exception
+    when unique_violation then
+      get stacked diagnostics v_constraint_name = constraint_name;
+      if v_constraint_name =
+        'central_business_entities_recurring_occurrence_uidx'
+      then
+        raise exception using
+          errcode = 'P4105',
+          message = 'central recurring occurrence already exists';
+      end if;
+      raise;
+  end;
+
+  insert into public.central_business_outbox (
+    user_id,
+    entity_type,
+    entity_id,
+    entity_version,
+    operation_kind,
+    payload,
+    content_hash,
+    actor_device_id
+  )
+  values (
+    p_user_id,
+    p_entity_type,
+    p_entity_id,
+    v_next_version,
+    p_operation_kind,
+    p_payload,
+    p_content_hash,
+    p_device_id
+  )
+  returning * into v_event;
+
+  update public.central_business_commands
+    set
+      status = 'committed',
+      result_entity_version = v_next_version,
+      result_event_id = v_event.id,
+      completed_at = statement_timestamp()
+    where id = v_command.id;
+
+  return query
+    select
+      'committed'::text,
+      v_event.id,
+      v_event.event_sequence,
+      v_next_version,
+      v_deleted,
+      p_content_hash;
+end;
+$$;
+
+revoke all on function public.mutate_central_business_entity_v1(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  integer,
+  jsonb,
+  text
+) from public, anon, authenticated;
+
+grant execute on function public.mutate_central_business_entity_v1(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  integer,
+  jsonb,
+  text
+) to service_role;
+
+comment on function public.mutate_central_business_entity_v1(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  integer,
+  jsonb,
+  text
+) is
+  'Versioned central mutation with identical-state replay and P4102-P4106 fail-closed conflict codes.';
+
+commit;
