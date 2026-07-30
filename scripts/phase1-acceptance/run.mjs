@@ -3564,9 +3564,12 @@ async function testExpenseLearningP4bWeekFenceRollback(admin, users) {
     )::text
   `);
 
-  const obsoleteWeek = await Promise.allSettled([
-    querySqlAsync(
-      `
+  const obsoleteWeek = querySqlAsLearningOwner(`
+    do $phase1$
+    declare
+      v_rejected boolean := false;
+    begin
+      begin
         insert into expense_learning_private.contributor_revocation_links (
           user_id,
           week_start,
@@ -3602,19 +3605,28 @@ async function testExpenseLearningP4bWeekFenceRollback(admin, users) {
           1,
           (date '${previousWeek}'::timestamp at time zone 'UTC') + interval '35 days'
         );
-        select expense_learning_private.lock_expense_learning_cells_v1(
+        perform expense_learning_private.lock_expense_learning_cells_v1(
           '${sqlJson(contribution)}'::jsonb,
           date '${previousWeek}'
-        )
-      `,
-      { learningOwner: true },
-    ),
-  ]);
+        );
+      exception
+        when sqlstate '22023' then
+          if sqlerrm = 'expense_learning_ingestion_week_changed' then
+            v_rejected := true;
+          else
+            raise;
+          end if;
+      end;
+
+      if not v_rejected then
+        raise exception 'expense_learning_obsolete_week_was_accepted';
+      end if;
+    end
+    $phase1$;
+    select 'OBSOLETE_WEEK_REJECTED'
+  `);
   expect(
-    obsoleteWeek[0].status === "rejected" &&
-      obsoleteWeek[0].reason.message.includes(
-        "expense_learning_ingestion_week_changed",
-      ),
+    obsoleteWeek === "OBSOLETE_WEEK_REJECTED",
     "P4B obsolete-week fence did not execute in PostgreSQL",
   );
   expect(
