@@ -22,6 +22,11 @@ export type ProductCatalogStructureOperation =
       targetSubfamily?: string;
     }
   | {
+      type: "rename_family";
+      sourceFamily: string;
+      targetFamily: string;
+    }
+  | {
       type: "rename_subfamily";
       family: string;
       sourceSubfamily: string;
@@ -49,10 +54,7 @@ export type ProductCatalogStructureOperation =
     };
 
 export type ProductCatalogStructureErrorCode =
-  | "invalid"
-  | "not_found"
-  | "collision"
-  | "margin_rule";
+  "invalid" | "not_found" | "collision" | "margin_rule";
 
 export type ProductCatalogStructureResult =
   | {
@@ -199,10 +201,7 @@ function rewriteProducts(
       rewrittenProducts.push(product);
       continue;
     }
-    if (
-      !isProductFamilyMarker(product) &&
-      !isProductSubfamilyMarker(product)
-    ) {
+    if (!isProductFamilyMarker(product) && !isProductSubfamilyMarker(product)) {
       countedProducts.add(`id:${product.id}`);
     }
     const updated = rewrite.updateProduct(product);
@@ -221,7 +220,8 @@ function rewriteProducts(
 
   const createdProducts = affectedSummaries
     .filter((summary) => {
-      if (summary.productId && existingById.has(summary.productId)) return false;
+      if (summary.productId && existingById.has(summary.productId))
+        return false;
       return !existingByKey.has(summary.key);
     })
     .map((summary) =>
@@ -528,11 +528,18 @@ function removeFamily(
   options: ProductCatalogStructureOptions,
 ): ProductCatalogStructureResult {
   const family = cleanText(familyValue);
-  if (!family || catalogKey(family) === catalogKey(UNCATEGORIZED_PRODUCT_FAMILY)) {
+  if (
+    !family ||
+    catalogKey(family) === catalogKey(UNCATEGORIZED_PRODUCT_FAMILY)
+  ) {
     return structureError(data, "invalid", "Esa familia no se puede retirar.");
   }
   if (!familyExists(data, family)) {
-    return structureError(data, "not_found", `La familia "${family}" ya no existe.`);
+    return structureError(
+      data,
+      "not_found",
+      `La familia "${family}" ya no existe.`,
+    );
   }
   if (
     (data.profile.productFamilyMarkups?.rules ?? []).some(
@@ -720,6 +727,13 @@ export function applyProductCatalogStructureOperation(
         operation.productKeys,
         operation.targetFamily,
         operation.targetSubfamily,
+        options,
+      );
+    case "rename_family":
+      return renameProductFamilyInAppData(
+        data,
+        operation.sourceFamily,
+        operation.targetFamily,
         options,
       );
     case "rename_subfamily":

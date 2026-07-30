@@ -35,6 +35,7 @@ import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralProductCatalogStructure } from "@/hooks/useCentralProductCatalogStructure";
 import { useCentralProductCreate } from "@/hooks/useCentralProductCreate";
 import { useCentralProductMutations } from "@/hooks/useCentralProductMutations";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
@@ -200,13 +201,9 @@ function productMatchesDocumentPickRequest(
 
 export default function ProductosPage() {
   const router = useRouter();
-  const {
-    data,
-    renameProductFamily: renameProductFamilyInStore,
-    applyProductCatalogStructure,
-    mergeProducts,
-  } = useAppStore();
+  const { data, mergeProducts } = useAppStore();
   const { createProduct } = useCentralProductCreate();
+  const { applyCatalogStructure } = useCentralProductCatalogStructure();
   const { updateProduct, deleteProduct, isCentralProduct } =
     useCentralProductMutations();
   const { checkCanAddProduct } = useBilling();
@@ -224,6 +221,8 @@ export default function ProductosPage() {
   const [familyStructureOpen, setFamilyStructureOpen] = useState(false);
   const [supplierStructureOpen, setSupplierStructureOpen] = useState(false);
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
+  const [catalogOperationPending, setCatalogOperationPending] = useState(false);
+  const catalogOperationPendingRef = useRef(false);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
@@ -861,34 +860,31 @@ export default function ProductosPage() {
     return false;
   }
 
-  function includesCentralProducts(
-    affectedProducts: PurchaseProductSummary[],
-  ): boolean {
-    return affectedProducts.some(
-      (product) => product.productId && isCentralProduct(product.productId),
-    );
-  }
-
-  function runCatalogStructureOperation(
+  async function runCatalogStructureOperation(
     operation: ProductCatalogStructureOperation,
     affectedProducts: PurchaseProductSummary[],
   ) {
-    if (includesCentralProducts(affectedProducts)) {
-      setFamilyNotice(
-        "La organización masiva de productos centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado el catálogo.",
-      );
+    if (catalogOperationPendingRef.current) {
+      setFamilyNotice("Espera a que termine el cambio anterior.");
       return null;
     }
     if (!canMaterializeStructureProducts(affectedProducts)) return null;
-    const result = applyProductCatalogStructure(operation);
-    if (!result.ok) {
-      setFamilyNotice(result.error);
-      return null;
+    catalogOperationPendingRef.current = true;
+    setCatalogOperationPending(true);
+    try {
+      const saved = await applyCatalogStructure(operation);
+      if (!saved.ok) {
+        setFamilyNotice(saved.error);
+        return null;
+      }
+      return saved.result;
+    } finally {
+      catalogOperationPendingRef.current = false;
+      setCatalogOperationPending(false);
     }
-    return result;
   }
 
-  function moveSelectedProducts() {
+  async function moveSelectedProducts() {
     const targetFamily = bulkFamilyDraft.trim();
     if (!targetFamily) {
       setFamilyNotice("Elige o escribe la familia de destino.");
@@ -900,7 +896,7 @@ export default function ProductosPage() {
       targetFamily === UNCATEGORIZED_FAMILY
         ? undefined
         : bulkSubfamilyDraft.trim() || undefined;
-    const result = runCatalogStructureOperation(
+    const result = await runCatalogStructureOperation(
       {
         type: "move_products",
         productKeys: selectedProducts.map((product) => product.key),
@@ -1002,7 +998,10 @@ export default function ProductosPage() {
     return true;
   }
 
-  function renameFamily(sourceValue: string, targetValue: string): boolean {
+  async function renameFamily(
+    sourceValue: string,
+    targetValue: string,
+  ): Promise<boolean> {
     const sourceFamily = sourceValue.trim();
     const targetFamily = targetValue.trim();
     if (!targetFamily) {
@@ -1013,19 +1012,13 @@ export default function ProductosPage() {
     const affectedProducts = products.filter(
       (product) => product.family === sourceFamily,
     );
-    if (includesCentralProducts(affectedProducts)) {
-      setFamilyNotice(
-        "El cambio de una familia con productos centrales necesita una operación atómica. No se ha cambiado el catálogo.",
-      );
-      return false;
-    }
     if (!canMaterializeStructureProducts(affectedProducts)) return false;
 
-    const result = renameProductFamilyInStore(sourceFamily, targetFamily);
-    if (!result.ok) {
-      setFamilyNotice(result.error);
-      return false;
-    }
+    const result = await runCatalogStructureOperation(
+      { type: "rename_family", sourceFamily, targetFamily },
+      affectedProducts,
+    );
+    if (!result) return false;
 
     if (family === sourceFamily) setFamily(targetFamily);
     setFamilyNotice(
@@ -1038,11 +1031,14 @@ export default function ProductosPage() {
     return true;
   }
 
-  function mergeFamily(sourceFamily: string, targetFamily: string): boolean {
+  async function mergeFamily(
+    sourceFamily: string,
+    targetFamily: string,
+  ): Promise<boolean> {
     const affectedProducts = products.filter(
       (product) => product.family === sourceFamily,
     );
-    const result = runCatalogStructureOperation(
+    const result = await runCatalogStructureOperation(
       { type: "merge_families", sourceFamily, targetFamily },
       affectedProducts,
     );
@@ -1060,11 +1056,11 @@ export default function ProductosPage() {
     return true;
   }
 
-  function renameSubfamily(
+  async function renameSubfamily(
     familyName: string,
     sourceSubfamily: string,
     targetValue: string,
-  ): boolean {
+  ): Promise<boolean> {
     const targetSubfamily = targetValue.trim();
     if (!targetSubfamily) {
       setFamilyNotice("Escribe el nuevo nombre de la subfamilia.");
@@ -1074,7 +1070,7 @@ export default function ProductosPage() {
       (product) =>
         product.family === familyName && product.subfamily === sourceSubfamily,
     );
-    const result = runCatalogStructureOperation(
+    const result = await runCatalogStructureOperation(
       {
         type: "rename_subfamily",
         family: familyName,
@@ -1094,16 +1090,16 @@ export default function ProductosPage() {
     return true;
   }
 
-  function mergeSubfamily(
+  async function mergeSubfamily(
     familyName: string,
     sourceSubfamily: string,
     targetSubfamily: string,
-  ): boolean {
+  ): Promise<boolean> {
     const affectedProducts = products.filter(
       (product) =>
         product.family === familyName && product.subfamily === sourceSubfamily,
     );
-    const result = runCatalogStructureOperation(
+    const result = await runCatalogStructureOperation(
       {
         type: "merge_subfamilies",
         family: familyName,
@@ -1123,11 +1119,11 @@ export default function ProductosPage() {
     return true;
   }
 
-  function removeFamily(sourceFamily: string): boolean {
+  async function removeFamily(sourceFamily: string): Promise<boolean> {
     const affectedProducts = products.filter(
       (product) => product.family === sourceFamily,
     );
-    const result = runCatalogStructureOperation(
+    const result = await runCatalogStructureOperation(
       { type: "remove_family", family: sourceFamily },
       affectedProducts,
     );
@@ -1144,16 +1140,16 @@ export default function ProductosPage() {
     return true;
   }
 
-  function removeSubfamily(
+  async function removeSubfamily(
     sourceFamily: string,
     sourceSubfamily: string,
-  ): boolean {
+  ): Promise<boolean> {
     const affectedProducts = products.filter(
       (product) =>
         product.family === sourceFamily &&
         product.subfamily === sourceSubfamily,
     );
-    const result = runCatalogStructureOperation(
+    const result = await runCatalogStructureOperation(
       {
         type: "remove_subfamily",
         family: sourceFamily,
@@ -1775,10 +1771,13 @@ export default function ProductosPage() {
                   />
                   <button
                     type="button"
-                    onClick={moveSelectedProducts}
-                    className="inline-flex h-12 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:self-end"
+                    onClick={() => void moveSelectedProducts()}
+                    disabled={catalogOperationPending}
+                    className="inline-flex h-12 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-wait disabled:opacity-60 sm:self-end"
                   >
-                    Mover productos
+                    {catalogOperationPending
+                      ? "Guardando..."
+                      : "Mover productos"}
                   </button>
                   <p className="text-xs font-semibold text-blue-900 sm:col-span-3">
                     La clasificación se recordará en próximos escaneos. La

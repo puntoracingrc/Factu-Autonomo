@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 13
+- Version: 14
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -170,9 +170,13 @@ auditoria del bootstrap conserva huellas y cantidades, pero no payloads.
 El borrado remoto de un cliente aplica el contrato completo del maestro:
 desvincula borradores y recordatorios operativos, pero conserva
 byte-semanticamente el cliente congelado, snapshots, PDF, sellos, hashes y
-evidencia de documentos emitidos. Las fusiones y reorganizaciones masivas que
-incluyen entidades centrales quedan bloqueadas hasta disponer de un comando
-atomico propio; nunca se descomponen en varias escrituras parciales.
+evidencia de documentos emitidos. Las reorganizaciones de familias y
+subfamilias que incluyen productos centrales usan un unico lote atomico con la
+version esperada de cada producto y del perfil cuando migran reglas de margen.
+El lote completo se conserva antes del commit local durable y se confirma o
+entra en revision como una unidad; nunca se descompone en escrituras parciales.
+La fusion entre fichas de producto permanece bloqueada hasta reutilizar este
+mismo contrato atomico.
 
 ## Rollback
 

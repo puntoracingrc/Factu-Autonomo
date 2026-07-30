@@ -9,6 +9,9 @@ describe("central product create canary wiring", () => {
   const appStore = source("../../context/AppStore.tsx");
   const hook = source("../../hooks/useCentralProductCreate.ts");
   const mutationHook = source("../../hooks/useCentralProductMutations.ts");
+  const catalogHook = source(
+    "../../hooks/useCentralProductCatalogStructure.ts",
+  );
   const productsPage = source("../../app/productos/page.tsx");
   const newProductPage = source("../../app/productos/nuevo/page.tsx");
   const structureManager = source(
@@ -27,13 +30,15 @@ describe("central product create canary wiring", () => {
     expect(newProductPage).not.toContain("const { data, addProduct }");
   });
 
-  it("conecta edicion y borrado central sin permitir lotes parciales", () => {
+  it("conecta edición, borrado y organización central sin lotes parciales", () => {
     expect(mutationHook).toContain("updateProductWithCentralCanary");
     expect(mutationHook).toContain("deleteProductWithCentralCanary");
     expect(productsPage).toContain("useCentralProductMutations");
     expect(productsPage).toContain("await updateProduct(updated)");
     expect(productsPage).toContain("await deleteProduct(existing.id)");
-    expect(productsPage).toContain("includesCentralProducts");
+    expect(productsPage).toContain("useCentralProductCatalogStructure");
+    expect(catalogHook).toContain("applyProductCatalogBatchWithCentralCanary");
+    expect(productsPage).not.toContain("includesCentralProducts");
     expect(appStore).toContain("updateProductDurably");
     expect(appStore).toContain("deleteProductDurably");
   });

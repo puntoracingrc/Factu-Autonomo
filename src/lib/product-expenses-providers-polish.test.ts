@@ -14,8 +14,8 @@ describe("product expenses/providers polish wiring", () => {
     expect(page).toContain("Nuevo proveedor");
     expect(page).toContain("Editar proveedor");
     expect(page).toContain("Guardar cambios");
-    expect(page).toContain('value={form.email}');
-    expect(newPage).toContain('value={form.email}');
+    expect(page).toContain("value={form.email}");
+    expect(newPage).toContain("value={form.email}");
     expect(page).toContain("validateSupplierContact(form)");
     expect(newPage).toContain("validateSupplierContact(form)");
     expect(page).toContain("emailInputRef.current?.focus()");
@@ -31,8 +31,12 @@ describe("product expenses/providers polish wiring", () => {
     );
 
     expect(newProductPage).toContain("validateProductNumericInputs({");
-    expect(newProductPage).toContain("setFieldErrors(numericValidation.errors)");
-    expect(newProductPage).toContain("`new-product-${numericValidation.firstInvalidField}`");
+    expect(newProductPage).toContain(
+      "setFieldErrors(numericValidation.errors)",
+    );
+    expect(newProductPage).toContain(
+      "`new-product-${numericValidation.firstInvalidField}`",
+    );
     expect(newProductPage).toContain("?.focus()");
     expect(productFormFields).toContain("aria-invalid={Boolean(error)}");
     expect(productFormFields).toContain("id={inputId}");
@@ -40,13 +44,16 @@ describe("product expenses/providers polish wiring", () => {
 
   it("renombra familia y margen mediante una única transición de datos", () => {
     const productsPage = source("../app/productos/page.tsx");
+    const catalogHook = source("../hooks/useCentralProductCatalogStructure.ts");
     const store = source("../context/AppStore.tsx");
 
-    expect(productsPage).toContain("renameProductFamilyInStore(");
+    expect(productsPage).toContain("useCentralProductCatalogStructure");
     expect(productsPage).toContain("La regla de margen se ha conservado");
     expect(productsPage).toContain("runCatalogStructureOperation(");
-    expect(productsPage).toContain("applyProductCatalogStructure(");
+    expect(productsPage).toContain("await applyCatalogStructure(operation)");
     expect(productsPage).toContain("moveSelectedProducts");
+    expect(catalogHook).toContain("applyProductCatalogBatchWithCentralCanary");
+    expect(catalogHook).toContain("commitPreparedAppDataDurably");
     expect(store).toContain("renameProductFamilyInAppData(");
     expect(store).toContain("applyProductCatalogStructureOperation(");
     expect(store).toContain("if (result.ok) setAppData(result.data)");
@@ -121,7 +128,9 @@ describe("product expenses/providers polish wiring", () => {
       "const created = await createSupplier(resolved.create)",
     );
     expect(formPage).toContain("if (!created.ok)");
-    expect(appStore).toContain("upsertSupplierForExpense(prev.suppliers, input");
+    expect(appStore).toContain(
+      "upsertSupplierForExpense(prev.suppliers, input",
+    );
     expect(appStore).toContain("buildScannedExpenseDurableTransition");
     expect(appStore).toContain(
       "commitLatestDurableAppData(options.expected, (previous) =>",
@@ -145,7 +154,9 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain("Abono: no actualiza precio");
     expect(formPage).toContain("No actualizar producto desde este abono");
     expect(formPage).toContain("Contraer ficha y volver al listado");
-    expect(formPage).toContain("purchaseLineHasCatalogProduct(line, productKeys)");
+    expect(formPage).toContain(
+      "purchaseLineHasCatalogProduct(line, productKeys)",
+    );
     expect(formPage).toContain("text-sky-700");
     expect(formPage).not.toContain("Revisa la factura antes de guardar");
   });
@@ -186,7 +197,7 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain(
       "providerSummaryUpgradeTargetForScanPayload(review.payload)",
     );
-    expect(formPage).toContain("? \"ready\"");
+    expect(formPage).toContain('? "ready"');
     expect(formPage).toContain(
       "Al guardar, se completará con la factura original y no se duplicará",
     );
@@ -223,9 +234,11 @@ describe("product expenses/providers polish wiring", () => {
       expect(surface).toContain("Abono · saldo a favor");
     }
     expect(listPage).toContain('"Saldo a favor" : "Gasto neto"');
-    expect(listPage).toContain("El donut solo representa saldos netos positivos");
+    expect(listPage).toContain(
+      "El donut solo representa saldos netos positivos",
+    );
     expect(listPage).toContain('slice.key === "__otros__"');
-    expect(listPage).toContain('`${slice.label} (compras)`');
+    expect(listPage).toContain("`${slice.label} (compras)`");
     expect(listPage).toContain("fixedOptionsByKey");
     expect(listPage).toContain("periodExpenses");
     expect(listPage).toContain(".filter(isFixedExpense)");
