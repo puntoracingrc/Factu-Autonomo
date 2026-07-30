@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -29,6 +35,7 @@ import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAuto
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { useBilling } from "@/context/BillingContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
+import { rebaseBusinessProfileDraft } from "@/lib/central-business-authority/profile-draft-rebase";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentUnits } from "@/lib/document-units";
@@ -104,6 +111,26 @@ type SettingsSectionKey =
   | "documents"
   | "taxes"
   | "preferences";
+
+function normalizeSettingsProfile(
+  profile: BusinessProfile,
+): BusinessProfile {
+  return {
+    ...profile,
+    numbering: normalizeNumbering(profile.numbering),
+    verifactu: normalizeVerifactuSettings(profile.verifactu),
+    documentPhrases: normalizeDocumentPhrases(profile.documentPhrases),
+    documentPaymentMethods: normalizeDocumentPaymentMethods(
+      profile.documentPaymentMethods,
+    ),
+    documentUnits: normalizeDocumentUnits(profile.documentUnits),
+    productFamilyMarkups: normalizeProductFamilyMarkupSettings(
+      profile.productFamilyMarkups,
+    ),
+    googlePlaces: normalizeGooglePlacesSettings(profile.googlePlaces),
+    appPreferences: normalizeAppPreferences(profile.appPreferences),
+  };
+}
 
 const SETTINGS_NAV_ITEMS: Array<{
   key: SettingsSectionKey;
@@ -198,10 +225,9 @@ export default function ConfiguracionPage() {
   const { data } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
   const { billingEnabled, isPro } = useBilling();
-  const [form, setForm] = useState({
-    ...data.profile,
-    numbering: normalizeNumbering(data.profile.numbering),
-  });
+  const initialProfile = normalizeSettingsProfile(data.profile);
+  const [form, setForm] = useState(initialProfile);
+  const profileBaselineRef = useRef(initialProfile);
   const [saved, setSaved] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -246,36 +272,33 @@ export default function ConfiguracionPage() {
   }, []);
 
   useEffect(() => {
-    setForm({
-      ...data.profile,
-      numbering: normalizeNumbering(data.profile.numbering),
-    });
+    const latest = normalizeSettingsProfile(data.profile);
+    const baseline = profileBaselineRef.current;
+    setForm((draft) =>
+      rebaseBusinessProfileDraft({ latest, baseline, draft }),
+    );
+    profileBaselineRef.current = latest;
   }, [data.profile]);
 
   async function persistProfile(next: BusinessProfile): Promise<boolean> {
     setSaved(false);
     setSaveError(null);
     setSaveBusy(true);
-    const result = await updateProfile({
-      ...next,
-      numbering: normalizeNumbering(next.numbering),
-      verifactu: normalizeVerifactuSettings(next.verifactu),
-      documentPhrases: normalizeDocumentPhrases(next.documentPhrases),
-      documentPaymentMethods: normalizeDocumentPaymentMethods(
-        next.documentPaymentMethods,
+    const baseline = profileBaselineRef.current;
+    const draft = normalizeSettingsProfile(next);
+    const result = await updateProfile((latest) =>
+      normalizeSettingsProfile(
+        rebaseBusinessProfileDraft({ latest, baseline, draft }),
       ),
-      documentUnits: normalizeDocumentUnits(next.documentUnits),
-      productFamilyMarkups: normalizeProductFamilyMarkupSettings(
-        next.productFamilyMarkups,
-      ),
-      googlePlaces: normalizeGooglePlacesSettings(next.googlePlaces),
-      appPreferences: normalizeAppPreferences(next.appPreferences),
-    });
+    );
     setSaveBusy(false);
     if (!result.ok) {
       setSaveError(result.error);
       return false;
     }
+    const persisted = normalizeSettingsProfile(result.value);
+    profileBaselineRef.current = persisted;
+    setForm(persisted);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
     return true;

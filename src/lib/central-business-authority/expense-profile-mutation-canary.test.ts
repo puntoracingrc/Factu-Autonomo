@@ -264,7 +264,7 @@ describe("central expense and profile mutation canaries", () => {
 
     const result = await updateProfileWithCentralCanary({
       userId,
-      profile: next,
+      profile: () => next,
       dependencies,
     });
 
