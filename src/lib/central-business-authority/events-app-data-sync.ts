@@ -10,7 +10,14 @@ import {
   deleteSupplierMasterFromData,
 } from "@/lib/master-record-deletion";
 import { normalizeProductCatalogItem } from "@/lib/purchase-products";
-import type { AppData, Customer, Product, Supplier } from "@/lib/types";
+import type {
+  AppData,
+  Customer,
+  Product,
+  Supplier,
+  UserReminder,
+  UserReminderLinkKind,
+} from "@/lib/types";
 
 import {
   applyCentralBusinessEventPage,
@@ -28,7 +35,11 @@ import {
 export const CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC =
   "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1";
 
-type SupportedEntityType = "customer" | "supplier" | "product";
+type SupportedEntityType =
+  | "customer"
+  | "supplier"
+  | "product"
+  | "user_reminder";
 
 export type CentralBusinessEventLocalAction =
   "added" | "updated" | "deleted" | "unchanged";
@@ -282,6 +293,48 @@ function parseProductPayload(
   }
 }
 
+const USER_REMINDER_LINK_KINDS = new Set<UserReminderLinkKind>([
+  "none",
+  "customer",
+  "document",
+  "rectify",
+  "new_invoice",
+  "new_quote",
+  "new_receipt",
+  "new_expense",
+]);
+
+function parseUserReminderPayload(
+  payload: CentralBusinessBrowserEvent["payload"],
+  entityId: string,
+): UserReminder | null {
+  if (
+    !isObject(payload) ||
+    payload.id !== entityId ||
+    typeof payload.text !== "string" ||
+    !payload.text.trim() ||
+    !optionalString(payload.dueDate) ||
+    !optionalString(payload.dueTime) ||
+    !isObject(payload.link) ||
+    !USER_REMINDER_LINK_KINDS.has(
+      payload.link.kind as UserReminderLinkKind,
+    ) ||
+    !optionalString(payload.link.entityId) ||
+    (payload.target !== "self" && payload.target !== "office") ||
+    (payload.origin !== undefined &&
+      payload.origin !== "field" &&
+      payload.origin !== "office") ||
+    typeof payload.completed !== "boolean" ||
+    !optionalString(payload.completedAt) ||
+    typeof payload.createdAt !== "string" ||
+    typeof payload.updatedAt !== "string"
+  ) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(payload)) as UserReminder;
+}
+
 function stableJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
@@ -317,8 +370,8 @@ export async function verifyCentralBusinessEventContentHash(
 }
 
 function sameEntity(
-  left: Customer | Supplier | Product,
-  right: Customer | Supplier | Product,
+  left: Customer | Supplier | Product | UserReminder,
+  right: Customer | Supplier | Product | UserReminder,
 ) {
   return stableJson(left) === stableJson(right);
 }
@@ -339,7 +392,8 @@ export function buildCentralBusinessEventAppDataTransition(input: {
   if (
     event.entityType !== "customer" &&
     event.entityType !== "supplier" &&
-    event.entityType !== "product"
+    event.entityType !== "product" &&
+    event.entityType !== "user_reminder"
   ) {
     throw new CentralBusinessLocalApplyError(
       "CENTRAL_BUSINESS_ENTITY_NOT_SUPPORTED",
@@ -455,6 +509,62 @@ export function buildCentralBusinessEventAppDataTransition(input: {
           expense.supplierId === event.entityId
             ? { ...expense, supplierName: incoming.name }
             : expense,
+        ),
+      },
+      value: value("updated"),
+    };
+  }
+
+  if (event.entityType === "user_reminder") {
+    const existing = data.userReminders.find(
+      (reminder) => reminder.id === event.entityId,
+    );
+    if (event.operationKind === "delete") {
+      if (!existing) return { data, value: value("unchanged") };
+      if (!knownPrevious) {
+        return localConflict(
+          "El recordatorio local no tiene una versión central confirmada para borrarlo.",
+        );
+      }
+      return {
+        data: {
+          ...data,
+          userReminders: data.userReminders.filter(
+            (reminder) => reminder.id !== event.entityId,
+          ),
+        },
+        value: value("deleted"),
+      };
+    }
+    const incoming = parseUserReminderPayload(event.payload, event.entityId);
+    if (!incoming) {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_USER_REMINDER_EVENT",
+        "El servidor devolvió un recordatorio incompleto.",
+      );
+    }
+    if (!existing) {
+      return {
+        data: {
+          ...data,
+          userReminders: [...data.userReminders, incoming],
+        },
+        value: value("added"),
+      };
+    }
+    if (sameEntity(existing, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (!knownPrevious) {
+      return localConflict(
+        "El recordatorio local difiere de la primera versión recibida del servidor.",
+      );
+    }
+    return {
+      data: {
+        ...data,
+        userReminders: data.userReminders.map((reminder) =>
+          reminder.id === event.entityId ? incoming : reminder,
         ),
       },
       value: value("updated"),
