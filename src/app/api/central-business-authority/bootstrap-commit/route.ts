@@ -9,6 +9,7 @@ import {
 import {
   createCentralBusinessBootstrapCommitRouteHandler,
 } from "@/lib/central-business-authority/bootstrap-commit-route-handler";
+import { listAllCentralBusinessBootstrapEntities } from "@/lib/central-business-authority/bootstrap-central-entities";
 import { evaluateCentralBusinessAuthorityActivation } from "@/lib/central-business-authority/activation";
 import {
   probeCentralBusinessAuthorityStatusReadiness,
@@ -131,21 +132,31 @@ const handler = createCentralBusinessBootstrapCommitRouteHandler({
   async listCentralEntities(userId) {
     const admin = getSupabaseAdmin();
     if (!admin) return null;
-    const { data, error } = await admin
-      .from("central_business_entities")
-      .select("entity_type,entity_id,current_version,deleted,content_hash")
-      .eq("user_id", userId)
-      .in("entity_type", ["customer", "supplier", "product"])
-      .order("entity_type")
-      .order("entity_id");
-    if (error || !Array.isArray(data)) return null;
-    return data.map((row) => ({
-      entityType: row.entity_type as "customer" | "supplier" | "product",
-      entityId: row.entity_id,
-      currentVersion: row.current_version,
-      deleted: row.deleted,
-      contentHash: row.content_hash,
-    }));
+    return listAllCentralBusinessBootstrapEntities({
+      async loadPage({ from, to }) {
+        const { data, error } = await admin
+          .from("central_business_entities")
+          .select(
+            "entity_type,entity_id,current_version,deleted,content_hash",
+          )
+          .eq("user_id", userId)
+          .in("entity_type", ["customer", "supplier", "product"])
+          .order("entity_type")
+          .order("entity_id")
+          .range(from, to);
+        if (error || !Array.isArray(data)) return null;
+        return data.map((row) => ({
+          entityType: row.entity_type as
+            | "customer"
+            | "supplier"
+            | "product",
+          entityId: row.entity_id,
+          currentVersion: row.current_version,
+          deleted: row.deleted,
+          contentHash: row.content_hash,
+        }));
+      },
+    });
   },
   async commit(command) {
     const admin = getSupabaseAdmin();

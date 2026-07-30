@@ -17,20 +17,23 @@ function rows(count: number): CentralBusinessBootstrapCentralRow[] {
 }
 
 describe("central business bootstrap paginated repository", () => {
-  it("keeps the production preview route wired to ordered range pages", () => {
-    const route = readFileSync(
-      new URL(
-        "../../app/api/central-business-authority/bootstrap-preview/route.ts",
-        import.meta.url,
-      ),
-      "utf8",
-    );
+  it.each(["bootstrap-preview", "bootstrap-commit"])(
+    "keeps the production %s route wired to ordered range pages",
+    (routeName) => {
+      const route = readFileSync(
+        new URL(
+          `../../app/api/central-business-authority/${routeName}/route.ts`,
+          import.meta.url,
+        ),
+        "utf8",
+      );
 
-    expect(route).toContain("listAllCentralBusinessBootstrapEntities");
-    expect(route).toContain('.order("entity_type")');
-    expect(route).toContain('.order("entity_id")');
-    expect(route).toContain(".range(from, to)");
-  });
+      expect(route).toContain("listAllCentralBusinessBootstrapEntities");
+      expect(route).toContain('.order("entity_type")');
+      expect(route).toContain('.order("entity_id")');
+      expect(route).toContain(".range(from, to)");
+    },
+  );
 
   it("reads every page when Supabase caps each response at 1000 rows", async () => {
     const source = rows(1_007);
