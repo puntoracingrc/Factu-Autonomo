@@ -21,8 +21,9 @@ import type { CentralBusinessAuthorityStatusResult } from "./status-client";
 export const CENTRAL_PROFILE_MUTATION_CANARY =
   "CENTRAL_PROFILE_MUTATION_CANARY_V1";
 
-export type CentralProfileUpdate =
-  BusinessProfile | ((current: BusinessProfile) => BusinessProfile);
+export type CentralProfileUpdate = (
+  current: BusinessProfile,
+) => BusinessProfile;
 
 export interface CentralProfileMutationCanaryDependencies {
   getCurrentData(): AppData;
@@ -54,7 +55,7 @@ function resolveProfileUpdate(
   current: BusinessProfile,
 ): BusinessProfile {
   return normalizeLoadedData({
-    profile: typeof update === "function" ? update(current) : update,
+    profile: update(current),
   }).profile;
 }
 
