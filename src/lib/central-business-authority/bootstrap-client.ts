@@ -18,7 +18,10 @@ export type CentralBusinessBootstrapBrowserEntityType =
   | "customer"
   | "supplier"
   | "product"
-  | "user_reminder";
+  | "user_reminder"
+  | "expense"
+  | "recurring_expense"
+  | "profile";
 
 export interface CentralBusinessBootstrapBrowserEntity {
   entityType: CentralBusinessBootstrapBrowserEntityType;
@@ -93,6 +96,9 @@ const ENTITY_TYPES = new Set<CentralBusinessBootstrapBrowserEntityType>([
   "supplier",
   "product",
   "user_reminder",
+  "expense",
+  "recurring_expense",
+  "profile",
 ]);
 const ENTRY_STATUSES = new Set<
   CentralBusinessBootstrapBrowserPreviewEntry["status"]
@@ -116,12 +122,16 @@ function isJson(value: unknown): value is CentralBusinessJson {
   return isObject(value) && Object.values(value).every(isJson);
 }
 
-function jsonPayload(value: unknown, expectedId: string): CentralBusinessJson {
+function jsonPayload(
+  value: unknown,
+  expectedId: string,
+  options: { requireMatchingId?: boolean } = {},
+): CentralBusinessJson {
   const serialized = JSON.stringify(value);
   const parsed = serialized ? (JSON.parse(serialized) as unknown) : null;
   if (
     !isObject(parsed) ||
-    parsed.id !== expectedId ||
+    (options.requireMatchingId !== false && parsed.id !== expectedId) ||
     !isJson(parsed)
   ) {
     throw new Error("INVALID_BOOTSTRAP_LOCAL_ENTITY");
@@ -153,6 +163,23 @@ export function buildCentralBusinessBootstrapBrowserSnapshot(
       entityId: entity.id,
       payload: jsonPayload(entity, entity.id),
     })),
+    ...data.expenses.map((entity) => ({
+      entityType: "expense" as const,
+      entityId: entity.id,
+      payload: jsonPayload(entity, entity.id),
+    })),
+    ...data.recurringExpenses.map((entity) => ({
+      entityType: "recurring_expense" as const,
+      entityId: entity.id,
+      payload: jsonPayload(entity, entity.id),
+    })),
+    {
+      entityType: "profile",
+      entityId: "profile",
+      payload: jsonPayload(data.profile, "profile", {
+        requireMatchingId: false,
+      }),
+    },
   ];
   return entities.sort(
     (left, right) =>

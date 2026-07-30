@@ -30,6 +30,11 @@ const local: CentralBusinessBootstrapEntityInput[] = [
       updatedAt: "2026-07-30T08:00:00.000Z",
     },
   },
+  {
+    entityType: "profile",
+    entityId: "profile",
+    payload: { name: "Empresa", numbering: {}, iva: {} },
+  },
 ];
 
 describe("central business bootstrap preview", () => {
@@ -44,10 +49,10 @@ describe("central business bootstrap preview", () => {
     });
 
     expect(first.summary).toEqual({
-      local: 3,
+      local: 4,
       centralActive: 0,
       centralDeleted: 0,
-      create: 3,
+      create: 4,
       identical: 0,
       conflict: 0,
       centralOnly: 0,
@@ -55,6 +60,7 @@ describe("central business bootstrap preview", () => {
     expect(first.canCommit).toBe(true);
     expect(first.previewDigest).toBe(reordered.previewDigest);
     expect(first.entries.map((entry) => entry.status)).toEqual([
+      "create",
       "create",
       "create",
       "create",
@@ -114,6 +120,13 @@ describe("central business bootstrap preview", () => {
         centralDeleted: false,
       },
       {
+        entityType: "profile",
+        entityId: "profile",
+        status: "create",
+        centralVersion: null,
+        centralDeleted: false,
+      },
+      {
         entityType: "supplier",
         entityId: "supplier-a",
         status: "conflict",
@@ -145,6 +158,18 @@ describe("central business bootstrap preview", () => {
             entityType: "customer",
             entityId: "customer-a",
             payload: { id: "other" },
+          },
+        ],
+        centralEntities: [],
+      }),
+    ).toThrow("INVALID_BOOTSTRAP_ENTITY");
+    expect(() =>
+      buildCentralBusinessBootstrapPreview({
+        localEntities: [
+          {
+            entityType: "profile",
+            entityId: "other-profile",
+            payload: { name: "Empresa" },
           },
         ],
         centralEntities: [],

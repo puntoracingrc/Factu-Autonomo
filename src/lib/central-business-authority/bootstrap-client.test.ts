@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { EMPTY_DATA } from "@/lib/types";
+import { DEFAULT_PROFILE, EMPTY_DATA } from "@/lib/types";
 
 import {
   buildCentralBusinessBootstrapBrowserSnapshot,
@@ -69,6 +69,38 @@ describe("central business bootstrap browser client", () => {
           updatedAt: "2026-07-30T08:00:00.000Z",
         },
       ],
+      expenses: [
+        {
+          id: "expense-a",
+          date: "2026-07-30",
+          supplierName: "Proveedor",
+          description: "Compra",
+          amount: 121,
+          ivaPercent: 21,
+          category: "Compras",
+          paymentMethod: "Tarjeta",
+          createdAt: "2026-07-30T08:00:00.000Z",
+        },
+      ],
+      recurringExpenses: [
+        {
+          id: "recurring-a",
+          supplierName: "Proveedor",
+          description: "Alquiler",
+          amount: 1000,
+          ivaPercent: 21,
+          category: "Alquiler",
+          paymentMethod: "Domiciliación",
+          frequency: "monthly",
+          dueTiming: { kind: "start_of_month" },
+          duration: { kind: "indefinite" },
+          startDate: "2026-07-01",
+          enabled: true,
+          createdAt: "2026-07-30T08:00:00.000Z",
+          updatedAt: "2026-07-30T08:00:00.000Z",
+        },
+      ],
+      profile: { ...DEFAULT_PROFILE, name: "Empresa sintetica" },
     } as unknown as typeof EMPTY_DATA;
 
     const first = buildCentralBusinessBootstrapBrowserSnapshot(data);
@@ -77,12 +109,17 @@ describe("central business bootstrap browser client", () => {
     expect(first.map((entry) => `${entry.entityType}:${entry.entityId}`)).toEqual(
       [
         "customer:customer-b",
+        "expense:expense-a",
         "product:product-a",
+        "profile:profile",
+        "recurring_expense:recurring-a",
         "supplier:supplier-a",
         "user_reminder:reminder-a",
       ],
     );
     expect(first[0].payload).not.toHaveProperty("optional");
+    expect(first.find((entry) => entry.entityType === "profile")?.payload)
+      .not.toHaveProperty("id");
     expect(centralBusinessBootstrapSnapshotSignature(first)).toBe(
       centralBusinessBootstrapSnapshotSignature(second),
     );
