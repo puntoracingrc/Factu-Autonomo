@@ -3,10 +3,14 @@ import { createHash } from "node:crypto";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import {
+  DEFAULT_PROFILE,
   EMPTY_DATA,
   type AppData,
+  type BusinessProfile,
   type Customer,
+  type Expense,
   type Product,
+  type RecurringExpense,
   type Supplier,
   type UserReminder,
 } from "@/lib/types";
@@ -88,8 +92,51 @@ function reminder(overrides: Partial<UserReminder> = {}): UserReminder {
   };
 }
 
+function expense(overrides: Partial<Expense> = {}): Expense {
+  return {
+    id: "expense-1",
+    date: "2026-07-29",
+    supplierName: "Proveedor central",
+    description: "Gasto central",
+    amount: 121,
+    ivaPercent: 21,
+    category: "Compras",
+    paymentMethod: "Tarjeta",
+    createdAt: "2026-07-29T19:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function recurringExpense(
+  overrides: Partial<RecurringExpense> = {},
+): RecurringExpense {
+  return {
+    id: "recurring-expense-1",
+    supplierName: "Proveedor central",
+    description: "Alquiler central",
+    amount: 1000,
+    ivaPercent: 21,
+    category: "Alquiler",
+    paymentMethod: "Domiciliación",
+    frequency: "monthly",
+    dueTiming: { kind: "start_of_month" },
+    duration: { kind: "indefinite" },
+    startDate: "2026-07-01",
+    enabled: true,
+    createdAt: "2026-07-29T19:00:00.000Z",
+    updatedAt: "2026-07-29T19:00:00.000Z",
+    ...overrides,
+  };
+}
+
 function event(
-  entity: Customer | Supplier | Product | UserReminder,
+  entity:
+    | Customer
+    | Supplier
+    | Product
+    | UserReminder
+    | Expense
+    | RecurringExpense,
   overrides: Partial<CentralBusinessBrowserEvent> = {},
 ): CentralBusinessBrowserEvent {
   return {
@@ -101,14 +148,38 @@ function event(
         ? "customer"
         : "completed" in entity
           ? "user_reminder"
-        : "key" in entity
-          ? "product"
-          : "supplier",
+          : "frequency" in entity
+            ? "recurring_expense"
+            : "amount" in entity
+              ? "expense"
+              : "key" in entity
+                ? "product"
+                : "supplier",
     entityId: entity.id,
     entityVersion: 1,
     operationKind: "upsert",
     payload: JSON.parse(JSON.stringify(entity)),
     contentHash: "hash-v1",
+    actorDeviceId: "device-1",
+    createdAt: "2026-07-29T19:01:00.000Z",
+    ...overrides,
+  };
+}
+
+function profileEvent(
+  profile: BusinessProfile,
+  overrides: Partial<CentralBusinessBrowserEvent> = {},
+): CentralBusinessBrowserEvent {
+  return {
+    schema: "CENTRAL_BUSINESS_EVENTS_RPC_ADAPTER_V1",
+    eventId: "profile-event-1",
+    eventSequence: 1,
+    entityType: "profile",
+    entityId: "profile",
+    entityVersion: 1,
+    operationKind: "upsert",
+    payload: JSON.parse(JSON.stringify(profile)),
+    contentHash: "profile-hash-v1",
     actorDeviceId: "device-1",
     createdAt: "2026-07-29T19:01:00.000Z",
     ...overrides,
@@ -267,6 +338,148 @@ describe("central business events app data sync", () => {
     expect(update.data.userReminders).toEqual([updated]);
     expect(deletion.value.action).toBe("deleted");
     expect(deletion.data.userReminders).toEqual([]);
+  });
+
+  it("añade, actualiza y borra gastos solo con continuidad central", () => {
+    const original = expense();
+    const added = buildCentralBusinessEventAppDataTransition({
+      data: { ...EMPTY_DATA, expenses: [] },
+      event: event(original),
+    });
+    const updatedExpense = expense({ amount: 242 });
+    const updated = buildCentralBusinessEventAppDataTransition({
+      data: added.data,
+      event: event(updatedExpense, { entityVersion: 2 }),
+      knownVersion: {
+        entityType: "expense",
+        entityId: original.id,
+        version: 1,
+        deleted: false,
+        contentHash: "hash-v1",
+      },
+    });
+    const deleted = buildCentralBusinessEventAppDataTransition({
+      data: updated.data,
+      event: event(updatedExpense, {
+        entityVersion: 3,
+        operationKind: "delete",
+        payload: null,
+      }),
+      knownVersion: {
+        entityType: "expense",
+        entityId: original.id,
+        version: 2,
+        deleted: false,
+        contentHash: "hash-v2",
+      },
+    });
+
+    expect(added.value.action).toBe("added");
+    expect(updated.value.action).toBe("updated");
+    expect(updated.data.expenses).toEqual([updatedExpense]);
+    expect(deleted.value.action).toBe("deleted");
+    expect(deleted.data.expenses).toEqual([]);
+  });
+
+  it("aplica el ciclo central de un gasto fijo sin borrar cargos históricos", () => {
+    const original = recurringExpense();
+    const historical = expense({
+      id: "expense-history-1",
+      recurringExpenseId: original.id,
+      recurringOccurrenceKey: `${original.id}:2026-07-01`,
+    });
+    const added = buildCentralBusinessEventAppDataTransition({
+      data: { ...EMPTY_DATA, recurringExpenses: [], expenses: [historical] },
+      event: event(original),
+    });
+    const updatedTemplate = recurringExpense({ enabled: false });
+    const updated = buildCentralBusinessEventAppDataTransition({
+      data: added.data,
+      event: event(updatedTemplate, { entityVersion: 2 }),
+      knownVersion: {
+        entityType: "recurring_expense",
+        entityId: original.id,
+        version: 1,
+        deleted: false,
+        contentHash: "hash-v1",
+      },
+    });
+    const deleted = buildCentralBusinessEventAppDataTransition({
+      data: updated.data,
+      event: event(updatedTemplate, {
+        entityVersion: 3,
+        operationKind: "delete",
+        payload: null,
+      }),
+      knownVersion: {
+        entityType: "recurring_expense",
+        entityId: original.id,
+        version: 2,
+        deleted: false,
+        contentHash: "hash-v2",
+      },
+    });
+
+    expect(updated.data.recurringExpenses).toEqual([updatedTemplate]);
+    expect(deleted.data.recurringExpenses).toEqual([]);
+    expect(deleted.data.expenses).toEqual([historical]);
+  });
+
+  it("actualiza el perfil conocido y rechaza su borrado", () => {
+    const updatedProfile = {
+      ...DEFAULT_PROFILE,
+      name: "Empresa central",
+    };
+    const knownVersion = {
+      entityType: "profile" as const,
+      entityId: "profile",
+      version: 1,
+      deleted: false,
+      contentHash: "profile-hash-v1",
+    };
+    const updated = buildCentralBusinessEventAppDataTransition({
+      data: { ...EMPTY_DATA, profile: DEFAULT_PROFILE },
+      event: profileEvent(updatedProfile, { entityVersion: 2 }),
+      knownVersion,
+    });
+
+    expect(updated.value.action).toBe("updated");
+    expect(updated.data.profile.name).toBe("Empresa central");
+    expect(() =>
+      buildCentralBusinessEventAppDataTransition({
+        data: updated.data,
+        event: profileEvent(updatedProfile, {
+          operationKind: "delete",
+          payload: null,
+          entityVersion: 3,
+        }),
+        knownVersion: { ...knownVersion, version: 2 },
+      }),
+    ).toThrow("El perfil fiscal central no se puede borrar.");
+  });
+
+  it("rechaza gastos incompletos y no permite pisar un perfil sin versión", () => {
+    expect(() =>
+      buildCentralBusinessEventAppDataTransition({
+        data: EMPTY_DATA,
+        event: event(expense(), {
+          payload: JSON.parse(
+            JSON.stringify({
+              ...expense(),
+              purchaseLines: [{ id: "line-1" }],
+            }),
+          ),
+        }),
+      }),
+    ).toThrow("El servidor devolvió un gasto incompleto.");
+    expect(() =>
+      buildCentralBusinessEventAppDataTransition({
+        data: EMPTY_DATA,
+        event: profileEvent({ ...DEFAULT_PROFILE, name: "Otra empresa" }),
+      }),
+    ).toThrow(
+      "El perfil local difiere de la primera versión recibida del servidor.",
+    );
   });
 
   it("aplica el borrado remoto de proveedor sin borrar el histórico del producto", () => {
