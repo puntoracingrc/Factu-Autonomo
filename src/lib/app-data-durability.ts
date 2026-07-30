@@ -39,6 +39,17 @@ export function durableStorageBaselineAfterSave(
   return result.status === "applied" ? { status: "known", data } : result;
 }
 
+export function persistAppDataAgainstDurableBaseline(input: {
+  data: AppData;
+  storageBaseline: DurableStorageBaseline;
+  persist: (candidate: AppData, expected: AppData) => SaveDataResult;
+}): SaveDataResult {
+  if (input.storageBaseline.status !== "known") {
+    return input.storageBaseline;
+  }
+  return input.persist(input.data, input.storageBaseline.data);
+}
+
 export interface AppDataTransition<T> {
   data: AppData;
   value: T;

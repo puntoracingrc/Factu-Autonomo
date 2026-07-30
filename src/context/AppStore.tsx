@@ -111,6 +111,7 @@ import {
   commitAppDataDurablyWithStorageRecovery,
   durableStorageBaselineAfterSave,
   fixedExpenseBundleIds,
+  persistAppDataAgainstDurableBaseline,
   prepareFixedExpenseBundle,
   type AppDataDurabilityResult,
   type AppDataTransition,
@@ -980,7 +981,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       skipNextSave.current = false;
       return;
     }
-    const result = saveData(data);
+    const result = persistAppDataAgainstDurableBaseline({
+      data,
+      storageBaseline: durableStorageBaselineRef.current,
+      persist: (candidate, expected) => saveData(candidate, { expected }),
+    });
     if (result.status === "applied") {
       lastKnownDurableDataRef.current = data;
     }

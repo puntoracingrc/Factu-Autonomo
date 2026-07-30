@@ -66,4 +66,11 @@ describe("AppStore durable central business writes", () => {
       );
     }
   });
+
+  it("protege el autoguardado general frente a pestañas obsoletas", () => {
+    expect(source).toContain("persistAppDataAgainstDurableBaseline({");
+    expect(source).toContain(
+      "persist: (candidate, expected) => saveData(candidate, { expected })",
+    );
+  });
 });
