@@ -475,6 +475,103 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     expect(rolledBack.data).toEqual([]);
   });
 
+  it("allows one recurring occurrence and rolls back a duplicate batch", async () => {
+    const occurrenceKey = "synthetic-rule:2026-07-30";
+    const recurringArgs = (side: "left" | "right") => ({
+      p_user_id: userId,
+      p_device_id: `synthetic-recurring-${side}`,
+      p_session_hash: `synthetic-recurring-session-${side}`,
+      p_idempotency_key_hash: `recurring-occurrence-${side}`,
+      p_request_hash: `recurring-occurrence-request-${side}`,
+      p_operation_kind: "upsert",
+      p_entity_type: "expense",
+      p_entity_id: `recurring-occurrence-${side}`,
+      p_expected_version: 0,
+      p_payload: {
+        id: `recurring-occurrence-${side}`,
+        description: "Synthetic recurring occurrence",
+        recurringExpenseId: "synthetic-rule",
+        recurringOccurrenceKey: occurrenceKey,
+      },
+      p_content_hash: `recurring-occurrence-hash-${side}`,
+    });
+
+    const [left, right] = await Promise.all([
+      admin.rpc("mutate_central_business_entity_v1", recurringArgs("left")),
+      admin.rpc("mutate_central_business_entity_v1", recurringArgs("right")),
+    ]);
+    const accepted = [left, right].filter((result) => !result.error);
+    const rejected = [left, right].filter((result) => result.error);
+    expect(accepted).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.error).toMatchObject({
+      code: "P4105",
+      message: expect.stringContaining(
+        "central recurring occurrence already exists",
+      ),
+    });
+
+    const active = await admin
+      .from("central_business_entities")
+      .select("entity_id")
+      .eq("user_id", userId)
+      .eq("entity_type", "expense")
+      .eq("deleted", false)
+      .eq("current_payload->>recurringOccurrenceKey", occurrenceKey);
+    expect(active.error).toBeNull();
+    expect(active.data).toHaveLength(1);
+
+    const duplicateBatch = await admin.rpc(
+      "mutate_central_business_batch_v1",
+      {
+        p_user_id: userId,
+        p_device_id: "synthetic-recurring-batch",
+        p_session_hash: "synthetic-recurring-batch-session",
+        p_operations: [
+          {
+            operationIndex: 0,
+            idempotencyKeyHash: "recurring-rollback-customer",
+            requestHash: "recurring-rollback-customer-request",
+            operationKind: "upsert",
+            entityType: "customer",
+            entityId: "must-roll-back-with-recurring-duplicate",
+            expectedVersion: 0,
+            payload: {
+              id: "must-roll-back-with-recurring-duplicate",
+              name: "Must roll back",
+            },
+            contentHash: "recurring-rollback-customer-hash",
+          },
+          {
+            operationIndex: 1,
+            idempotencyKeyHash: "recurring-duplicate-batch-expense",
+            requestHash: "recurring-duplicate-batch-expense-request",
+            operationKind: "upsert",
+            entityType: "expense",
+            entityId: "recurring-occurrence-batch-duplicate",
+            expectedVersion: 0,
+            payload: {
+              id: "recurring-occurrence-batch-duplicate",
+              description: "Must not duplicate",
+              recurringExpenseId: "synthetic-rule",
+              recurringOccurrenceKey: occurrenceKey,
+            },
+            contentHash: "recurring-duplicate-batch-expense-hash",
+          },
+        ],
+      },
+    );
+    expect(duplicateBatch.error?.code).toBe("P4105");
+
+    const rolledBack = await admin
+      .from("central_business_entities")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("entity_id", "must-roll-back-with-recurring-duplicate");
+    expect(rolledBack.error).toBeNull();
+    expect(rolledBack.data).toEqual([]);
+  });
+
   it("denies direct browser-role reads", async () => {
     const { data, error } = await signedInUser
       .from("central_business_entities")

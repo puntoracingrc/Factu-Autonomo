@@ -169,6 +169,14 @@ function rpcRejection(error: CentralBusinessMutationRpcError) {
       message: "El registro central ya no existe.",
     };
   }
+  if (error.causeCode === "P4105") {
+    return {
+      status: 409,
+      code: "CENTRAL_BUSINESS_RECURRING_OCCURRENCE_CONFLICT",
+      message:
+        "Ese cargo recurrente ya fue creado por otro dispositivo. Actualiza los cambios centrales antes de continuar.",
+    };
+  }
   return {
     status: error.code === "RPC_REJECTED" ? 409 : 502,
     code: error.code,

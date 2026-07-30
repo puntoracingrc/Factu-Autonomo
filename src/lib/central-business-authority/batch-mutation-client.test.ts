@@ -110,4 +110,29 @@ describe("central business batch mutation client", () => {
       retryable: true,
     });
   });
+
+  it("clasifica una ocurrencia recurrente duplicada como conflicto atomico", async () => {
+    await expect(
+      mutateCentralBusinessBatchFromBrowser(operations, {
+        fetchImpl: async () =>
+          Response.json(
+            {
+              error: {
+                code: "CENTRAL_BUSINESS_RECURRING_OCCURRENCE_CONFLICT",
+                causeCode: "P4105",
+                message: "Recurring occurrence conflict",
+              },
+            },
+            { status: 409 },
+          ),
+        getAccessToken: async () => "token",
+        getDeviceToken: () => "device",
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      conflict: true,
+      retryable: false,
+      causeCode: "P4105",
+    });
+  });
 });

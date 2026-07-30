@@ -197,9 +197,9 @@ describe("central business mutation route", () => {
     });
   });
 
-  it("distingue idempotencia reutilizada y entidad inexistente", async () => {
+  it("distingue idempotencia, entidad inexistente y ocurrencia recurrente", async () => {
     enableCanary();
-    const rejected = (code: "P4102" | "P4104") =>
+    const rejected = (code: "P4102" | "P4104" | "P4105") =>
       dependencies({
         getRpcClient: vi.fn(() => ({
           async rpc() {
@@ -226,6 +226,15 @@ describe("central business mutation route", () => {
         error: {
           code: "CENTRAL_BUSINESS_ENTITY_NOT_FOUND",
           causeCode: "P4104",
+        },
+      },
+    });
+    expect(await request(rejected("P4105"))).toMatchObject({
+      status: 409,
+      body: {
+        error: {
+          code: "CENTRAL_BUSINESS_RECURRING_OCCURRENCE_CONFLICT",
+          causeCode: "P4105",
         },
       },
     });

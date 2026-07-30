@@ -185,6 +185,14 @@ function rpcRejection(error: CentralBusinessBatchMutationRpcError) {
         "Una ficha central del lote ya no existe. No se aplico ninguna operacion.",
     };
   }
+  if (error.causeCode === "P4105") {
+    return {
+      status: 409,
+      code: "CENTRAL_BUSINESS_RECURRING_OCCURRENCE_CONFLICT",
+      message:
+        "Ese cargo recurrente ya fue creado por otro dispositivo. No se aplico ninguna operacion del lote.",
+    };
+  }
   if (error.causeCode === "P4121") {
     return {
       status: 400,
