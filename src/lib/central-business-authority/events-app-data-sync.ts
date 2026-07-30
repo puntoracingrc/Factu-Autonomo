@@ -10,10 +10,17 @@ import {
   deleteSupplierMasterFromData,
 } from "@/lib/master-record-deletion";
 import { normalizeProductCatalogItem } from "@/lib/purchase-products";
+import {
+  deleteExpenseFromData,
+  deleteRecurringExpenseFromData,
+} from "@/lib/recurring-expenses";
 import type {
   AppData,
+  BusinessProfile,
   Customer,
+  Expense,
   Product,
+  RecurringExpense,
   Supplier,
   UserReminder,
   UserReminderLinkKind,
@@ -31,6 +38,11 @@ import {
   type CentralBusinessBrowserEvent,
   type CentralBusinessEventsPullResult,
 } from "./events-client";
+import {
+  parseCentralExpensePayload,
+  parseCentralProfilePayload,
+  parseCentralRecurringExpensePayload,
+} from "./payload-parsers";
 
 export const CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC =
   "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1";
@@ -39,7 +51,10 @@ type SupportedEntityType =
   | "customer"
   | "supplier"
   | "product"
-  | "user_reminder";
+  | "user_reminder"
+  | "expense"
+  | "recurring_expense"
+  | "profile";
 
 export type CentralBusinessEventLocalAction =
   "added" | "updated" | "deleted" | "unchanged";
@@ -370,8 +385,22 @@ export async function verifyCentralBusinessEventContentHash(
 }
 
 function sameEntity(
-  left: Customer | Supplier | Product | UserReminder,
-  right: Customer | Supplier | Product | UserReminder,
+  left:
+    | Customer
+    | Supplier
+    | Product
+    | UserReminder
+    | Expense
+    | RecurringExpense
+    | BusinessProfile,
+  right:
+    | Customer
+    | Supplier
+    | Product
+    | UserReminder
+    | Expense
+    | RecurringExpense
+    | BusinessProfile,
 ) {
   return stableJson(left) === stableJson(right);
 }
@@ -393,7 +422,10 @@ export function buildCentralBusinessEventAppDataTransition(input: {
     event.entityType !== "customer" &&
     event.entityType !== "supplier" &&
     event.entityType !== "product" &&
-    event.entityType !== "user_reminder"
+    event.entityType !== "user_reminder" &&
+    event.entityType !== "expense" &&
+    event.entityType !== "recurring_expense" &&
+    event.entityType !== "profile"
   ) {
     throw new CentralBusinessLocalApplyError(
       "CENTRAL_BUSINESS_ENTITY_NOT_SUPPORTED",
@@ -567,6 +599,154 @@ export function buildCentralBusinessEventAppDataTransition(input: {
           reminder.id === event.entityId ? incoming : reminder,
         ),
       },
+      value: value("updated"),
+    };
+  }
+
+  if (event.entityType === "expense") {
+    const matches = data.expenses.filter(
+      (expense) => expense.id === event.entityId,
+    );
+    if (matches.length > 1) {
+      return localConflict(
+        "El gasto local tiene identificadores duplicados y requiere revisión.",
+      );
+    }
+    const existing = matches[0];
+    if (event.operationKind === "delete") {
+      if (!existing) return { data, value: value("unchanged") };
+      if (!knownPrevious) {
+        return localConflict(
+          "El gasto local no tiene una versión central confirmada para borrarlo.",
+        );
+      }
+      return {
+        data: deleteExpenseFromData(data, event.entityId, event.createdAt),
+        value: value("deleted"),
+      };
+    }
+    const incoming = parseCentralExpensePayload(
+      event.payload,
+      event.entityId,
+    );
+    if (!incoming) {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_EXPENSE_EVENT",
+        "El servidor devolvió un gasto incompleto.",
+      );
+    }
+    if (!existing) {
+      return {
+        data: { ...data, expenses: [...data.expenses, incoming] },
+        value: value("added"),
+      };
+    }
+    if (sameEntity(existing, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (!knownPrevious) {
+      return localConflict(
+        "El gasto local difiere de la primera versión recibida del servidor.",
+      );
+    }
+    return {
+      data: {
+        ...data,
+        expenses: data.expenses.map((expense) =>
+          expense.id === event.entityId ? incoming : expense,
+        ),
+      },
+      value: value("updated"),
+    };
+  }
+
+  if (event.entityType === "recurring_expense") {
+    const matches = data.recurringExpenses.filter(
+      (expense) => expense.id === event.entityId,
+    );
+    if (matches.length > 1) {
+      return localConflict(
+        "El gasto fijo local tiene identificadores duplicados y requiere revisión.",
+      );
+    }
+    const existing = matches[0];
+    if (event.operationKind === "delete") {
+      if (!existing) return { data, value: value("unchanged") };
+      if (!knownPrevious) {
+        return localConflict(
+          "El gasto fijo local no tiene una versión central confirmada para borrarlo.",
+        );
+      }
+      return {
+        data: deleteRecurringExpenseFromData(data, event.entityId),
+        value: value("deleted"),
+      };
+    }
+    const incoming = parseCentralRecurringExpensePayload(
+      event.payload,
+      event.entityId,
+    );
+    if (!incoming) {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_RECURRING_EXPENSE_EVENT",
+        "El servidor devolvió un gasto fijo incompleto.",
+      );
+    }
+    if (!existing) {
+      return {
+        data: {
+          ...data,
+          recurringExpenses: [...data.recurringExpenses, incoming],
+        },
+        value: value("added"),
+      };
+    }
+    if (sameEntity(existing, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (!knownPrevious) {
+      return localConflict(
+        "El gasto fijo local difiere de la primera versión recibida del servidor.",
+      );
+    }
+    return {
+      data: {
+        ...data,
+        recurringExpenses: data.recurringExpenses.map((expense) =>
+          expense.id === event.entityId ? incoming : expense,
+        ),
+      },
+      value: value("updated"),
+    };
+  }
+
+  if (event.entityType === "profile") {
+    if (event.operationKind === "delete") {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_PROFILE_DELETE_NOT_SUPPORTED",
+        "El perfil fiscal central no se puede borrar.",
+      );
+    }
+    const incoming = parseCentralProfilePayload(
+      event.payload,
+      event.entityId,
+    );
+    if (!incoming) {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_PROFILE_EVENT",
+        "El servidor devolvió un perfil incompleto.",
+      );
+    }
+    if (sameEntity(data.profile, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (!knownPrevious) {
+      return localConflict(
+        "El perfil local difiere de la primera versión recibida del servidor.",
+      );
+    }
+    return {
+      data: { ...data, profile: incoming },
       value: value("updated"),
     };
   }
