@@ -20,6 +20,14 @@ export interface CentralBusinessConflictReviewItem {
   canKeepServer: boolean;
 }
 
+export interface CentralBusinessBlockedReviewItem {
+  key: string;
+  retryOperationId: string;
+  label: string;
+  operationCount: number;
+  issue: string;
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -149,9 +157,36 @@ export function buildCentralBusinessConflictReviewItems(
       issue:
         first.lastError?.message ??
         "El servidor central rechazó este cambio hasta que se revise.",
-      canKeepServer: codes.every((code) =>
-        AUTOMATIC_SERVER_RESOLUTION_CODES.has(code),
-      ),
+      canKeepServer:
+        matching.every((operation) => !operation.batchId) &&
+        codes.every((code) => AUTOMATIC_SERVER_RESOLUTION_CODES.has(code)),
+    };
+  });
+}
+
+export function buildCentralBusinessBlockedReviewItems(
+  operations: CentralBusinessQueuedOperation[],
+): CentralBusinessBlockedReviewItem[] {
+  const grouped = new Map<string, CentralBusinessQueuedOperation[]>();
+  for (const operation of operations) {
+    if (operation.status !== "blocked") continue;
+    const key = operation.batchId ?? operation.operationId;
+    grouped.set(key, [...(grouped.get(key) ?? []), operation]);
+  }
+
+  return Array.from(grouped.entries()).map(([key, matching]) => {
+    const first = matching[0];
+    return {
+      key,
+      retryOperationId: first.operationId,
+      label:
+        matching.length === 1
+          ? "Operación central detenida"
+          : `Lote atómico · ${matching.length} fichas`,
+      operationCount: matching.length,
+      issue:
+        first.lastError?.message ??
+        "El servidor central rechazó la operación sin aplicar cambios.",
     };
   });
 }

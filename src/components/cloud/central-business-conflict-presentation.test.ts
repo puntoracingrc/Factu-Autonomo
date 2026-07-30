@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_DATA } from "@/lib/types";
 import type { CentralBusinessQueuedOperation } from "@/lib/central-business-authority/durable-queue";
 
-import { buildCentralBusinessConflictReviewItems } from "./central-business-conflict-presentation";
+import {
+  buildCentralBusinessBlockedReviewItems,
+  buildCentralBusinessConflictReviewItems,
+} from "./central-business-conflict-presentation";
 
 function operation(
   overrides: Partial<CentralBusinessQueuedOperation> = {},
@@ -69,6 +72,51 @@ describe("central business conflict presentation", () => {
     ]);
 
     expect(items[0].canKeepServer).toBe(false);
+  });
+
+  it("no separa la resolución de un conflicto perteneciente a un lote", () => {
+    const items = buildCentralBusinessConflictReviewItems(EMPTY_DATA, [
+      operation({
+        batchId: "CENTRAL_BATCH_SYNTHETIC_0001",
+        batchIndex: 0,
+        batchSize: 2,
+      }),
+    ]);
+
+    expect(items[0].canKeepServer).toBe(false);
+  });
+
+  it("agrupa un lote bloqueado para reintentarlo completo", () => {
+    const items = buildCentralBusinessBlockedReviewItems([
+      operation({
+        status: "blocked",
+        batchId: "CENTRAL_BATCH_SYNTHETIC_0001",
+        batchIndex: 0,
+        batchSize: 2,
+        lastError: {
+          code: "CENTRAL_BUSINESS_BATCH_INVALID_COMMAND",
+          message: "No se aplicó ninguna operación (P4120).",
+          status: 400,
+        },
+      }),
+      operation({
+        operationId: "CENTRAL_OP_SYNTHETIC_0002",
+        status: "blocked",
+        batchId: "CENTRAL_BATCH_SYNTHETIC_0001",
+        batchIndex: 1,
+        batchSize: 2,
+      }),
+    ]);
+
+    expect(items).toEqual([
+      {
+        key: "CENTRAL_BATCH_SYNTHETIC_0001",
+        retryOperationId: "CENTRAL_OP_SYNTHETIC_0001",
+        label: "Lote atómico · 2 fichas",
+        operationCount: 2,
+        issue: "No se aplicó ninguna operación (P4120).",
+      },
+    ]);
   });
 
   it("presenta los conflictos de proveedor como una única ficha", () => {
