@@ -38,6 +38,7 @@ const ENTITY_LABELS = {
   customer: "Clientes",
   supplier: "Proveedores",
   product: "Productos",
+  user_reminder: "Recordatorios",
 } as const;
 
 function noticeClass(tone: Notice["tone"]): string {
@@ -288,9 +289,9 @@ export function CentralBusinessBootstrapCard() {
             Migrar fichas al servidor central
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Compara clientes, proveedores y productos de este dispositivo antes
-            de convertir PostgreSQL en su autoridad. La vista previa no escribe
-            nada y un conflicto bloquea el lote completo.
+            Compara clientes, proveedores, productos y recordatorios de este
+            dispositivo antes de convertir PostgreSQL en su autoridad. La vista
+            previa no escribe nada y un conflicto bloquea el lote completo.
           </p>
         </div>
       </div>
@@ -304,8 +305,15 @@ export function CentralBusinessBootstrapCard() {
 
       {preview ? (
         <div className="space-y-3">
-          <div className="grid gap-2 sm:grid-cols-3">
-            {(["customer", "supplier", "product"] as const).map(
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {(
+              [
+                "customer",
+                "supplier",
+                "product",
+                "user_reminder",
+              ] as const
+            ).map(
               (entityType) => {
                 const entries = preview.entries.filter(
                   (entry) => entry.entityType === entityType,

@@ -58,13 +58,29 @@ describe("central business bootstrap browser client", () => {
       customers: [{ id: "customer-b", name: "B", optional: undefined }],
       suppliers: [{ id: "supplier-a", name: "Proveedor" }],
       products: [{ id: "product-a", name: "Producto", price: 2 }],
+      userReminders: [
+        {
+          id: "reminder-a",
+          text: "Aviso",
+          link: { kind: "none" },
+          target: "self",
+          completed: false,
+          createdAt: "2026-07-30T08:00:00.000Z",
+          updatedAt: "2026-07-30T08:00:00.000Z",
+        },
+      ],
     } as unknown as typeof EMPTY_DATA;
 
     const first = buildCentralBusinessBootstrapBrowserSnapshot(data);
     const second = buildCentralBusinessBootstrapBrowserSnapshot(data);
 
     expect(first.map((entry) => `${entry.entityType}:${entry.entityId}`)).toEqual(
-      ["customer:customer-b", "product:product-a", "supplier:supplier-a"],
+      [
+        "customer:customer-b",
+        "product:product-a",
+        "supplier:supplier-a",
+        "user_reminder:reminder-a",
+      ],
     );
     expect(first[0].payload).not.toHaveProperty("optional");
     expect(centralBusinessBootstrapSnapshotSignature(first)).toBe(

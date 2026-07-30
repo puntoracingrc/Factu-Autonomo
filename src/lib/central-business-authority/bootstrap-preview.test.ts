@@ -17,6 +17,19 @@ const local: CentralBusinessBootstrapEntityInput[] = [
     entityId: "supplier-a",
     payload: { id: "supplier-a", name: "Proveedor A" },
   },
+  {
+    entityType: "user_reminder",
+    entityId: "reminder-a",
+    payload: {
+      id: "reminder-a",
+      text: "Preparar factura",
+      link: { kind: "new_invoice" },
+      target: "self",
+      completed: false,
+      createdAt: "2026-07-30T08:00:00.000Z",
+      updatedAt: "2026-07-30T08:00:00.000Z",
+    },
+  },
 ];
 
 describe("central business bootstrap preview", () => {
@@ -31,10 +44,10 @@ describe("central business bootstrap preview", () => {
     });
 
     expect(first.summary).toEqual({
-      local: 2,
+      local: 3,
       centralActive: 0,
       centralDeleted: 0,
-      create: 2,
+      create: 3,
       identical: 0,
       conflict: 0,
       centralOnly: 0,
@@ -42,6 +55,7 @@ describe("central business bootstrap preview", () => {
     expect(first.canCommit).toBe(true);
     expect(first.previewDigest).toBe(reordered.previewDigest);
     expect(first.entries.map((entry) => entry.status)).toEqual([
+      "create",
       "create",
       "create",
     ]);
@@ -105,6 +119,13 @@ describe("central business bootstrap preview", () => {
         status: "conflict",
         centralVersion: 3,
         centralDeleted: true,
+      },
+      {
+        entityType: "user_reminder",
+        entityId: "reminder-a",
+        status: "create",
+        centralVersion: null,
+        centralDeleted: false,
       },
     ]);
     expect(preview.canCommit).toBe(false);
