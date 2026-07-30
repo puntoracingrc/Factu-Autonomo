@@ -113,6 +113,7 @@ import {
   fixedExpenseBundleIds,
   prepareFixedExpenseBundle,
   type AppDataDurabilityResult,
+  type AppDataTransition,
   type DurableStorageBaseline,
   type FixedExpenseBundleValue,
 } from "@/lib/app-data-durability";
@@ -407,6 +408,10 @@ interface AppStoreValue {
     entityType: CentralBusinessEntityType;
     entityId: string;
   }) => Promise<CentralBusinessConflictRecoveryResult>;
+  commitPreparedAppDataDurably: <T>(
+    expected: AppData,
+    transition: AppDataTransition<T>,
+  ) => AppDataDurabilityResult<T>;
   updateProfile: (profile: BusinessProfile) => void;
   updateProfileDurably: (
     profile: BusinessProfile,
@@ -941,6 +946,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       return result;
     },
     [blockedDurableResult],
+  );
+
+  const commitPreparedAppDataDurably = useCallback(
+    <T,>(
+      expected: AppData,
+      transition: AppDataTransition<T>,
+    ): AppDataDurabilityResult<T> =>
+      commitDurableAppData(expected, () => transition),
+    [commitDurableAppData],
   );
 
   useEffect(() => {
@@ -3436,6 +3450,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
       resolveCentralBusinessConflictKeepingServer,
+      commitPreparedAppDataDurably,
       updateProfile,
       updateProfileDurably,
       addDocument,
@@ -3528,6 +3543,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
       resolveCentralBusinessConflictKeepingServer,
+      commitPreparedAppDataDurably,
       updateProfile,
       updateProfileDurably,
       addDocument,

@@ -296,6 +296,70 @@ describe("central expense bundle canary", () => {
     );
   });
 
+  it("forwards an explicit delete with the known central version", async () => {
+    const storage = new MemoryStorage();
+    await saveCentralExpenseBundleWithCanary({
+      userId,
+      operationId: "scan-bundle-delete-seed-0001",
+      dependencies: dependencies({ storage }),
+    });
+    const mutateBatch = vi.fn(
+      async (
+        mutations: CentralBusinessBrowserBatchMutationInput[],
+      ): Promise<CentralBusinessBrowserBatchMutationResult> => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_BATCH_MUTATION_CLIENT_V1",
+        operations: mutations.map((mutation, operationIndex) => ({
+          operationIndex,
+          status: "committed",
+          eventId: `delete-event-${operationIndex}`,
+          eventSequence: 10 + operationIndex,
+          entityVersion: mutation.expectedVersion + 1,
+          deleted: mutation.operationKind === "delete",
+          contentHash: `delete-hash-${operationIndex}`,
+        })),
+      }),
+    );
+    const deps = dependencies({
+      storage,
+      mutateBatch,
+      prepareLocal: vi.fn(
+        ({ data }): CentralExpenseBundlePreparation<Expense> => ({
+          ok: true,
+          transition: transition(data),
+          mutations: [
+            {
+              entityType: "recurring_expense",
+              entityId: "recurring-bundle-0001",
+              expectation: "known",
+              operationKind: "delete",
+              payload: null,
+            },
+          ],
+        }),
+      ),
+    });
+
+    const result = await saveCentralExpenseBundleWithCanary({
+      userId,
+      operationId: "scan-bundle-delete-0001",
+      dependencies: deps,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      delivery: "central_confirmed",
+    });
+    expect(mutateBatch).toHaveBeenCalledWith([
+      expect.objectContaining({
+        entityType: "recurring_expense",
+        operationKind: "delete",
+        expectedVersion: 1,
+        payload: null,
+      }),
+    ]);
+  });
+
   it("marks the complete batch for review on one version conflict", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({

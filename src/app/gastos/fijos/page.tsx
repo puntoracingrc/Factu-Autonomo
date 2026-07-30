@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/FormErrorSummary";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralRecurringExpenseMutations } from "@/hooks/useCentralRecurringExpenseMutations";
 import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
 import { decimalInputFromNumber, parseDecimalInput } from "@/lib/decimal-input";
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
@@ -104,13 +105,13 @@ export default function GastosFijosPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { data } = useAppStore();
   const {
-    data,
-    addRecurringExpense,
+    createRecurringExpense,
     setRecurringExpenseEnabled,
     applyRecurringExpenseChange,
     deleteRecurringExpense,
-  } = useAppStore();
+  } = useCentralRecurringExpenseMutations();
   const vatExempt = isVatExempt(data.profile);
   const defaultIva = data.profile.iva?.defaultRate ?? 21;
   const today = todayISO();
@@ -121,6 +122,7 @@ export default function GastosFijosPage() {
   const [effectiveDate, setEffectiveDate] = useState(today);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const [storageStateUnknown, setStorageStateUnknown] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<FormErrorItem[]>([]);
   const validationSummaryRef = useRef<HTMLDivElement>(null);
   const persistenceErrorRef = useRef<HTMLParagraphElement>(null);
@@ -255,8 +257,17 @@ export default function GastosFijosPage() {
     return { kind: "indefinite" };
   }
 
-  function handleSave() {
-    if (storageStateUnknown) return;
+  async function whileSaving<T>(operation: () => Promise<T>): Promise<T> {
+    setSaving(true);
+    try {
+      return await operation();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSave() {
+    if (storageStateUnknown || saving) return;
     setPersistenceError(null);
     const amount = parseDecimalInput(form.amountText);
     const startDate = editingId ? selectedEffectiveDate : form.startDate;
@@ -318,64 +329,33 @@ export default function GastosFijosPage() {
         return;
       }
       if (preview.status === "not_found") {
-        showPersistenceError("La regla ya no existe. No se ha modificado nada.");
+        showPersistenceError(
+          "La regla ya no existe. No se ha modificado nada.",
+        );
         return;
       }
-      const result = applyRecurringExpenseChange(
-        editingId,
-        payload,
-        startDate,
-        {
-        precondition: preview.precondition,
-        referenceDate: preview.referenceDate,
-        expected: data,
-        },
+      const result = await whileSaving(() =>
+        applyRecurringExpenseChange(editingId, payload, startDate, {
+          precondition: preview.precondition,
+          referenceDate: preview.referenceDate,
+        }),
       );
-      if (result.status === "indeterminate") {
-        setStorageStateUnknown(true);
-        showPersistenceError(
-          "No hemos podido confirmar que el navegador guardara el cambio. Por seguridad, el formulario sigue abierto y no hemos actualizado esta sesión. Recarga y exporta una copia desde Cuenta antes de continuar.",
-        );
-        return;
-      }
-      if (result.status === "blocked") {
-        if (
-          result.reason !== "stale_preview" &&
-          result.reason !== "manual_review" &&
-          result.reason !== "not_found" &&
-          result.reason !== "identifier_collision"
-        ) {
-          showPersistenceError(
-            result.reason === "stale_precondition"
-              ? "Los datos cambiaron antes de guardar. El formulario sigue abierto; recarga y revisa la información antes de continuar."
-              : "No se pudo guardar en este navegador. El formulario sigue abierto y no se ha aplicado el cambio en esta sesión. Revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
-          );
-          return;
+      if (!result.ok) {
+        if (result.localFailure?.status === "indeterminate") {
+          setStorageStateUnknown(true);
         }
-        showPersistenceError(
-          result.reason === "stale_preview"
-            ? "Los datos cambiaron después de la vista previa. No se ha modificado nada; vuelve a revisar y guardar."
-            : "El cambio requiere revisión manual. No se ha modificado nada.",
-        );
+        showPersistenceError(result.error);
         return;
       }
     } else {
-      const result = addRecurringExpense(payload, data);
-      if (result.status !== "applied") {
-        if (result.status === "indeterminate") {
+      const result = await whileSaving(() =>
+        createRecurringExpense(payload),
+      );
+      if (!result.ok) {
+        if (result.localFailure?.status === "indeterminate") {
           setStorageStateUnknown(true);
         }
-        showPersistenceError(
-          result.status === "indeterminate"
-            ? "No hemos podido confirmar que el navegador guardara el cambio. Por seguridad, el formulario sigue abierto y no hemos actualizado esta sesión. Recarga y exporta una copia desde Cuenta antes de continuar."
-            : result.reason === "stale_precondition"
-              ? "Los datos cambiaron antes de guardar. El formulario sigue abierto; recarga y revisa la información antes de continuar."
-              : result.reason === "identifier_collision" ||
-                  result.reason === "not_found" ||
-                  result.reason === "transition_failed"
-                ? "No se puede identificar una única regla segura para guardar. El formulario sigue abierto; recarga y revisa los datos antes de continuar."
-              : "No se pudo guardar en este navegador. El formulario sigue abierto y no se ha aplicado el cambio en esta sesión. Revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
-        );
+        showPersistenceError(result.error);
         return;
       }
     }
@@ -593,8 +573,8 @@ export default function GastosFijosPage() {
                           validationErrorFor("recurring-effective-date")
                             ? "border-red-400 focus:border-red-500 focus:ring-red-100"
                             : ""
-                          }
-                        />
+                        }
+                      />
                     </Field>
                     <FieldError
                       id="recurring-effective-date-error"
@@ -608,8 +588,8 @@ export default function GastosFijosPage() {
                     ? formatShortDate(selectedEffectiveDate)
                     : "la fecha que indiques"}
                   . Si ya hay cargos o exclusiones desde esa fecha, la vista
-                  previa bloquea el cambio para que los revises: ningún gasto creado se borra,
-                  mueve de fecha ni reescribe.
+                  previa bloquea el cambio para que los revises: ningún gasto
+                  creado se borra, mueve de fecha ni reescribe.
                 </p>
               </div>
             )}
@@ -701,14 +681,14 @@ export default function GastosFijosPage() {
               </div>
             ) : (
               !vatExempt && (
-              <Field label="IVA %">
-                <IvaPercentSelect
-                  value={form.ivaPercent}
-                  onChange={(ivaPercent) =>
-                    setForm((prev) => ({ ...prev, ivaPercent }))
-                  }
-                />
-              </Field>
+                <Field label="IVA %">
+                  <IvaPercentSelect
+                    value={form.ivaPercent}
+                    onChange={(ivaPercent) =>
+                      setForm((prev) => ({ ...prev, ivaPercent }))
+                    }
+                  />
+                </Field>
               )
             )}
             <Field label="Categoría">
@@ -949,12 +929,18 @@ export default function GastosFijosPage() {
             </div>
           </div>
 
-          <Button fullWidth onClick={handleSave} disabled={storageStateUnknown}>
+          <Button
+            fullWidth
+            onClick={handleSave}
+            disabled={storageStateUnknown || saving}
+          >
             {storageStateUnknown
               ? "Recarga antes de continuar"
-              : editingId
-                ? "Guardar cambios"
-                : "Guardar gasto fijo"}
+              : saving
+                ? "Guardando..."
+                : editingId
+                  ? "Guardar cambios"
+                  : "Guardar gasto fijo"}
           </Button>
         </div>
       </ResponsiveEntityPanel>
@@ -992,10 +978,10 @@ export default function GastosFijosPage() {
                         isClosed
                           ? "bg-slate-100 text-slate-600"
                           : recurringStatus === "active"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : recurringStatus === "upcoming"
-                            ? "bg-blue-100 text-blue-800"
-                          : "bg-slate-100 text-slate-500"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : recurringStatus === "upcoming"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-slate-100 text-slate-500"
                       }`}
                     >
                       {statusLabel}
@@ -1025,28 +1011,18 @@ export default function GastosFijosPage() {
                   {!isClosed && (
                     <button
                       type="button"
-                      disabled={storageStateUnknown}
-                      onClick={() => {
-                        if (storageStateUnknown) return;
+                      disabled={storageStateUnknown || saving}
+                      onClick={async () => {
+                        if (storageStateUnknown || saving) return;
                         setPersistenceError(null);
-                        const result = setRecurringExpenseEnabled(
-                          item.id,
-                          !item.enabled,
-                          data,
+                        const result = await whileSaving(() =>
+                          setRecurringExpenseEnabled(item.id, !item.enabled),
                         );
-                        if (result.status !== "applied") {
-                          if (result.status === "indeterminate") {
+                        if (!result.ok) {
+                          if (result.localFailure?.status === "indeterminate") {
                             setStorageStateUnknown(true);
                           }
-                          showPersistenceError(
-                            result.status === "indeterminate"
-                              ? "No hemos podido confirmar el cambio. No hemos actualizado esta sesión; recarga y exporta una copia desde Cuenta antes de continuar."
-                              : result.reason === "stale_precondition" ||
-                                  result.reason === "not_found" ||
-                                  result.reason === "identifier_collision"
-                                ? "Los datos de la regla cambiaron. Recarga y revísalos antes de volver a intentarlo."
-                                : "No se pudo guardar el cambio. La regla conserva su estado anterior; revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
-                          );
+                          showPersistenceError(result.error);
                         }
                       }}
                       className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
@@ -1065,27 +1041,21 @@ export default function GastosFijosPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={storageStateUnknown}
-                    onClick={() => {
-                      if (storageStateUnknown) return;
+                    disabled={storageStateUnknown || saving}
+                    onClick={async () => {
+                      if (storageStateUnknown || saving) return;
                       if (
                         confirm(`¿Borrar el gasto fijo «${item.description}»?`)
                       ) {
                         setPersistenceError(null);
-                        const result = deleteRecurringExpense(item.id, data);
-                        if (result.status !== "applied") {
-                          if (result.status === "indeterminate") {
+                        const result = await whileSaving(() =>
+                          deleteRecurringExpense(item.id),
+                        );
+                        if (!result.ok) {
+                          if (result.localFailure?.status === "indeterminate") {
                             setStorageStateUnknown(true);
                           }
-                          showPersistenceError(
-                            result.status === "indeterminate"
-                              ? "No hemos podido confirmar el borrado. No hemos actualizado esta sesión; recarga y exporta una copia desde Cuenta antes de continuar."
-                              : result.reason === "stale_precondition" ||
-                                  result.reason === "not_found" ||
-                                  result.reason === "identifier_collision"
-                                ? "Los datos de la regla cambiaron. Recarga y revísalos antes de volver a intentarlo."
-                                : "No se pudo guardar el borrado. La regla sigue visible; revisa el espacio o los permisos de almacenamiento y vuelve a intentarlo.",
-                          );
+                          showPersistenceError(result.error);
                         }
                       }
                     }}

@@ -66,10 +66,13 @@ describe("recurring expense form integrity", () => {
     expect(fixedExpenseForm).toContain("previewRecurringExpenseChangeToData");
     expect(fixedExpenseForm).toContain('preview.status === "manual_review"');
     expect(fixedExpenseForm).toContain("Vista previa bloqueada");
-    expect(fixedExpenseForm).toContain("ningún gasto creado se borra");
+    expect(fixedExpenseForm).toMatch(
+      /ningún gasto\s+creado se borra, mueve de fecha ni reescribe/,
+    );
     expect(fixedExpenseForm).toContain("precondition: preview.precondition");
-    expect(fixedExpenseForm).toContain("expected: data");
-    expect(fixedExpenseForm).toContain('result.reason === "stale_preview"');
+    expect(fixedExpenseForm).toContain("useCentralRecurringExpenseMutations");
+    expect(fixedExpenseForm).toContain("if (!result.ok)");
+    expect(fixedExpenseForm).toContain("showPersistenceError(result.error)");
     expect(fixedExpenseForm).toContain("setRecurringExpenseEnabled");
     expect(fixedExpenseForm).not.toContain("updateRecurringExpense");
     expect(appStore).toContain("expectedPrecondition: approval.precondition");
@@ -140,29 +143,30 @@ describe("recurring expense form integrity", () => {
     const fixedExpenseForm = source("../app/gastos/fijos/page.tsx");
     const saveStart = fixedExpenseForm.indexOf("function handleSave()");
     const indeterminateGate = fixedExpenseForm.indexOf(
-      'result.status === "indeterminate"',
+      'result.localFailure?.status === "indeterminate"',
       saveStart,
     );
-    const blockedGate = fixedExpenseForm.indexOf(
-      'result.status === "blocked"',
-      saveStart,
-    );
+    const blockedGate = fixedExpenseForm.indexOf("if (!result.ok)", saveStart);
     const close = fixedExpenseForm.indexOf("closeForm();", saveStart);
 
     expect(indeterminateGate).toBeGreaterThan(saveStart);
-    expect(blockedGate).toBeGreaterThan(indeterminateGate);
-    expect(close).toBeGreaterThan(blockedGate);
+    expect(blockedGate).toBeGreaterThan(saveStart);
+    expect(indeterminateGate).toBeGreaterThan(blockedGate);
+    expect(close).toBeGreaterThan(indeterminateGate);
     expect(fixedExpenseForm).toContain('role="alert"');
-    expect(fixedExpenseForm).toContain("El formulario sigue abierto");
     expect(fixedExpenseForm).toContain("storageStateUnknown");
-    expect(fixedExpenseForm).toContain("disabled={storageStateUnknown}");
+    expect(fixedExpenseForm).toContain(
+      "disabled={storageStateUnknown || saving}",
+    );
     const panelStart = fixedExpenseForm.indexOf("<ResponsiveEntityPanel");
     const panelAlert = fixedExpenseForm.indexOf('role="alert"', panelStart);
     expect(panelAlert).toBeGreaterThan(panelStart);
     expect(fixedExpenseForm).toMatch(
-      /setRecurringExpenseEnabled\(\s*item\.id,\s*!item\.enabled,\s*data/,
+      /whileSaving\(\(\) =>\s*setRecurringExpenseEnabled\(\s*item\.id,\s*!item\.enabled/,
     );
-    expect(fixedExpenseForm).toContain("deleteRecurringExpense(item.id, data)");
+    expect(fixedExpenseForm).toMatch(
+      /whileSaving\(\(\) =>\s*deleteRecurringExpense\(item\.id\)/,
+    );
   });
 
   it("hace atómico el bundle fijo del escaneo antes de inbox o navegación", () => {

@@ -90,12 +90,11 @@ describe("validación inline accesible de gastos fijos", () => {
   });
 
   it("mantiene visibles y enfocables los bloqueos operativos", () => {
-    expect(fixedExpensePage).toContain(
-      'showPersistenceError("La regla ya no existe. No se ha modificado nada.")',
+    expect(fixedExpensePage).toMatch(
+      /showPersistenceError\(\s*"La regla ya no existe\. No se ha modificado nada\.",?\s*\)/,
     );
-    expect(fixedExpensePage).toContain(
-      "El cambio requiere revisión manual. No se ha modificado nada.",
-    );
+    expect(fixedExpensePage).toContain("Vista previa bloqueada:");
+    expect(fixedExpensePage).toContain("showPersistenceError(result.error)");
     expect(fixedExpensePage).toContain("ref={persistenceErrorRef}");
     expect(fixedExpensePage).toContain("tabIndex={-1}");
     expect(fixedExpensePage).toContain(
