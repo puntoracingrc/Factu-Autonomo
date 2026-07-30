@@ -45,4 +45,34 @@ describe("central expense and profile UI wiring", () => {
     expect(page).toContain("if (!result.ok)");
     expect(page).toContain("setSaved(true)");
   });
+
+  it("routes remembered delivery methods through central profile writes", () => {
+    const expenses = source("../../app/gastos/page.tsx");
+    const documents = source("../../components/documents/DocumentList.tsx");
+    const share = source("../../components/documents/DocumentShareActions.tsx");
+
+    for (const component of [expenses, documents, share]) {
+      expect(component).toContain("useCentralProfileMutation");
+      expect(component).toContain("const result = await");
+      expect(component).toContain("if (!result.ok)");
+    }
+    expect(expenses).not.toContain(
+      "const { data, updateProfile } = useAppStore()",
+    );
+    expect(documents).not.toContain("repairDocumentCustomer, updateProfile");
+    expect(share).not.toContain("markDocumentSent, updateProfile");
+
+    expect(
+      expenses.indexOf('await handleExpenseArchiveExport("advisor", method)'),
+    ).toBeLessThan(expenses.indexOf("await saveExpenseEmailMethod(method)"));
+    expect(
+      documents.indexOf("await handleExportInvoicePdfs(target, method)"),
+    ).toBeLessThan(documents.indexOf("await saveInvoiceEmailMethod(method)"));
+    expect(share.indexOf("await runEmail(method)")).toBeLessThan(
+      share.indexOf("await saveEmailMethod(method)"),
+    );
+    expect(share.indexOf("await runWhatsApp(method)")).toBeLessThan(
+      share.indexOf("await saveWhatsAppMethod(method)"),
+    );
+  });
 });
