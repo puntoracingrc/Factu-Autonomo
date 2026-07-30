@@ -181,11 +181,11 @@ export default function NuevoGastoPage() {
     data,
     getCurrentData,
     updateExpense: updateExpenseFallback,
-    saveScannedExpenseDurably,
-    saveFixedExpenseWithRecurringTemplate,
   } = useAppStore();
   const {
     createExpense,
+    saveFixedExpenseWithRecurringTemplate,
+    saveScannedExpenseDurably,
     updateExpense: updateCentralExpense,
   } = useCentralExpenseMutations();
   const { createSupplier } = useCentralSupplierCreate();
@@ -1360,11 +1360,18 @@ export default function NuevoGastoPage() {
     const durableExpense = upgradeTarget
       ? mergeProviderSummaryWithOriginal(upgradeTarget, expensePayload)
       : expensePayload;
-    const result = saveScannedExpenseDurably(durableExpense, {
+    const centralResult = await saveScannedExpenseDurably(durableExpense, {
       expected: durableExpected,
       operationId: review.id,
       supplier: resolved.create,
     });
+    if (!centralResult.ok && !centralResult.localFailure) {
+      setSaveSubmitError(centralResult.error);
+      return { ok: false };
+    }
+    const result = centralResult.ok
+      ? centralResult.local
+      : centralResult.localFailure!;
     if (result.status !== "applied") {
       reportDurableExpenseSaveFailure(result);
       return { ok: false };
@@ -1770,7 +1777,7 @@ export default function NuevoGastoPage() {
                 payload,
               )
             : payload;
-        const result = saveFixedExpenseWithRecurringTemplate(
+        const centralResult = await saveFixedExpenseWithRecurringTemplate(
           fixedExpense,
           recurringPayload,
           {
@@ -1779,6 +1786,14 @@ export default function NuevoGastoPage() {
             supplier: resolved.create,
           },
         );
+        if (!centralResult.ok && !centralResult.localFailure) {
+          fixedSaveInProgressRef.current = false;
+          setSaveSubmitError(centralResult.error);
+          return;
+        }
+        const result = centralResult.ok
+          ? centralResult.local
+          : centralResult.localFailure!;
         if (result.status !== "applied") {
           if (result.status === "indeterminate") {
             setStorageStateUnknown(true);
@@ -1817,11 +1832,18 @@ export default function NuevoGastoPage() {
               payload,
             )
           : payload;
-      const result = saveScannedExpenseDurably(durableExpense, {
+      const centralResult = await saveScannedExpenseDurably(durableExpense, {
         expected: durableExpected,
         operationId: activeInboxItemId ?? activeScanReview!.id,
         supplier: resolved.create,
       });
+      if (!centralResult.ok && !centralResult.localFailure) {
+        setSaveSubmitError(centralResult.error);
+        return;
+      }
+      const result = centralResult.ok
+        ? centralResult.local
+        : centralResult.localFailure!;
       if (result.status !== "applied") {
         reportDurableExpenseSaveFailure(result);
         return;
