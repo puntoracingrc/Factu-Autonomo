@@ -8,6 +8,7 @@ import {
   durableStorageBaselineAfterSave,
   fixedExpenseBundleIds,
   inspectFixedExpenseBundle,
+  persistAppDataAgainstDurableBaseline,
   prepareFixedExpenseBundle,
   refreshDurableExpectedAfterAsync,
   type FixedExpenseBundleCommand,
@@ -974,6 +975,54 @@ describe("commitLatestAppDataDurably", () => {
       reason: "storage_state_unknown",
     });
     expect(build).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistAppDataAgainstDurableBaseline", () => {
+  it("usa la copia durable conocida como precondición del autoguardado", () => {
+    const expected = appData();
+    const candidate = {
+      ...expected,
+      products: [
+        {
+          id: "central-product",
+          key: "central product",
+          aliases: [],
+          name: "Producto central",
+          family: "Central",
+          source: "manual" as const,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+    };
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+
+    expect(
+      persistAppDataAgainstDurableBaseline({
+        data: candidate,
+        storageBaseline: { status: "known", data: expected },
+        persist,
+      }),
+    ).toEqual({ status: "applied" });
+    expect(persist).toHaveBeenCalledWith(candidate, expected);
+  });
+
+  it("no permite que una pestaña con baseline obsoleto vuelva a escribir", () => {
+    const blocked = {
+      status: "blocked",
+      reason: "stale_precondition",
+    } as const;
+    const persist = vi.fn();
+
+    expect(
+      persistAppDataAgainstDurableBaseline({
+        data: appData(),
+        storageBaseline: blocked,
+        persist,
+      }),
+    ).toEqual(blocked);
     expect(persist).not.toHaveBeenCalled();
   });
 });
