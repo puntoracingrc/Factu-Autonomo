@@ -35,7 +35,10 @@ import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAuto
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { useBilling } from "@/context/BillingContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
-import { rebaseBusinessProfileDraft } from "@/lib/central-business-authority/profile-draft-rebase";
+import {
+  findBusinessProfileDraftConflictPaths,
+  rebaseBusinessProfileDraft,
+} from "@/lib/central-business-authority/profile-draft-rebase";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentUnits } from "@/lib/document-units";
@@ -111,6 +114,37 @@ type SettingsSectionKey =
   | "documents"
   | "taxes"
   | "preferences";
+
+const PROFILE_CONFLICT_LABELS: Partial<Record<keyof BusinessProfile, string>> = {
+  advisorContact: "contacto del gestor",
+  appPreferences: "preferencias",
+  documentPaymentMethods: "formas de pago",
+  documentPhrases: "frases de documentos",
+  documentTemplate: "plantilla",
+  documentUnits: "unidades",
+  fiscalProfile: "perfil fiscal",
+  iva: "IVA",
+  name: "nombre fiscal",
+  nif: "NIF/CIF",
+  numbering: "numeración",
+  phone: "teléfono",
+  verifactu: "VeriFactu",
+  website: "página web",
+};
+
+function profileConflictMessage(paths: readonly string[]): string {
+  const labels = [
+    ...new Set(
+      paths.map((path) => {
+        const key = path.split(".")[0] as keyof BusinessProfile;
+        return PROFILE_CONFLICT_LABELS[key] ?? "datos del negocio";
+      }),
+    ),
+  ];
+  return `Otro dispositivo cambió también ${labels.join(
+    ", ",
+  )}. No se ha sobrescrito nada. Revisa tus datos y pulsa Guardar cambios de nuevo para confirmar que quieres sustituir esos campos.`;
+}
 
 function normalizeSettingsProfile(
   profile: BusinessProfile,
@@ -231,6 +265,7 @@ export default function ConfiguracionPage() {
   const [saved, setSaved] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const pendingProfileConflictsRef = useRef<string[]>([]);
   const [advisorSaveAttempted, setAdvisorSaveAttempted] = useState(false);
   const [ivaError, setIvaError] = useState<string | null>(null);
   const [newIva, setNewIva] = useState("");
@@ -274,23 +309,43 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     const latest = normalizeSettingsProfile(data.profile);
     const baseline = profileBaselineRef.current;
-    setForm((draft) =>
-      rebaseBusinessProfileDraft({ latest, baseline, draft }),
-    );
+    setForm((draft) => {
+      pendingProfileConflictsRef.current =
+        findBusinessProfileDraftConflictPaths({
+          latest,
+          baseline,
+          draft,
+        });
+      return rebaseBusinessProfileDraft({ latest, baseline, draft });
+    });
     profileBaselineRef.current = latest;
   }, [data.profile]);
 
   async function persistProfile(next: BusinessProfile): Promise<boolean> {
     setSaved(false);
     setSaveError(null);
+    if (pendingProfileConflictsRef.current.length > 0) {
+      const conflicts = pendingProfileConflictsRef.current;
+      pendingProfileConflictsRef.current = [];
+      setSaveError(profileConflictMessage(conflicts));
+      return false;
+    }
     setSaveBusy(true);
     const baseline = profileBaselineRef.current;
     const draft = normalizeSettingsProfile(next);
-    const result = await updateProfile((latest) =>
-      normalizeSettingsProfile(
+    let conflicts: string[] = [];
+    const result = await updateProfile((latestProfile) => {
+      const latest = normalizeSettingsProfile(latestProfile);
+      conflicts = findBusinessProfileDraftConflictPaths({
+        latest,
+        baseline,
+        draft,
+      });
+      if (conflicts.length > 0) return latest;
+      return normalizeSettingsProfile(
         rebaseBusinessProfileDraft({ latest, baseline, draft }),
-      ),
-    );
+      );
+    });
     setSaveBusy(false);
     if (!result.ok) {
       setSaveError(result.error);
@@ -298,6 +353,10 @@ export default function ConfiguracionPage() {
     }
     const persisted = normalizeSettingsProfile(result.value);
     profileBaselineRef.current = persisted;
+    if (conflicts.length > 0) {
+      setSaveError(profileConflictMessage(conflicts));
+      return false;
+    }
     setForm(persisted);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
