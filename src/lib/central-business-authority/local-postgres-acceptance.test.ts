@@ -437,6 +437,57 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       expect.objectContaining({ result_status: "replayed" }),
     ]);
 
+    const updateAndDelete = await admin.rpc(
+      "mutate_central_business_batch_v1",
+      {
+        p_user_id: userId,
+        p_device_id: "synthetic-batch-device",
+        p_session_hash: "synthetic-batch-session",
+        p_operations: [
+          {
+            operationIndex: 0,
+            idempotencyKeyHash: "batch-supplier-update",
+            requestHash: "batch-supplier-update-request",
+            operationKind: "upsert",
+            entityType: "supplier",
+            entityId: "batch-supplier",
+            expectedVersion: 1,
+            payload: {
+              id: "batch-supplier",
+              name: "Synthetic batch supplier updated",
+            },
+            contentHash: "batch-supplier-updated-hash",
+          },
+          {
+            operationIndex: 1,
+            idempotencyKeyHash: "batch-expense-delete",
+            requestHash: "batch-expense-delete-request",
+            operationKind: "delete",
+            entityType: "expense",
+            entityId: "batch-expense",
+            expectedVersion: 1,
+            payload: null,
+            contentHash: "batch-expense-deleted-hash",
+          },
+        ],
+      },
+    );
+    expect(updateAndDelete.error).toBeNull();
+    expect(updateAndDelete.data).toEqual([
+      expect.objectContaining({
+        operation_index: 0,
+        result_status: "committed",
+        entity_version: 2,
+        deleted: false,
+      }),
+      expect.objectContaining({
+        operation_index: 1,
+        result_status: "committed",
+        entity_version: 2,
+        deleted: true,
+      }),
+    ]);
+
     const rejected = await admin.rpc("mutate_central_business_batch_v1", {
       p_user_id: userId,
       p_device_id: "synthetic-batch-device",
