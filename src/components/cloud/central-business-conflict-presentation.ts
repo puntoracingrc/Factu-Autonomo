@@ -1,4 +1,5 @@
 import type { CentralBusinessQueuedOperation } from "@/lib/central-business-authority/durable-queue";
+import type { CentralBusinessEntityType } from "@/lib/central-business-authority/mutation-command";
 import type { AppData } from "@/lib/types";
 
 const AUTOMATIC_SERVER_RESOLUTION_CODES = new Set([
@@ -9,7 +10,7 @@ const AUTOMATIC_SERVER_RESOLUTION_CODES = new Set([
 
 export interface CentralBusinessConflictReviewItem {
   key: string;
-  entityType: "customer" | "supplier" | "product";
+  entityType: CentralBusinessEntityType;
   entityId: string;
   label: string;
   operationCount: number;
@@ -28,8 +29,11 @@ function payloadLabel(
 ): string | null {
   const payload = operation.input.payload;
   if (!isObject(payload)) return null;
-  const name = payload.name;
-  return typeof name === "string" && name.trim() ? name.trim() : null;
+  for (const key of ["name", "description", "text", "commercialName"]) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
 }
 
 function localEntityLabel(
@@ -54,11 +58,50 @@ function localEntityLabel(
       "Proveedor sin nombre"
     );
   }
+  if (operation.input.entityType === "product") {
+    return (
+      data.products.find((product) => product.id === operation.input.entityId)
+        ?.name ??
+      payloadLabel(operation) ??
+      "Producto sin nombre"
+    );
+  }
+  if (operation.input.entityType === "expense") {
+    const expense = data.expenses.find(
+      (entry) => entry.id === operation.input.entityId,
+    );
+    return (
+      expense?.description ??
+      expense?.supplierName ??
+      payloadLabel(operation) ??
+      "Gasto sin descripción"
+    );
+  }
+  if (operation.input.entityType === "recurring_expense") {
+    const recurringExpense = data.recurringExpenses.find(
+      (entry) => entry.id === operation.input.entityId,
+    );
+    return (
+      recurringExpense?.description ??
+      recurringExpense?.supplierName ??
+      payloadLabel(operation) ??
+      "Gasto recurrente sin descripción"
+    );
+  }
+  if (operation.input.entityType === "user_reminder") {
+    return (
+      data.userReminders.find(
+        (reminder) => reminder.id === operation.input.entityId,
+      )?.text ??
+      payloadLabel(operation) ??
+      "Recordatorio sin texto"
+    );
+  }
   return (
-    data.products.find((product) => product.id === operation.input.entityId)
-      ?.name ??
-    payloadLabel(operation) ??
-    "Producto sin nombre"
+    data.profile.commercialName ||
+    data.profile.name ||
+    payloadLabel(operation) ||
+    "Datos del negocio"
   );
 }
 
@@ -87,14 +130,7 @@ export function buildCentralBusinessConflictReviewItems(
 ): CentralBusinessConflictReviewItem[] {
   const grouped = new Map<string, CentralBusinessQueuedOperation[]>();
   for (const operation of operations) {
-    if (
-      operation.status !== "conflict" ||
-      (operation.input.entityType !== "customer" &&
-        operation.input.entityType !== "supplier" &&
-        operation.input.entityType !== "product")
-    ) {
-      continue;
-    }
+    if (operation.status !== "conflict") continue;
     const key = `${operation.input.entityType}:${operation.input.entityId}`;
     grouped.set(key, [...(grouped.get(key) ?? []), operation]);
   }
@@ -104,7 +140,7 @@ export function buildCentralBusinessConflictReviewItems(
     const codes = matching.map((operation) => operation.lastError?.code ?? "");
     return {
       key,
-      entityType: first.input.entityType as "customer" | "supplier" | "product",
+      entityType: first.input.entityType,
       entityId: first.input.entityId,
       label: localEntityLabel(data, first),
       operationCount: matching.length,

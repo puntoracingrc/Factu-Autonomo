@@ -102,4 +102,90 @@ describe("central business conflict presentation", () => {
       }),
     ]);
   });
+
+  it("presenta conflictos de todas las categorías centrales", () => {
+    const items = buildCentralBusinessConflictReviewItems(
+      {
+        ...EMPTY_DATA,
+        profile: {
+          ...EMPTY_DATA.profile,
+          name: "Empresa local",
+        },
+      },
+      [
+        operation({
+          input: {
+            ...operation().input,
+            entityType: "expense",
+            entityId: "expense-1",
+            payload: {
+              id: "expense-1",
+              description: "Gasto sintético",
+            },
+          },
+        }),
+        operation({
+          operationId: "CENTRAL_OP_SYNTHETIC_0002",
+          input: {
+            ...operation().input,
+            idempotencyKey: "CENTRAL_OP_SYNTHETIC_0002",
+            entityType: "recurring_expense",
+            entityId: "recurring-expense-1",
+            payload: {
+              id: "recurring-expense-1",
+              description: "Cuota sintética",
+            },
+          },
+        }),
+        operation({
+          operationId: "CENTRAL_OP_SYNTHETIC_0003",
+          input: {
+            ...operation().input,
+            idempotencyKey: "CENTRAL_OP_SYNTHETIC_0003",
+            entityType: "user_reminder",
+            entityId: "reminder-1",
+            payload: {
+              id: "reminder-1",
+              text: "Recordatorio sintético",
+            },
+          },
+        }),
+        operation({
+          operationId: "CENTRAL_OP_SYNTHETIC_0004",
+          input: {
+            ...operation().input,
+            idempotencyKey: "CENTRAL_OP_SYNTHETIC_0004",
+            entityType: "profile",
+            entityId: "profile",
+            payload: {
+              name: "Empresa remota",
+            },
+          },
+        }),
+      ],
+    );
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        key: "expense:expense-1",
+        entityType: "expense",
+        label: "Gasto sintético",
+      }),
+      expect.objectContaining({
+        key: "recurring_expense:recurring-expense-1",
+        entityType: "recurring_expense",
+        label: "Cuota sintética",
+      }),
+      expect.objectContaining({
+        key: "user_reminder:reminder-1",
+        entityType: "user_reminder",
+        label: "Recordatorio sintético",
+      }),
+      expect.objectContaining({
+        key: "profile:profile",
+        entityType: "profile",
+        label: "Empresa local",
+      }),
+    ]);
+  });
 });
