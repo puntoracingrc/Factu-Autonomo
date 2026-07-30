@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -9,6 +9,7 @@ import {
   updateProfileWithCentralCanary,
   type CentralProfileUpdate,
 } from "@/lib/central-business-authority/profile-mutation-canary";
+import { createSerialMutationRunner } from "@/lib/central-business-authority/serial-mutation";
 import type { BusinessProfile } from "@/lib/types";
 
 export function useCentralProfileMutation(): {
@@ -24,6 +25,7 @@ export function useCentralProfileMutation(): {
   } = useAppStore();
   const { user } = useCloudSync();
   const userId = user?.id;
+  const runSerialMutation = useRef(createSerialMutationRunner()).current;
 
   const dependencies = useMemo(
     () => ({
@@ -44,13 +46,16 @@ export function useCentralProfileMutation(): {
   );
 
   const updateProfile = useCallback(
-    (profile: CentralProfileUpdate) =>
-      updateProfileWithCentralCanary({
-        userId,
-        profile,
-        dependencies,
-      }),
-    [dependencies, userId],
+    (profile: CentralProfileUpdate) => {
+      return runSerialMutation(() =>
+        updateProfileWithCentralCanary({
+          userId,
+          profile,
+          dependencies,
+        }),
+      );
+    },
+    [dependencies, runSerialMutation, userId],
   );
 
   return { updateProfile };

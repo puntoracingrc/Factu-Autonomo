@@ -10,8 +10,10 @@ import {
   Save,
 } from "lucide-react";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { showFactuToast } from "@/lib/factu/occasional";
 import type {
   Evidence,
   EvidenceValue,
@@ -145,7 +147,8 @@ function profileSummary(profile: TaxpayerProfile) {
 }
 
 export function TaxModelDiagnosticWizard() {
-  const { data, ready, updateProfile } = useAppStore();
+  const { data, ready } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const firstQuestionRef = useRef<HTMLDivElement>(null);
   const diagnosticStartedRef = useRef(false);
   const [session, setSession] = useState<TaxModelDiagnosticSession | null>(
@@ -242,7 +245,17 @@ export function TaxModelDiagnosticWizard() {
 
   function persist(next: TaxModelDiagnosticSession) {
     setSession(next);
-    updateProfile({ ...data.profile, taxModelDiagnostic: next });
+    void updateProfile((profile) => ({
+      ...profile,
+      taxModelDiagnostic: next,
+    })).then((saveResult) => {
+      if (!saveResult.ok) {
+        showFactuToast(
+          `No se pudo guardar el diagnóstico fiscal: ${saveResult.error}`,
+          6500,
+        );
+      }
+    });
   }
 
   function updateAnswer(
