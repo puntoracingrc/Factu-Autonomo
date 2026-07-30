@@ -12,6 +12,7 @@ import {
   finalizeCentralBusinessEntityServerResolution,
   loadCentralBusinessDurableQueue,
   prepareCentralBusinessEntityServerResolution,
+  recordCentralBusinessEntityVersionCheckpoint,
   retryCentralBusinessOperation,
   type CentralBusinessQueueStorage,
   withCentralBusinessQueueLock,
@@ -79,6 +80,60 @@ function event(
 }
 
 describe("central business durable queue", () => {
+  it("ancla versiones verificadas sin adelantar el cursor de eventos", () => {
+    const storage = new MemoryStorage();
+    const result = recordCentralBusinessEntityVersionCheckpoint({
+      ownerScope,
+      entities: [
+        {
+          entityType: "customer",
+          entityId: "customer-1",
+          version: 3,
+          contentHash: "a".repeat(64),
+        },
+      ],
+      storage,
+    });
+
+    expect(result.lastAppliedEventSequence).toBe(0);
+    expect(result.entityVersions["customer:customer-1"]).toEqual({
+      entityType: "customer",
+      entityId: "customer-1",
+      version: 3,
+      deleted: false,
+      contentHash: "a".repeat(64),
+    });
+  });
+
+  it("no ancla un bootstrap sobre operaciones pendientes", () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+
+    expect(() =>
+      recordCentralBusinessEntityVersionCheckpoint({
+        ownerScope,
+        entities: [
+          {
+            entityType: "customer",
+            entityId: "customer-1",
+            version: 1,
+            contentHash: "a".repeat(64),
+          },
+        ],
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "LOCAL_OPERATION_CONFLICT",
+      }),
+    );
+  });
+
   it("persiste y relee la operacion antes de permitir el cambio local", () => {
     const storage = new MemoryStorage();
     const result = enqueueCentralBusinessOperation({

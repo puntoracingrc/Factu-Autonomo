@@ -22,6 +22,7 @@ import {
   type CentralBusinessBootstrapBrowserEntityType,
   type CentralBusinessBootstrapBrowserPreview,
 } from "@/lib/central-business-authority/bootstrap-client";
+import { recordCentralBusinessBootstrapCheckpoint } from "@/lib/central-business-authority/bootstrap-checkpoint";
 import {
   loadCentralBusinessDurableQueue,
 } from "@/lib/central-business-authority/durable-queue";
@@ -167,10 +168,6 @@ export function CentralBusinessBootstrapCard() {
       }
 
       const syncNotice = await syncAllCentralEvents();
-      if (syncNotice) {
-        setNotice(syncNotice);
-        return;
-      }
       const queue = loadCentralBusinessDurableQueue(activeOwnerScope);
       if (queue.operations.length > 0) {
         setNotice({
@@ -178,6 +175,10 @@ export function CentralBusinessBootstrapCard() {
           message:
             "Hay cambios centrales pendientes o en revisión. Resuélvelos antes de preparar la migración.",
         });
+        return;
+      }
+      if (syncNotice?.tone === "warning") {
+        setNotice(syncNotice);
         return;
       }
 
@@ -206,6 +207,12 @@ export function CentralBusinessBootstrapCard() {
           tone: "warning",
           message:
             "La comparación ha encontrado diferencias. No se migrará nada hasta revisarlas.",
+        });
+      } else if (syncNotice) {
+        setNotice({
+          tone: "warning",
+          message:
+            "La lectura histórica se detuvo, pero la comparación exacta está disponible. Solo podrás enlazarla si confirmas que ambas copias coinciden.",
         });
       }
     } catch (error) {
@@ -265,6 +272,15 @@ export function CentralBusinessBootstrapCard() {
         return;
       }
 
+      await recordCentralBusinessBootstrapCheckpoint({
+        ownerScope: activeOwnerScope,
+        entities: snapshot,
+        preview,
+        verifyCurrentSnapshot: () =>
+          centralBusinessBootstrapSnapshotSignature(
+            buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData()),
+          ) === snapshotSignature,
+      });
       const syncNotice = await syncAllCentralEvents();
       if (syncNotice) {
         setNotice({
