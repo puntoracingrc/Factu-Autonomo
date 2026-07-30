@@ -7,6 +7,7 @@ import {
   normalizeCloudDeviceToken,
 } from "@/lib/cloud/devices";
 import { createCentralBusinessBootstrapPreviewRouteHandler } from "@/lib/central-business-authority/bootstrap-preview-route-handler";
+import { evaluateCentralBusinessAuthorityActivation } from "@/lib/central-business-authority/activation";
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import { readTextBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -22,8 +23,15 @@ const handler = createCentralBusinessBootstrapPreviewRouteHandler({
     if (!identity) return null;
     return {
       userId: identity.user.id,
+      userEmail: identity.user.email ?? null,
       sessionId: identity.sessionId,
     };
+  },
+  authorize({ userId, userEmail }) {
+    return evaluateCentralBusinessAuthorityActivation({
+      userId,
+      userEmail,
+    }).writesEnabled;
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

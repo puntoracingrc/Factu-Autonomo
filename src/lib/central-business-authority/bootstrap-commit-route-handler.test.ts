@@ -56,6 +56,7 @@ function dependencies() {
         sessionId: "session-a",
       }),
     ),
+    authorize: vi.fn(() => true),
     rateLimit: vi.fn(async () => ({ allowed: true as const })),
     verifyDevice: vi.fn(async () => ({
       allowed: true as const,
@@ -134,6 +135,23 @@ describe("central business bootstrap commit route", () => {
     const result = await handler.handle(request());
 
     expect(result.status).toBe(401);
+    expect(deps.listCentralEntities).not.toHaveBeenCalled();
+    expect(deps.commit).not.toHaveBeenCalled();
+  });
+
+  it("no permite confirmar una cuenta fuera del canario", async () => {
+    const deps = dependencies();
+    deps.authorize.mockReturnValueOnce(false);
+    const handler = createCentralBusinessBootstrapCommitRouteHandler(deps);
+
+    const result = await handler.handle(request());
+
+    expect(result.status).toBe(403);
+    expect(result.body).toEqual({
+      ok: false,
+      error: { code: "CENTRAL_BUSINESS_BOOTSTRAP_NOT_ALLOWED" },
+    });
+    expect(deps.verifyDevice).toHaveBeenCalledTimes(1);
     expect(deps.listCentralEntities).not.toHaveBeenCalled();
     expect(deps.commit).not.toHaveBeenCalled();
   });

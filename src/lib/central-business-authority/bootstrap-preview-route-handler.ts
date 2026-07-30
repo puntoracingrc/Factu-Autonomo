@@ -30,7 +30,15 @@ export interface CentralBusinessBootstrapPreviewRouteResponse {
 export interface CentralBusinessBootstrapPreviewRouteDependencies {
   authenticate(
     authorization: string | null,
-  ): Promise<{ userId: string; sessionId: string } | null>;
+  ): Promise<{
+    userId: string;
+    sessionId: string;
+    userEmail?: string | null;
+  } | null>;
+  authorize(input: {
+    userId: string;
+    userEmail?: string | null;
+  }): boolean | Promise<boolean>;
   rateLimit(
     request: CentralBusinessBootstrapPreviewRouteRequest,
     userId: string,
@@ -144,6 +152,17 @@ export function createCentralBusinessBootstrapPreviewRouteHandler(
         return json(device.status, {
           ok: false,
           error: { code: device.code, message: device.message },
+        });
+      }
+      if (
+        !(await dependencies.authorize({
+          userId: auth.userId,
+          userEmail: auth.userEmail,
+        }))
+      ) {
+        return json(403, {
+          ok: false,
+          error: { code: "CENTRAL_BUSINESS_BOOTSTRAP_NOT_ALLOWED" },
         });
       }
 

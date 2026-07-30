@@ -36,6 +36,7 @@ function dependencies() {
         sessionId: "session-a",
       }),
     ),
+    authorize: vi.fn(() => true),
     rateLimit: vi.fn(async () => ({ allowed: true as const })),
     verifyDevice: vi.fn(async () => ({
       allowed: true as const,
@@ -78,6 +79,22 @@ describe("central business bootstrap preview route", () => {
     });
     expect(JSON.stringify(result.body)).not.toContain("Cliente A");
     expect(deps.listCentralEntities).toHaveBeenCalledWith("user-a");
+  });
+
+  it("no permite preparar una cuenta fuera del canario", async () => {
+    const deps = dependencies();
+    deps.authorize.mockReturnValueOnce(false);
+    const handler = createCentralBusinessBootstrapPreviewRouteHandler(deps);
+
+    const result = await handler.handle(request());
+
+    expect(result.status).toBe(403);
+    expect(result.body).toEqual({
+      ok: false,
+      error: { code: "CENTRAL_BUSINESS_BOOTSTRAP_NOT_ALLOWED" },
+    });
+    expect(deps.verifyDevice).toHaveBeenCalledTimes(1);
+    expect(deps.listCentralEntities).not.toHaveBeenCalled();
   });
 
   it("abstiene cuando la lectura central no está disponible", async () => {

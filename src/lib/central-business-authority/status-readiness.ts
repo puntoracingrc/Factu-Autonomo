@@ -8,6 +8,7 @@ export const CENTRAL_BUSINESS_AUTHORITY_STATUS_REQUIRED_TABLES = [
   "central_business_entities",
   "central_business_commands",
   "central_business_outbox",
+  "central_business_bootstraps",
 ] as const;
 
 export type CentralBusinessAuthorityStatusRequiredTable =
@@ -17,7 +18,8 @@ export type CentralBusinessAuthorityStatusBlocker =
   | "missing_admin_client"
   | "central_business_table_unavailable"
   | "central_business_mutation_rpc_unavailable"
-  | "central_business_events_rpc_unavailable";
+  | "central_business_events_rpc_unavailable"
+  | "central_business_bootstrap_rpc_unavailable";
 
 export interface CentralBusinessAuthorityStatusProbeError {
   code?: string;
@@ -41,7 +43,8 @@ export interface CentralBusinessAuthorityStatusProbeClient {
   rpc(
     name:
       | "mutate_central_business_entity_v1"
-      | "list_central_business_events_v1",
+      | "list_central_business_events_v1"
+      | "bootstrap_central_business_entities_v1",
     args: Record<string, unknown>,
   ): Promise<CentralBusinessAuthorityStatusProbeResult>;
 }
@@ -198,6 +201,38 @@ async function probeEventsRpc(
       );
 }
 
+async function probeBootstrapRpc(
+  client: CentralBusinessAuthorityStatusProbeClient,
+) {
+  const result = await client.rpc("bootstrap_central_business_entities_v1", {
+    p_user_id: null,
+    p_device_id: "",
+    p_session_hash: "",
+    p_idempotency_key_hash: "",
+    p_request_hash: "",
+    p_snapshot_digest: "",
+    p_central_state_digest: "",
+    p_preview_digest: "",
+    p_entities: [],
+  });
+  return expectedError(
+    result.error,
+    "invalid central business bootstrap command",
+  )
+    ? ready(
+        "rpc:bootstrap_central_business_entities_v1:dry_invalid",
+        "rpc",
+        "RPC de bootstrap existe y corta el dry-run antes de escribir.",
+      )
+    : blocked(
+        "rpc:bootstrap_central_business_entities_v1:dry_invalid",
+        "rpc",
+        "central_business_bootstrap_rpc_unavailable",
+        "La RPC de bootstrap no devolvio el rechazo seguro esperado.",
+        result.error,
+      );
+}
+
 export async function probeCentralBusinessAuthorityStatusReadiness(input: {
   client: CentralBusinessAuthorityStatusProbeClient | null;
   checkedAt?: string;
@@ -225,6 +260,7 @@ export async function probeCentralBusinessAuthorityStatusReadiness(input: {
     ),
     probeMutationRpc(input.client),
     probeEventsRpc(input.client),
+    probeBootstrapRpc(input.client),
   ]);
   const blockers = [
     ...new Set(

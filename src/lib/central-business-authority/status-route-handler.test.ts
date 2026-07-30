@@ -27,13 +27,16 @@ function probeClient(): CentralBusinessAuthorityStatusProbeClient {
       };
     },
     async rpc(name) {
+      const message =
+        name === "mutate_central_business_entity_v1"
+          ? "invalid central business mutation command"
+          : name === "bootstrap_central_business_entities_v1"
+            ? "invalid central business bootstrap command"
+            : "invalid central business event pull request";
       return {
         error: {
           code: "P0001",
-          message:
-            name === "mutate_central_business_entity_v1"
-              ? "invalid central business mutation command"
-              : "invalid central business event pull request",
+          message,
         },
       };
     },

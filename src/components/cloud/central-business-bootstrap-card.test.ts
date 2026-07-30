@@ -1,0 +1,42 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const component = readFileSync(
+  new URL("./CentralBusinessBootstrapCard.tsx", import.meta.url),
+  "utf8",
+);
+const accountPage = readFileSync(
+  new URL("../../app/cuenta/page.tsx", import.meta.url),
+  "utf8",
+);
+
+describe("central business bootstrap account card", () => {
+  it("solo aparece tras comprobar la activacion privada del servidor", () => {
+    expect(component).toContain(
+      "fetchCentralBusinessAuthorityStatusFromBrowser",
+    );
+    expect(component).toContain("status?.activation.appliesToUser");
+    expect(component).toContain("status?.summary.writesPossible");
+    expect(accountPage).toContain("CentralBusinessBootstrapCard");
+  });
+
+  it("compara antes de confirmar y revalida el snapshot local", () => {
+    expect(component).toContain(
+      "previewCentralBusinessBootstrapFromBrowser",
+    );
+    expect(component).toContain(
+      "commitCentralBusinessBootstrapFromBrowser",
+    );
+    expect(component).toContain(
+      "centralBusinessBootstrapSnapshotSignature(currentEntities)",
+    );
+    expect(component).toContain("!confirmed");
+  });
+
+  it("no migra con cola pendiente y recibe todas las versiones confirmadas", () => {
+    expect(component).toContain("loadCentralBusinessDurableQueue");
+    expect(component).toContain("queue.operations.length > 0");
+    expect(component).toContain("syncCentralBusinessEvents");
+    expect(component).toContain("if (!result.hasMore) return null");
+  });
+});
