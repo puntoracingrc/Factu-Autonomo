@@ -53,20 +53,26 @@ interface ProductCatalogStructureManagerProps {
   onFilter: (family: string, subfamily?: string) => void;
   onCreateFamily: (name: string) => Promise<boolean>;
   onCreateSubfamily: (family: string, name: string) => Promise<boolean>;
-  onRenameFamily: (sourceFamily: string, targetFamily: string) => boolean;
-  onMergeFamily: (sourceFamily: string, targetFamily: string) => boolean;
-  onRemoveFamily: (family: string) => boolean;
+  onRenameFamily: (
+    sourceFamily: string,
+    targetFamily: string,
+  ) => Promise<boolean>;
+  onMergeFamily: (
+    sourceFamily: string,
+    targetFamily: string,
+  ) => Promise<boolean>;
+  onRemoveFamily: (family: string) => Promise<boolean>;
   onRenameSubfamily: (
     family: string,
     sourceSubfamily: string,
     targetSubfamily: string,
-  ) => boolean;
+  ) => Promise<boolean>;
   onMergeSubfamily: (
     family: string,
     sourceSubfamily: string,
     targetSubfamily: string,
-  ) => boolean;
-  onRemoveSubfamily: (family: string, subfamily: string) => boolean;
+  ) => Promise<boolean>;
+  onRemoveSubfamily: (family: string, subfamily: string) => Promise<boolean>;
 }
 
 function familyLabel(family: string, uncategorizedFamily: string): string {
@@ -185,30 +191,30 @@ export function ProductCatalogStructureManager({
           completed = await onCreateSubfamily(familyDraft, nameDraft);
           break;
         case "rename_family":
-          completed = onRenameFamily(action.family, nameDraft);
+          completed = await onRenameFamily(action.family, nameDraft);
           break;
         case "merge_family":
-          completed = onMergeFamily(action.family, familyDraft);
+          completed = await onMergeFamily(action.family, familyDraft);
           break;
         case "remove_family":
-          completed = onRemoveFamily(action.family);
+          completed = await onRemoveFamily(action.family);
           break;
         case "rename_subfamily":
-          completed = onRenameSubfamily(
+          completed = await onRenameSubfamily(
             action.family,
             action.subfamily,
             nameDraft,
           );
           break;
         case "merge_subfamily":
-          completed = onMergeSubfamily(
+          completed = await onMergeSubfamily(
             action.family,
             action.subfamily,
             nameDraft,
           );
           break;
         case "remove_subfamily":
-          completed = onRemoveSubfamily(action.family, action.subfamily);
+          completed = await onRemoveSubfamily(action.family, action.subfamily);
           break;
       }
       if (completed) closeAction();

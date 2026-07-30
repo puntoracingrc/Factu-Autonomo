@@ -156,8 +156,8 @@ describe("MVP usability polish", () => {
     );
 
     expect(appShellSource).toContain("min-w-0 flex-1 items-center");
-    expect(appShellSource).toContain("sm:hidden\">Entrar");
-    expect(appShellSource).toContain("hidden sm:inline\">Iniciar sesión");
+    expect(appShellSource).toContain('sm:hidden">Entrar');
+    expect(appShellSource).toContain('hidden sm:inline">Iniciar sesión');
     expect(appShellSource).toContain("hidden min-[430px]:inline");
     expect(appShellSource).toContain(
       "hidden text-xs leading-tight text-slate-500 min-[430px]:block",
@@ -215,13 +215,9 @@ describe("MVP usability polish", () => {
     expect(homePageSource).not.toContain("FactuDailyGreeting");
     expect(factuWidgetSource).toContain("hidden factu-widget-offset sm:block");
     expect(factuWidgetSource).toContain("fixed right-4");
-    expect(factuWidgetSource).toContain(
-      "w-[min(18rem,calc(100vw-2rem))]",
-    );
+    expect(factuWidgetSource).toContain("w-[min(18rem,calc(100vw-2rem))]");
     expect(factuHostSource).toContain("factu-toast-offset");
-    expect(factuHostSource).toContain(
-      "w-[min(21rem,calc(100vw-2rem))]",
-    );
+    expect(factuHostSource).toContain("w-[min(21rem,calc(100vw-2rem))]");
     expect(factuHostSource).not.toContain("left-0 right-0 top-16");
   });
 
@@ -532,7 +528,9 @@ describe("MVP usability polish", () => {
     expect(demoBannerSource).toContain("Sandbox separado");
     expect(demoBannerSource).toContain("Reiniciar demo");
     expect(demoBannerSource).toContain("Volver al tour");
-    expect(appShellSource).toContain("const demoMode = useDemoWorkspaceMode();");
+    expect(appShellSource).toContain(
+      "const demoMode = useDemoWorkspaceMode();",
+    );
     expect(appShellSource).toContain(
       "!demoMode && !factuDismissed && shouldShowFactuWidget(pathname)",
     );
@@ -558,7 +556,9 @@ describe("MVP usability polish", () => {
     expect(demoWorkspaceSource).toContain("DEMO_WORKSPACE_STORAGE_KEY");
     expect(demoHookSource).toContain("useState(false)");
     expect(demoHookSource).toContain("refresh();");
-    expect(demoHookSource).not.toContain("useState(() => isDemoWorkspaceMode())");
+    expect(demoHookSource).not.toContain(
+      "useState(() => isDemoWorkspaceMode())",
+    );
     expect(storageSource).toContain("isDemoWorkspaceMode()");
   });
 
@@ -646,7 +646,9 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).toContain("entrar verás los primeros pasos");
     expect(cloudAccountSource).toContain("en el Panel");
     expect(signupSuccessSource).toContain("Panel de primeros pasos");
-    expect(signupSuccessSource).toContain("email de confirmación de <strong>Factu</strong>");
+    expect(signupSuccessSource).toContain(
+      "email de confirmación de <strong>Factu</strong>",
+    );
     expect(signupSuccessSource).not.toContain("Supabase");
     expect(signupSuccessSource).not.toContain("Confirm your signup");
     expect(signupSuccessSource).not.toContain("Importante:");
@@ -699,7 +701,10 @@ describe("MVP usability polish", () => {
       "utf8",
     );
     const comparisonSource = readFileSync(
-      new URL("../components/billing/PricingComparisonPanel.tsx", import.meta.url),
+      new URL(
+        "../components/billing/PricingComparisonPanel.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
     const competitorPricingSource = readFileSync(
@@ -851,7 +856,9 @@ describe("MVP usability polish", () => {
     expect(landingSource).toContain("Mira la demo");
     expect(landingSource).toContain("Crea cuenta gratis");
     expect(landingSource).toContain("Confirma tu email");
-    expect(landingSource).toContain("Email verificado antes de acciones reales");
+    expect(landingSource).toContain(
+      "Email verificado antes de acciones reales",
+    );
     expect(landingSource).toContain(
       "Información VeriFactu/SIF; registro y QR desactivados",
     );
@@ -1166,10 +1173,7 @@ describe("MVP usability polish", () => {
       "utf8",
     );
     const productFormFieldsSource = readFileSync(
-      new URL(
-        "../components/products/ProductFormFields.tsx",
-        import.meta.url,
-      ),
+      new URL("../components/products/ProductFormFields.tsx", import.meta.url),
       "utf8",
     );
 
@@ -1182,10 +1186,8 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("Proveedor: {supplierLabel}");
     expect(productsPageSource).toContain("product.usualSupplier?.supplierName");
     expect(productsPageSource).toContain("Detectado como: ${product.name}");
-    expect(productsPageSource).toContain('source={product.source}');
-    expect(productsPageSource).toContain(
-      'product.source === "detected"',
-    );
+    expect(productsPageSource).toContain("source={product.source}");
+    expect(productsPageSource).toContain('product.source === "detected"');
     expect(productFormFieldsSource).toContain("Detectado en compras");
     expect(productFormFieldsSource).toContain('label="Nombre visible"');
     expect(productFormFieldsSource).toContain('onChange("saleDescription"');
@@ -1211,20 +1213,22 @@ describe("MVP usability polish", () => {
       "utf8",
     );
     const productFormFieldsSource = readFileSync(
-      new URL(
-        "../components/products/ProductFormFields.tsx",
-        import.meta.url,
-      ),
+      new URL("../components/products/ProductFormFields.tsx", import.meta.url),
       "utf8",
     );
     const purchaseProductsSource = readFileSync(
       new URL("./purchase-products.ts", import.meta.url),
       "utf8",
     );
-    const typesSource = readFileSync(new URL("./types.ts", import.meta.url), "utf8");
+    const typesSource = readFileSync(
+      new URL("./types.ts", import.meta.url),
+      "utf8",
+    );
 
     expect(typesSource).toContain("subfamily?: string");
-    expect(purchaseProductsSource).toContain("subfamily: catalogProduct?.subfamily");
+    expect(purchaseProductsSource).toContain(
+      "subfamily: catalogProduct?.subfamily",
+    );
     expect(purchaseProductsSource).toContain("subfamily: product.subfamily");
     expect(productsPageSource).toContain("ProductCatalogStructureManager");
     expect(productsPageSource).toContain("Organizar catálogo");
@@ -1242,7 +1246,7 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("NO_SUBFAMILY");
     expect(productsPageSource).toContain("Sin subfamilia");
     expect(productsPageSource).toContain("defaultSubfamilyForFamily");
-    expect(productsPageSource).toContain("applyProductCatalogStructure");
+    expect(productsPageSource).toContain("applyCatalogStructure");
     expect(productsPageSource).toContain("applyFamilyStructureFilter");
     expect(productsPageSource).toContain("supplierStructureOpen");
     expect(productsPageSource).toContain("applySupplierStructureFilter");
@@ -1251,7 +1255,9 @@ describe("MVP usability polish", () => {
     expect(productFormFieldsSource).toContain('label="Subfamilia"');
     expect(productFormFieldsSource).toContain("-subfamily-options");
     expect(newProductPageSource).toContain("ProductFormFields");
-    expect(newProductPageSource).toContain("product.family === form.family.trim()");
+    expect(newProductPageSource).toContain(
+      "product.family === form.family.trim()",
+    );
     expect(newProductPageSource).toContain(
       "subfamily: form.subfamily.trim() || undefined",
     );
@@ -1263,14 +1269,15 @@ describe("MVP usability polish", () => {
       "utf8",
     );
     const googleAddressSource = readFileSync(
-      new URL("../components/places/GoogleAddressAutocomplete.tsx", import.meta.url),
+      new URL(
+        "../components/places/GoogleAddressAutocomplete.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
 
     expect(clientPickerSource).toContain('autoComplete="new-password"');
-    expect(clientPickerSource).toContain(
-      '<GoogleAddressAutocomplete',
-    );
+    expect(clientPickerSource).toContain("<GoogleAddressAutocomplete");
     expect(googleAddressSource).toContain("autoComplete?: string");
     expect(googleAddressSource).toContain("autoComplete ??");
   });
@@ -1281,14 +1288,19 @@ describe("MVP usability polish", () => {
       "utf8",
     );
     const unitSelectSource = readFileSync(
-      new URL("../components/documents/LineItemUnitSelect.tsx", import.meta.url),
+      new URL(
+        "../components/documents/LineItemUnitSelect.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
 
     expect(documentFormSource).toContain(
       "if (!current || description.trim()) return prev;",
     );
-    expect(documentFormSource).toContain("return removeLineProductPricing(prev, id);");
+    expect(documentFormSource).toContain(
+      "return removeLineProductPricing(prev, id);",
+    );
     expect(unitSelectSource).toContain("PRACTICAL_LINE_UNIT_IDS");
     expect(unitSelectSource).toContain('"ml"');
   });
@@ -1304,7 +1316,9 @@ describe("MVP usability polish", () => {
     );
 
     expect(newProductPageSource).toContain("purchaseCostManual");
-    expect(newProductPageSource).toContain("purchaseNetUnitCostInputFromFields");
+    expect(newProductPageSource).toContain(
+      "purchaseNetUnitCostInputFromFields",
+    );
     expect(productsPageSource).toContain("updateDraftField");
     expect(productsPageSource).toContain('field === "purchaseListPrice"');
     expect(productsPageSource).toContain('field === "purchaseDiscountPercent"');

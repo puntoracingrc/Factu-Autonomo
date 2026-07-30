@@ -70,6 +70,29 @@ function ids() {
 }
 
 describe("product catalog structure", () => {
+  it("incluye el renombrado de familia en el contrato de operación", () => {
+    const original = appData({
+      products: [product("Motor radio")],
+    });
+
+    const result = applyProductCatalogStructureOperation(
+      original,
+      {
+        type: "rename_family",
+        sourceFamily: "Motores y electrónica",
+        targetFamily: "Motores",
+      },
+      { now: "2026-07-20T00:00:00.000Z", createId: ids() },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.products[0]).toMatchObject({
+      family: "Motores",
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+  });
+
   it("renombra una subfamilia de forma atómica y conserva el aprendizaje", () => {
     const learned = product("Motor radio GH50", {
       aliases: [purchaseProductKey("Motor tubular GH 50 radio")],
@@ -94,8 +117,7 @@ describe("product catalog structure", () => {
           key: "__subfamily__-motores-tubulares",
           name: "Subfamilia: Motores tubulares",
           hidden: true,
-          notes:
-            "Marcador interno para recordar una subfamilia creada a mano.",
+          notes: "Marcador interno para recordar una subfamilia creada a mano.",
         }),
       ],
       expenses: [originalExpense],
@@ -166,7 +188,11 @@ describe("product catalog structure", () => {
       targetSubfamily: "radio",
     });
 
-    expect(result).toMatchObject({ ok: false, code: "collision", data: original });
+    expect(result).toMatchObject({
+      ok: false,
+      code: "collision",
+      data: original,
+    });
     expect(original.products.map((item) => item.subfamily)).toEqual([
       "Tubulares",
       "Radio",
@@ -212,10 +238,12 @@ describe("product catalog structure", () => {
     expect(result.ruleMigrated).toBe(true);
     expect(result.data.expenses).toBe(original.expenses);
     expect(result.data.products).toHaveLength(2);
-    expect(result.data.products.every((item) => item.family === "Automatismos"))
-      .toBe(true);
-    expect(result.data.products.find((item) => item.id === "target-product"))
-      .toEqual(targetProduct);
+    expect(
+      result.data.products.every((item) => item.family === "Automatismos"),
+    ).toBe(true);
+    expect(
+      result.data.products.find((item) => item.id === "target-product"),
+    ).toEqual(targetProduct);
     expect(result.data.profile.productFamilyMarkups?.rules).toEqual([
       {
         id: "source-rule",
@@ -287,8 +315,9 @@ describe("product catalog structure", () => {
     expect(result.data.expenses).toBe(original.expenses);
     expect(result.data.expenses).toHaveLength(1);
     expect(result.data.products).toHaveLength(2);
-    expect(result.data.products.some((item) => item.id === "family-marker"))
-      .toBe(false);
+    expect(
+      result.data.products.some((item) => item.id === "family-marker"),
+    ).toBe(false);
     expect(result.data.products).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -403,8 +432,7 @@ describe("product catalog structure", () => {
           name: "Subfamilia: Tubulares",
           subfamily: "Tubulares",
           hidden: true,
-          notes:
-            "Marcador interno para recordar una subfamilia creada a mano.",
+          notes: "Marcador interno para recordar una subfamilia creada a mano.",
         }),
       ],
     });
