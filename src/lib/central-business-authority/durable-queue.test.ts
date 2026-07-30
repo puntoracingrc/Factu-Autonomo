@@ -351,6 +351,96 @@ describe("central business durable queue", () => {
     });
   });
 
+  it("recupera un lote bloqueado por faltar el transporte antiguo", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessBatch({
+      ownerScope,
+      batchId: "CENTRAL_BATCH_SYNTHETIC_TRANSPORT_RECOVERY",
+      mutations: batchMutations,
+      storage,
+    });
+
+    const blocked = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: vi.fn(),
+    });
+    expect(blocked).toMatchObject({
+      processed: 0,
+      remaining: 2,
+      stoppedBy: "blocked",
+      state: {
+        operations: [
+          {
+            status: "blocked",
+            lastError: {
+              code: "CENTRAL_BUSINESS_BATCH_MUTATOR_REQUIRED",
+            },
+          },
+          {
+            status: "blocked",
+            lastError: {
+              code: "CENTRAL_BUSINESS_BATCH_MUTATOR_REQUIRED",
+            },
+          },
+        ],
+      },
+    });
+
+    const mutate = vi.fn();
+    const mutateBatch = vi.fn(async () => ({
+      ok: true as const,
+      schema: "CENTRAL_BUSINESS_BATCH_MUTATION_CLIENT_V1" as const,
+      operations: [
+        {
+          operationIndex: 0,
+          status: "committed" as const,
+          eventId: "event-recovered-1",
+          eventSequence: 21,
+          entityVersion: 1,
+          deleted: false,
+          contentHash: "hash-recovered-supplier",
+        },
+        {
+          operationIndex: 1,
+          status: "committed" as const,
+          eventId: "event-recovered-2",
+          eventSequence: 22,
+          entityVersion: 1,
+          deleted: false,
+          contentHash: "hash-recovered-expense",
+        },
+      ],
+    }));
+    const recovered = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate,
+      mutateBatch,
+    });
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(mutateBatch).toHaveBeenCalledWith(batchMutations);
+    expect(recovered).toMatchObject({
+      processed: 2,
+      remaining: 0,
+      stoppedBy: "empty",
+      state: {
+        operations: [],
+        entityVersions: {
+          "supplier:supplier-1": {
+            version: 1,
+            contentHash: "hash-recovered-supplier",
+          },
+          "expense:expense-1": {
+            version: 1,
+            contentHash: "hash-recovered-expense",
+          },
+        },
+      },
+    });
+  });
+
   it("reintenta, bloquea y descarta siempre el lote completo", async () => {
     const storage = new MemoryStorage();
     enqueueCentralBusinessBatch({

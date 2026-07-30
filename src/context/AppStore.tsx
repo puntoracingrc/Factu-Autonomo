@@ -1450,10 +1450,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         } = await import("@/lib/central-business-authority/durable-queue");
         const { mutateCentralBusinessFromBrowser } =
           await import("@/lib/central-business-authority/mutation-client");
+        const { mutateCentralBusinessBatchFromBrowser } =
+          await import("@/lib/central-business-authority/batch-mutation-client");
         drained = await withCentralBusinessQueueLock(ownerScope, () =>
           drainCentralBusinessDurableQueue({
             ownerScope,
             mutate: mutateCentralBusinessFromBrowser,
+            mutateBatch: mutateCentralBusinessBatchFromBrowser,
           }),
         );
       } catch {

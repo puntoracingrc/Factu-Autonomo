@@ -699,6 +699,36 @@ export async function drainCentralBusinessDurableQueue(input: {
     const group = current.batchId
       ? state.operations.slice(0, current.batchSize)
       : [current];
+    const canRecoverMissingBatchTransport =
+      Boolean(current.batchId && input.mutateBatch) &&
+      group.length === current.batchSize &&
+      group.every(
+        (operation) =>
+          operation.status === "blocked" &&
+          operation.lastError?.code ===
+            "CENTRAL_BUSINESS_BATCH_MUTATOR_REQUIRED",
+      );
+    if (canRecoverMissingBatchTransport) {
+      const recovered = group.map(
+        (operation): CentralBusinessQueuedOperation => ({
+          ...operation,
+          status: "pending",
+          lastError: undefined,
+          resolution: undefined,
+        }),
+      );
+      state = persistState(
+        {
+          ...state,
+          operations: [
+            ...recovered,
+            ...state.operations.slice(recovered.length),
+          ],
+        },
+        storage,
+      );
+      continue;
+    }
     const stopped = group.find(
       (operation) =>
         operation.status === "conflict" || operation.status === "blocked",
