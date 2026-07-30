@@ -123,6 +123,12 @@ import {
 import { adoptPersistedSnapshotIfCurrent } from "@/lib/cloud/persisted-snapshot-adoption";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import {
+  createUserReminderWithIdentity,
+  deleteUserReminderFromCollection,
+  updateUserReminderInCollection,
+  type UserReminderDraft,
+} from "@/lib/user-reminder-mutations";
+import {
   buildScannedExpenseDurableTransition,
   type ScannedExpenseDurableValue,
 } from "@/lib/scanned-expense-durability";
@@ -506,15 +512,25 @@ interface AppStoreValue {
     id: string,
     expected: AppData,
   ) => AppDataDurabilityResult<string>;
-  addUserReminder: (
-    item: Omit<UserReminder, "id" | "completed" | "createdAt" | "updatedAt"> & {
-      completed?: boolean;
-    },
-  ) => UserReminder;
+  addUserReminder: (item: UserReminderDraft) => UserReminder;
+  addUserReminderDurably: (
+    item: UserReminderDraft,
+    identity: { id: string; now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<UserReminder>;
   updateUserReminder: (item: UserReminder) => void;
+  updateUserReminderDurably: (
+    item: UserReminder,
+    identity: { now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<UserReminder>;
   completeUserReminder: (id: string) => void;
   reopenUserReminder: (id: string) => void;
   deleteUserReminder: (id: string) => void;
+  deleteUserReminderDurably: (
+    id: string,
+    expected: AppData,
+  ) => AppDataDurabilityResult<string>;
   addSupplier: (supplier: Omit<Supplier, "id" | "createdAt">) => Supplier;
   addSupplierDurably: (
     supplier: Omit<Supplier, "id" | "createdAt">,
@@ -2694,23 +2710,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addUserReminder = useCallback(
-    (
-      item: Omit<
-        UserReminder,
-        "id" | "completed" | "createdAt" | "updatedAt"
-      > & {
-        completed?: boolean;
-      },
-    ): UserReminder => {
+    (item: UserReminderDraft): UserReminder => {
       const now = new Date().toISOString();
-      const created: UserReminder = {
-        ...item,
-        target: item.target ?? "self",
-        completed: item.completed ?? false,
+      const created = createUserReminderWithIdentity(item, {
         id: newId(),
-        createdAt: now,
-        updatedAt: now,
-      };
+        now,
+      });
       setAppData((prev) => ({
         ...prev,
         userReminders: [...prev.userReminders, created],
@@ -2721,18 +2726,65 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const addUserReminderDurably = useCallback(
+    (
+      item: UserReminderDraft,
+      identity: { id: string; now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<UserReminder> =>
+      commitDurableAppData(expected, (previous) => {
+        if (
+          previous.userReminders.some((reminder) => reminder.id === identity.id)
+        ) {
+          throw new Error("USER_REMINDER_IDENTIFIER_COLLISION");
+        }
+        const created = createUserReminderWithIdentity(item, identity);
+        return {
+          data: {
+            ...previous,
+            userReminders: [...previous.userReminders, created],
+          },
+          value: created,
+        };
+      }),
+    [commitDurableAppData],
+  );
+
   const updateUserReminder = useCallback(
     (item: UserReminder) => {
-      setAppData((prev) => ({
-        ...prev,
-        userReminders: prev.userReminders.map((entry) =>
-          entry.id === item.id
-            ? { ...item, updatedAt: new Date().toISOString() }
-            : entry,
-        ),
-      }));
+      setAppData((prev) => {
+        const result = updateUserReminderInCollection(
+          prev.userReminders,
+          item,
+          new Date().toISOString(),
+        );
+        return result.ok ? { ...prev, userReminders: result.reminders } : prev;
+      });
     },
     [setAppData],
+  );
+
+  const updateUserReminderDurably = useCallback(
+    (
+      item: UserReminder,
+      identity: { now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<UserReminder> =>
+      commitDurableAppData(expected, (previous) => {
+        const result = updateUserReminderInCollection(
+          previous.userReminders,
+          item,
+          identity.now,
+        );
+        if (!result.ok) {
+          throw new Error(`USER_REMINDER_${result.reason.toUpperCase()}`);
+        }
+        return {
+          data: { ...previous, userReminders: result.reminders },
+          value: result.reminder,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const completeUserReminder = useCallback(
@@ -2771,12 +2823,30 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const deleteUserReminder = useCallback(
     (id: string) => {
-      setAppData((prev) => ({
-        ...prev,
-        userReminders: prev.userReminders.filter((entry) => entry.id !== id),
-      }));
+      setAppData((prev) => {
+        const result = deleteUserReminderFromCollection(prev.userReminders, id);
+        return result.ok ? { ...prev, userReminders: result.reminders } : prev;
+      });
     },
     [setAppData],
+  );
+
+  const deleteUserReminderDurably = useCallback(
+    (id: string, expected: AppData): AppDataDurabilityResult<string> =>
+      commitDurableAppData(expected, (previous) => {
+        const result = deleteUserReminderFromCollection(
+          previous.userReminders,
+          id,
+        );
+        if (!result.ok) {
+          throw new Error(`USER_REMINDER_${result.reason.toUpperCase()}`);
+        }
+        return {
+          data: { ...previous, userReminders: result.reminders },
+          value: id,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const addSupplier = useCallback(
@@ -3285,10 +3355,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       applyRecurringExpenseChange,
       deleteRecurringExpense,
       addUserReminder,
+      addUserReminderDurably,
       updateUserReminder,
+      updateUserReminderDurably,
       completeUserReminder,
       reopenUserReminder,
       deleteUserReminder,
+      deleteUserReminderDurably,
       addSupplier,
       addSupplierDurably,
       ensureExpenseSupplier,
@@ -3370,10 +3443,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       applyRecurringExpenseChange,
       deleteRecurringExpense,
       addUserReminder,
+      addUserReminderDurably,
       updateUserReminder,
+      updateUserReminderDurably,
       completeUserReminder,
       reopenUserReminder,
       deleteUserReminder,
+      deleteUserReminderDurably,
       addSupplier,
       addSupplierDurably,
       ensureExpenseSupplier,
