@@ -860,7 +860,10 @@ export async function syncCentralBusinessEventsIntoAppData(
       const localFailure: {
         current: CentralBusinessLocalApplyError | null;
       } = { current: null };
+      const baseline = dependencies.getCurrentData();
+      let workingData = baseline;
       let locallyApplied = 0;
+      let lastAppliedValue: CentralBusinessEventLocalApplyValue | null = null;
       const workingVersions = { ...state.entityVersions };
       const page = await applyCentralBusinessEventPage({
         ownerScope: input.ownerScope,
@@ -869,12 +872,11 @@ export async function syncCentralBusinessEventsIntoAppData(
         storage: dependencies.storage,
         applyEvent: async (event) => {
           const key = `${event.entityType}:${event.entityId}`;
-          const expected = dependencies.getCurrentData();
           let transition:
             AppDataTransition<CentralBusinessEventLocalApplyValue> | undefined;
           try {
             transition = buildCentralBusinessEventAppDataTransition({
-              data: expected,
+              data: workingData,
               event,
               knownVersion: workingVersions[key],
             });
@@ -890,20 +892,8 @@ export async function syncCentralBusinessEventsIntoAppData(
           }
 
           if (transition.value.action !== "unchanged") {
-            const committed = dependencies.commit(expected, () => transition!);
-            if (committed.status !== "applied") {
-              localFailure.current = new CentralBusinessLocalApplyError(
-                committed.status === "indeterminate"
-                  ? "CENTRAL_BUSINESS_LOCAL_STORAGE_UNKNOWN"
-                  : "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED",
-                committed.status === "indeterminate"
-                  ? "No se pudo confirmar el guardado local del evento central."
-                  : "Los datos locales cambiaron mientras se aplicaba el evento central.",
-                committed.status === "blocked" &&
-                  committed.reason === "stale_precondition",
-              );
-              throw localFailure.current;
-            }
+            workingData = transition.data;
+            lastAppliedValue = transition.value;
             locallyApplied += 1;
           }
           workingVersions[key] = {
@@ -913,6 +903,25 @@ export async function syncCentralBusinessEventsIntoAppData(
             deleted: event.operationKind === "delete",
             contentHash: event.contentHash,
           };
+        },
+        commitPage: async () => {
+          if (!lastAppliedValue) return;
+          const committed = dependencies.commit(baseline, () => ({
+            data: workingData,
+            value: lastAppliedValue!,
+          }));
+          if (committed.status === "applied") return;
+          localFailure.current = new CentralBusinessLocalApplyError(
+            committed.status === "indeterminate"
+              ? "CENTRAL_BUSINESS_LOCAL_STORAGE_UNKNOWN"
+              : "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED",
+            committed.status === "indeterminate"
+              ? "No se pudo confirmar el guardado local de la pagina central."
+              : "Los datos locales cambiaron mientras se aplicaba la pagina central.",
+            committed.status === "blocked" &&
+              committed.reason === "stale_precondition",
+          );
+          throw localFailure.current;
         },
       });
 

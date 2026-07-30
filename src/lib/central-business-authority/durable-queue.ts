@@ -1030,6 +1030,7 @@ export async function applyCentralBusinessEventPage(input: {
   nextSequence: number;
   storage?: CentralBusinessQueueStorage;
   applyEvent: (event: CentralBusinessBrowserEvent) => Promise<void>;
+  commitPage?: () => Promise<void>;
 }): Promise<CentralBusinessEventApplyResult> {
   const storage = resolveStorage(input.storage);
   const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
@@ -1200,6 +1201,17 @@ export async function applyCentralBusinessEventPage(input: {
       contentHash: event.contentHash,
     };
     applied += 1;
+  }
+  try {
+    await input.commitPage?.();
+  } catch {
+    return {
+      ok: false,
+      code: "EVENT_APPLY_FAILED",
+      message:
+        "No se verifico toda la pagina. El cursor se conserva para reintentar.",
+      state,
+    };
   }
   nextState.lastAppliedEventSequence = input.nextSequence;
   return {

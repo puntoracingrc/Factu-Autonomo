@@ -301,6 +301,7 @@ describe("central business events app data sync", () => {
     expect(target.data.userReminders).toEqual([
       expect.objectContaining(reminder()),
     ]);
+    expect(target.commit).toHaveBeenCalledTimes(1);
     expect(
       loadCentralBusinessDurableQueue(ownerScope, target.storage),
     ).toMatchObject({ lastAppliedEventSequence: 4 });
@@ -723,6 +724,9 @@ describe("central business events app data sync", () => {
       code: "CENTRAL_BUSINESS_LOCAL_STORAGE_UNKNOWN",
       nextSequence: 0,
     });
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, target.storage),
+    ).toMatchObject({ lastAppliedEventSequence: 0, entityVersions: {} });
   });
 
   it("rechaza una página completa si falla la huella de contenido", async () => {
