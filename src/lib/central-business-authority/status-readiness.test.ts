@@ -11,6 +11,7 @@ function client(
     tableError?: { code?: string; message?: string } | null;
     mutationError?: { code?: string; message?: string } | null;
     eventsError?: { code?: string; message?: string } | null;
+    bootstrapError?: { code?: string; message?: string } | null;
   } = {},
 ) {
   const calls: unknown[] = [];
@@ -39,6 +40,16 @@ function client(
               },
         };
       }
+      if (name === "bootstrap_central_business_entities_v1") {
+        return {
+          error: Object.hasOwn(overrides, "bootstrapError")
+            ? overrides.bootstrapError ?? null
+            : {
+                code: "P4110",
+                message: "invalid central business bootstrap command",
+              },
+        };
+      }
       return {
         error: Object.hasOwn(overrides, "eventsError")
           ? overrides.eventsError ?? null
@@ -53,7 +64,7 @@ function client(
 }
 
 describe("central business authority status readiness", () => {
-  it("comprueba las tres tablas y las RPC mediante dry-runs sin negocio", async () => {
+  it("comprueba las tablas y las RPC mediante dry-runs sin negocio", async () => {
     const { probeClient, calls } = client();
     const result = await probeCentralBusinessAuthorityStatusReadiness({
       client: probeClient,
@@ -81,6 +92,13 @@ describe("central business authority status readiness", () => {
       args: expect.objectContaining({
         p_user_id: null,
         p_after_sequence: -1,
+      }),
+    });
+    expect(calls).toContainEqual({
+      name: "bootstrap_central_business_entities_v1",
+      args: expect.objectContaining({
+        p_user_id: null,
+        p_entities: [],
       }),
     });
     expect(result.checks.every((check) => check.noBusinessRows)).toBe(true);

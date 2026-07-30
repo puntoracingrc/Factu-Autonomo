@@ -9,6 +9,11 @@ import {
 import {
   createCentralBusinessBootstrapCommitRouteHandler,
 } from "@/lib/central-business-authority/bootstrap-commit-route-handler";
+import { evaluateCentralBusinessAuthorityActivation } from "@/lib/central-business-authority/activation";
+import {
+  probeCentralBusinessAuthorityStatusReadiness,
+  type CentralBusinessAuthorityStatusProbeClient,
+} from "@/lib/central-business-authority/status-readiness";
 import {
   commitCentralBusinessBootstrapThroughRpc,
   type CentralBusinessBootstrapCommitRpcArgs,
@@ -29,8 +34,49 @@ const handler = createCentralBusinessBootstrapCommitRouteHandler({
     if (!identity) return null;
     return {
       userId: identity.user.id,
+      userEmail: identity.user.email ?? null,
       sessionId: identity.sessionId,
     };
+  },
+  async authorize({ userId, userEmail }) {
+    const activation = evaluateCentralBusinessAuthorityActivation({
+      userId,
+      userEmail,
+    });
+    if (!activation.writesEnabled) return false;
+    const admin = getSupabaseAdmin();
+    if (!admin) return false;
+    const probeClient: CentralBusinessAuthorityStatusProbeClient = {
+      from(table) {
+        return {
+          select(columns, options) {
+            return {
+              limit(count) {
+                return admin
+                  .from(table)
+                  .select(columns, options)
+                  .limit(count) as unknown as ReturnType<
+                  ReturnType<
+                    ReturnType<
+                      CentralBusinessAuthorityStatusProbeClient["from"]
+                    >["select"]
+                  >["limit"]
+                >;
+              },
+            };
+          },
+        };
+      },
+      rpc(name, args) {
+        return admin.rpc(name, args) as unknown as ReturnType<
+          CentralBusinessAuthorityStatusProbeClient["rpc"]
+        >;
+      },
+    };
+    const readiness = await probeCentralBusinessAuthorityStatusReadiness({
+      client: probeClient,
+    });
+    return readiness.ready;
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(
