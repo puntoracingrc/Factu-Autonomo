@@ -3568,6 +3568,7 @@ async function testExpenseLearningP4bWeekFenceRollback(admin, users) {
     do $phase1$
     declare
       v_rejected boolean := false;
+      v_claimed_at timestamptz := pg_catalog.clock_timestamp();
     begin
       begin
         insert into expense_learning_private.contributor_revocation_links (
@@ -3589,8 +3590,8 @@ async function testExpenseLearningP4bWeekFenceRollback(admin, users) {
           contributor_week_hmac
         ) values (
           pg_catalog.decode('${claimHex}', 'hex'),
-          pg_catalog.clock_timestamp(),
-          pg_catalog.clock_timestamp() + interval '24 hours',
+          v_claimed_at,
+          v_claimed_at + interval '24 hours',
           date '${previousWeek}',
           pg_catalog.decode('${weekHmacHex}', 'hex')
         );
