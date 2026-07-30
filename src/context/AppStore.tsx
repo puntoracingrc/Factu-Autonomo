@@ -408,6 +408,10 @@ interface AppStoreValue {
     entityId: string;
   }) => Promise<CentralBusinessConflictRecoveryResult>;
   updateProfile: (profile: BusinessProfile) => void;
+  updateProfileDurably: (
+    profile: BusinessProfile,
+    expected: AppData,
+  ) => AppDataDurabilityResult<BusinessProfile>;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
   ) => Document;
@@ -443,8 +447,22 @@ interface AppStoreValue {
   convertQuoteToInvoice: (id: string) => Document | null;
   deleteDocument: (id: string) => boolean;
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
+  addExpenseDurably: (
+    expense: Omit<Expense, "id" | "createdAt">,
+    identity: { id: string; now: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<Expense>;
   updateExpense: (expense: Expense) => void;
+  updateExpenseDurably: (
+    expense: Expense,
+    expected: AppData,
+  ) => AppDataDurabilityResult<Expense>;
   deleteExpense: (id: string) => void;
+  deleteExpenseDurably: (
+    id: string,
+    identity: { excludedAt: string },
+    expected: AppData,
+  ) => AppDataDurabilityResult<string>;
   saveScannedExpenseDurably: (
     expense: Omit<Expense, "id" | "createdAt"> | Expense,
     options: {
@@ -589,6 +607,32 @@ interface AppStoreValue {
     chainOverride?: AppData["verifactuChain"],
     profileOverride?: BusinessProfile,
   ) => Promise<Document>;
+}
+
+function normalizeProfileForAppStore(
+  profile: BusinessProfile,
+): BusinessProfile {
+  return {
+    ...profile,
+    advisorContact: normalizeAdvisorContact(profile.advisorContact),
+    iva: normalizeIvaSettings(profile.iva),
+    numbering: normalizeNumbering(profile.numbering),
+    documentPhrases: normalizeDocumentPhrases(profile.documentPhrases),
+    documentPaymentMethods: normalizeDocumentPaymentMethods(
+      profile.documentPaymentMethods,
+    ),
+    documentTemplate: normalizeDocumentTemplate(profile.documentTemplate),
+    documentUnits: normalizeDocumentUnits(profile.documentUnits),
+    appPreferences: normalizeAppPreferences(profile.appPreferences),
+    fiscalProfile: normalizeBusinessFiscalProfile(profile.fiscalProfile),
+    taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
+      profile.taxModelDiagnostic,
+    ),
+    fiscalAdvisoryModelPreferences:
+      normalizeFiscalAdvisoryModelPreferencesV1(
+        profile.fiscalAdvisoryModelPreferences,
+      ),
+  };
 }
 
 const AppStoreContext = createContext<AppStoreValue | null>(null);
@@ -1450,30 +1494,25 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (profile: BusinessProfile) => {
       setAppData((prev) => ({
         ...prev,
-        profile: {
-          ...profile,
-          advisorContact: normalizeAdvisorContact(profile.advisorContact),
-          iva: normalizeIvaSettings(profile.iva),
-          numbering: normalizeNumbering(profile.numbering),
-          documentPhrases: normalizeDocumentPhrases(profile.documentPhrases),
-          documentPaymentMethods: normalizeDocumentPaymentMethods(
-            profile.documentPaymentMethods,
-          ),
-          documentTemplate: normalizeDocumentTemplate(profile.documentTemplate),
-          documentUnits: normalizeDocumentUnits(profile.documentUnits),
-          appPreferences: normalizeAppPreferences(profile.appPreferences),
-          fiscalProfile: normalizeBusinessFiscalProfile(profile.fiscalProfile),
-          taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
-            profile.taxModelDiagnostic,
-          ),
-          fiscalAdvisoryModelPreferences:
-            normalizeFiscalAdvisoryModelPreferencesV1(
-              profile.fiscalAdvisoryModelPreferences,
-            ),
-        },
+        profile: normalizeProfileForAppStore(profile),
       }));
     },
     [setAppData],
+  );
+
+  const updateProfileDurably = useCallback(
+    (
+      profile: BusinessProfile,
+      expected: AppData,
+    ): AppDataDurabilityResult<BusinessProfile> =>
+      commitDurableAppData(expected, (previous) => {
+        const normalized = normalizeProfileForAppStore(profile);
+        return {
+          data: { ...previous, profile: normalized },
+          value: normalized,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const addDocument = useCallback(
@@ -2313,12 +2352,53 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const addExpenseDurably = useCallback(
+    (
+      expense: Omit<Expense, "id" | "createdAt">,
+      identity: { id: string; now: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<Expense> =>
+      commitDurableAppData(expected, (previous) => {
+        if (previous.expenses.some((entry) => entry.id === identity.id)) {
+          throw new Error("EXPENSE_IDENTIFIER_COLLISION");
+        }
+        const created: Expense = {
+          ...expense,
+          id: identity.id,
+          createdAt: identity.now,
+        };
+        return {
+          data: { ...previous, expenses: [...previous.expenses, created] },
+          value: created,
+        };
+      }),
+    [commitDurableAppData],
+  );
+
   const deleteExpense = useCallback(
     (id: string) => {
       const excludedAt = new Date().toISOString();
       setAppData((prev) => deleteExpenseFromData(prev, id, excludedAt));
     },
     [setAppData],
+  );
+
+  const deleteExpenseDurably = useCallback(
+    (
+      id: string,
+      identity: { excludedAt: string },
+      expected: AppData,
+    ): AppDataDurabilityResult<string> =>
+      commitDurableAppData(expected, (previous) => {
+        if (!previous.expenses.some((entry) => entry.id === id)) {
+          throw new Error("EXPENSE_NOT_FOUND");
+        }
+        return {
+          data: deleteExpenseFromData(previous, id, identity.excludedAt),
+          value: id,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const updateExpense = useCallback(
@@ -2331,6 +2411,32 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }));
     },
     [setAppData],
+  );
+
+  const updateExpenseDurably = useCallback(
+    (
+      expense: Expense,
+      expected: AppData,
+    ): AppDataDurabilityResult<Expense> =>
+      commitDurableAppData(expected, (previous) => {
+        const matches = previous.expenses.filter(
+          (entry) => entry.id === expense.id,
+        );
+        if (matches.length === 0) throw new Error("EXPENSE_NOT_FOUND");
+        if (matches.length !== 1) {
+          throw new Error("EXPENSE_IDENTIFIER_COLLISION");
+        }
+        return {
+          data: {
+            ...previous,
+            expenses: previous.expenses.map((entry) =>
+              entry.id === expense.id ? expense : entry,
+            ),
+          },
+          value: expense,
+        };
+      }),
+    [commitDurableAppData],
   );
 
   const saveScannedExpenseDurably = useCallback(
@@ -3319,6 +3425,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralBusinessEvents,
       resolveCentralBusinessConflictKeepingServer,
       updateProfile,
+      updateProfileDurably,
       addDocument,
       addDocumentWithCentralIdentity,
       issueDocument,
@@ -3337,8 +3444,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       convertQuoteToInvoice,
       deleteDocument,
       addExpense,
+      addExpenseDurably,
       updateExpense,
+      updateExpenseDurably,
       deleteExpense,
+      deleteExpenseDurably,
       saveScannedExpenseDurably,
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
@@ -3407,6 +3517,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralBusinessEvents,
       resolveCentralBusinessConflictKeepingServer,
       updateProfile,
+      updateProfileDurably,
       addDocument,
       addDocumentWithCentralIdentity,
       issueDocument,
@@ -3425,8 +3536,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       convertQuoteToInvoice,
       deleteDocument,
       addExpense,
+      addExpenseDurably,
       updateExpense,
+      updateExpenseDurably,
       deleteExpense,
+      deleteExpenseDurably,
       saveScannedExpenseDurably,
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
