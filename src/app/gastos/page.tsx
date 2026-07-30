@@ -4,6 +4,7 @@ import {
   Fragment,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
 } from "react";
@@ -37,6 +38,7 @@ import { Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useCentralExpenseMutations } from "@/hooks/useCentralExpenseMutations";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "@/lib/central-business-authority/batch-contract";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
 import {
@@ -85,7 +87,6 @@ import {
 import { purchaseProductCatalogKeys } from "@/lib/purchase-products";
 import {
   isProviderSummaryPendingOriginal,
-  planProviderSummaryExpenseImport,
   type ProviderInvoiceSummaryRow,
 } from "@/lib/provider-summary-expenses";
 import { ensureSupplierForExpense, supplierCompareKey } from "@/lib/suppliers";
@@ -424,8 +425,9 @@ function expenseKindTone(kind: ExpenseBusinessKind): string {
 }
 
 export default function GastosPage() {
-  const { data, addExpense, addSupplier, updateProfile } = useAppStore();
-  const { deleteExpense } = useCentralExpenseMutations();
+  const { data, updateProfile } = useAppStore();
+  const { deleteExpense, saveProviderSummaryExpenses } =
+    useCentralExpenseMutations();
   const vatExempt = isVatExempt(data.profile);
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const defaultPeriod = getDefaultExpensePeriod();
@@ -449,6 +451,7 @@ export default function GastosPage() {
   const [summaryImportNotice, setSummaryImportNotice] = useState<string | null>(
     null,
   );
+  const summaryImportInFlightRef = useRef(false);
   const [summaryPreview, setSummaryPreview] =
     useState<ProviderSummaryPreview | null>(null);
   const [summaryRemovedInvoiceNumbers, setSummaryRemovedInvoiceNumbers] =
@@ -960,41 +963,64 @@ export default function GastosPage() {
     );
   }
 
-  function handleSaveProviderSummaryExpenses(
+  async function handleSaveProviderSummaryExpenses(
     options: { email?: boolean } = {},
   ) {
-    if (!summaryPreview || selectedSummaryRows.length === 0) return;
-    const emailHref = summaryEmailHref;
-    const importedAt = new Date().toISOString();
-    let supplierId = summaryPreview.providerSupplierId;
-    let providerName = summaryPreview.providerName;
-    if (!supplierId && summaryPreview.providerToCreate) {
-      const created = addSupplier(summaryPreview.providerToCreate);
-      supplierId = created.id;
-      providerName = created.name;
+    if (
+      !summaryPreview ||
+      selectedSummaryRows.length === 0 ||
+      summaryImportInFlightRef.current
+    ) {
+      return;
     }
-    const plan = planProviderSummaryExpenseImport(
-      data.expenses,
-      selectedSummaryRows,
-      {
-        providerName,
-        supplierId,
-        summaryId: summaryPreview.id,
-        fileName: summaryPreview.fileName,
-        importedAt,
-      },
-    );
+    const operationCount =
+      selectedSummaryRows.length + (summaryPreview.providerToCreate ? 1 : 0);
+    if (operationCount > CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS) {
+      setSummaryImportError(
+        summaryPreview.providerToCreate
+          ? "Selecciona como máximo 99 facturas: la operación también debe crear el proveedor."
+          : "Selecciona como máximo 100 facturas para guardarlas juntas.",
+      );
+      return;
+    }
 
-    plan.expenses.forEach((expense) => addExpense(expense));
-    setSummaryImportNotice(
-      plan.expenses.length > 0
-        ? `Guardadas ${plan.expenses.length} factura(s) desde resumen. Cuentan como gasto y quedan pendientes de original.`
-        : "No había facturas nuevas que guardar desde este resumen.",
-    );
-    setSummaryPreview(null);
-    setSummaryRemovedInvoiceNumbers([]);
-    if (options.email) {
-      window.location.href = emailHref;
+    const emailHref = summaryEmailHref;
+    summaryImportInFlightRef.current = true;
+    setSummaryImportBusy(true);
+    setSummaryImportError(null);
+    try {
+      const result = await saveProviderSummaryExpenses({
+        operationId: summaryPreview.id,
+        rows: selectedSummaryRows,
+        providerName: summaryPreview.providerName,
+        supplierId: summaryPreview.providerSupplierId,
+        supplier: summaryPreview.providerToCreate,
+        fileName: summaryPreview.fileName,
+      });
+      if (!result.ok) {
+        setSummaryImportError(result.error);
+        return;
+      }
+
+      const deliveryNotice =
+        result.delivery === "central_confirmed"
+          ? " El servidor central confirmó el lote completo."
+          : result.delivery === "central_pending"
+            ? " El lote completo queda pendiente de envío al servidor central."
+            : result.delivery === "central_review"
+              ? " El lote quedó guardado localmente y requiere revisar su confirmación central."
+              : "";
+      setSummaryImportNotice(
+        `Guardadas ${result.local.value.expenses.length} factura(s) desde resumen. Cuentan como gasto y quedan pendientes de original.${deliveryNotice}`,
+      );
+      setSummaryPreview(null);
+      setSummaryRemovedInvoiceNumbers([]);
+      if (options.email) {
+        window.location.href = emailHref;
+      }
+    } finally {
+      summaryImportInFlightRef.current = false;
+      setSummaryImportBusy(false);
     }
   }
 
@@ -1027,7 +1053,7 @@ export default function GastosPage() {
           >
             <Upload className="h-4 w-4" />
             {summaryImportBusy
-              ? "Leyendo resumen..."
+              ? "Procesando resumen..."
               : "Importar resumen de proveedor"}
             <input
               type="file"
@@ -1215,18 +1241,18 @@ export default function GastosPage() {
             <div className="grid gap-2 sm:grid-cols-2">
               <Button
                 type="button"
-                onClick={() => handleSaveProviderSummaryExpenses()}
-                disabled={selectedSummaryRows.length === 0}
+                onClick={() => void handleSaveProviderSummaryExpenses()}
+                disabled={summaryImportBusy || selectedSummaryRows.length === 0}
               >
-                Guardar
+                {summaryImportBusy ? "Guardando..." : "Guardar"}
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() =>
-                  handleSaveProviderSummaryExpenses({ email: true })
+                  void handleSaveProviderSummaryExpenses({ email: true })
                 }
-                disabled={selectedSummaryRows.length === 0}
+                disabled={summaryImportBusy || selectedSummaryRows.length === 0}
               >
                 <Mail className="h-4 w-4" />
                 Guardar y preparar email
