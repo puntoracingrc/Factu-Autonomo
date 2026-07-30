@@ -18,6 +18,8 @@ import {
 } from "@/components/consultor-fiscal/AdvisoryScopeToggle";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
+import { showFactuToast } from "@/lib/factu/occasional";
 import {
   buildFiscalModelPersonalizationV1,
   setManualFiscalAdvisoryModelSelectionV1,
@@ -89,7 +91,8 @@ export function FiscalModelCatalogBrowser({
   focusedCardId: string | null;
   children: ReactNode;
 }) {
-  const { data, ready, updateProfile } = useAppStore();
+  const { data, ready } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const [query, setQuery] = useState(initialQuery);
   const [requestedScope, setRequestedScope] = useState<AdvisoryScope>("ALL");
   const [visibleCount, setVisibleCount] = useState(catalogBatchSize);
@@ -201,9 +204,22 @@ export function FiscalModelCatalogBrowser({
           },
         });
       }
-      updateProfile({
-        ...data.profile,
-        fiscalAdvisoryModelPreferences: next,
+      void updateProfile((profile) => ({
+        ...profile,
+        fiscalAdvisoryModelPreferences:
+          setManualFiscalAdvisoryModelSelectionV1({
+            current: profile.fiscalAdvisoryModelPreferences,
+            modelCode,
+            selected,
+            allowedModelCodes: availableModelCodes,
+          }) ?? profile.fiscalAdvisoryModelPreferences,
+      })).then((saveResult) => {
+        if (!saveResult.ok) {
+          showFactuToast(
+            `No se pudo guardar la selección de modelos: ${saveResult.error}`,
+            6500,
+          );
+        }
       });
     },
     [

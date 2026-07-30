@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
+import { showFactuToast } from "@/lib/factu/occasional";
 import {
   normalizeFiscalAdvisoryModelPreferencesV1,
   setManualFiscalAdvisoryModelSelectionV1,
@@ -238,7 +240,8 @@ export function DiagnosticResults({
   result: DiagnosticResult;
   onEdit: () => void;
 }) {
-  const { data, ready, updateProfile } = useAppStore();
+  const { data, ready } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const assessment = buildTaxObligationsAssessment(result);
   const preferences = normalizeFiscalAdvisoryModelPreferencesV1(
     data.profile.fiscalAdvisoryModelPreferences,
@@ -326,9 +329,22 @@ export function DiagnosticResults({
         },
       });
     }
-    updateProfile({
-      ...data.profile,
-      fiscalAdvisoryModelPreferences: next,
+    void updateProfile((profile) => ({
+      ...profile,
+      fiscalAdvisoryModelPreferences:
+        setManualFiscalAdvisoryModelSelectionV1({
+          current: profile.fiscalAdvisoryModelPreferences,
+          modelCode,
+          selected,
+          allowedModelCodes: TAX_OBLIGATION_MODEL_CODES,
+        }) ?? profile.fiscalAdvisoryModelPreferences,
+    })).then((saveResult) => {
+      if (!saveResult.ok) {
+        showFactuToast(
+          `No se pudo guardar la selección de modelos: ${saveResult.error}`,
+          6500,
+        );
+      }
     });
   }
 

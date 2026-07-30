@@ -13,12 +13,14 @@ import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import {
   adaptExistingExpenseForEvaluation,
   parseEuroInputToCents,
 } from "@/lib/expense-deductibility";
 import { buildTaxContextFromBusinessProfile } from "@/lib/fiscal-profile";
+import { showFactuToast } from "@/lib/factu/occasional";
 import type { BusinessProfile } from "@/lib/types";
 import {
   assertEvaluationResult,
@@ -178,7 +180,8 @@ export function ExpenseDeductibilityAnalyzer({
 }: {
   aiFallbackEnabled?: boolean;
 }) {
-  const { data, ready, updateProfile } = useAppStore();
+  const { data, ready } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const aiConsent = useAiProcessingConsent();
   const profileVatExempt = data.profile.vatExempt ?? false;
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -584,9 +587,19 @@ export function ExpenseDeductibilityAnalyzer({
 
       <FiscalProfileSetupCard
         businessProfile={data.profile}
-        onSave={(fiscalProfile) =>
-          updateProfile({ ...data.profile, fiscalProfile })
-        }
+        onSave={(fiscalProfile) => {
+          void updateProfile((profile) => ({
+            ...profile,
+            fiscalProfile,
+          })).then((saveResult) => {
+            if (!saveResult.ok) {
+              showFactuToast(
+                `No se pudo guardar el perfil fiscal: ${saveResult.error}`,
+                6500,
+              );
+            }
+          });
+        }}
       />
 
       {fiscalContextPreview.warnings.length > 0 ? (
