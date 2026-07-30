@@ -73,4 +73,20 @@ describe("AppStore durable central business writes", () => {
       "persist: (candidate, expected) => saveData(candidate, { expected })",
     );
   });
+
+  it("expone una relectura central que rebobina bajo bloqueo y aplica paginas durables", () => {
+    const block = callbackBlock(
+      "reconcileCentralBusinessEvents",
+      "resolveCentralBusinessConflictKeepingServer",
+    );
+
+    expect(block).toContain("withCentralBusinessQueueLock(ownerScope");
+    expect(block).toContain(
+      "rewindCentralBusinessEventCursorForReconciliation",
+    );
+    expect(block).toContain("pullCentralBusinessEvents(ownerScope");
+    expect(source.match(/\breconcileCentralBusinessEvents\b/g)?.length).toBeGreaterThan(
+      3,
+    );
+  });
 });

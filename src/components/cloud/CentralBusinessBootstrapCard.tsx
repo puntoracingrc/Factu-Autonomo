@@ -70,6 +70,7 @@ export function CentralBusinessBootstrapCard() {
   const {
     ready,
     getCurrentData,
+    reconcileCentralBusinessEvents,
     syncCentralBusinessEvents,
   } = useAppStore();
   const { user, requiresEmailConfirmation } = useCloudSync();
@@ -79,6 +80,7 @@ export function CentralBusinessBootstrapCard() {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [preview, setPreview] =
     useState<CentralBusinessBootstrapBrowserPreview | null>(null);
   const [snapshot, setSnapshot] =
@@ -153,6 +155,20 @@ export function CentralBusinessBootstrapCard() {
     setConfirmed(false);
   }
 
+  function storePreview(
+    entities: CentralBusinessBootstrapBrowserEntity[],
+    nextPreview: CentralBusinessBootstrapBrowserPreview,
+  ) {
+    setSnapshot(entities);
+    setSnapshotSignature(
+      centralBusinessBootstrapSnapshotSignature(entities),
+    );
+    setIdempotencyKey(
+      `CENTRAL_BUSINESS_BOOTSTRAP:${crypto.randomUUID()}`,
+    );
+    setPreview(nextPreview);
+  }
+
   async function handlePrepare() {
     setPreparing(true);
     setNotice(null);
@@ -194,14 +210,7 @@ export function CentralBusinessBootstrapCard() {
         });
         return;
       }
-      setSnapshot(entities);
-      setSnapshotSignature(
-        centralBusinessBootstrapSnapshotSignature(entities),
-      );
-      setIdempotencyKey(
-        `CENTRAL_BUSINESS_BOOTSTRAP:${crypto.randomUUID()}`,
-      );
-      setPreview(result.preview);
+      storePreview(entities, result.preview);
       if (!result.preview.canCommit) {
         setNotice({
           tone: "warning",
@@ -225,6 +234,87 @@ export function CentralBusinessBootstrapCard() {
       });
     } finally {
       setPreparing(false);
+    }
+  }
+
+  async function handleRestoreCentralOnly() {
+    if (
+      !preview ||
+      !snapshotSignature ||
+      preview.summary.conflict > 0 ||
+      preview.summary.centralOnly < 1
+    ) {
+      return;
+    }
+    setRestoring(true);
+    setNotice(null);
+    try {
+      const currentEntities = buildCentralBusinessBootstrapBrowserSnapshot(
+        getCurrentData(),
+      );
+      if (
+        centralBusinessBootstrapSnapshotSignature(currentEntities) !==
+        snapshotSignature
+      ) {
+        resetPreview();
+        setNotice({
+          tone: "warning",
+          message:
+            "Los datos de este dispositivo cambiaron después de comparar. Prepara una vista previa nueva.",
+        });
+        return;
+      }
+
+      const reconciled = await reconcileCentralBusinessEvents(
+        activeOwnerScope,
+        { limit: 500, maxPages: 100 },
+      );
+      if (!reconciled.ok) {
+        setNotice({
+          tone: reconciled.retryable ? "warning" : "error",
+          message: reconciled.message,
+        });
+        return;
+      }
+
+      const restoredEntities =
+        buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData());
+      const verified =
+        await previewCentralBusinessBootstrapFromBrowser(restoredEntities);
+      if (!verified.ok) {
+        resetPreview();
+        setNotice({
+          tone: verified.status === 409 ? "warning" : "error",
+          message: verified.message,
+        });
+        return;
+      }
+      storePreview(restoredEntities, verified.preview);
+      if (
+        verified.preview.summary.centralOnly > 0 ||
+        verified.preview.summary.conflict > 0
+      ) {
+        setNotice({
+          tone: "warning",
+          message:
+            "La relectura terminó, pero todavía quedan diferencias. No se ha escrito nada en el servidor.",
+        });
+        return;
+      }
+      setNotice({
+        tone: "success",
+        message: `${reconciled.applied} ficha(s) centrales restaurada(s) o actualizada(s) en este dispositivo. La comparación se ha verificado de nuevo.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo restaurar la copia central en este dispositivo.",
+      });
+    } finally {
+      setRestoring(false);
     }
   }
 
@@ -418,7 +508,12 @@ export function CentralBusinessBootstrapCard() {
         <Button
           variant="secondary"
           onClick={() => void handlePrepare()}
-          disabled={preparing || committing || !status?.summary.writesPossible}
+          disabled={
+            preparing ||
+            committing ||
+            restoring ||
+            !status?.summary.writesPossible
+          }
           aria-busy={preparing}
         >
           <RefreshCw className={`h-4 w-4 ${preparing ? "animate-spin" : ""}`} />
@@ -427,13 +522,30 @@ export function CentralBusinessBootstrapCard() {
         {preview?.canCommit ? (
           <Button
             onClick={() => void handleCommit()}
-            disabled={!confirmed || preparing || committing}
+            disabled={!confirmed || preparing || committing || restoring}
             aria-busy={committing}
           >
             <Database className="h-4 w-4" />
             {committing
               ? "Confirmando con el servidor…"
               : "Confirmar migración central"}
+          </Button>
+        ) : null}
+        {preview &&
+        !preview.canCommit &&
+        preview.summary.conflict === 0 &&
+        preview.summary.centralOnly > 0 ? (
+          <Button
+            onClick={() => void handleRestoreCentralOnly()}
+            disabled={preparing || committing || restoring}
+            aria-busy={restoring}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${restoring ? "animate-spin" : ""}`}
+            />
+            {restoring
+              ? "Restaurando…"
+              : `Restaurar ${preview.summary.centralOnly} desde el servidor`}
           </Button>
         ) : null}
       </div>

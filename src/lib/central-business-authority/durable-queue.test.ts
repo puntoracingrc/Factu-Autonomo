@@ -14,6 +14,7 @@ import {
   loadCentralBusinessDurableQueue,
   prepareCentralBusinessEntityServerResolution,
   recordCentralBusinessEntityVersionCheckpoint,
+  rewindCentralBusinessEventCursorForReconciliation,
   retryCentralBusinessOperation,
   type CentralBusinessQueueStorage,
   withCentralBusinessQueueLock,
@@ -133,6 +134,63 @@ describe("central business durable queue", () => {
         code: "LOCAL_OPERATION_CONFLICT",
       }),
     );
+  });
+
+  it("rebobina solo el cursor y conserva las versiones centrales verificadas", async () => {
+    const storage = new MemoryStorage();
+    await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [event()],
+      nextSequence: 1,
+      storage,
+      applyEvent: async () => undefined,
+    });
+
+    const result = rewindCentralBusinessEventCursorForReconciliation({
+      ownerScope,
+      storage,
+    });
+
+    expect(result).toMatchObject({
+      lastAppliedEventSequence: 0,
+      operations: [],
+      entityVersions: {
+        "customer:customer-1": {
+          version: 1,
+          contentHash: "hash-v1",
+        },
+      },
+    });
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage),
+    ).toEqual(result);
+  });
+
+  it("no rebobina el historial si existe una operacion local pendiente", () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+
+    expect(() =>
+      rewindCentralBusinessEventCursorForReconciliation({
+        ownerScope,
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "LOCAL_OPERATION_CONFLICT",
+      }),
+    );
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage),
+    ).toMatchObject({
+      lastAppliedEventSequence: 0,
+      operations: [{ operationId: mutation.idempotencyKey }],
+    });
   });
 
   it("persiste y relee la operacion antes de permitir el cambio local", () => {
