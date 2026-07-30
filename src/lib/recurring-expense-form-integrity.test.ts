@@ -130,11 +130,10 @@ describe("recurring expense form integrity", () => {
       "commitLatestDurableAppData(options.expected, (previous) =>",
     );
     expect(appStore).toContain(
-      "prepareFixedExpenseBundle(previous, command, { now })",
+      "prepareFixedExpenseBundle(previous, command, {",
     );
-    expect(appStore).toContain(
-      'if (prepared.status === "blocked")',
-    );
+    expect(appStore).toContain("referenceDate: options.referenceDate");
+    expect(appStore).toContain('if (prepared.status === "blocked")');
   });
 
   it("mantiene abierto Gastos fijos ante bloqueo o estado indeterminado", () => {

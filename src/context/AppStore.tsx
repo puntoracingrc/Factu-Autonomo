@@ -468,6 +468,7 @@ interface AppStoreValue {
     options: {
       expected: AppData;
       operationId: string;
+      now?: string;
       supplier?: Omit<Supplier, "id" | "createdAt">;
     },
   ) => AppDataDurabilityResult<ScannedExpenseDurableValue>;
@@ -477,6 +478,8 @@ interface AppStoreValue {
     options: {
       expected: AppData;
       operationId: string;
+      now?: string;
+      referenceDate?: string;
       supplier?: Omit<Supplier, "id" | "createdAt">;
     },
   ) => AppDataDurabilityResult<FixedExpenseBundleValue>;
@@ -2445,6 +2448,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       options: {
         expected: AppData;
         operationId: string;
+        now?: string;
         supplier?: Omit<Supplier, "id" | "createdAt">;
       },
     ): AppDataDurabilityResult<ScannedExpenseDurableValue> =>
@@ -2453,7 +2457,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           data: previous,
           expense,
           operationId: options.operationId,
-          now: new Date().toISOString(),
+          now: options.now ?? new Date().toISOString(),
           supplier: options.supplier,
         }),
       ),
@@ -2467,10 +2471,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       options: {
         expected: AppData;
         operationId: string;
+        now?: string;
+        referenceDate?: string;
         supplier?: Omit<Supplier, "id" | "createdAt">;
       },
     ): AppDataDurabilityResult<FixedExpenseBundleValue> => {
-      const now = new Date().toISOString();
+      const now = options.now ?? new Date().toISOString();
       const ids = fixedExpenseBundleIds(options.operationId);
       const command = {
         expense,
@@ -2481,7 +2487,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const current = dataRef.current;
       let inspected: ReturnType<typeof prepareFixedExpenseBundle>;
       try {
-        inspected = prepareFixedExpenseBundle(current, command, { now });
+        inspected = prepareFixedExpenseBundle(current, command, {
+          now,
+          referenceDate: options.referenceDate,
+        });
       } catch {
         return { status: "blocked", reason: "transition_failed" };
       }
@@ -2489,7 +2498,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       if (inspected.status === "blocked") return inspected;
 
       return commitLatestDurableAppData(options.expected, (previous) => {
-        const prepared = prepareFixedExpenseBundle(previous, command, { now });
+        const prepared = prepareFixedExpenseBundle(previous, command, {
+          now,
+          referenceDate: options.referenceDate,
+        });
         if (prepared.status === "blocked") {
           throw new Error(`FIXED_EXPENSE_${prepared.reason}`);
         }
