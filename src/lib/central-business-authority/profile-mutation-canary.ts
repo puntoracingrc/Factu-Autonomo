@@ -21,6 +21,9 @@ import type { CentralBusinessAuthorityStatusResult } from "./status-client";
 export const CENTRAL_PROFILE_MUTATION_CANARY =
   "CENTRAL_PROFILE_MUTATION_CANARY_V1";
 
+export type CentralProfileUpdate =
+  BusinessProfile | ((current: BusinessProfile) => BusinessProfile);
+
 export interface CentralProfileMutationCanaryDependencies {
   getCurrentData(): AppData;
   updateProfileFallback(profile: BusinessProfile): void;
@@ -46,9 +49,18 @@ function jsonProfile(profile: BusinessProfile): CentralBusinessJson {
   return JSON.parse(JSON.stringify(profile)) as CentralBusinessJson;
 }
 
+function resolveProfileUpdate(
+  update: CentralProfileUpdate,
+  current: BusinessProfile,
+): BusinessProfile {
+  return normalizeLoadedData({
+    profile: typeof update === "function" ? update(current) : update,
+  }).profile;
+}
+
 export async function updateProfileWithCentralCanary(input: {
   userId: string | null | undefined;
-  profile: BusinessProfile;
+  profile: CentralProfileUpdate;
   dependencies: CentralProfileMutationCanaryDependencies;
 }): Promise<CentralBusinessEntityMutationResult<BusinessProfile>> {
   const { dependencies } = input;
@@ -66,17 +78,19 @@ export async function updateProfileWithCentralCanary(input: {
     dependencies: {
       ...dependencies,
       fallback: () => {
-        dependencies.updateProfileFallback(input.profile);
+        const profile = resolveProfileUpdate(
+          input.profile,
+          dependencies.getCurrentData().profile,
+        );
+        dependencies.updateProfileFallback(profile);
         return {
           ok: true,
-          value: input.profile,
+          value: profile,
           delivery: "local",
         };
       },
       prepareLocal: ({ data }) => {
-        const normalized = normalizeLoadedData({
-          profile: input.profile,
-        }).profile;
+        const normalized = resolveProfileUpdate(input.profile, data.profile);
         return {
           ok: true,
           payload: jsonProfile(normalized),

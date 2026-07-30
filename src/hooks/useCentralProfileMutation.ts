@@ -5,12 +5,15 @@ import { useCallback, useMemo } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
-import { updateProfileWithCentralCanary } from "@/lib/central-business-authority/profile-mutation-canary";
+import {
+  updateProfileWithCentralCanary,
+  type CentralProfileUpdate,
+} from "@/lib/central-business-authority/profile-mutation-canary";
 import type { BusinessProfile } from "@/lib/types";
 
 export function useCentralProfileMutation(): {
   updateProfile: (
-    profile: BusinessProfile,
+    profile: CentralProfileUpdate,
   ) => Promise<CentralBusinessEntityMutationResult<BusinessProfile>>;
 } {
   const {
@@ -41,7 +44,7 @@ export function useCentralProfileMutation(): {
   );
 
   const updateProfile = useCallback(
-    (profile: BusinessProfile) =>
+    (profile: CentralProfileUpdate) =>
       updateProfileWithCentralCanary({
         userId,
         profile,
