@@ -19,6 +19,7 @@ import {
   commitCentralBusinessBootstrapFromBrowser,
   previewCentralBusinessBootstrapFromBrowser,
   type CentralBusinessBootstrapBrowserEntity,
+  type CentralBusinessBootstrapBrowserEntityType,
   type CentralBusinessBootstrapBrowserPreview,
 } from "@/lib/central-business-authority/bootstrap-client";
 import {
@@ -39,7 +40,20 @@ const ENTITY_LABELS = {
   supplier: "Proveedores",
   product: "Productos",
   user_reminder: "Recordatorios",
+  expense: "Gastos",
+  recurring_expense: "Gastos fijos",
+  profile: "Perfil",
 } as const;
+
+const BOOTSTRAP_ENTITY_TYPES = [
+  "customer",
+  "supplier",
+  "product",
+  "user_reminder",
+  "expense",
+  "recurring_expense",
+  "profile",
+] as const satisfies readonly CentralBusinessBootstrapBrowserEntityType[];
 
 function noticeClass(tone: Notice["tone"]): string {
   if (tone === "success") {
@@ -289,9 +303,10 @@ export function CentralBusinessBootstrapCard() {
             Migrar fichas al servidor central
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Compara clientes, proveedores, productos y recordatorios de este
-            dispositivo antes de convertir PostgreSQL en su autoridad. La vista
-            previa no escribe nada y un conflicto bloquea el lote completo.
+            Compara clientes, proveedores, productos, recordatorios, gastos,
+            gastos fijos y el perfil de este dispositivo antes de convertir
+            PostgreSQL en su autoridad. La vista previa no escribe nada y un
+            conflicto bloquea el lote completo.
           </p>
         </div>
       </div>
@@ -306,14 +321,7 @@ export function CentralBusinessBootstrapCard() {
       {preview ? (
         <div className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {(
-              [
-                "customer",
-                "supplier",
-                "product",
-                "user_reminder",
-              ] as const
-            ).map(
+            {BOOTSTRAP_ENTITY_TYPES.map(
               (entityType) => {
                 const entries = preview.entries.filter(
                   (entry) => entry.entityType === entityType,

@@ -38,6 +38,10 @@ describe("central business bootstrap account card", () => {
     );
     expect(component).toContain("!confirmed");
     expect(component).toContain('user_reminder: "Recordatorios"');
+    expect(component).toContain('expense: "Gastos"');
+    expect(component).toContain('recurring_expense: "Gastos fijos"');
+    expect(component).toContain('profile: "Perfil"');
+    expect(component).toContain("BOOTSTRAP_ENTITY_TYPES.map");
   });
 
   it("no migra con cola pendiente y recibe todas las versiones confirmadas", () => {
