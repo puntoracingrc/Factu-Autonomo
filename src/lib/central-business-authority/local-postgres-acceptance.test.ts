@@ -206,6 +206,24 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       message: expect.stringContaining("version mismatch"),
     });
 
+    const identicalRetry = await mutate(
+      mutationArgs({
+        idempotencyKey: "same-state-new-command",
+        requestHash: "same-state-new-command-request",
+        expectedVersion: 1,
+        payload: { name: "Canonical" },
+        contentHash: "hash-canonical",
+      }),
+    );
+    expect(identicalRetry.error).toBeNull();
+    expect(identicalRetry.data).toEqual([
+      expect.objectContaining({
+        result_status: "replayed",
+        entity_version: 2,
+        deleted: false,
+      }),
+    ]);
+
     const { data, error } = await admin
       .from("central_business_entities")
       .select("current_version,current_payload,content_hash,deleted")
@@ -220,6 +238,15 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       content_hash: "hash-canonical",
       deleted: false,
     });
+
+    const { count: eventCount, error: eventCountError } = await admin
+      .from("central_business_outbox")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("entity_type", "customer")
+      .eq("entity_id", "synthetic-customer");
+    expect(eventCountError).toBeNull();
+    expect(eventCount).toBe(2);
   });
 
   it("records deletion as a versioned tombstone and ordered event", async () => {
