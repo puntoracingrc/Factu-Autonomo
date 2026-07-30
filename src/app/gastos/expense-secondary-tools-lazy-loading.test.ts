@@ -51,6 +51,6 @@ describe("carga diferida de herramientas secundarias de gastos", () => {
     expect(source).toContain("Preparando CSV...");
     expect(source).toContain("Preparando ZIP...");
     expect(source).toContain("Preparando envío...");
-    expect(source).toContain("Leyendo resumen...");
+    expect(source).toContain("Procesando resumen...");
   });
 });

@@ -18,10 +18,13 @@ import {
 } from "@/lib/central-business-authority/expense-bundle-canary";
 import {
   prepareCentralFixedExpenseBundle,
+  prepareCentralProviderSummaryExpenseBundle,
   prepareCentralScannedExpenseBundle,
+  type ProviderSummaryExpenseBundleValue,
 } from "@/lib/central-business-authority/expense-bundle-preparation";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
 import type { FixedExpenseBundleValue } from "@/lib/app-data-durability";
+import type { ProviderInvoiceSummaryRow } from "@/lib/provider-summary-expenses";
 import type { RecurringExpenseDraft } from "@/lib/recurring-expenses";
 import type { ScannedExpenseDurableValue } from "@/lib/scanned-expense-durability";
 import type { Expense, Supplier } from "@/lib/types";
@@ -33,6 +36,15 @@ interface DurableExpenseSaveOptions {
   expected: ReturnType<ReturnType<typeof useAppStore>["getCurrentData"]>;
   operationId: string;
   supplier?: Omit<Supplier, "id" | "createdAt">;
+}
+
+export interface ProviderSummaryExpenseSaveInput {
+  operationId: string;
+  rows: ProviderInvoiceSummaryRow[];
+  providerName?: string;
+  supplierId?: string;
+  supplier?: Omit<Supplier, "id" | "createdAt">;
+  fileName?: string;
 }
 
 export function useCentralExpenseMutations(): {
@@ -52,10 +64,14 @@ export function useCentralExpenseMutations(): {
     item: RecurringExpenseDraft,
     options: DurableExpenseSaveOptions,
   ) => Promise<CentralExpenseBundleResult<FixedExpenseBundleValue>>;
+  saveProviderSummaryExpenses: (
+    input: ProviderSummaryExpenseSaveInput,
+  ) => Promise<CentralExpenseBundleResult<ProviderSummaryExpenseBundleValue>>;
 } {
   const {
     addExpense,
     addExpenseDurably,
+    commitPreparedAppDataDurably,
     deleteExpense: deleteExpenseFallback,
     deleteExpenseDurably,
     getCurrentData,
@@ -211,11 +227,62 @@ export function useCentralExpenseMutations(): {
     ],
   );
 
+  const saveProviderSummaryExpenses = useCallback(
+    (input: ProviderSummaryExpenseSaveInput) => {
+      const prepare = ({
+        data,
+        now,
+      }: {
+        data: ReturnType<typeof getCurrentData>;
+        now: string;
+      }) =>
+        prepareCentralProviderSummaryExpenseBundle({
+          data,
+          rows: input.rows,
+          operationId: input.operationId,
+          now,
+          providerName: input.providerName,
+          supplierId: input.supplierId,
+          supplier: input.supplier,
+          fileName: input.fileName,
+        });
+
+      return saveCentralExpenseBundleWithCanary({
+        userId,
+        operationId: input.operationId,
+        dependencies: {
+          getCurrentData,
+          syncEventsBeforeWrite,
+          fallback: () => {
+            const expected = getCurrentData();
+            const prepared = prepare({
+              data: expected,
+              now: new Date().toISOString(),
+            });
+            return prepared.ok
+              ? commitPreparedAppDataDurably(expected, prepared.transition)
+              : { status: "blocked", reason: "transition_failed" as const };
+          },
+          prepareLocal: prepare,
+          commitLocal: (expected, transition) =>
+            commitPreparedAppDataDurably(expected, transition),
+        },
+      });
+    },
+    [
+      commitPreparedAppDataDurably,
+      getCurrentData,
+      syncEventsBeforeWrite,
+      userId,
+    ],
+  );
+
   return {
     createExpense,
     updateExpense,
     deleteExpense,
     saveScannedExpenseDurably,
     saveFixedExpenseWithRecurringTemplate,
+    saveProviderSummaryExpenses,
   };
 }
