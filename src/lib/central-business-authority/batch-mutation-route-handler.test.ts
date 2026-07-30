@@ -211,4 +211,35 @@ describe("central business batch mutation route", () => {
       },
     });
   });
+
+  it("mapea una ocurrencia recurrente duplicada como conflicto atomico", async () => {
+    enableCanary();
+    const result = await request(
+      dependencies({
+        getRpcClient: () => ({
+          async rpc() {
+            return {
+              data: null,
+              error: {
+                code: "P4105",
+                message: "recurring occurrence exists",
+              },
+            };
+          },
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      status: 409,
+      body: {
+        error: {
+          code: "CENTRAL_BUSINESS_RECURRING_OCCURRENCE_CONFLICT",
+          causeCode: "P4105",
+          message: expect.stringContaining(
+            "No se aplico ninguna operacion del lote",
+          ),
+        },
+      },
+    });
+  });
 });

@@ -83,7 +83,8 @@ function failure(input: {
     conflict:
       input.code === "CENTRAL_BUSINESS_VERSION_CONFLICT" ||
       input.code === "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT" ||
-      input.code === "CENTRAL_BUSINESS_ENTITY_NOT_FOUND",
+      input.code === "CENTRAL_BUSINESS_ENTITY_NOT_FOUND" ||
+      input.code === "CENTRAL_BUSINESS_RECURRING_OCCURRENCE_CONFLICT",
   };
 }
 
