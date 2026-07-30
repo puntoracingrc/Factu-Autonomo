@@ -86,6 +86,10 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
 
   afterAll(async () => {
     if (!admin || !userId) return;
+    await admin
+      .from("central_business_bootstraps")
+      .delete()
+      .eq("user_id", userId);
     await admin.from("central_business_commands").delete().eq("user_id", userId);
     await admin.from("central_business_outbox").delete().eq("user_id", userId);
     await admin.from("central_business_entities").delete().eq("user_id", userId);
@@ -265,6 +269,105 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     ]);
   });
 
+  it("commits and replays an all-or-nothing legacy bootstrap", async () => {
+    const args = {
+      p_user_id: userId,
+      p_device_id: "synthetic-bootstrap-device",
+      p_session_hash: "b".repeat(64),
+      p_idempotency_key_hash: "c".repeat(64),
+      p_request_hash: "d".repeat(64),
+      p_snapshot_digest: "e".repeat(64),
+      p_central_state_digest: "f".repeat(64),
+      p_preview_digest: "1".repeat(64),
+      p_entities: [
+        {
+          entityType: "supplier",
+          entityId: "synthetic-bootstrap-supplier",
+          payload: {
+            id: "synthetic-bootstrap-supplier",
+            name: "Synthetic supplier",
+          },
+          contentHash: "2".repeat(64),
+          idempotencyKeyHash: "3".repeat(64),
+          requestHash: "4".repeat(64),
+        },
+        {
+          entityType: "product",
+          entityId: "synthetic-bootstrap-product",
+          payload: {
+            id: "synthetic-bootstrap-product",
+            name: "Synthetic product",
+          },
+          contentHash: "5".repeat(64),
+          idempotencyKeyHash: "6".repeat(64),
+          requestHash: "7".repeat(64),
+        },
+      ],
+    };
+
+    const committed = await admin.rpc(
+      "bootstrap_central_business_entities_v1",
+      args,
+    );
+    expect(committed.error).toBeNull();
+    expect(committed.data).toEqual([
+      expect.objectContaining({
+        result_status: "committed",
+        created_count: 2,
+        identical_count: 0,
+      }),
+    ]);
+
+    const replayed = await admin.rpc(
+      "bootstrap_central_business_entities_v1",
+      args,
+    );
+    expect(replayed.error).toBeNull();
+    expect(replayed.data).toEqual([
+      expect.objectContaining({
+        result_status: "replayed",
+        created_count: 2,
+      }),
+    ]);
+
+    const conflicting = await admin.rpc(
+      "bootstrap_central_business_entities_v1",
+      {
+        ...args,
+        p_idempotency_key_hash: "8".repeat(64),
+        p_request_hash: "9".repeat(64),
+        p_entities: [
+          {
+            ...args.p_entities[0],
+            contentHash: "a".repeat(64),
+            idempotencyKeyHash: "a".repeat(64),
+            requestHash: "b".repeat(64),
+          },
+          {
+            entityType: "product",
+            entityId: "must-not-partially-commit",
+            payload: {
+              id: "must-not-partially-commit",
+              name: "Must roll back",
+            },
+            contentHash: "c".repeat(64),
+            idempotencyKeyHash: "d".repeat(64),
+            requestHash: "e".repeat(64),
+          },
+        ],
+      },
+    );
+    expect(conflicting.error?.code).toBe("P4113");
+
+    const partial = await admin
+      .from("central_business_entities")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("entity_id", "must-not-partially-commit");
+    expect(partial.error).toBeNull();
+    expect(partial.data).toEqual([]);
+  });
+
   it("denies direct browser-role reads", async () => {
     const { data, error } = await signedInUser
       .from("central_business_entities")
@@ -284,5 +387,22 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     );
     expect(browserPull.data).toBeNull();
     expect(browserPull.error).not.toBeNull();
+
+    const browserBootstrap = await signedInUser.rpc(
+      "bootstrap_central_business_entities_v1",
+      {
+        p_user_id: userId,
+        p_device_id: "synthetic-reader",
+        p_session_hash: "b".repeat(64),
+        p_idempotency_key_hash: "c".repeat(64),
+        p_request_hash: "d".repeat(64),
+        p_snapshot_digest: "e".repeat(64),
+        p_central_state_digest: "f".repeat(64),
+        p_preview_digest: "1".repeat(64),
+        p_entities: [],
+      },
+    );
+    expect(browserBootstrap.data).toBeNull();
+    expect(browserBootstrap.error).not.toBeNull();
   });
 });

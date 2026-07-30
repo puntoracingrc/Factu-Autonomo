@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 12
+- Version: 13
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -158,6 +158,14 @@ solo centrales sin devolver payloads. Un tombstone central frente a una ficha
 local es conflicto, nunca una resurreccion automatica. La vista previa no
 escribe, y solo declara el commit posible cuando no hay conflictos ni registros
 activos ausentes del snapshot local.
+
+El commit exige la huella de esa vista previa, confirmacion literal y clave
+idempotente. El servidor vuelve a comparar y PostgreSQL repite las comprobaciones
+dentro de una unica transaccion antes de crear solo las fichas ausentes. Un
+bloqueo transaccional por propietario se comparte con las mutaciones ordinarias,
+de modo que ninguna escritura puede entrar entre la comprobacion y el lote. Un
+conflicto, tombstone o registro solo central aborta el lote completo; la
+auditoria del bootstrap conserva huellas y cantidades, pero no payloads.
 
 El borrado remoto de un cliente aplica el contrato completo del maestro:
 desvincula borradores y recordatorios operativos, pero conserva
