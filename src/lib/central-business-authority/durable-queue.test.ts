@@ -674,6 +674,115 @@ describe("central business durable queue", () => {
     });
   });
 
+  it("avanza sobre eventos propios antiguos y revalida la ultima version confirmada", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async () => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: "event-3",
+        entityVersion: 3,
+        eventSequence: 3,
+        deleted: false,
+        contentHash: "hash-v3",
+      }),
+    });
+    const applyEvent = vi.fn(async () => undefined);
+
+    const result = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [
+        event(),
+        event({
+          eventId: "event-2",
+          eventSequence: 2,
+          entityVersion: 2,
+          contentHash: "hash-v2",
+        }),
+        event({
+          eventId: "event-3",
+          eventSequence: 3,
+          entityVersion: 3,
+          contentHash: "hash-v3",
+        }),
+      ],
+      nextSequence: 3,
+      storage,
+      applyEvent,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      applied: 0,
+      skipped: 3,
+      state: {
+        lastAppliedEventSequence: 3,
+        entityVersions: {
+          "customer:customer-1": { version: 3, contentHash: "hash-v3" },
+        },
+      },
+    });
+    expect(applyEvent).toHaveBeenCalledTimes(1);
+    expect(applyEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ entityVersion: 3 }),
+    );
+  });
+
+  it("rechaza la ultima version propia si su huella ya no coincide", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+    await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async () => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: "event-2",
+        entityVersion: 2,
+        eventSequence: 2,
+        deleted: false,
+        contentHash: "hash-v2",
+      }),
+    });
+
+    const result = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [
+        event(),
+        event({
+          eventId: "event-2",
+          eventSequence: 2,
+          entityVersion: 2,
+          contentHash: "different-hash",
+        }),
+      ],
+      nextSequence: 2,
+      storage,
+      applyEvent: async () => undefined,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "EVENT_VERSION_CONFLICT",
+      state: { lastAppliedEventSequence: 0 },
+    });
+  });
+
   it("rechaza paginas desordenadas, saltos de version y estado corrupto", async () => {
     const storage = new MemoryStorage();
     await expect(

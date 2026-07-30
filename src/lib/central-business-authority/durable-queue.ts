@@ -1046,6 +1046,10 @@ export async function applyCentralBusinessEventPage(input: {
     const key = entityKey(event.entityType, event.entityId);
     const known = nextState.entityVersions[key];
     if (known && event.entityVersion <= known.version) {
+      if (event.entityVersion < known.version) {
+        skipped += 1;
+        continue;
+      }
       if (
         event.entityVersion === known.version &&
         event.contentHash === known.contentHash
