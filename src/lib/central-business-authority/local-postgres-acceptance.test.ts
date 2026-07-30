@@ -368,6 +368,113 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     expect(partial.data).toEqual([]);
   });
 
+  it("commits or rolls back every operation in an atomic mutation batch", async () => {
+    const operations = [
+      {
+        operationIndex: 0,
+        idempotencyKeyHash: "batch-supplier-create",
+        requestHash: "batch-supplier-request",
+        operationKind: "upsert",
+        entityType: "supplier",
+        entityId: "batch-supplier",
+        expectedVersion: 0,
+        payload: { id: "batch-supplier", name: "Synthetic batch supplier" },
+        contentHash: "batch-supplier-hash",
+      },
+      {
+        operationIndex: 1,
+        idempotencyKeyHash: "batch-expense-create",
+        requestHash: "batch-expense-request",
+        operationKind: "upsert",
+        entityType: "expense",
+        entityId: "batch-expense",
+        expectedVersion: 0,
+        payload: {
+          id: "batch-expense",
+          supplierId: "batch-supplier",
+          description: "Synthetic batch expense",
+        },
+        contentHash: "batch-expense-hash",
+      },
+    ];
+    const committed = await admin.rpc("mutate_central_business_batch_v1", {
+      p_user_id: userId,
+      p_device_id: "synthetic-batch-device",
+      p_session_hash: "synthetic-batch-session",
+      p_operations: operations,
+    });
+    expect(committed.error).toBeNull();
+    expect(committed.data).toEqual([
+      expect.objectContaining({
+        operation_index: 0,
+        result_status: "committed",
+        entity_version: 1,
+      }),
+      expect.objectContaining({
+        operation_index: 1,
+        result_status: "committed",
+        entity_version: 1,
+      }),
+    ]);
+
+    const replayed = await admin.rpc("mutate_central_business_batch_v1", {
+      p_user_id: userId,
+      p_device_id: "synthetic-batch-device",
+      p_session_hash: "synthetic-batch-session",
+      p_operations: operations,
+    });
+    expect(replayed.error).toBeNull();
+    expect(replayed.data).toEqual([
+      expect.objectContaining({ result_status: "replayed" }),
+      expect.objectContaining({ result_status: "replayed" }),
+    ]);
+
+    const rejected = await admin.rpc("mutate_central_business_batch_v1", {
+      p_user_id: userId,
+      p_device_id: "synthetic-batch-device",
+      p_session_hash: "synthetic-batch-session",
+      p_operations: [
+        {
+          operationIndex: 0,
+          idempotencyKeyHash: "batch-rollback-customer",
+          requestHash: "batch-rollback-customer-request",
+          operationKind: "upsert",
+          entityType: "customer",
+          entityId: "must-not-partially-commit-batch",
+          expectedVersion: 0,
+          payload: {
+            id: "must-not-partially-commit-batch",
+            name: "Must roll back",
+          },
+          contentHash: "batch-rollback-customer-hash",
+        },
+        {
+          operationIndex: 1,
+          idempotencyKeyHash: "batch-stale-expense",
+          requestHash: "batch-stale-expense-request",
+          operationKind: "upsert",
+          entityType: "expense",
+          entityId: "batch-expense",
+          expectedVersion: 0,
+          payload: {
+            id: "batch-expense",
+            description: "Must not overwrite",
+          },
+          contentHash: "batch-stale-expense-hash",
+        },
+      ],
+    });
+    expect(rejected.error?.code).toBe("P4103");
+
+    const rolledBack = await admin
+      .from("central_business_entities")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("entity_id", "must-not-partially-commit-batch");
+    expect(rolledBack.error).toBeNull();
+    expect(rolledBack.data).toEqual([]);
+  });
+
   it("denies direct browser-role reads", async () => {
     const { data, error } = await signedInUser
       .from("central_business_entities")
@@ -404,5 +511,17 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     );
     expect(browserBootstrap.data).toBeNull();
     expect(browserBootstrap.error).not.toBeNull();
+
+    const browserBatch = await signedInUser.rpc(
+      "mutate_central_business_batch_v1",
+      {
+        p_user_id: userId,
+        p_device_id: "synthetic-reader",
+        p_session_hash: "synthetic-session",
+        p_operations: [],
+      },
+    );
+    expect(browserBatch.data).toBeNull();
+    expect(browserBatch.error).not.toBeNull();
   });
 });

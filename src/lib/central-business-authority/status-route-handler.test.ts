@@ -30,6 +30,8 @@ function probeClient(): CentralBusinessAuthorityStatusProbeClient {
       const message =
         name === "mutate_central_business_entity_v1"
           ? "invalid central business mutation command"
+          : name === "mutate_central_business_batch_v1"
+            ? "invalid central business batch command"
           : name === "bootstrap_central_business_entities_v1"
             ? "invalid central business bootstrap command"
             : "invalid central business event pull request";

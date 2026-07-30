@@ -10,6 +10,7 @@ function client(
   overrides: {
     tableError?: { code?: string; message?: string } | null;
     mutationError?: { code?: string; message?: string } | null;
+    batchMutationError?: { code?: string; message?: string } | null;
     eventsError?: { code?: string; message?: string } | null;
     bootstrapError?: { code?: string; message?: string } | null;
   } = {},
@@ -37,6 +38,16 @@ function client(
             : {
                 code: "P0001",
                 message: "invalid central business mutation command",
+              },
+        };
+      }
+      if (name === "mutate_central_business_batch_v1") {
+        return {
+          error: Object.hasOwn(overrides, "batchMutationError")
+            ? overrides.batchMutationError ?? null
+            : {
+                code: "P4120",
+                message: "invalid central business batch command",
               },
         };
       }
@@ -85,6 +96,13 @@ describe("central business authority status readiness", () => {
         p_user_id: null,
         p_expected_version: -1,
         p_payload: null,
+      }),
+    });
+    expect(calls).toContainEqual({
+      name: "mutate_central_business_batch_v1",
+      args: expect.objectContaining({
+        p_user_id: null,
+        p_operations: [],
       }),
     });
     expect(calls).toContainEqual({
