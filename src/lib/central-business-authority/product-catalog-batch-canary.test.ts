@@ -204,7 +204,7 @@ describe("central product catalog batch canary", () => {
     expect(deps.commitLocal).not.toHaveBeenCalled();
   });
 
-  it("confirma productos y perfil en un único lote después del guardado local", async () => {
+  it("confirma productos y perfil en el servidor antes del guardado local", async () => {
     const order: string[] = [];
     const deps = dependencies({
       commitLocal: vi.fn((_expected, transition) => {
@@ -247,7 +247,7 @@ describe("central product catalog batch canary", () => {
       delivery: "central_confirmed",
       result: { productCount: 1, ruleMigrated: true },
     });
-    expect(order).toEqual(["local", "server"]);
+    expect(order).toEqual(["server", "local"]);
     expect(deps.mutateBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         entityType: "product",
@@ -344,7 +344,11 @@ describe("central product catalog batch canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("no se ha aplicado"),
+    });
+    expect(deps.commitLocal).not.toHaveBeenCalled();
     const queue = loadCentralBusinessDurableQueue(
       userId,
       deps.storage as CentralBusinessQueueStorage,
@@ -355,7 +359,7 @@ describe("central product catalog batch canary", () => {
     ).toBe(1);
   });
 
-  it("retira el lote si el CAS local detecta una pestaña obsoleta", async () => {
+  it("pide actualizar si el servidor confirma y el CAS local detecta una pestaña obsoleta", async () => {
     const deps = dependencies({
       commitLocal: vi.fn(
         (): AppDataDurabilityResult<
@@ -375,7 +379,7 @@ describe("central product catalog batch canary", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      error: expect.stringContaining("catálogo cambió"),
+      error: expect.stringContaining("servidor confirmó"),
     });
     expect(
       loadCentralBusinessDurableQueue(
@@ -383,6 +387,52 @@ describe("central product catalog batch canary", () => {
         deps.storage as CentralBusinessQueueStorage,
       ).operations,
     ).toEqual([]);
-    expect(deps.mutateBatch).not.toHaveBeenCalled();
+    expect(deps.mutateBatch).toHaveBeenCalledOnce();
+    expect(deps.commitLocal).toHaveBeenCalledOnce();
+  });
+
+  it("mantiene ambos productos locales y muestra el conflicto si el lote central responde 409", async () => {
+    const deps = dependencies({
+      mutateBatch: vi.fn(
+        async (): Promise<CentralBusinessBrowserBatchMutationResult> => ({
+          ok: false,
+          status: 409,
+          code: "CENTRAL_BUSINESS_VERSION_CONFLICT",
+          message:
+            "Una ficha del catálogo cambió en otro dispositivo. Actualiza y vuelve a intentarlo.",
+          retryable: false,
+          conflict: true,
+        }),
+      ),
+    });
+
+    const result = await applyProductCatalogBatchWithCentralCanary({
+      userId,
+      operation: {
+        type: "merge_products",
+        keepProductKey: "product source",
+        removeProductKeys: ["product target"],
+      },
+      dependencies: deps,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: expect.stringContaining(
+        "Una ficha del catálogo cambió en otro dispositivo",
+      ),
+    });
+    expect(result).toMatchObject({
+      error: expect.stringContaining("No se ha aplicado ningún cambio local"),
+    });
+    expect(deps.commitLocal).not.toHaveBeenCalled();
+    const queue = loadCentralBusinessDurableQueue(
+      userId,
+      deps.storage as CentralBusinessQueueStorage,
+    );
+    expect(queue.operations).toHaveLength(2);
+    expect(
+      queue.operations.every((operation) => operation.status === "conflict"),
+    ).toBe(true);
   });
 });

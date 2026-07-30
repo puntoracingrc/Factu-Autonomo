@@ -18,7 +18,6 @@ import {
   type CentralBusinessBrowserBatchMutationResult,
 } from "./batch-mutation-client";
 import {
-  discardCentralBusinessOperation,
   drainCentralBusinessDurableQueue,
   enqueueCentralBusinessBatch,
   loadCentralBusinessDurableQueue,
@@ -197,6 +196,24 @@ function entityKey(
   return `${mutation.entityType}:${mutation.entityId}`;
 }
 
+function unconfirmedBatchError(input: {
+  stoppedBy: "retryable" | "conflict" | "blocked";
+  operations: ReturnType<typeof loadCentralBusinessDurableQueue>["operations"];
+}): string {
+  const serverMessage = input.operations.find(
+    (operation) => operation.lastError,
+  )?.lastError?.message;
+  if (input.stoppedBy === "retryable") {
+    return "No se pudo confirmar el lote con el servidor central. El cambio queda pendiente y no se ha aplicado todavía en este dispositivo.";
+  }
+  return `${
+    serverMessage ??
+    (input.stoppedBy === "conflict"
+      ? "El servidor central detectó que una ficha cambió en otro dispositivo."
+      : "El servidor central rechazó el lote.")
+  } No se ha aplicado ningún cambio local.`;
+}
+
 export async function applyProductCatalogBatchWithCentralCanary(input: {
   userId: string | null | undefined;
   operation: ProductCatalogStructureOperation;
@@ -319,26 +336,11 @@ export async function applyProductCatalogBatchWithCentralCanary(input: {
         now: () => now,
       });
 
-      const local = dependencies.commitLocal(baseline, {
-        data: result.data,
-        value: result,
-      });
-      if (local.status !== "applied") {
-        if (local.status === "blocked") {
-          discardCentralBusinessOperation({
-            ownerScope,
-            operationId: mutations[0].idempotencyKey,
-            storage: dependencies.storage,
-          });
-        }
-        return { ok: false, error: durabilityError(local) };
-      }
-
       if (!canAttemptServer) {
         return {
-          ok: true,
-          result: local.value,
-          delivery: "central_pending",
+          ok: false,
+          error:
+            "No se pudo confirmar el lote con el servidor central. El cambio queda pendiente y no se ha aplicado todavía en este dispositivo.",
         };
       }
 
@@ -354,29 +356,43 @@ export async function applyProductCatalogBatchWithCentralCanary(input: {
         });
       } catch {
         return {
-          ok: true,
-          result: local.value,
-          delivery: "central_review",
+          ok: false,
+          error:
+            "No se pudo verificar la respuesta del servidor central. El cambio no se ha aplicado localmente.",
         };
       }
       const ownOperations = drained.state.operations.filter(
         (operation) => operation.batchId === batchId,
       );
-      if (ownOperations.length === 0) {
+      if (ownOperations.length > 0) {
         return {
-          ok: true,
-          result: local.value,
-          delivery: "central_confirmed",
+          ok: false,
+          error: unconfirmedBatchError({
+            stoppedBy:
+              drained.stoppedBy === "empty" ? "blocked" : drained.stoppedBy,
+            operations: ownOperations,
+          }),
         };
       }
+
+      const local = dependencies.commitLocal(baseline, {
+        data: result.data,
+        value: result,
+      });
+      if (local.status !== "applied") {
+        return {
+          ok: false,
+          error:
+            local.status === "blocked"
+              ? "El servidor confirmó el lote, pero los datos locales cambiaron durante la operación. Actualiza para recibir la versión central."
+              : durabilityError(local),
+        };
+      }
+
       return {
         ok: true,
         result: local.value,
-        delivery:
-          ownOperations.every((operation) => operation.status === "pending") &&
-          drained.stoppedBy === "retryable"
-            ? "central_pending"
-            : "central_review",
+        delivery: "central_confirmed",
       };
     });
   } catch (error) {
