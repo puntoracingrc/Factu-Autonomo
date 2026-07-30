@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CentralBusinessBrowserEvent } from "./events-client";
 import type { CentralBusinessBrowserBatchMutationInput } from "./batch-mutation-client";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
 import {
   applyCentralBusinessEventPage,
   CentralBusinessDurableQueueError,
@@ -146,7 +147,9 @@ describe("central business durable queue", () => {
 
     expect(result.replayed).toBe(false);
     expect(result.state.revision).toBe(1);
-    expect(loadCentralBusinessDurableQueue(ownerScope, storage).operations).toEqual([
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage).operations,
+    ).toEqual([
       expect.objectContaining({
         operationId: mutation.idempotencyKey,
         status: "pending",
@@ -167,7 +170,10 @@ describe("central business durable queue", () => {
       enqueueCentralBusinessOperation({
         ownerScope,
         operationId: mutation.idempotencyKey,
-        mutation: { ...mutation, payload: { name: "Synthetic", id: "customer-1" } },
+        mutation: {
+          ...mutation,
+          payload: { name: "Synthetic", id: "customer-1" },
+        },
         storage,
       }).replayed,
     ).toBe(true);
@@ -351,6 +357,53 @@ describe("central business durable queue", () => {
     });
   });
 
+  it("conserva atomico el lote maximo y rechaza el desbordamiento", () => {
+    const storage = new MemoryStorage();
+    const maximum = Array.from(
+      { length: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS },
+      (_, index): CentralBusinessBrowserBatchMutationInput => ({
+        ...mutation,
+        idempotencyKey: `CENTRAL_BATCH_CAPACITY_${index}`,
+        entityType: "expense",
+        entityId: `expense-capacity-${index}`,
+        payload: {
+          id: `expense-capacity-${index}`,
+          description: `Synthetic expense ${index}`,
+        },
+      }),
+    );
+
+    const result = enqueueCentralBusinessBatch({
+      ownerScope,
+      batchId: "CENTRAL_BATCH_CAPACITY_MAXIMUM",
+      mutations: maximum,
+      storage,
+    });
+    expect(result.queued).toHaveLength(
+      CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS,
+    );
+    expect(result.queued.at(-1)).toMatchObject({
+      batchIndex: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS - 1,
+      batchSize: CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS,
+    });
+
+    expect(() =>
+      enqueueCentralBusinessBatch({
+        ownerScope: "synthetic-user-overflow",
+        batchId: "CENTRAL_BATCH_CAPACITY_OVERFLOW",
+        mutations: [
+          ...maximum,
+          {
+            ...maximum[0],
+            idempotencyKey: "CENTRAL_BATCH_CAPACITY_OVERFLOW",
+            entityId: "expense-capacity-overflow",
+          },
+        ],
+        storage: new MemoryStorage(),
+      }),
+    ).toThrowError(CentralBusinessDurableQueueError);
+  });
+
   it("recupera un lote bloqueado por faltar el transporte antiguo", async () => {
     const storage = new MemoryStorage();
     enqueueCentralBusinessBatch({
@@ -472,8 +525,9 @@ describe("central business durable queue", () => {
       operationId: batchMutations[1].idempotencyKey,
       storage,
     });
-    expect(retried.operations.every((operation) => operation.status === "pending"))
-      .toBe(true);
+    expect(
+      retried.operations.every((operation) => operation.status === "pending"),
+    ).toBe(true);
     const discarded = discardCentralBusinessOperation({
       ownerScope,
       operationId: batchMutations[0].idempotencyKey,

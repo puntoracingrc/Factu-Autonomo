@@ -9,6 +9,13 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const capacityMigration = readFileSync(
+  new URL(
+    "../../../supabase/migrations/20260730143348_expand_central_business_atomic_batch_capacity.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("central business atomic batch schema", () => {
   it("aplica lotes distintos con orden estable dentro de una transaccion", () => {
@@ -33,5 +40,19 @@ describe("central business atomic batch schema", () => {
     expect(migration).toContain("from public, anon, authenticated");
     expect(migration).toContain("to service_role");
     expect(migration).toContain("requires service_role");
+  });
+
+  it("amplia el lote sin perder atomicidad ni aislamiento", () => {
+    expect(capacityMigration).toContain(
+      "CENTRAL_BUSINESS_ATOMIC_BATCH_CAPACITY_V2",
+    );
+    expect(capacityMigration).toContain("v_count not between 1 and 100");
+    expect(capacityMigration).toContain("v_distinct_count <> v_count");
+    expect(capacityMigration).toContain(
+      "from public.mutate_central_business_entity_v1(",
+    );
+    expect(capacityMigration).toContain("order by");
+    expect(capacityMigration).toContain("from public, anon, authenticated");
+    expect(capacityMigration).toContain("to service_role");
   });
 });

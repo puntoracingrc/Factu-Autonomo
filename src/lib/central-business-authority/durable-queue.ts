@@ -9,6 +9,7 @@ import type {
   CentralBusinessBrowserBatchMutationInput,
   CentralBusinessBrowserBatchMutationResult,
 } from "./batch-mutation-client";
+import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
 import type {
   CentralBusinessEntityType,
   CentralBusinessJson,
@@ -33,9 +34,7 @@ const ENTITY_TYPES = new Set<CentralBusinessEntityType>([
 const fallbackLocks = new Map<string, Promise<void>>();
 
 export type CentralBusinessQueuedOperationStatus =
-  | "pending"
-  | "conflict"
-  | "blocked";
+  "pending" | "conflict" | "blocked";
 
 export interface CentralBusinessQueuedOperation {
   operationId: string;
@@ -234,7 +233,7 @@ function validateBatchGroups(
       !Number.isInteger(operation.batchSize) ||
       operation.batchIndex! < 0 ||
       operation.batchSize! < 1 ||
-      operation.batchSize! > 20 ||
+      operation.batchSize! > CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS ||
       operation.batchIndex! >= operation.batchSize!
     ) {
       return false;
@@ -280,9 +279,7 @@ function cloneState(
     operations: state.operations.map((operation) => ({
       ...operation,
       input: { ...operation.input },
-      lastError: operation.lastError
-        ? { ...operation.lastError }
-        : undefined,
+      lastError: operation.lastError ? { ...operation.lastError } : undefined,
     })),
     entityVersions: Object.fromEntries(
       Object.entries(state.entityVersions).map(([key, value]) => [
@@ -592,7 +589,7 @@ export function enqueueCentralBusinessBatch(input: {
   if (
     !validBatchId(input.batchId) ||
     input.mutations.length < 1 ||
-    input.mutations.length > 20
+    input.mutations.length > CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS
   ) {
     throw new CentralBusinessDurableQueueError(
       "INVALID_OPERATION",
@@ -752,10 +749,7 @@ export async function drainCentralBusinessDurableQueue(input: {
     state = persistState(
       {
         ...state,
-        operations: [
-          ...attempted,
-          ...state.operations.slice(attempted.length),
-        ],
+        operations: [...attempted, ...state.operations.slice(attempted.length)],
       },
       storage,
     );
@@ -828,24 +822,19 @@ export async function drainCentralBusinessDurableQueue(input: {
         : "blocked";
     const failed = state.operations
       .slice(0, attempted.length)
-      .map(
-        (operation): CentralBusinessQueuedOperation => ({
-          ...operation,
-          status: stoppedBy === "retryable" ? "pending" : stoppedBy,
-          lastError: {
-            code: result.code,
-            message: result.message,
-            status: result.status,
-          },
-        }),
-      );
+      .map((operation): CentralBusinessQueuedOperation => ({
+        ...operation,
+        status: stoppedBy === "retryable" ? "pending" : stoppedBy,
+        lastError: {
+          code: result.code,
+          message: result.message,
+          status: result.status,
+        },
+      }));
     state = persistState(
       {
         ...state,
-        operations: [
-          ...failed,
-          ...state.operations.slice(attempted.length),
-        ],
+        operations: [...failed, ...state.operations.slice(attempted.length)],
       },
       storage,
     );
@@ -911,10 +900,8 @@ export function prepareCentralBusinessEntityServerResolution(input: {
     !matching.some((operation) => operation.status === "conflict") ||
     matching.some(
       (operation) =>
-        (operation.status !== "pending" &&
-          operation.status !== "conflict") ||
-        operation.lastError?.code ===
-          "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT",
+        (operation.status !== "pending" && operation.status !== "conflict") ||
+        operation.lastError?.code === "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT",
     )
   ) {
     throw new CentralBusinessDurableQueueError(
@@ -1068,11 +1055,12 @@ export async function applyCentralBusinessEventPage(input: {
   const conflictingKeys = new Set(
     events.map((event) => entityKey(event.entityType, event.entityId)),
   );
-  const localConflicts = state.operations.filter((operation) =>
-    operation.resolution !== "accept_server" &&
-    conflictingKeys.has(
-      entityKey(operation.input.entityType, operation.input.entityId),
-    ),
+  const localConflicts = state.operations.filter(
+    (operation) =>
+      operation.resolution !== "accept_server" &&
+      conflictingKeys.has(
+        entityKey(operation.input.entityType, operation.input.entityId),
+      ),
   );
   if (localConflicts.length > 0) {
     const batchIds = new Set(
@@ -1150,7 +1138,8 @@ export async function applyCentralBusinessEventPage(input: {
       return {
         ok: false,
         code: "EVENT_VERSION_CONFLICT",
-        message: "Un evento antiguo no coincide con la version local confirmada.",
+        message:
+          "Un evento antiguo no coincide con la version local confirmada.",
         state,
       };
     }
