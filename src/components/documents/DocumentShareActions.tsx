@@ -139,23 +139,23 @@ export function DocumentShareActions({
   }
 
   function saveEmailMethod(method: ConcreteEmailMethod) {
-    return updateProfile({
-      ...data.profile,
+    return updateProfile((profile) => ({
+      ...profile,
       appPreferences: normalizeAppPreferences({
-        ...appPreferences,
+        ...profile.appPreferences,
         documentEmailMethod: method,
       }),
-    });
+    }));
   }
 
   function saveWhatsAppMethod(method: ConcreteWhatsAppMethod) {
-    return updateProfile({
-      ...data.profile,
+    return updateProfile((profile) => ({
+      ...profile,
       appPreferences: normalizeAppPreferences({
-        ...appPreferences,
+        ...profile.appPreferences,
         documentWhatsAppMethod: method,
       }),
-    });
+    }));
   }
 
   async function runEmail(method: ConcreteEmailMethod) {

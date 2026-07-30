@@ -712,13 +712,13 @@ export default function GastosPage() {
   }
 
   function saveExpenseEmailMethod(method: ConcreteEmailMethod) {
-    return updateProfile({
-      ...data.profile,
+    return updateProfile((profile) => ({
+      ...profile,
       appPreferences: normalizeAppPreferences({
-        ...appPreferences,
+        ...profile.appPreferences,
         documentEmailMethod: method,
       }),
-    });
+    }));
   }
 
   function handleExpenseAdvisorExportClick() {

@@ -53,6 +53,7 @@ describe("central expense and profile UI wiring", () => {
 
     for (const component of [expenses, documents, share]) {
       expect(component).toContain("useCentralProfileMutation");
+      expect(component).toContain("updateProfile((profile) => ({");
       expect(component).toContain("const result = await");
       expect(component).toContain("if (!result.ok)");
     }

@@ -459,13 +459,13 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   }
 
   function saveInvoiceEmailMethod(method: ConcreteEmailMethod) {
-    return updateProfile({
-      ...data.profile,
+    return updateProfile((profile) => ({
+      ...profile,
       appPreferences: normalizeAppPreferences({
-        ...appPreferences,
+        ...profile.appPreferences,
         documentEmailMethod: method,
       }),
-    });
+    }));
   }
 
   function unavailableExportScopeMessage(): string {

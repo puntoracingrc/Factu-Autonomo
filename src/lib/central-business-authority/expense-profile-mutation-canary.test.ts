@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
-import { EMPTY_DATA, type AppData, type BusinessProfile, type Expense } from "@/lib/types";
+import {
+  EMPTY_DATA,
+  type AppData,
+  type BusinessProfile,
+  type Expense,
+} from "@/lib/types";
 
 import {
   drainCentralBusinessDurableQueue,
@@ -274,6 +279,82 @@ describe("central expense and profile mutation canaries", () => {
         entityId: "profile",
         expectedVersion: 1,
         payload: expect.objectContaining({ phone: "600000000" }),
+      }),
+    );
+  });
+
+  it("applies a profile updater after receiving the latest local profile", async () => {
+    const storage = new MemoryStorage();
+    const profile = {
+      ...EMPTY_DATA.profile,
+      name: "Empresa sintética",
+      website: "https://antes.example",
+    } satisfies BusinessProfile;
+    await seedVersion(
+      storage,
+      "profile",
+      "profile",
+      JSON.parse(JSON.stringify(profile)) as CentralBusinessJson,
+    );
+    let current: AppData = { ...EMPTY_DATA, profile };
+    const mutate = vi.fn(async () => mutationResult(2));
+    const dependencies: CentralProfileMutationCanaryDependencies = {
+      getCurrentData: () => current,
+      updateProfileFallback: vi.fn(),
+      updateProfileDurably: vi.fn(
+        (updated, expected): AppDataDurabilityResult<BusinessProfile> => ({
+          status: "applied",
+          data: { ...expected, profile: updated },
+          value: updated,
+          replayed: false,
+        }),
+      ),
+      syncEventsBeforeWrite: vi.fn(async () => {
+        current = {
+          ...current,
+          profile: {
+            ...current.profile,
+            website: "https://recibido-del-servidor.example",
+          },
+        };
+        return {
+          ok: true as const,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1" as const,
+          pulled: 1,
+          applied: 1,
+          skipped: 0,
+          nextSequence: 3,
+          hasMore: false,
+        };
+      }),
+      fetchStatus: vi.fn(async () => readyStatus()),
+      mutate,
+      storage,
+      now: () => now,
+      createId: () => "profile-functional-update-operation",
+      environment,
+    };
+
+    const result = await updateProfileWithCentralCanary({
+      userId,
+      profile: (latest) => ({ ...latest, phone: "600000000" }),
+      dependencies,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      delivery: "central_confirmed",
+      value: {
+        phone: "600000000",
+        website: "https://recibido-del-servidor.example",
+      },
+    });
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          phone: "600000000",
+          website: "https://recibido-del-servidor.example",
+        }),
       }),
     );
   });
