@@ -35,6 +35,7 @@ import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralProductCreate } from "@/hooks/useCentralProductCreate";
 import { useCentralProductMutations } from "@/hooks/useCentralProductMutations";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { normalizeDocumentUnitId, unitShortLabel } from "@/lib/document-units";
@@ -201,11 +202,11 @@ export default function ProductosPage() {
   const router = useRouter();
   const {
     data,
-    addProduct,
     renameProductFamily: renameProductFamilyInStore,
     applyProductCatalogStructure,
     mergeProducts,
   } = useAppStore();
+  const { createProduct } = useCentralProductCreate();
   const { updateProduct, deleteProduct, isCentralProduct } =
     useCentralProductMutations();
   const { checkCanAddProduct } = useBilling();
@@ -821,7 +822,15 @@ export default function ProductosPage() {
       return result.value;
     }
     if (!canAddCatalogProduct()) return null;
-    return addProduct({ ...productFromSummary(product), ...patch });
+    const result = await createProduct({
+      ...productFromSummary(product),
+      ...patch,
+    });
+    if (!result.ok) {
+      setFamilyNotice(result.error);
+      return null;
+    }
+    return result.product;
   }
 
   function catalogProductForSummary(
@@ -915,7 +924,7 @@ export default function ProductosPage() {
     );
   }
 
-  function createFamily(nameValue: string): boolean {
+  async function createFamily(nameValue: string): Promise<boolean> {
     const name = nameValue.trim();
     if (!name) {
       setFamilyNotice("Escribe el nombre de la familia.");
@@ -929,7 +938,7 @@ export default function ProductosPage() {
       return true;
     }
 
-    addProduct({
+    const result = await createProduct({
       key: `__family__-${purchaseProductKey(name)}`,
       aliases: [],
       name: `Familia: ${name}`,
@@ -939,11 +948,18 @@ export default function ProductosPage() {
       source: "manual",
       notes: "Marcador interno para recordar una familia creada a mano.",
     });
+    if (!result.ok) {
+      setFamilyNotice(result.error);
+      return false;
+    }
     setFamilyNotice(`Familia "${name}" creada.`);
     return true;
   }
 
-  function createSubfamily(familyValue: string, nameValue: string): boolean {
+  async function createSubfamily(
+    familyValue: string,
+    nameValue: string,
+  ): Promise<boolean> {
     const familyScope = familyValue.trim();
     const name = nameValue.trim();
     if (!familyScope || familyScope === UNCATEGORIZED_FAMILY) {
@@ -967,7 +983,7 @@ export default function ProductosPage() {
       return true;
     }
 
-    addProduct({
+    const result = await createProduct({
       key: `__subfamily__-${purchaseProductKey(`${familyScope} ${name}`)}`,
       aliases: [],
       name: `Subfamilia: ${name}`,
@@ -978,6 +994,10 @@ export default function ProductosPage() {
       source: "manual",
       notes: "Marcador interno para recordar una subfamilia creada a mano.",
     });
+    if (!result.ok) {
+      setFamilyNotice(result.error);
+      return false;
+    }
     setFamilyNotice(`Subfamilia "${name}" creada dentro de "${familyScope}".`);
     return true;
   }
@@ -1208,16 +1228,21 @@ export default function ProductosPage() {
     };
   }
 
-  function duplicateProduct(product: PurchaseProductSummary) {
+  async function duplicateProduct(product: PurchaseProductSummary) {
     if (!canAddCatalogProduct()) return;
     const duplicate = uniqueDuplicateProductParts(product);
-    const created = addProduct({
+    const result = await createProduct({
       ...productFromSummary(product),
       key: duplicate.key,
       aliases: [],
       name: duplicate.name,
       source: "manual",
     });
+    if (!result.ok) {
+      setFamilyNotice(result.error);
+      return;
+    }
+    const created = result.product;
     setQuery("");
     setFamily(ALL);
     setSubfamily(ALL);
@@ -1257,11 +1282,15 @@ export default function ProductosPage() {
         return;
       }
     } else {
-      addProduct({
+      const result = await createProduct({
         ...productFromSummary(product),
         hidden: true,
         source: "detected",
       });
+      if (!result.ok) {
+        setFamilyNotice(result.error);
+        return;
+      }
     }
     setSelectedProductKeys((current) =>
       current.filter((key) => key !== product.key),
@@ -1870,7 +1899,7 @@ export default function ProductosPage() {
                         }
                         onPickSavedProduct={handlePickSavedProductForDocument}
                         onSave={(patch) => saveProductPatch(product, patch)}
-                        onDuplicate={() => duplicateProduct(product)}
+                        onDuplicate={() => void duplicateProduct(product)}
                         onRemove={() => void removeProduct(product)}
                         onAutoEditConsumed={() => setEditingProductKey(null)}
                         onMerge={(removeKey) =>

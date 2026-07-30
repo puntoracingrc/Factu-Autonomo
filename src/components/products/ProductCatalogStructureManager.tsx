@@ -51,8 +51,8 @@ interface ProductCatalogStructureManagerProps {
   notice: string | null;
   onClose: () => void;
   onFilter: (family: string, subfamily?: string) => void;
-  onCreateFamily: (name: string) => boolean;
-  onCreateSubfamily: (family: string, name: string) => boolean;
+  onCreateFamily: (name: string) => Promise<boolean>;
+  onCreateSubfamily: (family: string, name: string) => Promise<boolean>;
   onRenameFamily: (sourceFamily: string, targetFamily: string) => boolean;
   onMergeFamily: (sourceFamily: string, targetFamily: string) => boolean;
   onRemoveFamily: (family: string) => boolean;
@@ -107,6 +107,7 @@ export function ProductCatalogStructureManager({
   const [action, setAction] = useState<StructureAction | null>(null);
   const [nameDraft, setNameDraft] = useState("");
   const [familyDraft, setFamilyDraft] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const regularFamilies = useMemo(
     () =>
@@ -144,6 +145,7 @@ export function ProductCatalogStructureManager({
     setAction(null);
     setNameDraft("");
     setFamilyDraft("");
+    setSubmitting(false);
   }, [open]);
 
   function openAction(nextAction: StructureAction) {
@@ -157,7 +159,7 @@ export function ProductCatalogStructureManager({
     );
     setFamilyDraft(
       nextAction.kind === "create_subfamily"
-        ? nextAction.family ?? regularFamilies[0] ?? ""
+        ? (nextAction.family ?? regularFamilies[0] ?? "")
         : "",
     );
   }
@@ -168,46 +170,51 @@ export function ProductCatalogStructureManager({
     setFamilyDraft("");
   }
 
-  function submitAction(event: FormEvent<HTMLFormElement>) {
+  async function submitAction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!action) return;
+    if (!action || submitting) return;
 
     let completed = false;
-    switch (action.kind) {
-      case "create_family":
-        completed = onCreateFamily(nameDraft);
-        break;
-      case "create_subfamily":
-        completed = onCreateSubfamily(familyDraft, nameDraft);
-        break;
-      case "rename_family":
-        completed = onRenameFamily(action.family, nameDraft);
-        break;
-      case "merge_family":
-        completed = onMergeFamily(action.family, familyDraft);
-        break;
-      case "remove_family":
-        completed = onRemoveFamily(action.family);
-        break;
-      case "rename_subfamily":
-        completed = onRenameSubfamily(
-          action.family,
-          action.subfamily,
-          nameDraft,
-        );
-        break;
-      case "merge_subfamily":
-        completed = onMergeSubfamily(
-          action.family,
-          action.subfamily,
-          nameDraft,
-        );
-        break;
-      case "remove_subfamily":
-        completed = onRemoveSubfamily(action.family, action.subfamily);
-        break;
+    setSubmitting(true);
+    try {
+      switch (action.kind) {
+        case "create_family":
+          completed = await onCreateFamily(nameDraft);
+          break;
+        case "create_subfamily":
+          completed = await onCreateSubfamily(familyDraft, nameDraft);
+          break;
+        case "rename_family":
+          completed = onRenameFamily(action.family, nameDraft);
+          break;
+        case "merge_family":
+          completed = onMergeFamily(action.family, familyDraft);
+          break;
+        case "remove_family":
+          completed = onRemoveFamily(action.family);
+          break;
+        case "rename_subfamily":
+          completed = onRenameSubfamily(
+            action.family,
+            action.subfamily,
+            nameDraft,
+          );
+          break;
+        case "merge_subfamily":
+          completed = onMergeSubfamily(
+            action.family,
+            action.subfamily,
+            nameDraft,
+          );
+          break;
+        case "remove_subfamily":
+          completed = onRemoveSubfamily(action.family, action.subfamily);
+          break;
+      }
+      if (completed) closeAction();
+    } finally {
+      setSubmitting(false);
     }
-    if (completed) closeAction();
   }
 
   function actionTitle(current: StructureAction): string {
@@ -321,8 +328,7 @@ export function ProductCatalogStructureManager({
             ) : (
               <div className="divide-y divide-slate-200 border-y border-slate-200">
                 {filteredEntries.map((entry) => {
-                  const isUncategorized =
-                    entry.family === uncategorizedFamily;
+                  const isUncategorized = entry.family === uncategorizedFamily;
                   return (
                     <section key={entry.family} className="py-3">
                       <div className="flex items-start gap-2">
@@ -404,7 +410,8 @@ export function ProductCatalogStructureManager({
                       </div>
 
                       {!isUncategorized &&
-                      (entry.directCount > 0 || entry.subfamilies.length > 0) ? (
+                      (entry.directCount > 0 ||
+                        entry.subfamilies.length > 0) ? (
                         <div className="ml-2 mt-2 border-l border-slate-200 pl-3">
                           {entry.directCount > 0 ? (
                             <button
@@ -511,6 +518,7 @@ export function ProductCatalogStructureManager({
                 <button
                   type="button"
                   onClick={closeAction}
+                  disabled={submitting}
                   aria-label="Cancelar acción"
                   title="Cancelar"
                   className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -573,8 +581,8 @@ export function ProductCatalogStructureManager({
 
               {action.kind === "merge_family" ? (
                 <ImpactNotice>
-                  {countLabel(currentFamilyEntry?.totalCount ?? 0)} pasarán a
-                  la familia elegida. La familia de origen dejará de aparecer.
+                  {countLabel(currentFamilyEntry?.totalCount ?? 0)} pasarán a la
+                  familia elegida. La familia de origen dejará de aparecer.
                 </ImpactNotice>
               ) : null}
               {action.kind === "merge_subfamily" ? (
@@ -600,12 +608,14 @@ export function ProductCatalogStructureManager({
                 <button
                   type="button"
                   onClick={closeAction}
+                  disabled={submitting}
                   className="inline-flex h-11 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
+                  disabled={submitting}
                   className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                     action.kind === "remove_family" ||
                     action.kind === "remove_subfamily"
@@ -625,16 +635,18 @@ export function ProductCatalogStructureManager({
                   ) : (
                     <Pencil className="h-4 w-4" />
                   )}
-                  {action.kind === "remove_family" ||
-                  action.kind === "remove_subfamily"
-                    ? "Quitar"
-                    : action.kind === "merge_family" ||
-                        action.kind === "merge_subfamily"
-                      ? "Fusionar"
-                      : action.kind === "create_family" ||
-                          action.kind === "create_subfamily"
-                        ? "Crear"
-                        : "Guardar"}
+                  {submitting
+                    ? "Guardando..."
+                    : action.kind === "remove_family" ||
+                        action.kind === "remove_subfamily"
+                      ? "Quitar"
+                      : action.kind === "merge_family" ||
+                          action.kind === "merge_subfamily"
+                        ? "Fusionar"
+                        : action.kind === "create_family" ||
+                            action.kind === "create_subfamily"
+                          ? "Crear"
+                          : "Guardar"}
                 </button>
               </div>
             </form>
