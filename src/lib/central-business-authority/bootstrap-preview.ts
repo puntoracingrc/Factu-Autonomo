@@ -11,7 +11,13 @@ export const CENTRAL_BUSINESS_BOOTSTRAP_PREVIEW =
   "CENTRAL_BUSINESS_BOOTSTRAP_PREVIEW_V1";
 
 export type CentralBusinessBootstrapEntityType =
-  "customer" | "supplier" | "product" | "user_reminder";
+  | "customer"
+  | "supplier"
+  | "product"
+  | "user_reminder"
+  | "expense"
+  | "recurring_expense"
+  | "profile";
 
 export interface CentralBusinessBootstrapEntityInput {
   entityType: CentralBusinessBootstrapEntityType;
@@ -58,6 +64,9 @@ const ENTITY_TYPES = new Set<CentralBusinessBootstrapEntityType>([
   "supplier",
   "product",
   "user_reminder",
+  "expense",
+  "recurring_expense",
+  "profile",
 ]);
 
 function assertServerOnlyModule() {
@@ -100,7 +109,9 @@ function validateLocalEntity(
     entity.payload === null ||
     typeof entity.payload !== "object" ||
     Array.isArray(entity.payload) ||
-    entity.payload.id !== entity.entityId
+    (entity.entityType === "profile"
+      ? entity.entityId !== "profile"
+      : entity.payload.id !== entity.entityId)
   ) {
     throw new Error("INVALID_BOOTSTRAP_ENTITY");
   }
