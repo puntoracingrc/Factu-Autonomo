@@ -530,6 +530,10 @@ export function expenseFromRecurring(
 export function syncRecurringExpenses(
   data: AppData,
   referenceDate = new Date().toISOString().split("T")[0],
+  options: {
+    createExpenseId?: (template: RecurringExpense, date: string) => string;
+    createdAt?: string;
+  } = {},
 ): AppData {
   const existingKeys = new Set(
     data.expenses
@@ -549,8 +553,8 @@ export function syncRecurringExpenses(
       existingKeys.add(key);
       generated.push({
         ...expenseFromRecurring(template, date),
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
+        id: options.createExpenseId?.(template, date) ?? crypto.randomUUID(),
+        createdAt: options.createdAt ?? new Date().toISOString(),
       });
     }
   }
@@ -1008,10 +1012,15 @@ function syncRecurringExpenseChangeTemplates(
   data: AppData,
   templates: RecurringExpense[],
   referenceDate: string,
+  options: {
+    createExpenseId?: (template: RecurringExpense, date: string) => string;
+    createdAt?: string;
+  } = {},
 ): AppData {
   const synced = syncRecurringExpenses(
     { ...data, recurringExpenses: templates },
     referenceDate,
+    options,
   );
   return synced.expenses === data.expenses
     ? data
@@ -1028,6 +1037,7 @@ export function applyRecurringExpenseChangeToData(
     newId?: () => string;
     referenceDate?: string;
     expectedPrecondition?: string;
+    createExpenseId?: (template: RecurringExpense, date: string) => string;
   } = {},
 ): RecurringExpenseChangeApplyResult {
   const preview = previewRecurringExpenseChangeToData(
@@ -1080,6 +1090,10 @@ export function applyRecurringExpenseChangeToData(
       prepared,
       [updated],
       referenceDate,
+      {
+        createExpenseId: options.createExpenseId,
+        createdAt: now,
+      },
     );
     return { status: "applied", data: nextData, preview };
   }
@@ -1131,6 +1145,10 @@ export function applyRecurringExpenseChangeToData(
     prepared,
     [nextTemplate],
     referenceDate,
+    {
+      createExpenseId: options.createExpenseId,
+      createdAt: now,
+    },
   );
   return { status: "applied", data: nextData, preview };
 }

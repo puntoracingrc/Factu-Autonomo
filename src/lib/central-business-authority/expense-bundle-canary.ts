@@ -44,7 +44,8 @@ export interface CentralExpenseBundlePreparedMutation {
   entityType: ExpenseBundleEntityType;
   entityId: string;
   expectation: "create" | "known";
-  payload: CentralBusinessJson;
+  operationKind?: "upsert" | "delete";
+  payload: CentralBusinessJson | null;
 }
 
 export type CentralExpenseBundlePreparation<T> =
@@ -290,7 +291,7 @@ export async function saveCentralExpenseBundleWithCanary<T>(input: {
         }
         return {
           idempotencyKey: `${identity.idempotencyPrefix}:${index}`,
-          operationKind: "upsert" as const,
+          operationKind: mutation.operationKind ?? ("upsert" as const),
           entityType: mutation.entityType,
           entityId: mutation.entityId,
           expectedVersion:
