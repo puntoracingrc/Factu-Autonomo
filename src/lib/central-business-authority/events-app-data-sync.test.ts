@@ -425,6 +425,103 @@ describe("central business events app data sync", () => {
     expect(deleted.data.expenses).toEqual([historical]);
   });
 
+  it("reconoce como confirmacion una regla y una ocurrencia locales identicas", async () => {
+    const storage = new MemoryStorage();
+    const rule = recurringExpense();
+    const occurrence = expense({
+      id: "recurring-occurrence-1",
+      recurringExpenseId: rule.id,
+      recurringOccurrenceKey: `${rule.id}:2026-07-01`,
+      origin: "recurring",
+      businessKind: "fixed",
+    });
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: "CENTRAL_RECURRING_CREATE_RULE_0001",
+      mutation: {
+        idempotencyKey: "CENTRAL_RECURRING_CREATE_RULE_0001",
+        operationKind: "upsert",
+        entityType: "recurring_expense",
+        entityId: rule.id,
+        expectedVersion: 0,
+        payload: JSON.parse(JSON.stringify(rule)),
+      },
+      storage,
+    });
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: "CENTRAL_RECURRING_CREATE_EXPENSE_0001",
+      mutation: {
+        idempotencyKey: "CENTRAL_RECURRING_CREATE_EXPENSE_0001",
+        operationKind: "upsert",
+        entityType: "expense",
+        entityId: occurrence.id,
+        expectedVersion: 0,
+        payload: JSON.parse(JSON.stringify(occurrence)),
+      },
+      storage,
+    });
+    await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async (mutation) => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: `event-${mutation.entityId}`,
+        entityVersion: 1,
+        eventSequence: mutation.entityType === "expense" ? 1 : 2,
+        deleted: false,
+        contentHash:
+          mutation.entityType === "expense" ? "hash-expense" : "hash-rule",
+      }),
+    });
+    const target = harness(
+      {
+        ...EMPTY_DATA,
+        recurringExpenses: [rule],
+        expenses: [occurrence],
+      },
+      storage,
+    );
+
+    const result = await syncCentralBusinessEventsIntoAppData(
+      { ownerScope },
+      {
+        ...target.dependencies,
+        pull: async () => ({
+          ok: true,
+          schema: "CENTRAL_BUSINESS_EVENTS_CLIENT_V1",
+          events: [
+            event(occurrence, {
+              eventId: "event-expense",
+              eventSequence: 1,
+              contentHash: "hash-expense",
+            }),
+            event(rule, {
+              eventId: "event-rule",
+              eventSequence: 2,
+              contentHash: "hash-rule",
+            }),
+          ],
+          nextSequence: 2,
+          hasMore: false,
+        }),
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      pulled: 2,
+      applied: 0,
+      skipped: 2,
+      nextSequence: 2,
+    });
+    expect(target.commit).not.toHaveBeenCalled();
+    expect(target.data.expenses).toEqual([occurrence]);
+    expect(target.data.recurringExpenses).toEqual([rule]);
+  });
+
   it("actualiza el perfil conocido y rechaza su borrado", () => {
     const updatedProfile = {
       ...DEFAULT_PROFILE,
