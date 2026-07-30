@@ -17,7 +17,8 @@ export const CENTRAL_BUSINESS_BOOTSTRAP_CONFIRMATION =
 export type CentralBusinessBootstrapBrowserEntityType =
   | "customer"
   | "supplier"
-  | "product";
+  | "product"
+  | "user_reminder";
 
 export interface CentralBusinessBootstrapBrowserEntity {
   entityType: CentralBusinessBootstrapBrowserEntityType;
@@ -91,6 +92,7 @@ const ENTITY_TYPES = new Set<CentralBusinessBootstrapBrowserEntityType>([
   "customer",
   "supplier",
   "product",
+  "user_reminder",
 ]);
 const ENTRY_STATUSES = new Set<
   CentralBusinessBootstrapBrowserPreviewEntry["status"]
@@ -143,6 +145,11 @@ export function buildCentralBusinessBootstrapBrowserSnapshot(
     })),
     ...data.products.map((entity) => ({
       entityType: "product" as const,
+      entityId: entity.id,
+      payload: jsonPayload(entity, entity.id),
+    })),
+    ...data.userReminders.map((entity) => ({
+      entityType: "user_reminder" as const,
       entityId: entity.id,
       payload: jsonPayload(entity, entity.id),
     })),

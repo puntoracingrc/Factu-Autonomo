@@ -37,6 +37,7 @@ describe("central business bootstrap account card", () => {
       "centralBusinessBootstrapSnapshotSignature(currentEntities)",
     );
     expect(component).toContain("!confirmed");
+    expect(component).toContain('user_reminder: "Recordatorios"');
   });
 
   it("no migra con cola pendiente y recibe todas las versiones confirmadas", () => {

@@ -95,7 +95,12 @@ const handler = createCentralBusinessBootstrapPreviewRouteHandler({
             "entity_type,entity_id,current_version,deleted,content_hash",
           )
           .eq("user_id", userId)
-          .in("entity_type", ["customer", "supplier", "product"])
+          .in("entity_type", [
+            "customer",
+            "supplier",
+            "product",
+            "user_reminder",
+          ])
           .order("entity_type")
           .order("entity_id")
           .range(from, to);
@@ -104,7 +109,8 @@ const handler = createCentralBusinessBootstrapPreviewRouteHandler({
           entityType: row.entity_type as
             | "customer"
             | "supplier"
-            | "product",
+            | "product"
+            | "user_reminder",
           entityId: row.entity_id,
           currentVersion: row.current_version,
           deleted: row.deleted,

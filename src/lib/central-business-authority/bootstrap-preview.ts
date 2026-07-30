@@ -11,7 +11,7 @@ export const CENTRAL_BUSINESS_BOOTSTRAP_PREVIEW =
   "CENTRAL_BUSINESS_BOOTSTRAP_PREVIEW_V1";
 
 export type CentralBusinessBootstrapEntityType =
-  "customer" | "supplier" | "product";
+  "customer" | "supplier" | "product" | "user_reminder";
 
 export interface CentralBusinessBootstrapEntityInput {
   entityType: CentralBusinessBootstrapEntityType;
@@ -57,6 +57,7 @@ const ENTITY_TYPES = new Set<CentralBusinessBootstrapEntityType>([
   "customer",
   "supplier",
   "product",
+  "user_reminder",
 ]);
 
 function assertServerOnlyModule() {
