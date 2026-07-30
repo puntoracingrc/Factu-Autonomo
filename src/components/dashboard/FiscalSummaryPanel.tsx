@@ -11,8 +11,8 @@ import {
 import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { downloadAnnualSummaryPdf } from "@/lib/billing/export-annual-pdf";
 import { buildInvoicePeriodAdvisorEmail } from "@/lib/billing/invoice-period-advisor-email";
 import {
@@ -44,6 +44,7 @@ import {
   selectTaxableFiscalDocumentsForPeriod,
 } from "@/lib/taxes";
 import { validateAdvisorContact } from "@/lib/advisor-contact";
+import { showFactuToast } from "@/lib/factu/occasional";
 import {
   DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS,
   normalizeAppPreferences,
@@ -124,7 +125,7 @@ function selectedMonthKeys(
 }
 
 export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
-  const { updateProfile } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const { billingEnabled, limits } = useBilling();
   const current = getCurrentQuarter();
   const currentMonth = new Date().getMonth() + 1;
@@ -325,13 +326,13 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
   }
 
   function saveAdvisorEmailMethod(method: ConcreteEmailMethod) {
-    updateProfile({
-      ...data.profile,
+    return updateProfile((profile) => ({
+      ...profile,
       appPreferences: normalizeAppPreferences({
-        ...appPreferences,
+        ...profile.appPreferences,
         documentEmailMethod: method,
       }),
-    });
+    }));
   }
 
   function handleAdvisorEmailExportClick() {
@@ -364,9 +365,16 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
   }
 
   async function chooseAdvisorEmailMethod(method: ConcreteEmailMethod) {
-    if (rememberAdvisorEmailMethod) saveAdvisorEmailMethod(method);
     setAdvisorEmailMethodOpen(false);
     await handleExportInvoicePdfs(method);
+    if (!rememberAdvisorEmailMethod) return;
+    const result = await saveAdvisorEmailMethod(method);
+    if (!result.ok) {
+      showFactuToast(
+        `La exportación terminó, pero no se pudo recordar el método: ${result.error}`,
+        5000,
+      );
+    }
   }
 
   async function handleExportInvoicePdfs(emailMethod?: ConcreteEmailMethod) {

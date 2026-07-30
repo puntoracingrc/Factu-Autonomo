@@ -17,6 +17,7 @@ import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { formatMoney, todayISO, unitPriceFromGross } from "@/lib/calculations";
 import {
   documentAmounts,
@@ -54,6 +55,7 @@ import {
   isAreaDocumentUnit,
 } from "@/lib/area-calculation";
 import { maybeCelebrateFirstRectificativa } from "@/lib/factu/milestones";
+import { showFactuToast } from "@/lib/factu/occasional";
 import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
 import {
   cloneItemsForCorreccion,
@@ -102,11 +104,11 @@ export function RectificativaForm({
   const router = useRouter();
   const {
     data,
-    updateProfile,
     addRectificativa,
     addDocumentWithCentralIdentity,
     registerVerifactuForDocument,
   } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const {
     billingEnabled,
     checkCanCreateDocument,
@@ -120,6 +122,43 @@ export function RectificativaForm({
   const [saveAction, setSaveAction] = useState<
     "idle" | "draft" | "save" | "save-pdf"
   >("idle");
+
+  async function savePaymentMethodPreference(
+    text: string,
+    makeDefault: boolean,
+  ) {
+    const result = await updateProfile((profile) => ({
+      ...profile,
+      documentPaymentMethods: saveDocumentPaymentMethodForFutureUse(
+        normalizeDocumentPaymentMethods(profile.documentPaymentMethods),
+        "factura",
+        text,
+        makeDefault,
+      ),
+    }));
+    if (!result.ok) {
+      showFactuToast(
+        `No se pudo guardar la forma de pago: ${result.error}`,
+        5000,
+      );
+    }
+  }
+
+  async function savePhrasePreference(text: string, makeDefault: boolean) {
+    const result = await updateProfile((profile) => ({
+      ...profile,
+      documentPhrases: saveDocumentPhraseForFutureUse(
+        normalizeDocumentPhrases(profile.documentPhrases),
+        "factura",
+        text,
+        makeDefault,
+      ),
+    }));
+    if (!result.ok) {
+      showFactuToast(`No se pudo guardar la condición: ${result.error}`, 5000);
+    }
+  }
+
   const [formError, setFormError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const saving = saveAction !== "idle";
@@ -787,17 +826,7 @@ export function RectificativaForm({
           value={paymentTerms}
           onChange={setPaymentTerms}
           onSave={(text, makeDefault) =>
-            updateProfile({
-              ...data.profile,
-              documentPaymentMethods: saveDocumentPaymentMethodForFutureUse(
-                normalizeDocumentPaymentMethods(
-                  data.profile.documentPaymentMethods,
-                ),
-                "factura",
-                text,
-                makeDefault,
-              ),
-            })
+            void savePaymentMethodPreference(text, makeDefault)
           }
         />
         <DocumentPhrasePicker
@@ -806,15 +835,7 @@ export function RectificativaForm({
           value={salesTerms}
           onChange={setSalesTerms}
           onSave={(text, makeDefault) =>
-            updateProfile({
-              ...data.profile,
-              documentPhrases: saveDocumentPhraseForFutureUse(
-                normalizeDocumentPhrases(data.profile.documentPhrases),
-                "factura",
-                text,
-                makeDefault,
-              ),
-            })
+            void savePhrasePreference(text, makeDefault)
           }
         />
         <div className="space-y-2">

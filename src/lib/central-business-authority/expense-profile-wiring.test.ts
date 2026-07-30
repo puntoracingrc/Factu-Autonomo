@@ -76,4 +76,29 @@ describe("central expense and profile UI wiring", () => {
       share.indexOf("await saveWhatsAppMethod(method)"),
     );
   });
+
+  it("routes document form preferences through latest-profile central writes", () => {
+    const documentForm = source("../../components/forms/DocumentForm.tsx");
+    const rectificationForm = source(
+      "../../components/forms/RectificativaForm.tsx",
+    );
+    const fiscalSummary = source(
+      "../../components/dashboard/FiscalSummaryPanel.tsx",
+    );
+
+    for (const component of [documentForm, rectificationForm, fiscalSummary]) {
+      expect(component).toContain("useCentralProfileMutation");
+      expect(component).toContain("updateProfile((profile) => ({");
+      expect(component).toContain("if (!result.ok)");
+    }
+    expect(documentForm).toContain("savePaymentMethodPreference");
+    expect(documentForm).toContain("savePhrasePreference");
+    expect(rectificationForm).toContain("savePaymentMethodPreference");
+    expect(rectificationForm).toContain("savePhrasePreference");
+    expect(
+      fiscalSummary.indexOf("await handleExportInvoicePdfs(method)"),
+    ).toBeLessThan(
+      fiscalSummary.indexOf("await saveAdvisorEmailMethod(method)"),
+    );
+  });
 });
