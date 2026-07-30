@@ -27,6 +27,11 @@ export type ProductCatalogStructureOperation =
       targetFamily: string;
     }
   | {
+      type: "merge_products";
+      keepProductKey: string;
+      removeProductKeys: string[];
+    }
+  | {
       type: "rename_subfamily";
       family: string;
       sourceSubfamily: string;
@@ -169,6 +174,178 @@ function catalogProductFromSummary(
     createdAt: now,
     updatedAt: now,
   });
+}
+
+export function mergeProductRecordsInAppData(
+  data: AppData,
+  keepId: string,
+  removeIds: string[],
+  options: Pick<ProductCatalogStructureOptions, "now"> = {},
+): ProductCatalogStructureResult {
+  const uniqueRemoveIds = [...new Set(removeIds)].filter(
+    (id) => id && id !== keepId,
+  );
+  if (!keepId || uniqueRemoveIds.length === 0) {
+    return structureError(
+      data,
+      "invalid",
+      "Elige al menos un producto duplicado distinto del producto principal.",
+    );
+  }
+
+  const keep = data.products.find((product) => product.id === keepId);
+  if (!keep) {
+    return structureError(
+      data,
+      "not_found",
+      "No se encontró el producto que debe conservarse.",
+    );
+  }
+  const removed = uniqueRemoveIds
+    .map((id) => data.products.find((product) => product.id === id))
+    .filter((product): product is Product => Boolean(product));
+  if (removed.length !== uniqueRemoveIds.length) {
+    return structureError(
+      data,
+      "not_found",
+      "Uno de los productos duplicados ya no existe. Actualiza el catálogo.",
+    );
+  }
+
+  const merged = normalizeProductCatalogItem({
+    ...keep,
+    aliases: [
+      ...(keep.aliases ?? []),
+      ...removed.flatMap((product) => [
+        product.key,
+        ...(product.aliases ?? []),
+      ]),
+    ],
+    sku: keep.sku ?? removed.find((product) => product.sku)?.sku,
+    externalId:
+      keep.externalId ??
+      removed.find((product) => product.externalId)?.externalId,
+    unit: keep.unit ?? removed.find((product) => product.unit)?.unit,
+    supplierId:
+      keep.supplierId ??
+      removed.find((product) => product.supplierId)?.supplierId,
+    supplierName:
+      keep.supplierName ??
+      removed.find((product) => product.supplierName)?.supplierName,
+    pvp: keep.pvp ?? removed.find((product) => product.pvp !== undefined)?.pvp,
+    cost:
+      keep.cost ?? removed.find((product) => product.cost !== undefined)?.cost,
+    ivaPercent:
+      keep.ivaPercent ??
+      removed.find((product) => product.ivaPercent !== undefined)?.ivaPercent,
+    sales: keep.sales ?? removed.find((product) => product.sales)?.sales,
+    purchase:
+      keep.purchase ?? removed.find((product) => product.purchase)?.purchase,
+    calculation:
+      keep.calculation ??
+      removed.find((product) => product.calculation)?.calculation,
+    attributes:
+      keep.attributes ??
+      removed.find((product) => product.attributes?.length)?.attributes,
+    updatedAt: options.now ?? new Date().toISOString(),
+  });
+
+  return {
+    ok: true,
+    data: {
+      ...data,
+      products: data.products
+        .filter((product) => !uniqueRemoveIds.includes(product.id))
+        .map((product) => (product.id === keepId ? merged : product)),
+    },
+    productCount: removed.length,
+    ruleMigrated: false,
+  };
+}
+
+function mergeCatalogProducts(
+  data: AppData,
+  keepProductKey: string,
+  removeProductKeys: string[],
+  options: ProductCatalogStructureOptions,
+): ProductCatalogStructureResult {
+  const keepKey = cleanText(keepProductKey);
+  const removeKeys = [...new Set(removeProductKeys.map(cleanText))].filter(
+    (key) => key && key !== keepKey,
+  );
+  if (!keepKey || removeKeys.length === 0) {
+    return structureError(
+      data,
+      "invalid",
+      "Elige al menos un producto duplicado distinto del producto principal.",
+    );
+  }
+
+  const summaries = buildPurchaseProductSummaries(data.expenses, data.products);
+  const byKey = new Map(summaries.map((product) => [product.key, product]));
+  const keepSummary = byKey.get(keepKey);
+  const removedSummaries = removeKeys
+    .map((key) => byKey.get(key))
+    .filter((product): product is PurchaseProductSummary => Boolean(product));
+  if (!keepSummary || removedSummaries.length !== removeKeys.length) {
+    return structureError(
+      data,
+      "not_found",
+      "Uno de los productos cambió o ya no existe. Actualiza el catálogo.",
+    );
+  }
+
+  const now = options.now ?? new Date().toISOString();
+  const createId = options.createId ?? (() => crypto.randomUUID());
+  const existingKeep = keepSummary.productId
+    ? data.products.find((product) => product.id === keepSummary.productId)
+    : data.products.find((product) => product.key === keepSummary.key);
+  const keep = normalizeProductCatalogItem({
+    ...(existingKeep ??
+      catalogProductFromSummary(
+        keepSummary,
+        {
+          family: keepSummary.family,
+          subfamily: keepSummary.subfamily,
+        },
+        createId(),
+        now,
+      )),
+    aliases: [
+      ...(keepSummary.aliases ?? []),
+      ...removedSummaries.flatMap((product) => [
+        product.key,
+        ...(product.aliases ?? []),
+      ]),
+    ],
+    source: keepSummary.source === "manual" ? "manual" : "detected",
+    updatedAt: now,
+  });
+  const productsWithKeep = existingKeep
+    ? data.products.map((product) => (product.id === keep.id ? keep : product))
+    : [...data.products, keep];
+  const removeIds = removedSummaries
+    .map((product) => product.productId)
+    .filter((id): id is string => Boolean(id) && id !== keep.id);
+  const prepared = { ...data, products: productsWithKeep };
+  if (removeIds.length === 0) {
+    return {
+      ok: true,
+      data: prepared,
+      productCount: removedSummaries.length,
+      ruleMigrated: false,
+    };
+  }
+
+  const merged = mergeProductRecordsInAppData(prepared, keep.id, removeIds, {
+    now,
+  });
+  return merged.ok
+    ? {
+        ...merged,
+        productCount: removedSummaries.length,
+      }
+    : merged;
 }
 
 function rewriteProducts(
@@ -734,6 +911,13 @@ export function applyProductCatalogStructureOperation(
         data,
         operation.sourceFamily,
         operation.targetFamily,
+        options,
+      );
+    case "merge_products":
+      return mergeCatalogProducts(
+        data,
+        operation.keepProductKey,
+        operation.removeProductKeys,
         options,
       );
     case "rename_subfamily":

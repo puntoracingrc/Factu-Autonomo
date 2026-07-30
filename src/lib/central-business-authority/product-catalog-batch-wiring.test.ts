@@ -11,6 +11,7 @@ const hook = readFileSync(
   "src/hooks/useCentralProductCatalogStructure.ts",
   "utf8",
 );
+const store = readFileSync("src/context/AppStore.tsx", "utf8");
 
 describe("central product catalog batch wiring", () => {
   it("enruta toda la organización de familias por el lote central", () => {
@@ -34,6 +35,17 @@ describe("central product catalog batch wiring", () => {
       "completed = await onMergeFamily(action.family, familyDraft)",
     );
     expect(manager).toContain("completed = await onRemoveSubfamily(");
+  });
+
+  it("fusiona fichas por el lote central y espera su confirmación", () => {
+    expect(page).toContain('type: "merge_products"');
+    expect(page).toContain("await runCatalogStructureOperation(");
+    expect(page).toContain("const merged = await onMerge(mergeKey)");
+    expect(page).toContain('merging ? "Unificando..." : "Unificar"');
+    expect(page).not.toContain(
+      "La fusión de productos centrales se habilitará",
+    );
+    expect(store).toContain("mergeProductRecordsInAppData");
   });
 
   it("sincroniza eventos antes de preparar el lote", () => {

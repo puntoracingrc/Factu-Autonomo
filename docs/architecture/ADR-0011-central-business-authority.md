@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 14
+- Version: 15
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -175,8 +175,11 @@ subfamilias que incluyen productos centrales usan un unico lote atomico con la
 version esperada de cada producto y del perfil cuando migran reglas de margen.
 El lote completo se conserva antes del commit local durable y se confirma o
 entra en revision como una unidad; nunca se descompone en escrituras parciales.
-La fusion entre fichas de producto permanece bloqueada hasta reutilizar este
-mismo contrato atomico.
+La fusion entre fichas de producto reutiliza el mismo contrato: actualiza o
+materializa la ficha conservada, absorbe sus alias y completa campos ausentes,
+y retira las fichas duplicadas dentro del mismo lote. Los gastos historicos no
+se reescriben; sus descripciones siguen resolviendo al producto conservado
+mediante los alias.
 
 ## Rollback
 

@@ -93,6 +93,96 @@ describe("product catalog structure", () => {
     });
   });
 
+  it("fusiona dos fichas completas sin perder campos ni historial", () => {
+    const keep = product("Motor principal", {
+      id: "keep-product",
+      aliases: ["motor principal antiguo"],
+      sku: undefined,
+      supplierName: undefined,
+    });
+    const remove = product("Motor duplicado", {
+      id: "remove-product",
+      aliases: ["motor duplicado antiguo"],
+      sku: "SKU-DUPLICADO",
+      supplierName: "Proveedor del duplicado",
+      purchase: {
+        enabled: true,
+        supplierName: "Proveedor del duplicado",
+        netUnitCost: 45,
+      },
+    });
+    const original = appData({ products: [keep, remove] });
+
+    const result = applyProductCatalogStructureOperation(
+      original,
+      {
+        type: "merge_products",
+        keepProductKey: keep.key,
+        removeProductKeys: [remove.key],
+      },
+      { now: "2026-07-20T00:00:00.000Z", createId: ids() },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.productCount).toBe(1);
+    expect(result.data.products).toHaveLength(1);
+    expect(result.data.products[0]).toMatchObject({
+      id: keep.id,
+      key: keep.key,
+      sku: "SKU-DUPLICADO",
+      supplierName: "Proveedor del duplicado",
+      purchase: remove.purchase,
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    });
+    expect(result.data.products[0].aliases).toEqual(
+      expect.arrayContaining([
+        "motor principal antiguo",
+        remove.key,
+        "motor duplicado antiguo",
+      ]),
+    );
+    expect(original.products).toHaveLength(2);
+  });
+
+  it("materializa el principal y absorbe un duplicado detectado", () => {
+    const keepDescription = "Motor detectado principal";
+    const removeDescription = "Motor detectado duplicado";
+    const original = appData({
+      expenses: [
+        expense("expense-keep", keepDescription),
+        expense("expense-remove", removeDescription),
+      ],
+      products: [],
+    });
+
+    const result = applyProductCatalogStructureOperation(
+      original,
+      {
+        type: "merge_products",
+        keepProductKey: purchaseProductKey(keepDescription),
+        removeProductKeys: [purchaseProductKey(removeDescription)],
+      },
+      { now: "2026-07-20T00:00:00.000Z", createId: ids() },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.expenses).toBe(original.expenses);
+    expect(result.data.products).toHaveLength(1);
+    expect(result.data.products[0]).toMatchObject({
+      id: "created-product-1",
+      key: purchaseProductKey(keepDescription),
+      source: "detected",
+    });
+    expect(result.data.products[0].aliases).toContain(
+      purchaseProductKey(removeDescription),
+    );
+    expect(
+      buildPurchaseProductSummaries(result.data.expenses, result.data.products),
+    ).toHaveLength(1);
+  });
+
   it("renombra una subfamilia de forma atómica y conserva el aprendizaje", () => {
     const learned = product("Motor radio GH50", {
       aliases: [purchaseProductKey("Motor tubular GH 50 radio")],
