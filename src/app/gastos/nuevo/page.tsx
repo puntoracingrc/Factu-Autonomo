@@ -26,6 +26,8 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCentralExpenseMutations } from "@/hooks/useCentralExpenseMutations";
+import { useCentralSupplierCreate } from "@/hooks/useCentralSupplierCreate";
 import { inspectFixedExpenseBundle } from "@/lib/app-data-durability";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -178,12 +180,15 @@ export default function NuevoGastoPage() {
   const {
     data,
     getCurrentData,
-    addExpense,
-    updateExpense,
-    addSupplier,
+    updateExpense: updateExpenseFallback,
     saveScannedExpenseDurably,
     saveFixedExpenseWithRecurringTemplate,
   } = useAppStore();
+  const {
+    createExpense,
+    updateExpense: updateCentralExpense,
+  } = useCentralExpenseMutations();
+  const { createSupplier } = useCentralSupplierCreate();
 
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [loadedExpenseId, setLoadedExpenseId] = useState<string | null>(null);
@@ -1689,8 +1694,12 @@ export default function NuevoGastoPage() {
 
     let supplierId = resolved.supplierId;
     if (resolved.create && !usesDurableFixedSave && !usesDurableScannedSave) {
-      const created = addSupplier(resolved.create);
-      supplierId = created.id;
+      const created = await createSupplier(resolved.create);
+      if (!created.ok) {
+        setSaveSubmitError(created.error);
+        return;
+      }
+      supplierId = created.supplier.id;
     }
 
     const cleanedPurchaseDocument =
@@ -1743,7 +1752,7 @@ export default function NuevoGastoPage() {
         existingRecurringId &&
         !editingCurrentDurableOperation
       ) {
-        updateExpense({
+        updateExpenseFallback({
           ...editingExpense,
           ...payload,
           recurringExpenseId: existingRecurringId,
@@ -1825,16 +1834,31 @@ export default function NuevoGastoPage() {
         );
       }
     } else if (editingExpense) {
-      updateExpense({
+      const result = await updateCentralExpense({
         ...editingExpense,
         ...payload,
       });
+      if (!result.ok) {
+        setSaveSubmitError(result.error);
+        return;
+      }
     } else if (providerSummaryUpgradeTarget) {
-      updateExpense(
-        mergeProviderSummaryWithOriginal(providerSummaryUpgradeTarget, payload),
+      const result = await updateCentralExpense(
+        mergeProviderSummaryWithOriginal(
+          providerSummaryUpgradeTarget,
+          payload,
+        ),
       );
+      if (!result.ok) {
+        setSaveSubmitError(result.error);
+        return;
+      }
     } else {
-      addExpense(payload);
+      const result = await createExpense(payload);
+      if (!result.ok) {
+        setSaveSubmitError(result.error);
+        return;
+      }
     }
 
     const inboxProcessed = await markInboxItemProcessed();

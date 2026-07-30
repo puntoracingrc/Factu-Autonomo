@@ -117,7 +117,10 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain('businessKind === "fixed"');
     expect(formPage).toContain('businessKind !== "fixed"');
     expect(formPage).toContain("supplierId: resolved.supplierId");
-    expect(formPage).toContain("const created = addSupplier(resolved.create)");
+    expect(formPage).toContain(
+      "const created = await createSupplier(resolved.create)",
+    );
+    expect(formPage).toContain("if (!created.ok)");
     expect(appStore).toContain("upsertSupplierForExpense(prev.suppliers, input");
     expect(appStore).toContain("buildScannedExpenseDurableTransition");
     expect(appStore).toContain(

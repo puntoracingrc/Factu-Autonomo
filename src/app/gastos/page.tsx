@@ -36,6 +36,7 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralExpenseMutations } from "@/hooks/useCentralExpenseMutations";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
 import {
@@ -423,8 +424,8 @@ function expenseKindTone(kind: ExpenseBusinessKind): string {
 }
 
 export default function GastosPage() {
-  const { data, addExpense, addSupplier, deleteExpense, updateProfile } =
-    useAppStore();
+  const { data, addExpense, addSupplier, updateProfile } = useAppStore();
+  const { deleteExpense } = useCentralExpenseMutations();
   const vatExempt = isVatExempt(data.profile);
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const defaultPeriod = getDefaultExpensePeriod();
@@ -1647,7 +1648,7 @@ export default function GastosPage() {
                       <Pencil className="h-4 w-4" />
                     </Link>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const hasRecurringTemplate = Boolean(
                           expense.recurringExpenseId &&
                             recurringExpenseIds.has(expense.recurringExpenseId),
@@ -1657,7 +1658,8 @@ export default function GastosPage() {
                             ? "¿Excluir este cargo concreto? La regla de gasto fijo seguirá activa y los demás cargos no cambiarán."
                             : "¿Borrar este gasto?";
                         if (confirm(prompt)) {
-                          deleteExpense(expense.id);
+                          const result = await deleteExpense(expense.id);
+                          if (!result.ok) alert(result.error);
                         }
                       }}
                       className="rounded-xl bg-red-50 p-2 text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
