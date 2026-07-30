@@ -931,6 +931,35 @@ describe("central business durable queue", () => {
     });
   });
 
+  it("confirma la pagina local antes de avanzar el cursor durable", async () => {
+    const storage = new MemoryStorage();
+    const order: string[] = [];
+    const failed = await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [event()],
+      nextSequence: 1,
+      storage,
+      applyEvent: async () => {
+        order.push("stage");
+      },
+      commitPage: async () => {
+        order.push("commit");
+        throw new Error("local compare-and-swap failed");
+      },
+    });
+
+    expect(order).toEqual(["stage", "commit"]);
+    expect(failed).toMatchObject({
+      ok: false,
+      code: "EVENT_APPLY_FAILED",
+      state: { lastAppliedEventSequence: 0, entityVersions: {} },
+    });
+    expect(loadCentralBusinessDurableQueue(ownerScope, storage)).toMatchObject({
+      lastAppliedEventSequence: 0,
+      entityVersions: {},
+    });
+  });
+
   it("avanza sobre eventos propios antiguos y revalida la ultima version confirmada", async () => {
     const storage = new MemoryStorage();
     enqueueCentralBusinessOperation({
