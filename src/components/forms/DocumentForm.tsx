@@ -36,6 +36,7 @@ import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import {
   formatMoney,
   formatShortDate,
@@ -93,6 +94,7 @@ import { attachIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { finishDocumentSave } from "@/lib/documents/save-feedback";
 import { defaultQuoteDueDate } from "@/lib/quote-validity";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
+import { showFactuToast } from "@/lib/factu/occasional";
 import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
 import { DocumentIntegrityError } from "@/lib/document-integrity";
 import { resolveDocumentFormBusinessProfile } from "@/lib/document-integrity/document-form-profile";
@@ -471,13 +473,13 @@ export function DocumentForm({
   const {
     data,
     ready,
-    updateProfile,
     addDocument,
     addDocumentWithCentralIdentity,
     updateDocument,
     upsertCustomerForDocument,
     registerVerifactuForDocument,
   } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const {
     billingEnabled,
     checkCanCreateDocument,
@@ -498,6 +500,43 @@ export function DocumentForm({
   const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
     "idle",
   );
+
+  async function savePaymentMethodPreference(
+    text: string,
+    makeDefault: boolean,
+  ) {
+    const result = await updateProfile((profile) => ({
+      ...profile,
+      documentPaymentMethods: saveDocumentPaymentMethodForFutureUse(
+        normalizeDocumentPaymentMethods(profile.documentPaymentMethods),
+        type,
+        text,
+        makeDefault,
+      ),
+    }));
+    if (!result.ok) {
+      showFactuToast(
+        `No se pudo guardar la forma de pago: ${result.error}`,
+        5000,
+      );
+    }
+  }
+
+  async function savePhrasePreference(text: string, makeDefault: boolean) {
+    const result = await updateProfile((profile) => ({
+      ...profile,
+      documentPhrases: saveDocumentPhraseForFutureUse(
+        normalizeDocumentPhrases(profile.documentPhrases),
+        type,
+        text,
+        makeDefault,
+      ),
+    }));
+    if (!result.ok) {
+      showFactuToast(`No se pudo guardar la condición: ${result.error}`, 5000);
+    }
+  }
+
   const [previewLoading, setPreviewLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const saving = saveAction !== "idle";
@@ -2533,17 +2572,7 @@ export function DocumentForm({
           value={paymentTerms}
           onChange={setPaymentTerms}
           onSave={(text, makeDefault) =>
-            updateProfile({
-              ...data.profile,
-              documentPaymentMethods: saveDocumentPaymentMethodForFutureUse(
-                normalizeDocumentPaymentMethods(
-                  data.profile.documentPaymentMethods,
-                ),
-                type,
-                text,
-                makeDefault,
-              ),
-            })
+            void savePaymentMethodPreference(text, makeDefault)
           }
         />
         <DocumentPhrasePicker
@@ -2552,15 +2581,7 @@ export function DocumentForm({
           value={salesTerms}
           onChange={setSalesTerms}
           onSave={(text, makeDefault) =>
-            updateProfile({
-              ...data.profile,
-              documentPhrases: saveDocumentPhraseForFutureUse(
-                normalizeDocumentPhrases(data.profile.documentPhrases),
-                type,
-                text,
-                makeDefault,
-              ),
-            })
+            void savePhrasePreference(text, makeDefault)
           }
         />
         <div className="space-y-2">
