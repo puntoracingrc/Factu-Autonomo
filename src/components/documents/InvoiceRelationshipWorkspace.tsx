@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   Check,
   ChevronDown,
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralExpenseMutations } from "@/hooks/useCentralExpenseMutations";
 import { formatMoney, formatShortDate, roundMoney } from "@/lib/calculations";
 import {
   documentDetailPath,
@@ -111,7 +112,8 @@ export function InvoiceRelationshipWorkspace({
     allocations: ExpenseCostAllocationsByExpenseId,
   ) => void;
 }) {
-  const { data, updateDocumentLink, updateExpense } = useAppStore();
+  const { data, updateDocumentLink } = useAppStore();
+  const { updateExpense } = useCentralExpenseMutations();
   const vatExempt = isVatExempt(data.profile);
   const [activeTab, setActiveTab] = useState<RelationshipTab>("gastos");
   const linkedQuote = findQuoteLinkedToInvoice(data.documents, doc);
@@ -130,6 +132,8 @@ export function InvoiceRelationshipWorkspace({
     getHiddenExpenseCandidateIdsForWork(doc.id),
   );
   const [showClosedExpenses, setShowClosedExpenses] = useState(false);
+  const [savingExpenseId, setSavingExpenseId] = useState<string | null>(null);
+  const savingExpenseIdRef = useRef<string | null>(null);
 
   const canonicalChainItems = useMemo(
     () =>
@@ -142,8 +146,7 @@ export function InvoiceRelationshipWorkspace({
     [data.documents, data.expenses, doc, expenseAllocations],
   );
   const relationshipItems = useMemo(
-    () =>
-      selectDocumentRelationshipPresentationItems(canonicalChainItems, doc),
+    () => selectDocumentRelationshipPresentationItems(canonicalChainItems, doc),
     [canonicalChainItems, doc],
   );
   const workDocumentIds = useMemo(
@@ -233,19 +236,37 @@ export function InvoiceRelationshipWorkspace({
     showFactuToast("Presupuesto vinculado.");
   }
 
-  function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
+  async function saveExpenseUpdate(expense: Expense): Promise<boolean> {
+    if (savingExpenseIdRef.current) return false;
+    savingExpenseIdRef.current = expense.id;
+    setSavingExpenseId(expense.id);
+    try {
+      const result = await updateExpense(expense);
+      if (!result.ok) {
+        window.alert(result.error);
+        return false;
+      }
+      return true;
+    } finally {
+      savingExpenseIdRef.current = null;
+      setSavingExpenseId(null);
+    }
+  }
+
+  async function linkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
     if (!canLinkExpenseToWork(candidate.expense, doc.id)) {
       window.alert("Este gasto no se puede vincular como coste del trabajo.");
       return;
     }
     const impact = buildExpenseLinkImpact(candidate.expense, doc.id);
-    if (!window.confirm(confirmationText(impact.message, impact.warnings))) return;
+    if (!window.confirm(confirmationText(impact.message, impact.warnings)))
+      return;
     const updated = createExpenseWorkDocumentUpdatePayload(
       candidate.expense,
       doc.id,
       candidate.availableLineIds,
     );
-    updateExpense(updated);
+    if (!(await saveExpenseUpdate(updated))) return;
     const fiscal = expenseFiscalAmounts(updated);
     const nextAmount = expenseAllocatedAmountForWorkIds(
       updated,
@@ -258,14 +279,17 @@ export function InvoiceRelationshipWorkspace({
     showFactuToast("Gasto vinculado a la factura.");
   }
 
-  function unlinkExpense(candidate: RentabilidadRealExpenseLinkCandidate) {
+  async function unlinkExpense(
+    candidate: RentabilidadRealExpenseLinkCandidate,
+  ) {
     const impact = buildExpenseUnlinkImpact(candidate.expense);
-    if (!window.confirm(confirmationText(impact.message, impact.warnings))) return;
+    if (!window.confirm(confirmationText(impact.message, impact.warnings)))
+      return;
     const updated = createExpenseWorkDocumentUnlinkPayload(
       candidate.expense,
       workDocumentIds,
     );
-    updateExpense(updated);
+    if (!(await saveExpenseUpdate(updated))) return;
     clearExpenseCostAllocationForWork(doc.id, candidate.expense.id);
     setExpenseLineExclusionsForWork(doc.id, candidate.expense.id, []);
     setLineExclusions((current) => {
@@ -280,7 +304,7 @@ export function InvoiceRelationshipWorkspace({
     showFactuToast("Vínculo del gasto eliminado. El gasto sigue intacto.");
   }
 
-  function updateExpenseLineExclusions(
+  async function updateExpenseLineExclusions(
     expense: Expense,
     excludedLineIds: string[],
   ) {
@@ -315,7 +339,7 @@ export function InvoiceRelationshipWorkspace({
       doc.id,
       includedLineIds,
     );
-    updateExpense(updated);
+    if (!(await saveExpenseUpdate(updated))) return;
     const fiscal = expenseFiscalAmounts(updated);
     const appliedAmount = expenseAllocatedAmountForWorkIds(
       updated,
@@ -340,18 +364,23 @@ export function InvoiceRelationshipWorkspace({
     );
   }
 
-  function closeRemainingExpense(expense: Expense) {
+  async function closeRemainingExpense(expense: Expense) {
     const hasAllocations = explicitExpenseWorkAllocations(expense).length > 0;
     const message = hasAllocations
       ? "El importe ya asignado se conserva. El resto dejará de aparecer como candidato para otros trabajos."
       : "Este gasto dejará de aparecer como candidato en todos los trabajos. El gasto seguirá intacto en Gastos.";
     if (!window.confirm(message)) return;
-    updateExpense(closeExpenseForFutureWork(expense));
+    if (!(await saveExpenseUpdate(closeExpenseForFutureWork(expense)))) return;
     showFactuToast(
       hasAllocations
         ? "Resto del gasto marcado como no asignable."
         : "Gasto retirado de los candidatos de trabajos.",
     );
+  }
+
+  async function reopenClosedExpense(expense: Expense) {
+    if (!(await saveExpenseUpdate(reopenExpenseForFutureWork(expense)))) return;
+    showFactuToast("Gasto recuperado como candidato.");
   }
 
   function handleExpenseDrop(event: DragEvent<HTMLDivElement>) {
@@ -361,7 +390,7 @@ export function InvoiceRelationshipWorkspace({
     const candidate = expenseCandidates.find(
       (item) => item.expense.id === expenseId,
     );
-    if (candidate) linkExpense(candidate);
+    if (candidate) void linkExpense(candidate);
   }
 
   return (
@@ -584,7 +613,8 @@ export function InvoiceRelationshipWorkspace({
                       expenseFiscalAmounts(candidate.expense).operatingCost,
                     )}
                     excludedLineIds={
-                      explicitExpenseWorkAllocations(candidate.expense).length > 0
+                      explicitExpenseWorkAllocations(candidate.expense).length >
+                      0
                         ? (candidate.expense.purchaseLines ?? [])
                             .map((line) => line.id)
                             .filter(
@@ -595,17 +625,18 @@ export function InvoiceRelationshipWorkspace({
                                   workDocumentIds,
                                 ).includes(lineId),
                             )
-                        : lineExclusions[candidate.expense.id] ?? []
+                        : (lineExclusions[candidate.expense.id] ?? [])
                     }
+                    busy={savingExpenseId === candidate.expense.id}
                     onExcludedLineIdsChange={(excludedLineIds) =>
-                      updateExpenseLineExclusions(
+                      void updateExpenseLineExclusions(
                         candidate.expense,
                         excludedLineIds,
                       )
                     }
-                    onAction={() => unlinkExpense(candidate)}
+                    onAction={() => void unlinkExpense(candidate)}
                     onCloseRemaining={() =>
-                      closeRemainingExpense(candidate.expense)
+                      void closeRemainingExpense(candidate.expense)
                     }
                   />
                 ))}
@@ -686,17 +717,21 @@ export function InvoiceRelationshipWorkspace({
                     candidate={candidate}
                     workDocumentIds={workDocumentIds}
                     draggable
-                    onAction={() => linkExpense(candidate)}
+                    busy={savingExpenseId === candidate.expense.id}
+                    onAction={() => void linkExpense(candidate)}
                     onHide={() => {
                       setHiddenExpenseIds(
-                        hideExpenseCandidateForWork(doc.id, candidate.expense.id),
+                        hideExpenseCandidateForWork(
+                          doc.id,
+                          candidate.expense.id,
+                        ),
                       );
                       showFactuToast(
                         "Gasto ocultado solo para esta factura. Sigue intacto en Gastos.",
                       );
                     }}
                     onCloseRemaining={() =>
-                      closeRemainingExpense(candidate.expense)
+                      void closeRemainingExpense(candidate.expense)
                     }
                   />
                 ))
@@ -726,7 +761,9 @@ export function InvoiceRelationshipWorkspace({
                 type="button"
                 className="mt-3 text-sm font-bold text-blue-700 hover:underline dark:text-blue-300"
                 onClick={() => {
-                  setHiddenExpenseIds(restoreAllExpenseCandidatesForWork(doc.id));
+                  setHiddenExpenseIds(
+                    restoreAllExpenseCandidatesForWork(doc.id),
+                  );
                   showFactuToast("Gastos ocultos recuperados.");
                 }}
               >
@@ -759,12 +796,12 @@ export function InvoiceRelationshipWorkspace({
                           type="button"
                           variant="ghost"
                           className="min-h-9 px-3 text-sm"
-                          onClick={() => {
-                            updateExpense(reopenExpenseForFutureWork(expense));
-                            showFactuToast("Gasto recuperado como candidato.");
-                          }}
+                          disabled={savingExpenseId === expense.id}
+                          onClick={() => void reopenClosedExpense(expense)}
                         >
-                          Recuperar
+                          {savingExpenseId === expense.id
+                            ? "Guardando..."
+                            : "Recuperar"}
                         </Button>
                       </div>
                     ))}
@@ -784,6 +821,7 @@ function ExpenseRelationshipRow({
   workDocumentIds,
   linked = false,
   draggable = false,
+  busy = false,
   allocationAmount,
   excludedLineIds = [],
   onExcludedLineIdsChange,
@@ -795,6 +833,7 @@ function ExpenseRelationshipRow({
   workDocumentIds: string[];
   linked?: boolean;
   draggable?: boolean;
+  busy?: boolean;
   allocationAmount?: number;
   excludedLineIds?: string[];
   onExcludedLineIdsChange?: (excludedLineIds: string[]) => void;
@@ -808,9 +847,9 @@ function ExpenseRelationshipRow({
 
   return (
     <article
-      draggable={draggable}
+      draggable={draggable && !busy}
       onDragStart={(event) => {
-        if (!draggable) return;
+        if (!draggable || busy) return;
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData(EXPENSE_DRAG_TYPE, expense.id);
       }}
@@ -846,7 +885,8 @@ function ExpenseRelationshipRow({
         <p className="text-xs text-slate-400">IVA incl.</p>
         {candidate.status === "partially_linked_elsewhere" ? (
           <p className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-            {formatMoney(candidate.allocatedElsewhereAmount ?? 0)} en otro trabajo
+            {formatMoney(candidate.allocatedElsewhereAmount ?? 0)} en otro
+            trabajo
           </p>
         ) : null}
         {expense.workAllocationClosed ? (
@@ -860,6 +900,7 @@ function ExpenseRelationshipRow({
           <button
             type="button"
             onClick={onAction}
+            disabled={busy}
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-red-800 dark:hover:bg-red-950 dark:hover:text-red-200"
             aria-label={`Desvincular ${expense.description || expense.supplierName}`}
             title="Desvincular; no borra el gasto"
@@ -871,9 +912,10 @@ function ExpenseRelationshipRow({
             type="button"
             className="min-h-10 px-3 text-sm"
             onClick={onAction}
+            disabled={busy}
           >
             <Link2 className="h-4 w-4" />
-            Vincular
+            {busy ? "Guardando..." : "Vincular"}
           </Button>
         )}
         {!linked && onHide ? (
@@ -882,6 +924,7 @@ function ExpenseRelationshipRow({
             variant="ghost"
             className="min-h-10 px-3 text-sm"
             onClick={onHide}
+            disabled={busy}
             title="Ocultar solo de los candidatos de esta factura"
           >
             <EyeOff className="h-4 w-4" />
@@ -896,6 +939,7 @@ function ExpenseRelationshipRow({
             variant="ghost"
             className="min-h-10 px-3 text-sm"
             onClick={onCloseRemaining}
+            disabled={busy}
             title={
               linked || candidate.status === "partially_linked_elsewhere"
                 ? "Conservar lo asignado y retirar el resto de futuros candidatos"
@@ -917,6 +961,7 @@ function ExpenseRelationshipRow({
             allocationAmount={allocationAmount}
             excludedLineIds={excludedLineIds}
             onExcludedLineIdsChange={onExcludedLineIdsChange}
+            busy={busy}
           />
         </div>
       ) : null}
@@ -940,9 +985,7 @@ function ExpenseAllocationLinesPreview({
   );
   if (lines.length === 0) {
     return (
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        {emptyLabel}
-      </p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{emptyLabel}</p>
     );
   }
 
@@ -989,12 +1032,14 @@ function ExpenseLineAllocationEditor({
   allocationAmount,
   excludedLineIds,
   onExcludedLineIdsChange,
+  busy,
 }: {
   expense: Expense;
   workDocumentIds: string[];
   allocationAmount?: number;
   excludedLineIds: string[];
   onExcludedLineIdsChange: (excludedLineIds: string[]) => void;
+  busy: boolean;
 }) {
   const [open, setOpen] = useState(excludedLineIds.length > 0);
   const fiscal = expenseFiscalAmounts(expense);
@@ -1061,7 +1106,7 @@ function ExpenseLineAllocationEditor({
                 <input
                   type="checkbox"
                   checked={included && !usedElsewhere}
-                  disabled={usedElsewhere}
+                  disabled={usedElsewhere || busy}
                   onChange={() => {
                     if (usedElsewhere) return;
                     const nextExcluded = included
@@ -1072,7 +1117,9 @@ function ExpenseLineAllocationEditor({
                   className="h-5 w-5 shrink-0 accent-amber-600"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block font-semibold">{line.description}</span>
+                  <span className="block font-semibold">
+                    {line.description}
+                  </span>
                   <span className="mt-0.5 block text-xs font-bold">
                     {usedElsewhere
                       ? "Asignada a otro trabajo"
@@ -1091,6 +1138,7 @@ function ExpenseLineAllocationEditor({
             <button
               type="button"
               onClick={() => onExcludedLineIdsChange([])}
+              disabled={busy}
               className="text-sm font-black text-blue-700 hover:underline dark:text-blue-300"
             >
               Volver a aplicar todas las líneas
