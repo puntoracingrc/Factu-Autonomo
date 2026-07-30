@@ -48,7 +48,9 @@ describe("expense VAT page fail-closed wiring", () => {
     const manualSupplierResolution = manualSave.indexOf(
       "ensureSupplierForExpense(",
     );
-    const manualSupplierCreation = manualSave.indexOf("addSupplier(");
+    const manualSupplierCreation = manualSave.indexOf(
+      "await createSupplier(resolved.create)",
+    );
     expect(manualPreparation).toBeGreaterThanOrEqual(0);
     expect(manualBlockedReturn).toBeGreaterThan(manualPreparation);
     expect(manualSupplierResolution).toBeGreaterThan(manualBlockedReturn);

@@ -28,6 +28,7 @@ import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { useBilling } from "@/context/BillingContext";
+import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentUnits } from "@/lib/document-units";
@@ -194,13 +195,16 @@ function SettingsSection({
 export default function ConfiguracionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, updateProfile } = useAppStore();
+  const { data } = useAppStore();
+  const { updateProfile } = useCentralProfileMutation();
   const { billingEnabled, isPro } = useBilling();
   const [form, setForm] = useState({
     ...data.profile,
     numbering: normalizeNumbering(data.profile.numbering),
   });
   const [saved, setSaved] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [advisorSaveAttempted, setAdvisorSaveAttempted] = useState(false);
   const [ivaError, setIvaError] = useState<string | null>(null);
   const [newIva, setNewIva] = useState("");
@@ -248,8 +252,11 @@ export default function ConfiguracionPage() {
     });
   }, [data.profile]);
 
-  function persistProfile(next: BusinessProfile) {
-    updateProfile({
+  async function persistProfile(next: BusinessProfile): Promise<boolean> {
+    setSaved(false);
+    setSaveError(null);
+    setSaveBusy(true);
+    const result = await updateProfile({
       ...next,
       numbering: normalizeNumbering(next.numbering),
       verifactu: normalizeVerifactuSettings(next.verifactu),
@@ -264,8 +271,14 @@ export default function ConfiguracionPage() {
       googlePlaces: normalizeGooglePlacesSettings(next.googlePlaces),
       appPreferences: normalizeAppPreferences(next.appPreferences),
     });
+    setSaveBusy(false);
+    if (!result.ok) {
+      setSaveError(result.error);
+      return false;
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2500);
+    return true;
   }
 
   function handleLogoFile(file: File | undefined) {
@@ -280,19 +293,19 @@ export default function ConfiguracionPage() {
       if (typeof result === "string") {
         const next = { ...form, logoUrl: result };
         setForm(next);
-        persistProfile(next);
+        void persistProfile(next);
       }
     };
     reader.readAsDataURL(file);
   }
 
-  function handleRemoveLogo() {
+  async function handleRemoveLogo() {
     const next = { ...form, logoUrl: undefined };
     setForm(next);
-    persistProfile(next);
+    await persistProfile(next);
   }
 
-  function handleSave() {
+  async function handleSave() {
     const advisorContact = validateAdvisorContact(form.advisorContact);
     if (!advisorContact.valid) {
       setAdvisorSaveAttempted(true);
@@ -309,7 +322,8 @@ export default function ConfiguracionPage() {
     setAdvisorSaveAttempted(false);
     const next = normalizeBusinessProfileForSave(form);
     setForm(next);
-    persistProfile(next);
+    const persisted = await persistProfile(next);
+    if (!persisted) return;
     if (
       returnsToFirstUseOnboarding &&
       isBusinessProfileReadyForIssuedInvoices(next)
@@ -1569,10 +1583,18 @@ export default function ConfiguracionPage() {
             fullWidth
             className="sm:w-auto sm:flex-none"
             onClick={handleSave}
+            disabled={saveBusy}
           >
-            Guardar cambios
+            {saveBusy ? "Guardando…" : "Guardar cambios"}
           </Button>
-          {saved ? (
+          {saveError ? (
+            <p
+              role="alert"
+              className="text-center text-sm font-medium text-red-700 sm:text-left"
+            >
+              {saveError}
+            </p>
+          ) : saved ? (
             <p className="text-center text-sm font-medium text-green-600 sm:text-left">
               Datos guardados correctamente
             </p>
