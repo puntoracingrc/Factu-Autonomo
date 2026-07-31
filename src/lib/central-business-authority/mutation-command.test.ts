@@ -82,6 +82,25 @@ describe("central business mutation command", () => {
     ).toThrow(CentralBusinessMutationCommandError);
   });
 
+  it.each(["quote", "receipt"] as const)(
+    "admite %s sin abrir la autoridad operativa a facturas",
+    (entityType) => {
+      expect(
+        buildCentralBusinessMutationCommand({
+          ...input(),
+          entityType,
+          entityId: "SYNTHETIC_DOCUMENT_A",
+        }),
+      ).toMatchObject({ entityType });
+      expect(() =>
+        buildCentralBusinessMutationCommand({
+          ...input(),
+          entityType: "invoice" as never,
+        }),
+      ).toThrow(CentralBusinessMutationCommandError);
+    },
+  );
+
   it("normaliza committed/replayed y falla cerrado ante errores RPC", async () => {
     const command = buildCentralBusinessMutationCommand(input());
     const rpc = vi.fn(async () => ({

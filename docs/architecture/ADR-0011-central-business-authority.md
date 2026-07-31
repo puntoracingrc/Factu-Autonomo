@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 15
+- Version: 16
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -112,6 +112,14 @@ transicion local: desvincula gastos y productos, pero conserva sus nombres, NIF,
 lineas, precios, costes y snapshots historicos. Las altas automaticas de
 proveedores dentro de gastos permanecen locales hasta que gasto y proveedor
 puedan confirmarse juntos como una operacion atomica.
+
+Los documentos operativos entran por tipos centrales separados: `quote` para
+presupuestos y `receipt` para recibos. La RPC, las tablas privadas y el cliente
+rechazan `invoice`, rectificativas y cualquier payload que declare `factura`,
+`centralInvoiceAuthority`, `rectification` o `verifactu`. Esta primera
+ampliacion solo habilita la mutacion versionada y la recepcion validada; el
+bootstrap, la numeracion y el cableado de formularios se activan en fases
+posteriores y permanecen apagados por defecto.
 
 La recepcion de clientes y productos centrales se ejecuta al arrancar la
 sesion, al volver a la pestaña, al recuperar conexion y mediante polling corto
