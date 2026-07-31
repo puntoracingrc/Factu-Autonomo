@@ -52,6 +52,12 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: isVercelBuild,
   },
   env: {
+    NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_ENABLED:
+      process.env
+        .NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_ENABLED ?? "",
+    NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_USER_IDS:
+      process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_USER_IDS ??
+      "",
     NEXT_PUBLIC_VERCEL_ENV:
       process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.VERCEL_ENV ?? "",
   },

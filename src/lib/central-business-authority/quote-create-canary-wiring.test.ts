@@ -9,6 +9,7 @@ const form = source("../../components/forms/DocumentForm.tsx");
 const hook = source("../../hooks/useCentralQuoteCreate.ts");
 const store = source("../../context/AppStore.tsx");
 const environment = source("../../../.env.example");
+const nextConfig = source("../../../next.config.ts");
 
 describe("central quote create canary wiring", () => {
   it("conecta solo las altas nuevas de presupuesto al hook canario", () => {
@@ -38,6 +39,12 @@ describe("central quote create canary wiring", () => {
     );
     expect(environment).toContain(
       "NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_USER_IDS=",
+    );
+    expect(nextConfig).toContain(
+      "NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_ENABLED",
+    );
+    expect(nextConfig).toContain(
+      "NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_USER_IDS",
     );
     expect(hook).not.toContain("CentralInvoiceAuthority");
   });
