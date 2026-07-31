@@ -13,6 +13,8 @@ function client(
     batchMutationError?: { code?: string; message?: string } | null;
     eventsError?: { code?: string; message?: string } | null;
     bootstrapError?: { code?: string; message?: string } | null;
+    seriesError?: { code?: string; message?: string } | null;
+    numberedDocumentError?: { code?: string; message?: string } | null;
   } = {},
 ) {
   const calls: unknown[] = [];
@@ -58,6 +60,27 @@ function client(
             : {
                 code: "P4110",
                 message: "invalid central business bootstrap command",
+              },
+        };
+      }
+      if (name === "reconcile_central_business_document_series_v1") {
+        return {
+          error: Object.hasOwn(overrides, "seriesError")
+            ? overrides.seriesError ?? null
+            : {
+                code: "P4131",
+                message:
+                  "invalid central business document series reconciliation",
+              },
+        };
+      }
+      if (name === "create_central_business_document_v1") {
+        return {
+          error: Object.hasOwn(overrides, "numberedDocumentError")
+            ? overrides.numberedDocumentError ?? null
+            : {
+                code: "P4133",
+                message: "invalid central business numbered document command",
               },
         };
       }
@@ -119,6 +142,20 @@ describe("central business authority status readiness", () => {
         p_entities: [],
       }),
     });
+    expect(calls).toContainEqual({
+      name: "reconcile_central_business_document_series_v1",
+      args: expect.objectContaining({
+        p_user_id: null,
+        p_observed_max_sequence: -1,
+      }),
+    });
+    expect(calls).toContainEqual({
+      name: "create_central_business_document_v1",
+      args: expect.objectContaining({
+        p_user_id: null,
+        p_payload_without_number: null,
+      }),
+    });
     expect(result.checks.every((check) => check.noBusinessRows)).toBe(true);
     expect(result.checks.every((check) => !check.destructive)).toBe(true);
   });
@@ -137,6 +174,14 @@ describe("central business authority status readiness", () => {
     ).resolves.toMatchObject({
       ready: false,
       blockers: ["central_business_events_rpc_unavailable"],
+    });
+    await expect(
+      probeCentralBusinessAuthorityStatusReadiness({
+        client: client({ numberedDocumentError: null }).probeClient,
+      }),
+    ).resolves.toMatchObject({
+      ready: false,
+      blockers: ["central_business_numbered_document_rpc_unavailable"],
     });
   });
 });
