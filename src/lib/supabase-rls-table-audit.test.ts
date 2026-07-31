@@ -143,6 +143,13 @@ const centralBusinessBootstrapMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const centralNonfiscalDocumentNumberingMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260731040000_central_nonfiscal_document_numbering.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -181,12 +188,16 @@ const serviceOnlyTables = [
   "central_business_commands",
   "central_business_outbox",
   "central_business_bootstraps",
+  "central_business_document_series",
 ];
 
 const browserSyncTables = ["user_backups", "sync_entities"];
 const browserReadOnlyTables = ["user_subscriptions", "user_usage"];
 const browserRealtimeWakeupTables = ["central_invoice_event_wakeups"];
-const serviceReadOnlyTables = ["central_invoice_series_reconciliations"];
+const serviceReadOnlyTables = [
+  "central_invoice_series_reconciliations",
+  "central_business_document_series_reconciliations",
+];
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -485,6 +496,8 @@ describe("Supabase table-by-table RLS audit hardening", () => {
             ? affiliateRewardMigrationSource
             : table === "central_business_bootstraps"
               ? centralBusinessBootstrapMigrationSource
+            : table === "central_business_document_series"
+              ? centralNonfiscalDocumentNumberingMigrationSource
             : table.startsWith("central_business_")
               ? centralBusinessAuthorityFoundationMigrationSource
             : table.startsWith("central_invoice_")
@@ -533,6 +546,27 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     expect(centralInvoiceAuthoritySeriesReconciliationMigrationSource).not.toMatch(
       new RegExp(
         `grant\\s+[^;]*public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
+        "iu",
+      ),
+    );
+
+    const businessTable =
+      "central_business_document_series_reconciliations";
+    expect(centralNonfiscalDocumentNumberingMigrationSource).toContain(
+      `revoke all on table public.${businessTable}\n  from public, anon, authenticated`,
+    );
+    expect(centralNonfiscalDocumentNumberingMigrationSource).toContain(
+      `grant select on table\n  public.${businessTable} to service_role`,
+    );
+    expect(centralNonfiscalDocumentNumberingMigrationSource).not.toMatch(
+      new RegExp(
+        `grant\\s+(?:all|insert|update|delete|truncate)[^;]*public\\.${escapedTable(businessTable)}[^;]*to\\s+service_role`,
+        "iu",
+      ),
+    );
+    expect(centralNonfiscalDocumentNumberingMigrationSource).not.toMatch(
+      new RegExp(
+        `grant\\s+[^;]*public\\.${escapedTable(businessTable)}[^;]*to\\s+(?:anon|authenticated)`,
         "iu",
       ),
     );

@@ -1,6 +1,11 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  stableCentralBusinessJson,
+  type CentralBusinessJson,
+} from "./mutation-command";
 
 const localAcceptanceEnabled =
   process.env.CENTRAL_BUSINESS_AUTHORITY_LOCAL_ENABLED === "true";
@@ -23,6 +28,10 @@ function assertLocalUrl(value: string): void {
       "Central business authority acceptance requires localhost.",
     );
   }
+}
+
+function testHash(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function mutationArgs(input: {
@@ -53,6 +62,71 @@ function mutationArgs(input: {
 
 async function mutate(args: ReturnType<typeof mutationArgs>) {
   return admin.rpc("mutate_central_business_entity_v1", args);
+}
+
+function numberedDocumentPayload(input: {
+  id: string;
+  type: "presupuesto" | "recibo";
+  createdAt: string;
+  date?: string;
+}) {
+  return {
+    id: input.id,
+    type: input.type,
+    date: input.date ?? "2026-07-31",
+    status: "borrador",
+    client: { id: "synthetic-client", name: "Synthetic client" },
+    items: [],
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  };
+}
+
+async function reconcileDocumentSeries(input: {
+  entityType: "quote" | "receipt";
+  template: string;
+  observedMax: number;
+  key: string;
+  fiscalYear?: number;
+}) {
+  return admin.rpc("reconcile_central_business_document_series_v1", {
+    p_user_id: userId,
+    p_device_id: "synthetic-numbering-device",
+    p_session_hash: "synthetic-numbering-session",
+    p_idempotency_key_hash: input.key.repeat(64),
+    p_request_hash: String.fromCharCode(input.key.charCodeAt(0) + 1).repeat(64),
+    p_entity_type: input.entityType,
+    p_number_template: input.template,
+    p_fiscal_year: input.fiscalYear ?? 2026,
+    p_observed_max_sequence: input.observedMax,
+    p_source_document_count: input.observedMax,
+    p_source_digest: `sha256:${String.fromCharCode(input.key.charCodeAt(0) + 2).repeat(64)}`,
+  });
+}
+
+async function createNumberedDocument(input: {
+  entityType: "quote" | "receipt";
+  entityId: string;
+  template: string;
+  padding: number;
+  idempotencyHash: string;
+  requestHash: string;
+  payload: ReturnType<typeof numberedDocumentPayload>;
+  fiscalYear?: number;
+}) {
+  return admin.rpc("create_central_business_document_v1", {
+    p_user_id: userId,
+    p_device_id: "synthetic-numbering-device",
+    p_session_hash: "synthetic-numbering-session",
+    p_idempotency_key_hash: input.idempotencyHash,
+    p_request_hash: input.requestHash,
+    p_entity_type: input.entityType,
+    p_entity_id: input.entityId,
+    p_number_template: input.template,
+    p_padding: input.padding,
+    p_fiscal_year: input.fiscalYear ?? 2026,
+    p_payload_without_number: input.payload,
+  });
 }
 
 describeLocal("central business authority local PostgreSQL acceptance", () => {
@@ -307,35 +381,295 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
   });
 
   it.each([
-    ["quote", "synthetic-quote", "presupuesto", "8".repeat(64)],
-    ["receipt", "synthetic-receipt", "recibo", "9".repeat(64)],
+    ["quote", "presupuesto"],
+    ["receipt", "recibo"],
   ] as const)(
-    "commits a versioned %s without opening the fiscal invoice type",
-    async (entityType, entityId, documentType, contentHash) => {
+    "rejects generic creation of a new %s before server numbering",
+    async (entityType, documentType) => {
       const result = await mutate(
         mutationArgs({
           idempotencyKey: `create-${entityType}`,
           requestHash: `request-${entityType}`,
           expectedVersion: 0,
           entityType,
-          entityId,
-          payload: { id: entityId, type: documentType },
-          contentHash,
+          entityId: `generic-${entityType}`,
+          payload: {
+            id: `generic-${entityType}`,
+            type: documentType,
+            number: "MUST-NOT-WIN",
+          },
+          contentHash: `${entityType}-content-hash`,
         }),
       );
 
-      expect(result.error).toBeNull();
-      expect(result.data).toEqual([
-        expect.objectContaining({
-          result_status: "committed",
-          entity_version: 1,
-          deleted: false,
-        }),
-      ]);
+      expect(result.error).toMatchObject({
+        code: "P4130",
+        message: expect.stringContaining("requires server numbering"),
+      });
     },
   );
 
+  it("allocates, replays and never reuses quote or receipt numbers", async () => {
+    const quoteReconciliation = await reconcileDocumentSeries({
+      entityType: "quote",
+      template: "P-{year}-{num}",
+      observedMax: 4,
+      key: "1",
+    });
+    expect(quoteReconciliation.error).toBeNull();
+    expect(quoteReconciliation.data).toEqual([
+      expect.objectContaining({
+        result_status: "committed",
+        scope_year: 2026,
+        previous_sequence: 0,
+        resulting_sequence: 4,
+      }),
+    ]);
+
+    const quoteInputs = [
+      {
+        entityId: "numbered-quote-left",
+        idempotencyHash: "4".repeat(64),
+        requestHash: "5".repeat(64),
+        createdAt: "2026-07-31T02:00:00.000Z",
+      },
+      {
+        entityId: "numbered-quote-right",
+        idempotencyHash: "6".repeat(64),
+        requestHash: "7".repeat(64),
+        createdAt: "2026-07-31T02:00:01.000Z",
+      },
+    ] as const;
+    const [left, right] = await Promise.all(
+      quoteInputs.map((input) =>
+        createNumberedDocument({
+          entityType: "quote",
+          entityId: input.entityId,
+          template: "P-{year}-{num}",
+          padding: 4,
+          idempotencyHash: input.idempotencyHash,
+          requestHash: input.requestHash,
+          payload: numberedDocumentPayload({
+            id: input.entityId,
+            type: "presupuesto",
+            createdAt: input.createdAt,
+          }),
+        }),
+      ),
+    );
+    expect(left.error).toBeNull();
+    expect(right.error).toBeNull();
+
+    const committedRows = [left, right]
+      .flatMap((result) => result.data ?? [])
+      .sort(
+        (first: { sequence: number }, second: { sequence: number }) =>
+          first.sequence - second.sequence,
+      );
+    expect(committedRows.map((row: { full_number: string }) => row.full_number))
+      .toEqual(["P-2026-0005", "P-2026-0006"]);
+    expect(committedRows.map((row: { sequence: number }) => row.sequence))
+      .toEqual([5, 6]);
+
+    for (const row of committedRows as Array<{
+      content_hash: string;
+      document_payload: Record<string, unknown>;
+    }>) {
+      expect(row.content_hash).toBe(
+        createHash("sha256")
+          .update(
+            stableCentralBusinessJson(
+              row.document_payload as CentralBusinessJson,
+            ),
+          )
+          .digest("hex"),
+      );
+    }
+
+    const replay = await createNumberedDocument({
+      entityType: "quote",
+      entityId: quoteInputs[0].entityId,
+      template: "P-{year}-{num}",
+      padding: 4,
+      idempotencyHash: quoteInputs[0].idempotencyHash,
+      requestHash: quoteInputs[0].requestHash,
+      payload: numberedDocumentPayload({
+        id: quoteInputs[0].entityId,
+        type: "presupuesto",
+        createdAt: quoteInputs[0].createdAt,
+      }),
+    });
+    expect(replay.error).toBeNull();
+    expect(replay.data).toEqual([
+      expect.objectContaining({
+        result_status: "replayed",
+        full_number: expect.stringMatching(/^P-2026-000[56]$/),
+      }),
+    ]);
+
+    const firstSequence = committedRows[0]?.sequence;
+    const firstEntityId =
+      firstSequence === (left.data?.[0] as { sequence?: number })?.sequence
+        ? quoteInputs[0].entityId
+        : quoteInputs[1].entityId;
+    const deleted = await mutate(
+      mutationArgs({
+        idempotencyKey: "delete-numbered-quote",
+        requestHash: "delete-numbered-quote-request",
+        operation: "delete",
+        expectedVersion: 1,
+        entityType: "quote",
+        entityId: firstEntityId,
+        contentHash: "numbered-quote-tombstone",
+      }),
+    );
+    expect(deleted.error).toBeNull();
+
+    const afterDelete = await createNumberedDocument({
+      entityType: "quote",
+      entityId: "numbered-quote-after-delete",
+      template: "P-{year}-{num}",
+      padding: 4,
+      idempotencyHash: "8".repeat(64),
+      requestHash: "9".repeat(64),
+      payload: numberedDocumentPayload({
+        id: "numbered-quote-after-delete",
+        type: "presupuesto",
+        createdAt: "2026-07-31T02:00:02.000Z",
+      }),
+    });
+    expect(afterDelete.error).toBeNull();
+    expect(afterDelete.data).toEqual([
+      expect.objectContaining({
+        full_number: "P-2026-0007",
+        sequence: 7,
+      }),
+    ]);
+
+    const receiptReconciliation = await reconcileDocumentSeries({
+      entityType: "receipt",
+      template: "R-{year}-{num}",
+      observedMax: 1,
+      key: "a",
+    });
+    expect(receiptReconciliation.error).toBeNull();
+
+    const receipt = await createNumberedDocument({
+      entityType: "receipt",
+      entityId: "numbered-receipt",
+      template: "R-{year}-{num}",
+      padding: 4,
+      idempotencyHash: "d".repeat(64),
+      requestHash: "e".repeat(64),
+      payload: numberedDocumentPayload({
+        id: "numbered-receipt",
+        type: "recibo",
+        createdAt: "2026-07-31T02:00:03.000Z",
+      }),
+    });
+    expect(receipt.error).toBeNull();
+    expect(receipt.data).toEqual([
+      expect.objectContaining({
+        full_number: "R-2026-0002",
+        sequence: 2,
+      }),
+    ]);
+  });
+
+  it("does not reset a template without year when the exercise changes", async () => {
+    const firstBaseline = await reconcileDocumentSeries({
+      entityType: "quote",
+      template: "Q-{num}",
+      observedMax: 10,
+      key: "0",
+      fiscalYear: 2026,
+    });
+    expect(firstBaseline.error).toBeNull();
+    expect(firstBaseline.data).toEqual([
+      expect.objectContaining({
+        scope_year: 0,
+        resulting_sequence: 10,
+      }),
+    ]);
+
+    const first = await createNumberedDocument({
+      entityType: "quote",
+      entityId: "yearless-quote-2026",
+      template: "Q-{num}",
+      padding: 2,
+      idempotencyHash: testHash("yearless-quote-2026-idem"),
+      requestHash: testHash("yearless-quote-2026-request"),
+      payload: numberedDocumentPayload({
+        id: "yearless-quote-2026",
+        type: "presupuesto",
+        createdAt: "2026-07-31T02:10:00.000Z",
+      }),
+    });
+    expect(first.error).toBeNull();
+    expect(first.data).toEqual([
+      expect.objectContaining({
+        full_number: "Q-11",
+        sequence: 11,
+        scope_year: 0,
+      }),
+    ]);
+
+    const nextYearBaseline = await reconcileDocumentSeries({
+      entityType: "quote",
+      template: "Q-{num}",
+      observedMax: 0,
+      key: "b",
+      fiscalYear: 2027,
+    });
+    expect(nextYearBaseline.error).toBeNull();
+    expect(nextYearBaseline.data).toEqual([
+      expect.objectContaining({
+        scope_year: 0,
+        previous_sequence: 11,
+        resulting_sequence: 11,
+      }),
+    ]);
+
+    const nextYear = await createNumberedDocument({
+      entityType: "quote",
+      entityId: "yearless-quote-2027",
+      template: "Q-{num}",
+      padding: 2,
+      fiscalYear: 2027,
+      idempotencyHash: testHash("yearless-quote-2027-idem"),
+      requestHash: testHash("yearless-quote-2027-request"),
+      payload: numberedDocumentPayload({
+        id: "yearless-quote-2027",
+        type: "presupuesto",
+        date: "2027-01-02",
+        createdAt: "2027-01-02T09:00:00.000Z",
+      }),
+    });
+    expect(nextYear.error).toBeNull();
+    expect(nextYear.data).toEqual([
+      expect.objectContaining({
+        full_number: "Q-12",
+        sequence: 12,
+        scope_year: 0,
+      }),
+    ]);
+  });
+
   it("commits and replays an all-or-nothing legacy bootstrap", async () => {
+    const existing = await admin
+      .from("central_business_entities")
+      .select("entity_type,entity_id,current_payload,content_hash")
+      .eq("user_id", userId)
+      .eq("deleted", false);
+    expect(existing.error).toBeNull();
+    const existingSnapshot = (existing.data ?? []).map((entity, index) => ({
+      entityType: entity.entity_type,
+      entityId: entity.entity_id,
+      payload: entity.current_payload,
+      contentHash: entity.content_hash,
+      idempotencyKeyHash: testHash(`bootstrap-existing-idem-${index}`),
+      requestHash: testHash(`bootstrap-existing-request-${index}`),
+    }));
     const args = {
       p_user_id: userId,
       p_device_id: "synthetic-bootstrap-device",
@@ -346,6 +680,7 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       p_central_state_digest: "f".repeat(64),
       p_preview_digest: "1".repeat(64),
       p_entities: [
+        ...existingSnapshot,
         {
           entityType: "supplier",
           entityId: "synthetic-bootstrap-supplier",
@@ -354,8 +689,8 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
             name: "Synthetic supplier",
           },
           contentHash: "2".repeat(64),
-          idempotencyKeyHash: "3".repeat(64),
-          requestHash: "4".repeat(64),
+          idempotencyKeyHash: testHash("bootstrap-supplier-idem"),
+          requestHash: testHash("bootstrap-supplier-request"),
         },
         {
           entityType: "product",
@@ -365,8 +700,8 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
             name: "Synthetic product",
           },
           contentHash: "5".repeat(64),
-          idempotencyKeyHash: "6".repeat(64),
-          requestHash: "7".repeat(64),
+          idempotencyKeyHash: testHash("bootstrap-product-idem"),
+          requestHash: testHash("bootstrap-product-request"),
         },
         {
           entityType: "quote",
@@ -376,8 +711,8 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
             type: "presupuesto",
           },
           contentHash: "8".repeat(64),
-          idempotencyKeyHash: "a".repeat(64),
-          requestHash: "b".repeat(64),
+          idempotencyKeyHash: testHash("bootstrap-quote-idem"),
+          requestHash: testHash("bootstrap-quote-request"),
         },
         {
           entityType: "receipt",
@@ -387,8 +722,8 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
             type: "recibo",
           },
           contentHash: "9".repeat(64),
-          idempotencyKeyHash: "c".repeat(64),
-          requestHash: "d".repeat(64),
+          idempotencyKeyHash: testHash("bootstrap-receipt-idem"),
+          requestHash: testHash("bootstrap-receipt-request"),
         },
       ],
     };
@@ -401,8 +736,8 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     expect(committed.data).toEqual([
       expect.objectContaining({
         result_status: "committed",
-        created_count: 2,
-        identical_count: 2,
+        created_count: 4,
+        identical_count: existingSnapshot.length,
       }),
     ]);
 
@@ -414,8 +749,8 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     expect(replayed.data).toEqual([
       expect.objectContaining({
         result_status: "replayed",
-        created_count: 2,
-        identical_count: 2,
+        created_count: 4,
+        identical_count: existingSnapshot.length,
       }),
     ]);
 
@@ -850,5 +1185,56 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     );
     expect(browserBatch.data).toBeNull();
     expect(browserBatch.error).not.toBeNull();
+
+    for (const table of [
+      "central_business_document_series",
+      "central_business_document_series_reconciliations",
+    ]) {
+      const denied = await signedInUser.from(table).select("id").limit(1);
+      expect(denied.data).toBeNull();
+      expect(denied.error).not.toBeNull();
+    }
+
+    const browserReconciliation = await signedInUser.rpc(
+      "reconcile_central_business_document_series_v1",
+      {
+        p_user_id: userId,
+        p_device_id: "synthetic-reader",
+        p_session_hash: "synthetic-session",
+        p_idempotency_key_hash: "1".repeat(64),
+        p_request_hash: "2".repeat(64),
+        p_entity_type: "quote",
+        p_number_template: "P-{year}-{num}",
+        p_fiscal_year: 2026,
+        p_observed_max_sequence: 0,
+        p_source_document_count: 0,
+        p_source_digest: `sha256:${"3".repeat(64)}`,
+      },
+    );
+    expect(browserReconciliation.data).toBeNull();
+    expect(browserReconciliation.error).not.toBeNull();
+
+    const browserNumberedCreate = await signedInUser.rpc(
+      "create_central_business_document_v1",
+      {
+        p_user_id: userId,
+        p_device_id: "synthetic-reader",
+        p_session_hash: "synthetic-session",
+        p_idempotency_key_hash: "4".repeat(64),
+        p_request_hash: "5".repeat(64),
+        p_entity_type: "quote",
+        p_entity_id: "browser-must-not-create",
+        p_number_template: "P-{year}-{num}",
+        p_padding: 4,
+        p_fiscal_year: 2026,
+        p_payload_without_number: numberedDocumentPayload({
+          id: "browser-must-not-create",
+          type: "presupuesto",
+          createdAt: "2026-07-31T02:00:04.000Z",
+        }),
+      },
+    );
+    expect(browserNumberedCreate.data).toBeNull();
+    expect(browserNumberedCreate.error).not.toBeNull();
   });
 });
