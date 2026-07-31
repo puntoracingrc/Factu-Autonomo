@@ -14,6 +14,7 @@ import {
   loadCentralBusinessDurableQueue,
   prepareCentralBusinessEntityServerResolution,
   recordCentralBusinessEntityVersionCheckpoint,
+  resetCentralBusinessEventStateForServerAdoption,
   rewindCentralBusinessEventCursorForReconciliation,
   retryCentralBusinessOperation,
   type CentralBusinessQueueStorage,
@@ -191,6 +192,52 @@ describe("central business durable queue", () => {
       lastAppliedEventSequence: 0,
       operations: [{ operationId: mutation.idempotencyKey }],
     });
+  });
+
+  it("resetea cursor y versiones para adoptar el servidor", async () => {
+    const storage = new MemoryStorage();
+    await applyCentralBusinessEventPage({
+      ownerScope,
+      events: [event()],
+      nextSequence: 1,
+      storage,
+      applyEvent: async () => undefined,
+    });
+
+    const result = resetCentralBusinessEventStateForServerAdoption({
+      ownerScope,
+      storage,
+    });
+
+    expect(result).toMatchObject({
+      lastAppliedEventSequence: 0,
+      operations: [],
+      entityVersions: {},
+    });
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage),
+    ).toEqual(result);
+  });
+
+  it("no adopta el servidor si existe una operacion local pendiente", () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+
+    expect(() =>
+      resetCentralBusinessEventStateForServerAdoption({
+        ownerScope,
+        storage,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<CentralBusinessDurableQueueError>>({
+        code: "LOCAL_OPERATION_CONFLICT",
+      }),
+    );
   });
 
   it("persiste y relee la operacion antes de permitir el cambio local", () => {

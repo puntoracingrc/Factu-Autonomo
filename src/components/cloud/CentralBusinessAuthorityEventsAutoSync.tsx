@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS,
@@ -113,6 +114,8 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     schedule(CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_START_DELAY_MS);
     window.addEventListener("online", wake);
     window.addEventListener("focus", wake);
+    window.addEventListener("pageshow", wake);
+    window.addEventListener(CLOUD_DEVICE_REACTIVATED_EVENT, wake);
     document.addEventListener("visibilitychange", wake);
 
     return () => {
@@ -122,9 +125,16 @@ export function CentralBusinessAuthorityEventsAutoSync() {
       clearTimer();
       window.removeEventListener("online", wake);
       window.removeEventListener("focus", wake);
+      window.removeEventListener("pageshow", wake);
+      window.removeEventListener(CLOUD_DEVICE_REACTIVATED_EVENT, wake);
       document.removeEventListener("visibilitychange", wake);
     };
   }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !ready || !userId) return;
+    realtimeWakeRef.current();
+  }, [enabled, ready, userId]);
 
   useEffect(() => {
     const subscription = centralBusinessEventsRealtimeSubscription(userId);

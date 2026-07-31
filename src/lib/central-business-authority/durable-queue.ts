@@ -537,6 +537,34 @@ export function rewindCentralBusinessEventCursorForReconciliation(input: {
   );
 }
 
+export function resetCentralBusinessEventStateForServerAdoption(input: {
+  ownerScope: string;
+  storage?: CentralBusinessQueueStorage;
+}): CentralBusinessDurableQueueState {
+  const storage = resolveStorage(input.storage);
+  const state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
+  if (state.operations.length > 0) {
+    throw new CentralBusinessDurableQueueError(
+      "LOCAL_OPERATION_CONFLICT",
+      "No se puede adoptar la copia central mientras haya cambios pendientes.",
+    );
+  }
+  if (
+    state.lastAppliedEventSequence === 0 &&
+    Object.keys(state.entityVersions).length === 0
+  ) {
+    return state;
+  }
+  return persistState(
+    {
+      ...state,
+      lastAppliedEventSequence: 0,
+      entityVersions: {},
+    },
+    storage,
+  );
+}
+
 export function enqueueCentralBusinessOperation(input: {
   ownerScope: string;
   operationId: string;

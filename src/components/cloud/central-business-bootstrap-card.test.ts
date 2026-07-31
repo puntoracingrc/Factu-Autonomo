@@ -56,15 +56,19 @@ describe("central business bootstrap account card", () => {
     );
   });
 
-  it("restaura fichas solo centrales releyendo el historial sin escribir servidor", () => {
-    expect(component).toContain("reconcileCentralBusinessEvents");
-    expect(component).toContain("handleRestoreCentralOnly");
-    expect(component).toContain("preview.summary.conflict === 0");
+  it("permite adoptar la copia central en el dispositivo sin escribir servidor", () => {
+    expect(component).toContain("adoptCentralBusinessEventsFromServer");
+    expect(component).toContain("handleAdoptServerCopy");
+    expect(component).toContain("adoptConfirmed");
+    expect(component).toContain("canAdoptServerCopy");
+    expect(component).toContain("preview.summary.conflict > 0");
     expect(component).toContain("preview.summary.centralOnly > 0");
     expect(component).toContain(
       "previewCentralBusinessBootstrapFromBrowser(restoredEntities)",
     );
-    expect(component).toContain("Restaurar ${preview.summary.centralOnly}");
+    expect(component).toContain("No se ha escrito nada en el servidor");
+    expect(component).toContain("ni toca facturas emitidas");
+    expect(component).toContain("Usar servidor en este dispositivo");
   });
 
   it("muestra los IDs bloqueados sin habilitar confirmacion si la preview no es confirmable", () => {
