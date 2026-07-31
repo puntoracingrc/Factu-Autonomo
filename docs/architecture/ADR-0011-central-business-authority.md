@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 20
+- Version: 21
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -159,6 +159,14 @@ actua como suelo monotono. Cuando la plantilla no contiene `{year}`, se revisan
 todos los ejercicios y se concilia el alcance global `0`, evitando reinicios en
 enero. El preflight rechaza una confirmacion con otro alcance o con un contador
 inferior antes de permitir cualquier alta central.
+
+Cada alta numerada conserva antes de la llamada un comando completo en un
+diario local separado por propietario y lo relee byte a byte. Los reintentos
+usan el mismo ID de entidad y la misma clave idempotente. Una confirmacion del
+servidor se vuelve a persistir antes de modificar la copia visible y solo se
+retira con un acuse que coincida en operacion, evento y hash. Los fallos
+transitorios quedan pendientes; los conflictos y respuestas incoherentes quedan
+bloqueados para revision y nunca generan automaticamente otra identidad.
 
 El candado transaccional por propietario se toma tambien al insertar o
 reintentar cualquier comando ordinario. De este modo el bootstrap, una
