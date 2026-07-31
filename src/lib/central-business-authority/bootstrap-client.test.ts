@@ -206,6 +206,43 @@ describe("central business bootstrap browser client", () => {
     );
   });
 
+  it("comprime la vista previa cuando el snapshot supera el umbral del navegador", async () => {
+    let capturedInit: RequestInit | undefined;
+    const fetchImpl: typeof fetch = vi.fn(async (_input, init) => {
+      capturedInit = init;
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          schema: "CENTRAL_BUSINESS_BOOTSTRAP_PREVIEW_ROUTE_V1",
+          preview,
+        }),
+        { status: 200 },
+      );
+    });
+    const largeEntities = [
+      {
+        entityType: "customer" as const,
+        entityId: "customer-a",
+        payload: {
+          id: "customer-a",
+          notes: "x".repeat(700_000),
+        },
+      },
+    ];
+
+    const result = await previewCentralBusinessBootstrapFromBrowser(
+      largeEntities,
+      dependencies(fetchImpl),
+    );
+
+    expect(result.ok).toBe(true);
+    const sent = String(capturedInit?.body);
+    expect(sent).toContain("CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY_V1");
+    expect(sent.length).toBeLessThan(
+      JSON.stringify({ entities: largeEntities }).length,
+    );
+  });
+
   it("confirma con la precondicion exacta y conserva la respuesta idempotente", async () => {
     let capturedInit: RequestInit | undefined;
     const fetchImpl: typeof fetch = vi.fn(async (_input, init) => {

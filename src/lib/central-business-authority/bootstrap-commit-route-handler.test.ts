@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { gzipSync } from "node:zlib";
 
 import { CENTRAL_BUSINESS_BOOTSTRAP_CONFIRMATION } from "./bootstrap-commit";
 import {
   createCentralBusinessBootstrapCommitRouteHandler,
 } from "./bootstrap-commit-route-handler";
+import { CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY } from "./bootstrap-request-body";
 import {
   CENTRAL_BUSINESS_BOOTSTRAP_COMMIT_RPC_ADAPTER,
   CentralBusinessBootstrapCommitRpcError,
@@ -43,6 +45,15 @@ function request(raw = body()) {
     }),
     readBody: async () => raw,
   };
+}
+
+function compressedBody(raw: string) {
+  return JSON.stringify({
+    schema: CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY,
+    encoding: "gzip+base64",
+    uncompressedBytes: Buffer.byteLength(raw, "utf8"),
+    payload: gzipSync(Buffer.from(raw, "utf8")).toString("base64"),
+  });
 }
 
 function dependencies() {
@@ -90,6 +101,20 @@ describe("central business bootstrap commit route", () => {
     expect(JSON.stringify(result.body)).not.toContain("Cliente A");
     expect(deps.commit).toHaveBeenCalledTimes(1);
     expect(result.headers["Cache-Control"]).toContain("no-store");
+  });
+
+  it("revalida y confirma lotes comprimidos", async () => {
+    const deps = dependencies();
+    const handler = createCentralBusinessBootstrapCommitRouteHandler(deps);
+
+    const result = await handler.handle(request(compressedBody(body())));
+
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      ok: true,
+      result: { status: "committed", createdCount: 1 },
+    });
+    expect(deps.commit).toHaveBeenCalledTimes(1);
   });
 
   it("aborta antes de la RPC cuando la vista previa ha caducado", async () => {
