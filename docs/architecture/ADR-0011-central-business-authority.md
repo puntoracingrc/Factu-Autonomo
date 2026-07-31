@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 17
+- Version: 18
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -129,6 +129,24 @@ metadatos de autoridad fiscal, rectificacion o Veri*Factu. La vista previa y el
 commit conservan las mismas reglas fail-closed, de forma que ningun documento
 solo central, tombstone o contenido divergente puede quedar oculto dentro del
 lote.
+
+La numeracion de documentos operativos nuevos se asigna en PostgreSQL. Cada
+plantilla conserva una serie monotona por propietario y tipo; si la plantilla
+incluye `{year}`, el año forma parte de la serie, y si no lo incluye la
+secuencia no se reinicia para evitar repetir numeros entre ejercicios. Antes de
+la primera asignacion, una reconciliacion inmutable certifica el maximo
+historico observado. El servidor guarda numero, payload versionado, comando y
+evento de salida en una unica transaccion, conserva la identidad aunque el
+documento se retire y rechaza las altas genericas que intenten aportar su propio
+numero. Los presupuestos y recibos historicos incorporados por bootstrap no se
+renumeran ni se marcan como incorrectos; su identidad central queda vacia y
+solo los creados por esta autoridad reciben la nueva garantia.
+
+El candado transaccional por propietario se toma tambien al insertar o
+reintentar cualquier comando ordinario. De este modo el bootstrap, una
+reconciliacion de serie y una mutacion normal comparten el mismo orden de
+bloqueo antes de tocar entidades concretas; ninguna escritura puede cruzar la
+comparacion y el commit del snapshot.
 
 La recepcion de clientes y productos centrales se ejecuta al arrancar la
 sesion, al volver a la pestaña, al recuperar conexion y mediante polling corto
