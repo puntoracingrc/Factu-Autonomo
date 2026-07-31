@@ -4,6 +4,7 @@ import {
   stableCentralBusinessJson,
   type CentralBusinessJson,
 } from "./mutation-command";
+import { parseCentralBusinessDocumentPayload } from "./payload-parsers";
 
 assertServerOnlyModule();
 
@@ -17,6 +18,8 @@ export type CentralBusinessBootstrapEntityType =
   | "user_reminder"
   | "expense"
   | "recurring_expense"
+  | "quote"
+  | "receipt"
   | "profile";
 
 export interface CentralBusinessBootstrapEntityInput {
@@ -66,6 +69,8 @@ const ENTITY_TYPES = new Set<CentralBusinessBootstrapEntityType>([
   "user_reminder",
   "expense",
   "recurring_expense",
+  "quote",
+  "receipt",
   "profile",
 ]);
 
@@ -112,6 +117,16 @@ function validateLocalEntity(
     (entity.entityType === "profile"
       ? entity.entityId !== "profile"
       : entity.payload.id !== entity.entityId)
+  ) {
+    throw new Error("INVALID_BOOTSTRAP_ENTITY");
+  }
+  if (
+    (entity.entityType === "quote" || entity.entityType === "receipt") &&
+    !parseCentralBusinessDocumentPayload(
+      entity.payload,
+      entity.entityId,
+      entity.entityType,
+    )
   ) {
     throw new Error("INVALID_BOOTSTRAP_ENTITY");
   }

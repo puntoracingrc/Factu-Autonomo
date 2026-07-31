@@ -6,6 +6,29 @@ import {
   type CentralBusinessBootstrapEntityInput,
 } from "./bootstrap-preview";
 
+const quotePayload = {
+  id: "quote-a",
+  type: "presupuesto",
+  number: "P-2026-0001",
+  date: "2026-07-30",
+  client: { name: "Cliente" },
+  items: [],
+  status: "borrador",
+  createdAt: "2026-07-30T08:00:00.000Z",
+  updatedAt: "2026-07-30T08:00:00.000Z",
+};
+const receiptPayload = {
+  id: "receipt-a",
+  type: "recibo",
+  number: "R-2026-0001",
+  date: "2026-07-30",
+  client: { name: "Cliente" },
+  items: [],
+  status: "pagado",
+  createdAt: "2026-07-30T08:00:00.000Z",
+  updatedAt: "2026-07-30T08:00:00.000Z",
+};
+
 const local: CentralBusinessBootstrapEntityInput[] = [
   {
     entityType: "customer",
@@ -35,6 +58,16 @@ const local: CentralBusinessBootstrapEntityInput[] = [
     entityId: "profile",
     payload: { name: "Empresa", numbering: {}, iva: {} },
   },
+  {
+    entityType: "quote",
+    entityId: "quote-a",
+    payload: quotePayload,
+  },
+  {
+    entityType: "receipt",
+    entityId: "receipt-a",
+    payload: receiptPayload,
+  },
 ];
 
 describe("central business bootstrap preview", () => {
@@ -49,10 +82,10 @@ describe("central business bootstrap preview", () => {
     });
 
     expect(first.summary).toEqual({
-      local: 4,
+      local: 6,
       centralActive: 0,
       centralDeleted: 0,
-      create: 4,
+      create: 6,
       identical: 0,
       conflict: 0,
       centralOnly: 0,
@@ -60,6 +93,8 @@ describe("central business bootstrap preview", () => {
     expect(first.canCommit).toBe(true);
     expect(first.previewDigest).toBe(reordered.previewDigest);
     expect(first.entries.map((entry) => entry.status)).toEqual([
+      "create",
+      "create",
       "create",
       "create",
       "create",
@@ -127,6 +162,20 @@ describe("central business bootstrap preview", () => {
         centralDeleted: false,
       },
       {
+        entityType: "quote",
+        entityId: "quote-a",
+        status: "create",
+        centralVersion: null,
+        centralDeleted: false,
+      },
+      {
+        entityType: "receipt",
+        entityId: "receipt-a",
+        status: "create",
+        centralVersion: null,
+        centralDeleted: false,
+      },
+      {
         entityType: "supplier",
         entityId: "supplier-a",
         status: "conflict",
@@ -170,6 +219,37 @@ describe("central business bootstrap preview", () => {
             entityType: "profile",
             entityId: "other-profile",
             payload: { name: "Empresa" },
+          },
+        ],
+        centralEntities: [],
+      }),
+    ).toThrow("INVALID_BOOTSTRAP_ENTITY");
+  });
+
+  it("rechaza facturas y metadatos fiscales disfrazados de documento operativo", () => {
+    expect(() =>
+      buildCentralBusinessBootstrapPreview({
+        localEntities: [
+          {
+            ...local.find((entity) => entity.entityType === "quote")!,
+            payload: {
+              ...quotePayload,
+              type: "factura",
+            },
+          },
+        ],
+        centralEntities: [],
+      }),
+    ).toThrow("INVALID_BOOTSTRAP_ENTITY");
+    expect(() =>
+      buildCentralBusinessBootstrapPreview({
+        localEntities: [
+          {
+            ...local.find((entity) => entity.entityType === "receipt")!,
+            payload: {
+              ...receiptPayload,
+              centralInvoiceAuthority: { source: "forbidden" },
+            },
           },
         ],
         centralEntities: [],

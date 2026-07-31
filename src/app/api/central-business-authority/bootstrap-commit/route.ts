@@ -147,6 +147,8 @@ const handler = createCentralBusinessBootstrapCommitRouteHandler({
             "user_reminder",
             "expense",
             "recurring_expense",
+            "quote",
+            "receipt",
             "profile",
           ])
           .order("entity_type")
@@ -161,6 +163,8 @@ const handler = createCentralBusinessBootstrapCommitRouteHandler({
             | "user_reminder"
             | "expense"
             | "recurring_expense"
+            | "quote"
+            | "receipt"
             | "profile",
           entityId: row.entity_id,
           currentVersion: row.current_version,

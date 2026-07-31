@@ -100,6 +100,41 @@ describe("central business bootstrap browser client", () => {
           updatedAt: "2026-07-30T08:00:00.000Z",
         },
       ],
+      documents: [
+        {
+          id: "invoice-excluded",
+          type: "factura",
+          number: "F-2026-0001",
+          date: "2026-07-30",
+          client: { name: "Cliente factura" },
+          items: [],
+          status: "borrador",
+          createdAt: "2026-07-30T08:00:00.000Z",
+          updatedAt: "2026-07-30T08:00:00.000Z",
+        },
+        {
+          id: "quote-a",
+          type: "presupuesto",
+          number: "P-2026-0001",
+          date: "2026-07-30",
+          client: { name: "Cliente presupuesto" },
+          items: [],
+          status: "borrador",
+          createdAt: "2026-07-30T08:00:00.000Z",
+          updatedAt: "2026-07-30T08:00:00.000Z",
+        },
+        {
+          id: "receipt-a",
+          type: "recibo",
+          number: "R-2026-0001",
+          date: "2026-07-30",
+          client: { name: "Cliente recibo" },
+          items: [],
+          status: "pagado",
+          createdAt: "2026-07-30T08:00:00.000Z",
+          updatedAt: "2026-07-30T08:00:00.000Z",
+        },
+      ],
       profile: { ...DEFAULT_PROFILE, name: "Empresa sintetica" },
     } as unknown as typeof EMPTY_DATA;
 
@@ -112,10 +147,15 @@ describe("central business bootstrap browser client", () => {
         "expense:expense-a",
         "product:product-a",
         "profile:profile",
+        "quote:quote-a",
+        "receipt:receipt-a",
         "recurring_expense:recurring-a",
         "supplier:supplier-a",
         "user_reminder:reminder-a",
       ],
+    );
+    expect(first.some((entry) => entry.entityId === "invoice-excluded")).toBe(
+      false,
     );
     expect(first[0].payload).not.toHaveProperty("optional");
     expect(first.find((entry) => entry.entityType === "profile")?.payload)

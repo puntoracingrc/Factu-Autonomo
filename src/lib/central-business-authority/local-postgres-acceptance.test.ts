@@ -307,11 +307,11 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
   });
 
   it.each([
-    ["quote", "synthetic-quote", "presupuesto"],
-    ["receipt", "synthetic-receipt", "recibo"],
+    ["quote", "synthetic-quote", "presupuesto", "8".repeat(64)],
+    ["receipt", "synthetic-receipt", "recibo", "9".repeat(64)],
   ] as const)(
     "commits a versioned %s without opening the fiscal invoice type",
-    async (entityType, entityId, documentType) => {
+    async (entityType, entityId, documentType, contentHash) => {
       const result = await mutate(
         mutationArgs({
           idempotencyKey: `create-${entityType}`,
@@ -320,7 +320,7 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
           entityType,
           entityId,
           payload: { id: entityId, type: documentType },
-          contentHash: `hash-${entityType}`,
+          contentHash,
         }),
       );
 
@@ -368,6 +368,28 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
           idempotencyKeyHash: "6".repeat(64),
           requestHash: "7".repeat(64),
         },
+        {
+          entityType: "quote",
+          entityId: "synthetic-quote",
+          payload: {
+            id: "synthetic-quote",
+            type: "presupuesto",
+          },
+          contentHash: "8".repeat(64),
+          idempotencyKeyHash: "a".repeat(64),
+          requestHash: "b".repeat(64),
+        },
+        {
+          entityType: "receipt",
+          entityId: "synthetic-receipt",
+          payload: {
+            id: "synthetic-receipt",
+            type: "recibo",
+          },
+          contentHash: "9".repeat(64),
+          idempotencyKeyHash: "c".repeat(64),
+          requestHash: "d".repeat(64),
+        },
       ],
     };
 
@@ -380,7 +402,7 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       expect.objectContaining({
         result_status: "committed",
         created_count: 2,
-        identical_count: 0,
+        identical_count: 2,
       }),
     ]);
 
@@ -393,8 +415,29 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       expect.objectContaining({
         result_status: "replayed",
         created_count: 2,
+        identical_count: 2,
       }),
     ]);
+
+    const fiscalInvoice = await admin.rpc(
+      "bootstrap_central_business_entities_v1",
+      {
+        ...args,
+        p_idempotency_key_hash: "f".repeat(64),
+        p_request_hash: "0".repeat(64),
+        p_entities: [
+          {
+            entityType: "invoice",
+            entityId: "forbidden-invoice",
+            payload: { id: "forbidden-invoice", type: "factura" },
+            contentHash: "1".repeat(64),
+            idempotencyKeyHash: "2".repeat(64),
+            requestHash: "3".repeat(64),
+          },
+        ],
+      },
+    );
+    expect(fiscalInvoice.error?.code).toBe("P4110");
 
     const conflicting = await admin.rpc(
       "bootstrap_central_business_entities_v1",

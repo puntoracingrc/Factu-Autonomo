@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 16
+- Version: 17
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -120,6 +120,15 @@ rechazan `invoice`, rectificativas y cualquier payload que declare `factura`,
 ampliacion solo habilita la mutacion versionada y la recepcion validada; el
 bootstrap, la numeracion y el cableado de formularios se activan en fases
 posteriores y permanecen apagados por defecto.
+
+El bootstrap incorpora presupuestos y recibos existentes al mismo snapshot
+comparado de maestros y datos operativos. El navegador excluye toda `factura`;
+el servidor valida la forma completa de cada documento, y PostgreSQL vuelve a
+exigir `presupuesto` para `quote` y `recibo` para `receipt`, rechazando ademas
+metadatos de autoridad fiscal, rectificacion o Veri*Factu. La vista previa y el
+commit conservan las mismas reglas fail-closed, de forma que ningun documento
+solo central, tombstone o contenido divergente puede quedar oculto dentro del
+lote.
 
 La recepcion de clientes y productos centrales se ejecuta al arrancar la
 sesion, al volver a la pestaña, al recuperar conexion y mediante polling corto

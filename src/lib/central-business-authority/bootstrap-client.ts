@@ -21,6 +21,8 @@ export type CentralBusinessBootstrapBrowserEntityType =
   | "user_reminder"
   | "expense"
   | "recurring_expense"
+  | "quote"
+  | "receipt"
   | "profile";
 
 export interface CentralBusinessBootstrapBrowserEntity {
@@ -98,6 +100,8 @@ const ENTITY_TYPES = new Set<CentralBusinessBootstrapBrowserEntityType>([
   "user_reminder",
   "expense",
   "recurring_expense",
+  "quote",
+  "receipt",
   "profile",
 ]);
 const ENTRY_STATUSES = new Set<
@@ -173,6 +177,20 @@ export function buildCentralBusinessBootstrapBrowserSnapshot(
       entityId: entity.id,
       payload: jsonPayload(entity, entity.id),
     })),
+    ...data.documents
+      .filter((entity) => entity.type === "presupuesto")
+      .map((entity) => ({
+        entityType: "quote" as const,
+        entityId: entity.id,
+        payload: jsonPayload(entity, entity.id),
+      })),
+    ...data.documents
+      .filter((entity) => entity.type === "recibo")
+      .map((entity) => ({
+        entityType: "receipt" as const,
+        entityId: entity.id,
+        payload: jsonPayload(entity, entity.id),
+      })),
     {
       entityType: "profile",
       entityId: "profile",
