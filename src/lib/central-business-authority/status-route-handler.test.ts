@@ -32,9 +32,14 @@ function probeClient(): CentralBusinessAuthorityStatusProbeClient {
           ? "invalid central business mutation command"
           : name === "mutate_central_business_batch_v1"
             ? "invalid central business batch command"
-          : name === "bootstrap_central_business_entities_v1"
-            ? "invalid central business bootstrap command"
-            : "invalid central business event pull request";
+            : name === "bootstrap_central_business_entities_v1"
+              ? "invalid central business bootstrap command"
+              : name ===
+                  "reconcile_central_business_document_series_v1"
+                ? "invalid central business document series reconciliation"
+                : name === "create_central_business_document_v1"
+                  ? "invalid central business numbered document command"
+                  : "invalid central business event pull request";
       return {
         error: {
           code: "P0001",

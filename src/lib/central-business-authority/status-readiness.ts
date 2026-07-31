@@ -9,6 +9,8 @@ export const CENTRAL_BUSINESS_AUTHORITY_STATUS_REQUIRED_TABLES = [
   "central_business_commands",
   "central_business_outbox",
   "central_business_bootstraps",
+  "central_business_document_series",
+  "central_business_document_series_reconciliations",
 ] as const;
 
 export type CentralBusinessAuthorityStatusRequiredTable =
@@ -20,7 +22,9 @@ export type CentralBusinessAuthorityStatusBlocker =
   | "central_business_mutation_rpc_unavailable"
   | "central_business_batch_mutation_rpc_unavailable"
   | "central_business_events_rpc_unavailable"
-  | "central_business_bootstrap_rpc_unavailable";
+  | "central_business_bootstrap_rpc_unavailable"
+  | "central_business_document_series_rpc_unavailable"
+  | "central_business_numbered_document_rpc_unavailable";
 
 export interface CentralBusinessAuthorityStatusProbeError {
   code?: string;
@@ -46,7 +50,9 @@ export interface CentralBusinessAuthorityStatusProbeClient {
       | "mutate_central_business_entity_v1"
       | "mutate_central_business_batch_v1"
       | "list_central_business_events_v1"
-      | "bootstrap_central_business_entities_v1",
+      | "bootstrap_central_business_entities_v1"
+      | "reconcile_central_business_document_series_v1"
+      | "create_central_business_document_v1",
     args: Record<string, unknown>,
   ): Promise<CentralBusinessAuthorityStatusProbeResult>;
 }
@@ -262,6 +268,77 @@ async function probeBootstrapRpc(
       );
 }
 
+async function probeDocumentSeriesReconciliationRpc(
+  client: CentralBusinessAuthorityStatusProbeClient,
+) {
+  const result = await client.rpc(
+    "reconcile_central_business_document_series_v1",
+    {
+      p_user_id: null,
+      p_device_id: "",
+      p_session_hash: "",
+      p_idempotency_key_hash: "",
+      p_request_hash: "",
+      p_entity_type: "__invalid__",
+      p_number_template: "",
+      p_fiscal_year: 0,
+      p_observed_max_sequence: -1,
+      p_source_document_count: -1,
+      p_source_digest: "",
+    },
+  );
+  return expectedError(
+    result.error,
+    "invalid central business document series reconciliation",
+  )
+    ? ready(
+        "rpc:reconcile_central_business_document_series_v1:dry_invalid",
+        "rpc",
+        "RPC de conciliacion de series existe y corta el dry-run antes de escribir.",
+      )
+    : blocked(
+        "rpc:reconcile_central_business_document_series_v1:dry_invalid",
+        "rpc",
+        "central_business_document_series_rpc_unavailable",
+        "La RPC de conciliacion de series no devolvio el rechazo seguro esperado.",
+        result.error,
+      );
+}
+
+async function probeNumberedDocumentRpc(
+  client: CentralBusinessAuthorityStatusProbeClient,
+) {
+  const result = await client.rpc("create_central_business_document_v1", {
+    p_user_id: null,
+    p_device_id: "",
+    p_session_hash: "",
+    p_idempotency_key_hash: "",
+    p_request_hash: "",
+    p_entity_type: "__invalid__",
+    p_entity_id: "",
+    p_number_template: "",
+    p_padding: 0,
+    p_fiscal_year: 0,
+    p_payload_without_number: null,
+  });
+  return expectedError(
+    result.error,
+    "invalid central business numbered document command",
+  )
+    ? ready(
+        "rpc:create_central_business_document_v1:dry_invalid",
+        "rpc",
+        "RPC de creacion numerada existe y corta el dry-run antes de escribir.",
+      )
+    : blocked(
+        "rpc:create_central_business_document_v1:dry_invalid",
+        "rpc",
+        "central_business_numbered_document_rpc_unavailable",
+        "La RPC de creacion numerada no devolvio el rechazo seguro esperado.",
+        result.error,
+      );
+}
+
 export async function probeCentralBusinessAuthorityStatusReadiness(input: {
   client: CentralBusinessAuthorityStatusProbeClient | null;
   checkedAt?: string;
@@ -291,6 +368,8 @@ export async function probeCentralBusinessAuthorityStatusReadiness(input: {
     probeBatchMutationRpc(input.client),
     probeEventsRpc(input.client),
     probeBootstrapRpc(input.client),
+    probeDocumentSeriesReconciliationRpc(input.client),
+    probeNumberedDocumentRpc(input.client),
   ]);
   const blockers = [
     ...new Set(

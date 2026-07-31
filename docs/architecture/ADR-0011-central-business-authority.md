@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 18
+- Version: 19
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -58,12 +58,12 @@ El despertar de negocio usa Broadcast privado por propietario y solo contiene
 `event_sequence`; no publica fichas, importes, NIF, hashes ni el contenido del
 outbox. Si el WebSocket falla, el sondeo por cursor continua como respaldo.
 
-El preflight autenticado de la fase 2 comprueba las tres tablas con lecturas
-`HEAD` sin filas y ejecuta ambas RPC con entradas invalidas a proposito. Solo
-declara `writesPossible` cuando el dispositivo esta vigente, el canario aplica,
-los gates de entorno permiten escribir y todos los rechazos seguros responden
-como se espera. Este estado se consulta con `no-store` y no sustituye una
-confirmacion de escritura.
+El preflight autenticado de la fase 2 comprueba todas las tablas requeridas con
+lecturas `HEAD` sin filas y ejecuta cada RPC con entradas invalidas a
+proposito. Solo declara `writesPossible` cuando el dispositivo esta vigente, el
+canario aplica, los gates de entorno permiten escribir y todos los rechazos
+seguros responden como se espera. Este estado se consulta con `no-store` y no
+sustituye una confirmacion de escritura.
 
 Los clientes clasifican un fallo de red o servidor como reintentable, pero
 nunca reintentan automaticamente un conflicto de version, una clave
@@ -141,6 +141,16 @@ documento se retire y rechaza las altas genericas que intenten aportar su propio
 numero. Los presupuestos y recibos historicos incorporados por bootstrap no se
 renumeran ni se marcan como incorrectos; su identidad central queda vacia y
 solo los creados por esta autoridad reciben la nueva garantia.
+
+La API autenticada `numbered-document` expone dos acciones separadas. La
+conciliacion recibe solo plantilla, ejercicio, maximo, cantidad y huella del
+inventario; la creacion recibe el documento sin `number` y devuelve el payload
+materializado por PostgreSQL junto con version, evento, secuencia y numero. La
+ruta valida sesion y dispositivo, aplica rate limit, mantiene `service_role`
+fuera del navegador y usa `no-store`. El cliente rechaza cualquier respuesta
+parcial y clasifica como conflicto no reintentable una serie sin conciliar, una
+entidad ya creada o una clave idempotente reutilizada. Esta API puede probarse
+sin cambiar todavia el guardado visible de los formularios.
 
 El candado transaccional por propietario se toma tambien al insertar o
 reintentar cualquier comando ordinario. De este modo el bootstrap, una
