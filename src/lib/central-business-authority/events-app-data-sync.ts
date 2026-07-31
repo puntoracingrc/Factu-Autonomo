@@ -47,6 +47,30 @@ import {
 export const CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC =
   "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1";
 
+function parsedTimestamp(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function selectCentralBusinessEventsSyncBaseline(input: {
+  memory: AppData;
+  persisted: AppData | null;
+  persistedMatchesMemory: boolean;
+}): AppData | null {
+  if (input.persistedMatchesMemory) return input.memory;
+  if (!input.persisted) return null;
+
+  const memoryModified = parsedTimestamp(input.memory.meta?.lastModified);
+  const persistedModified = parsedTimestamp(input.persisted.meta?.lastModified);
+  if (persistedModified === null && memoryModified === null) return null;
+  if (memoryModified === null) return input.persisted;
+  if (persistedModified === null) return input.memory;
+  if (persistedModified > memoryModified) return input.persisted;
+  if (memoryModified > persistedModified) return input.memory;
+  return null;
+}
+
 type SupportedEntityType =
   | "customer"
   | "supplier"
