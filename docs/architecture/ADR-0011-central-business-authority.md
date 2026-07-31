@@ -168,6 +168,15 @@ retira con un acuse que coincida en operacion, evento y hash. Los fallos
 transitorios quedan pendientes; los conflictos y respuestas incoherentes quedan
 bloqueados para revision y nunca generan automaticamente otra identidad.
 
+La materializacion local usa exclusivamente el payload numerado devuelto por
+PostgreSQL. Antes de escribir valida tipo, identidad, serie, ejercicio, secuencia
+y alcance; una identidad local divergente o un numero ya ocupado bloquean la
+transicion. Una repeticion byte-semantica no duplica el documento. Documento,
+suelo de numeracion y contador correspondiente se guardan juntos mediante el
+commit durable de AppStore, sin reducir ningun contador ya adelantado. El
+adaptador se carga bajo demanda y el diario solo podra acusar la operacion
+despues de que esta escritura haya terminado de forma confirmada.
+
 El candado transaccional por propietario se toma tambien al insertar o
 reintentar cualquier comando ordinario. De este modo el bootstrap, una
 reconciliacion de serie y una mutacion normal comparten el mismo orden de

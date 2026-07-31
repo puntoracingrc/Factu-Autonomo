@@ -29,6 +29,7 @@ import type { CentralBusinessDrainResult } from "@/lib/central-business-authorit
 import type { CentralBusinessConflictRecoveryResult } from "@/lib/central-business-authority/conflict-recovery";
 import type { CentralBusinessEventReconciliationResult } from "@/lib/central-business-authority/event-reconciliation";
 import type { CentralBusinessEntityType } from "@/lib/central-business-authority/mutation-command";
+import type { CentralBusinessNumberedDocumentCreateBrowserResult } from "@/lib/central-business-authority/numbered-document-client";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -424,6 +425,11 @@ interface AppStoreValue {
     profile: BusinessProfile,
     expected: AppData,
   ) => AppDataDurabilityResult<BusinessProfile>;
+  addCentralBusinessNumberedDocumentDurably: (
+    expected: AppData,
+    entityType: "quote" | "receipt",
+    confirmation: CentralBusinessNumberedDocumentCreateBrowserResult,
+  ) => Promise<AppDataDurabilityResult<Document>>;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
   ) => Document;
@@ -1612,6 +1618,31 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           value: normalized,
         };
       }),
+    [commitDurableAppData],
+  );
+
+  const addCentralBusinessNumberedDocumentDurably = useCallback(
+    async (
+      expected: AppData,
+      entityType: "quote" | "receipt",
+      confirmation: CentralBusinessNumberedDocumentCreateBrowserResult,
+    ): Promise<AppDataDurabilityResult<Document>> => {
+      const { buildCentralBusinessNumberedDocumentLocalCommit } =
+        await import(
+          "@/lib/central-business-authority/numbered-document-local-commit"
+        );
+      return commitDurableAppData(expected, (previous) => {
+        const transition = buildCentralBusinessNumberedDocumentLocalCommit(
+          previous,
+          entityType,
+          confirmation,
+        );
+        return {
+          data: transition.data,
+          value: transition.value,
+        };
+      });
+    },
     [commitDurableAppData],
   );
 
@@ -3476,6 +3507,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       commitPreparedAppDataDurably,
       updateProfile,
       updateProfileDurably,
+      addCentralBusinessNumberedDocumentDurably,
       addDocument,
       addDocumentWithCentralIdentity,
       issueDocument,
@@ -3570,6 +3602,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       commitPreparedAppDataDurably,
       updateProfile,
       updateProfileDurably,
+      addCentralBusinessNumberedDocumentDurably,
       addDocument,
       addDocumentWithCentralIdentity,
       issueDocument,
