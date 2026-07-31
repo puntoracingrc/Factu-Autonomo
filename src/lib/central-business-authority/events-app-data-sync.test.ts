@@ -8,6 +8,7 @@ import {
   type AppData,
   type BusinessProfile,
   type Customer,
+  type Document,
   type Expense,
   type Product,
   type RecurringExpense,
@@ -130,6 +131,29 @@ function recurringExpense(
   };
 }
 
+function quote(overrides: Partial<Document> = {}): Document {
+  return {
+    id: "quote-1",
+    type: "presupuesto",
+    number: "P-2026-0001",
+    date: "2026-07-29",
+    client: { name: "Cliente central" },
+    items: [
+      {
+        id: "line-1",
+        description: "Trabajo central",
+        quantity: 1,
+        unitPrice: 100,
+        ivaPercent: 21,
+      },
+    ],
+    status: "borrador",
+    createdAt: "2026-07-29T19:00:00.000Z",
+    updatedAt: "2026-07-29T19:00:00.000Z",
+    ...overrides,
+  };
+}
+
 function event(
   entity:
     | Customer
@@ -137,7 +161,8 @@ function event(
     | Product
     | UserReminder
     | Expense
-    | RecurringExpense,
+    | RecurringExpense
+    | Document,
   overrides: Partial<CentralBusinessBrowserEvent> = {},
 ): CentralBusinessBrowserEvent {
   return {
@@ -151,6 +176,10 @@ function event(
           ? "user_reminder"
           : "frequency" in entity
             ? "recurring_expense"
+            : "type" in entity
+              ? entity.type === "presupuesto"
+                ? "quote"
+                : "receipt"
             : "amount" in entity
               ? "expense"
               : "key" in entity
@@ -607,6 +636,44 @@ describe("central business events app data sync", () => {
         knownVersion: { ...knownVersion, version: 2 },
       }),
     ).toThrow("El perfil fiscal central no se puede borrar.");
+  });
+
+  it("aplica presupuestos versionados y rechaza facturas camufladas", () => {
+    const created = buildCentralBusinessEventAppDataTransition({
+      data: EMPTY_DATA,
+      event: event(quote()),
+    });
+    expect(created.value).toMatchObject({
+      entityType: "quote",
+      action: "added",
+    });
+    expect(created.data.documents).toEqual([quote()]);
+
+    const updatedQuote = quote({ notes: "Versión dos" });
+    const updated = buildCentralBusinessEventAppDataTransition({
+      data: created.data,
+      event: event(updatedQuote, { entityVersion: 2 }),
+      knownVersion: {
+        entityType: "quote",
+        entityId: updatedQuote.id,
+        version: 1,
+        deleted: false,
+        contentHash: "hash-v1",
+      },
+    });
+    expect(updated.value.action).toBe("updated");
+    expect(updated.data.documents[0]?.notes).toBe("Versión dos");
+
+    expect(() =>
+      buildCentralBusinessEventAppDataTransition({
+        data: EMPTY_DATA,
+        event: event(quote(), {
+          payload: JSON.parse(
+            JSON.stringify({ ...quote(), type: "factura" }),
+          ),
+        }),
+      }),
+    ).toThrow("El servidor devolvió un presupuesto o recibo incompleto.");
   });
 
   it("rechaza gastos incompletos y no permite pisar un perfil sin versión", () => {

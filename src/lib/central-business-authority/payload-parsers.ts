@@ -3,11 +3,22 @@ import { normalizeRecurringExpense } from "@/lib/recurring-expenses";
 import { normalizeLoadedData } from "@/lib/storage";
 import type {
   BusinessProfile,
+  Document,
   Expense,
   ExpensePurchaseLine,
   ExpenseWorkAllocation,
   RecurringExpense,
 } from "@/lib/types";
+
+const CENTRAL_DOCUMENT_STATUSES = new Set<Document["status"]>([
+  "borrador",
+  "enviado",
+  "aceptado",
+  "rechazado",
+  "pagado",
+  "vencido",
+  "anulada",
+]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -35,6 +46,68 @@ function optionalStringArray(value: unknown): boolean {
     (Array.isArray(value) &&
       value.every((entry) => typeof entry === "string"))
   );
+}
+
+function validDocumentClient(value: unknown): boolean {
+  return (
+    isObject(value) &&
+    typeof value.name === "string" &&
+    optionalString(value.firstName) &&
+    optionalString(value.lastName) &&
+    optionalString(value.contactName) &&
+    optionalString(value.nif) &&
+    optionalString(value.email) &&
+    optionalString(value.phone) &&
+    optionalString(value.streetType) &&
+    optionalString(value.addressExtra) &&
+    optionalString(value.residenceType) &&
+    optionalString(value.address) &&
+    optionalString(value.city) &&
+    optionalString(value.postalCode)
+  );
+}
+
+function validDocumentLine(value: unknown): boolean {
+  return (
+    isObject(value) &&
+    typeof value.id === "string" &&
+    typeof value.description === "string" &&
+    finite(value.quantity) &&
+    optionalString(value.unit) &&
+    finite(value.unitPrice) &&
+    optionalFinite(value.grossUnitPrice) &&
+    finite(value.ivaPercent)
+  );
+}
+
+export function parseCentralBusinessDocumentPayload(
+  payload: unknown,
+  entityId: string,
+  entityType: "quote" | "receipt",
+): Document | null {
+  const expectedDocumentType =
+    entityType === "quote" ? "presupuesto" : "recibo";
+  if (
+    !isObject(payload) ||
+    payload.id !== entityId ||
+    payload.type !== expectedDocumentType ||
+    typeof payload.number !== "string" ||
+    !payload.number.trim() ||
+    typeof payload.date !== "string" ||
+    !validDocumentClient(payload.client) ||
+    !Array.isArray(payload.items) ||
+    !payload.items.every(validDocumentLine) ||
+    !CENTRAL_DOCUMENT_STATUSES.has(payload.status as Document["status"]) ||
+    typeof payload.createdAt !== "string" ||
+    typeof payload.updatedAt !== "string" ||
+    payload.centralInvoiceAuthority !== undefined ||
+    payload.rectification !== undefined ||
+    payload.verifactu !== undefined
+  ) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(payload)) as Document;
 }
 
 function validPurchaseLine(value: unknown): value is ExpensePurchaseLine {

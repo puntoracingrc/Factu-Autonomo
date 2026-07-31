@@ -32,6 +32,8 @@ function mutationArgs(input: {
   expectedVersion: number;
   payload?: Record<string, unknown> | null;
   contentHash: string;
+  entityType?: "customer" | "quote" | "receipt";
+  entityId?: string;
 }) {
   const operation = input.operation ?? "upsert";
   return {
@@ -41,8 +43,8 @@ function mutationArgs(input: {
     p_idempotency_key_hash: input.idempotencyKey,
     p_request_hash: input.requestHash,
     p_operation_kind: operation,
-    p_entity_type: "customer",
-    p_entity_id: "synthetic-customer",
+    p_entity_type: input.entityType ?? "customer",
+    p_entity_id: input.entityId ?? "synthetic-customer",
     p_expected_version: input.expectedVersion,
     p_payload: operation === "delete" ? null : (input.payload ?? {}),
     p_content_hash: input.contentHash,
@@ -303,6 +305,35 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       }),
     ]);
   });
+
+  it.each([
+    ["quote", "synthetic-quote", "presupuesto"],
+    ["receipt", "synthetic-receipt", "recibo"],
+  ] as const)(
+    "commits a versioned %s without opening the fiscal invoice type",
+    async (entityType, entityId, documentType) => {
+      const result = await mutate(
+        mutationArgs({
+          idempotencyKey: `create-${entityType}`,
+          requestHash: `request-${entityType}`,
+          expectedVersion: 0,
+          entityType,
+          entityId,
+          payload: { id: entityId, type: documentType },
+          contentHash: `hash-${entityType}`,
+        }),
+      );
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual([
+        expect.objectContaining({
+          result_status: "committed",
+          entity_version: 1,
+          deleted: false,
+        }),
+      ]);
+    },
+  );
 
   it("commits and replays an all-or-nothing legacy bootstrap", async () => {
     const args = {

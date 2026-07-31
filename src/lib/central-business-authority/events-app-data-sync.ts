@@ -18,6 +18,7 @@ import type {
   AppData,
   BusinessProfile,
   Customer,
+  Document,
   Expense,
   Product,
   RecurringExpense,
@@ -40,6 +41,7 @@ import {
 } from "./events-client";
 import {
   parseCentralExpensePayload,
+  parseCentralBusinessDocumentPayload,
   parseCentralProfilePayload,
   parseCentralRecurringExpensePayload,
 } from "./payload-parsers";
@@ -78,6 +80,8 @@ type SupportedEntityType =
   | "user_reminder"
   | "expense"
   | "recurring_expense"
+  | "quote"
+  | "receipt"
   | "profile";
 
 export type CentralBusinessEventLocalAction =
@@ -414,6 +418,7 @@ function sameEntity(
     | Supplier
     | Product
     | UserReminder
+    | Document
     | Expense
     | RecurringExpense
     | BusinessProfile,
@@ -422,6 +427,7 @@ function sameEntity(
     | Supplier
     | Product
     | UserReminder
+    | Document
     | Expense
     | RecurringExpense
     | BusinessProfile,
@@ -449,6 +455,8 @@ export function buildCentralBusinessEventAppDataTransition(input: {
     event.entityType !== "user_reminder" &&
     event.entityType !== "expense" &&
     event.entityType !== "recurring_expense" &&
+    event.entityType !== "quote" &&
+    event.entityType !== "receipt" &&
     event.entityType !== "profile"
   ) {
     throw new CentralBusinessLocalApplyError(
@@ -738,6 +746,69 @@ export function buildCentralBusinessEventAppDataTransition(input: {
         ...data,
         recurringExpenses: data.recurringExpenses.map((expense) =>
           expense.id === event.entityId ? incoming : expense,
+        ),
+      },
+      value: value("updated"),
+    };
+  }
+
+  if (event.entityType === "quote" || event.entityType === "receipt") {
+    const matches = data.documents.filter(
+      (document) => document.id === event.entityId,
+    );
+    if (matches.length > 1) {
+      return localConflict(
+        "El documento local tiene identificadores duplicados y requiere revisión.",
+      );
+    }
+    const existing = matches[0];
+    if (event.operationKind === "delete") {
+      if (!existing) return { data, value: value("unchanged") };
+      if (!knownPrevious) {
+        return localConflict(
+          "El documento local no tiene una versión central confirmada para borrarlo.",
+        );
+      }
+      return {
+        data: {
+          ...data,
+          documents: data.documents.filter(
+            (document) => document.id !== event.entityId,
+          ),
+        },
+        value: value("deleted"),
+      };
+    }
+    const incoming = parseCentralBusinessDocumentPayload(
+      event.payload,
+      event.entityId,
+      event.entityType,
+    );
+    if (!incoming) {
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_DOCUMENT_EVENT",
+        "El servidor devolvió un presupuesto o recibo incompleto.",
+      );
+    }
+    if (!existing) {
+      return {
+        data: { ...data, documents: [...data.documents, incoming] },
+        value: value("added"),
+      };
+    }
+    if (sameEntity(existing, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (!knownPrevious) {
+      return localConflict(
+        "El documento local difiere de la primera versión recibida del servidor.",
+      );
+    }
+    return {
+      data: {
+        ...data,
+        documents: data.documents.map((document) =>
+          document.id === event.entityId ? incoming : document,
         ),
       },
       value: value("updated"),
