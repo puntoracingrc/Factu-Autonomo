@@ -36,6 +36,10 @@ describe("central business events auto sync wiring", () => {
     );
     expect(component).toContain('window.addEventListener("online", wake)');
     expect(component).toContain('window.addEventListener("focus", wake)');
+    expect(component).toContain('window.addEventListener("pageshow", wake)');
+    expect(component).toContain("CLOUD_DEVICE_REACTIVATED_EVENT");
+    expect(component).toContain("!enabled || !ready || !userId");
+    expect(component).toContain("realtimeWakeRef.current()");
     expect(component).toContain(
       'document.addEventListener("visibilitychange", wake)',
     );

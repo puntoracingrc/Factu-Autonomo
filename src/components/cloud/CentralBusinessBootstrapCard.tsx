@@ -96,7 +96,7 @@ export function CentralBusinessBootstrapCard() {
   const {
     ready,
     getCurrentData,
-    reconcileCentralBusinessEvents,
+    adoptCentralBusinessEventsFromServer,
     syncCentralBusinessEvents,
   } = useAppStore();
   const { user, requiresEmailConfirmation } = useCloudSync();
@@ -116,6 +116,7 @@ export function CentralBusinessBootstrapCard() {
   );
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [adoptConfirmed, setAdoptConfirmed] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
 
   useEffect(() => {
@@ -158,6 +159,14 @@ export function CentralBusinessBootstrapCard() {
     0,
     reviewEntries.length - visibleReviewEntries.length,
   );
+  const canAdoptServerCopy = Boolean(
+    preview &&
+      !preview.canCommit &&
+      (preview.summary.conflict > 0 || preview.summary.centralOnly > 0),
+  );
+  const canConfirmBootstrap = Boolean(
+    preview?.canCommit && preview.summary.create > 0,
+  );
 
   async function syncAllCentralEvents(): Promise<Notice | null> {
     for (let page = 0; page < 100; page += 1) {
@@ -185,6 +194,7 @@ export function CentralBusinessBootstrapCard() {
     setSnapshotSignature(null);
     setIdempotencyKey(null);
     setConfirmed(false);
+    setAdoptConfirmed(false);
   }
 
   function storePreview(
@@ -269,12 +279,13 @@ export function CentralBusinessBootstrapCard() {
     }
   }
 
-  async function handleRestoreCentralOnly() {
+  async function handleAdoptServerCopy() {
     if (
       !preview ||
       !snapshotSignature ||
-      preview.summary.conflict > 0 ||
-      preview.summary.centralOnly < 1
+      preview.canCommit ||
+      !adoptConfirmed ||
+      (preview.summary.conflict < 1 && preview.summary.centralOnly < 1)
     ) {
       return;
     }
@@ -297,14 +308,14 @@ export function CentralBusinessBootstrapCard() {
         return;
       }
 
-      const reconciled = await reconcileCentralBusinessEvents(
+      const adopted = await adoptCentralBusinessEventsFromServer(
         activeOwnerScope,
         { limit: 500, maxPages: 100 },
       );
-      if (!reconciled.ok) {
+      if (!adopted.ok) {
         setNotice({
-          tone: reconciled.retryable ? "warning" : "error",
-          message: reconciled.message,
+          tone: adopted.retryable ? "warning" : "error",
+          message: adopted.message,
         });
         return;
       }
@@ -335,15 +346,17 @@ export function CentralBusinessBootstrapCard() {
       }
       setNotice({
         tone: "success",
-        message: `${reconciled.applied} ficha(s) centrales restaurada(s) o actualizada(s) en este dispositivo. La comparación se ha verificado de nuevo.`,
+        message: `${adopted.applied} ficha(s) centrales adoptada(s) desde el servidor en este dispositivo. No se ha escrito nada en el servidor y la comparación se ha verificado de nuevo.`,
       });
+      setConfirmed(false);
+      setAdoptConfirmed(false);
     } catch (error) {
       setNotice({
         tone: "error",
         message:
           error instanceof Error
             ? error.message
-            : "No se pudo restaurar la copia central en este dispositivo.",
+            : "No se pudo adoptar la copia central en este dispositivo.",
       });
     } finally {
       setRestoring(false);
@@ -540,7 +553,7 @@ export function CentralBusinessBootstrapCard() {
             </div>
           ) : null}
 
-          {preview.canCommit ? (
+          {canConfirmBootstrap ? (
             <label className="flex items-start gap-3 rounded-lg border border-indigo-100 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
               <input
                 type="checkbox"
@@ -553,6 +566,26 @@ export function CentralBusinessBootstrapCard() {
                 He revisado la comparación. Autorizo crear únicamente las
                 fichas ausentes; las coincidentes no se reescriben y cualquier
                 diferencia abortará todo el lote.
+              </span>
+            </label>
+          ) : null}
+
+          {canAdoptServerCopy ? (
+            <label className="flex items-start gap-3 rounded-lg border border-amber-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
+              <input
+                type="checkbox"
+                checked={adoptConfirmed}
+                onChange={(event) =>
+                  setAdoptConfirmed(event.target.checked)
+                }
+                disabled={restoring}
+                className="mt-1 h-4 w-4 shrink-0 accent-amber-700"
+              />
+              <span>
+                Entiendo que este dispositivo usará la copia del servidor para
+                clientes, proveedores, productos, recordatorios, gastos, gastos
+                fijos, presupuestos, recibos y perfil. No escribe en el
+                servidor ni toca facturas emitidas.
               </span>
             </label>
           ) : null}
@@ -587,7 +620,7 @@ export function CentralBusinessBootstrapCard() {
           <RefreshCw className={`h-4 w-4 ${preparing ? "animate-spin" : ""}`} />
           {preparing ? "Comparando…" : "Preparar comparación"}
         </Button>
-        {preview?.canCommit ? (
+        {canConfirmBootstrap ? (
           <Button
             onClick={() => void handleCommit()}
             disabled={!confirmed || preparing || committing || restoring}
@@ -599,21 +632,20 @@ export function CentralBusinessBootstrapCard() {
               : "Confirmar migración central"}
           </Button>
         ) : null}
-        {preview &&
-        !preview.canCommit &&
-        preview.summary.conflict === 0 &&
-        preview.summary.centralOnly > 0 ? (
+        {canAdoptServerCopy ? (
           <Button
-            onClick={() => void handleRestoreCentralOnly()}
-            disabled={preparing || committing || restoring}
+            onClick={() => void handleAdoptServerCopy()}
+            disabled={
+              !adoptConfirmed || preparing || committing || restoring
+            }
             aria-busy={restoring}
           >
             <RefreshCw
               className={`h-4 w-4 ${restoring ? "animate-spin" : ""}`}
             />
             {restoring
-              ? "Restaurando…"
-              : `Restaurar ${preview.summary.centralOnly} desde el servidor`}
+              ? "Adoptando servidor…"
+              : "Usar servidor en este dispositivo"}
           </Button>
         ) : null}
       </div>

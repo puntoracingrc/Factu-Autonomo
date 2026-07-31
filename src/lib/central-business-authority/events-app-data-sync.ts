@@ -4,6 +4,7 @@ import type {
   AppDataDurabilityResult,
   AppDataTransition,
 } from "@/lib/app-data-durability";
+import { countersFromDocuments } from "@/lib/documents";
 import { migrateCustomer } from "@/lib/customers";
 import {
   deleteCustomerMasterFromData,
@@ -30,6 +31,7 @@ import type {
 import {
   applyCentralBusinessEventPage,
   loadCentralBusinessDurableQueue,
+  resetCentralBusinessEventStateForServerAdoption,
   type CentralBusinessEntityVersion,
   type CentralBusinessQueueStorage,
   withCentralBusinessQueueLock,
@@ -87,12 +89,18 @@ type SupportedEntityType =
 export type CentralBusinessEventLocalAction =
   "added" | "updated" | "deleted" | "unchanged";
 
-export interface CentralBusinessEventLocalApplyValue {
-  schema: typeof CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC;
-  entityType: SupportedEntityType;
-  entityId: string;
-  action: CentralBusinessEventLocalAction;
-}
+export type CentralBusinessEventLocalApplyValue =
+  | {
+      schema: typeof CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC;
+      entityType: SupportedEntityType;
+      entityId: string;
+      action: CentralBusinessEventLocalAction;
+    }
+  | {
+      schema: typeof CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC;
+      action: "adopted_server_snapshot";
+      replacedEntityTypes: SupportedEntityType[];
+    };
 
 export type CentralBusinessEventsAppDataSyncResult =
   | {
@@ -914,6 +922,75 @@ function failed(
   };
 }
 
+function serverAdoptionValue(): CentralBusinessEventLocalApplyValue {
+  return {
+    schema: CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC,
+    action: "adopted_server_snapshot",
+    replacedEntityTypes: [
+      "customer",
+      "supplier",
+      "product",
+      "user_reminder",
+      "expense",
+      "recurring_expense",
+      "quote",
+      "receipt",
+      "profile",
+    ],
+  };
+}
+
+function clearCentralBusinessLocalProjection(data: AppData): AppData {
+  return {
+    ...data,
+    customers: [],
+    suppliers: [],
+    products: [],
+    userReminders: [],
+    expenses: [],
+    recurringExpenses: [],
+    documents: data.documents.filter(
+      (document) =>
+        document.type !== "presupuesto" && document.type !== "recibo",
+    ),
+  };
+}
+
+function alignCentralBusinessAdoptionCounters(data: AppData): AppData {
+  const calculated = countersFromDocuments(
+    data.documents,
+    data.profile.numbering.year,
+    data.profile.numbering,
+  );
+  return {
+    ...data,
+    counters: {
+      ...data.counters,
+      presupuesto: Math.max(
+        calculated.presupuesto,
+        data.profile.numbering.lastSequence.presupuesto,
+      ),
+      recibo: Math.max(
+        calculated.recibo,
+        data.profile.numbering.lastSequence.recibo,
+      ),
+    },
+  };
+}
+
+function initialServerAdoptionVersion(
+  event: CentralBusinessBrowserEvent,
+): CentralBusinessEntityVersion | undefined {
+  if (event.entityVersion !== 1) return undefined;
+  return {
+    entityType: event.entityType,
+    entityId: event.entityId,
+    version: 0,
+    deleted: false,
+    contentHash: "",
+  };
+}
+
 export async function syncCentralBusinessEventsIntoAppData(
   input: { ownerScope: string; limit?: number },
   dependencies: CentralBusinessEventsAppDataSyncDependencies,
@@ -1038,6 +1115,189 @@ export async function syncCentralBusinessEventsIntoAppData(
         nextSequence: page.state.lastAppliedEventSequence,
         hasMore: pulled.hasMore,
       };
+    });
+  } catch (error) {
+    return failed(
+      "CENTRAL_BUSINESS_EVENTS_LOCAL_STATE_FAILED",
+      error instanceof Error
+        ? error.message
+        : "No se pudo comprobar el estado central local.",
+      0,
+    );
+  }
+}
+
+export async function adoptCentralBusinessEventsFromServerIntoAppData(
+  input: { ownerScope: string; limit?: number; maxPages?: number },
+  dependencies: CentralBusinessEventsAppDataSyncDependencies,
+): Promise<CentralBusinessEventsAppDataSyncResult> {
+  const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
+  const maxPages = Math.min(Math.max(input.maxPages ?? 100, 1), 100);
+
+  try {
+    return await withCentralBusinessQueueLock(input.ownerScope, async () => {
+      const initialState = loadCentralBusinessDurableQueue(
+        input.ownerScope,
+        dependencies.storage,
+      );
+      if (initialState.operations.length > 0) {
+        return failed(
+          "CENTRAL_BUSINESS_PENDING_REVIEW",
+          "Hay cambios centrales pendientes o en revisión. Resuélvelos antes de adoptar la copia del servidor.",
+          initialState.lastAppliedEventSequence,
+        );
+      }
+      resetCentralBusinessEventStateForServerAdoption({
+        ownerScope: input.ownerScope,
+        storage: dependencies.storage,
+      });
+
+      const verifyContentHash =
+        dependencies.verifyContentHash ?? verifyCentralBusinessEventContentHash;
+      const pull = dependencies.pull ?? pullCentralBusinessEventsFromBrowser;
+      let expected = dependencies.getCurrentData();
+      let workingData = clearCentralBusinessLocalProjection(expected);
+      let pulledCount = 0;
+      let appliedCount = 0;
+      let skippedCount = 0;
+      let nextSequence = 0;
+      let firstPage = true;
+
+      for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+        const state = loadCentralBusinessDurableQueue(
+          input.ownerScope,
+          dependencies.storage,
+        );
+        const pulled = await pull({
+          afterSequence: state.lastAppliedEventSequence,
+          limit,
+        });
+        if (!pulled.ok) {
+          return failed(
+            pulled.code,
+            pulled.message,
+            state.lastAppliedEventSequence,
+            pulled.retryable,
+          );
+        }
+        for (const event of pulled.events) {
+          if (!(await verifyContentHash(event))) {
+            return failed(
+              "CENTRAL_BUSINESS_EVENT_HASH_MISMATCH",
+              "Un evento central no supera la comprobación de integridad.",
+              state.lastAppliedEventSequence,
+            );
+          }
+        }
+
+        const localFailure: {
+          current: CentralBusinessLocalApplyError | null;
+        } = { current: null };
+        const pageBaseline = expected;
+        const workingVersions = { ...state.entityVersions };
+        let locallyApplied = 0;
+        let lastAppliedValue: CentralBusinessEventLocalApplyValue | null =
+          null;
+        const page = await applyCentralBusinessEventPage({
+          ownerScope: input.ownerScope,
+          events: pulled.events,
+          nextSequence: pulled.nextSequence,
+          storage: dependencies.storage,
+          applyEvent: async (event) => {
+            const key = `${event.entityType}:${event.entityId}`;
+            let transition:
+              | AppDataTransition<CentralBusinessEventLocalApplyValue>
+              | undefined;
+            try {
+              transition = buildCentralBusinessEventAppDataTransition({
+                data: workingData,
+                event,
+                knownVersion:
+                  workingVersions[key] ??
+                  initialServerAdoptionVersion(event),
+              });
+            } catch (error) {
+              localFailure.current =
+                error instanceof CentralBusinessLocalApplyError
+                  ? error
+                  : new CentralBusinessLocalApplyError(
+                      "CENTRAL_BUSINESS_EVENT_TRANSITION_FAILED",
+                      "No se pudo preparar el cambio central.",
+                    );
+              throw error;
+            }
+
+            if (transition.value.action !== "unchanged") {
+              workingData = transition.data;
+              lastAppliedValue = transition.value;
+              locallyApplied += 1;
+            }
+            workingVersions[key] = {
+              entityType: event.entityType,
+              entityId: event.entityId,
+              version: event.entityVersion,
+              deleted: event.operationKind === "delete",
+              contentHash: event.contentHash,
+            };
+          },
+          commitPage: async () => {
+            if (!firstPage && !lastAppliedValue) return;
+            workingData = alignCentralBusinessAdoptionCounters(workingData);
+            const committed = dependencies.commit(pageBaseline, () => ({
+              data: workingData,
+              value: lastAppliedValue ?? serverAdoptionValue(),
+            }));
+            if (committed.status === "applied") {
+              expected = committed.data;
+              workingData = committed.data;
+              return;
+            }
+            localFailure.current = new CentralBusinessLocalApplyError(
+              committed.status === "indeterminate"
+                ? "CENTRAL_BUSINESS_LOCAL_STORAGE_UNKNOWN"
+                : "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED",
+              committed.status === "indeterminate"
+                ? "No se pudo confirmar el guardado local de la pagina central."
+                : "Los datos locales cambiaron mientras se aplicaba la pagina central.",
+              committed.status === "blocked" &&
+                committed.reason === "stale_precondition",
+            );
+            throw localFailure.current;
+          },
+        });
+
+        if (!page.ok) {
+          return failed(
+            localFailure.current?.code ?? page.code,
+            localFailure.current?.message ?? page.message,
+            state.lastAppliedEventSequence,
+            localFailure.current?.retryable ?? false,
+          );
+        }
+        pulledCount += pulled.events.length;
+        appliedCount += locallyApplied;
+        skippedCount += pulled.events.length - locallyApplied;
+        nextSequence = page.state.lastAppliedEventSequence;
+        firstPage = false;
+        if (!pulled.hasMore) {
+          return {
+            ok: true,
+            schema: CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC,
+            pulled: pulledCount,
+            applied: appliedCount,
+            skipped: skippedCount,
+            nextSequence,
+            hasMore: false,
+          };
+        }
+      }
+
+      return failed(
+        "CENTRAL_BUSINESS_SERVER_ADOPTION_TOO_MANY_EVENTS",
+        "Quedan demasiados eventos centrales por adoptar en una sola operación. Vuelve a intentarlo.",
+        nextSequence,
+        true,
+      );
     });
   } catch (error) {
     return failed(

@@ -411,6 +411,10 @@ interface AppStoreValue {
     ownerScope: string,
     options?: { limit?: number; maxPages?: number },
   ) => Promise<CentralBusinessEventReconciliationResult>;
+  adoptCentralBusinessEventsFromServer: (
+    ownerScope: string,
+    options?: { limit?: number; maxPages?: number },
+  ) => Promise<CentralBusinessEventsAppDataSyncResult>;
   resolveCentralBusinessConflictKeepingServer: (input: {
     ownerScope: string;
     entityType: CentralBusinessEntityType;
@@ -1576,6 +1580,61 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       );
     },
     [pullCentralBusinessEvents],
+  );
+
+  const adoptCentralBusinessEventsFromServer = useCallback(
+    async (
+      ownerScope: string,
+      options: { limit?: number; maxPages?: number } = {},
+    ): Promise<CentralBusinessEventsAppDataSyncResult> => {
+      const {
+        adoptCentralBusinessEventsFromServerIntoAppData,
+        selectCentralBusinessEventsSyncBaseline,
+      } = await import(
+        "@/lib/central-business-authority/events-app-data-sync"
+      );
+      const memory = dataRef.current;
+      const baseline = selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted: readPersistedDataSnapshot(),
+        persistedMatchesMemory:
+          inspectPersistedData(memory).status === "applied",
+      });
+      if (!baseline) {
+        return {
+          ok: false,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          code: "CENTRAL_BUSINESS_APP_DATA_BASELINE_AMBIGUOUS",
+          message:
+            "La copia visible y la copia guardada no tienen un orden verificable. Recarga antes de adoptar la copia central.",
+          retryable: false,
+          nextSequence: 0,
+        };
+      }
+      if (baseline !== memory) {
+        durableStorageBaselineRef.current = {
+          status: "known",
+          data: baseline,
+        };
+        lastKnownDurableDataRef.current = baseline;
+        durablyPersistedDataRef.current = baseline;
+        dataRef.current = baseline;
+        setData(baseline);
+      }
+      return adoptCentralBusinessEventsFromServerIntoAppData(
+        {
+          ownerScope,
+          limit: options.limit,
+          maxPages: options.maxPages,
+        },
+        {
+          getCurrentData: () => baseline,
+          commit: (expected, build) =>
+            commitDurableAppData(expected, build),
+        },
+      );
+    },
+    [commitDurableAppData],
   );
 
   const resolveCentralBusinessConflictKeepingServer = useCallback(
@@ -3503,6 +3562,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
       reconcileCentralBusinessEvents,
+      adoptCentralBusinessEventsFromServer,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
       updateProfile,
@@ -3598,6 +3658,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
       reconcileCentralBusinessEvents,
+      adoptCentralBusinessEventsFromServer,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
       updateProfile,

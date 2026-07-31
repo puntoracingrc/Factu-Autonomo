@@ -23,6 +23,7 @@ import {
   type CentralBusinessQueueStorage,
 } from "./durable-queue";
 import {
+  adoptCentralBusinessEventsFromServerIntoAppData,
   buildCentralBusinessEventAppDataTransition,
   selectCentralBusinessEventsSyncBaseline,
   syncCentralBusinessEventsIntoAppData,
@@ -150,6 +151,18 @@ function quote(overrides: Partial<Document> = {}): Document {
     status: "borrador",
     createdAt: "2026-07-29T19:00:00.000Z",
     updatedAt: "2026-07-29T19:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function invoice(overrides: Partial<Document> = {}): Document {
+  return {
+    ...quote({
+      id: "invoice-1",
+      type: "factura",
+      number: "F-2026-0001",
+      status: "enviado",
+    }),
     ...overrides,
   };
 }
@@ -817,6 +830,176 @@ describe("central business events app data sync", () => {
     expect(
       loadCentralBusinessDurableQueue(ownerScope, target.storage),
     ).toMatchObject({ lastAppliedEventSequence: 0 });
+  });
+
+  it("adopta el servidor en un dispositivo divergente sin tocar facturas emitidas", async () => {
+    const localCustomer = customer({
+      name: "Cliente móvil anterior",
+      firstName: "Cliente móvil anterior",
+    });
+    const localQuote = quote({
+      id: "local-quote-1",
+      number: "P-2026-9999",
+      notes: "Borrador viejo del móvil",
+    });
+    const fiscalInvoice = invoice({
+      id: "invoice-kept-1",
+      number: "F-2026-0042",
+      notes: "Factura fiscal preservada",
+    });
+    const centralProfile = {
+      ...DEFAULT_PROFILE,
+      name: "Empresa central",
+      numbering: {
+        ...DEFAULT_PROFILE.numbering,
+        lastSequence: {
+          ...DEFAULT_PROFILE.numbering.lastSequence,
+          presupuesto: 7,
+          recibo: 3,
+        },
+      },
+    };
+    const centralQuote = quote({
+      id: "quote-central-1",
+      number: "P-2026-0007",
+      notes: "Presupuesto central",
+    });
+    const events = [
+      profileEvent(centralProfile, {
+        eventId: "profile-event-1",
+        eventSequence: 1,
+        contentHash: "profile-hash-v1",
+      }),
+      event(customer(), {
+        eventId: "customer-event-1",
+        eventSequence: 2,
+        contentHash: "customer-hash-v1",
+      }),
+      event(centralQuote, {
+        eventId: "quote-event-1",
+        eventSequence: 3,
+        contentHash: "quote-hash-v1",
+      }),
+    ];
+    const target = harness({
+      ...EMPTY_DATA,
+      profile: { ...DEFAULT_PROFILE, name: "Perfil móvil anterior" },
+      customers: [localCustomer],
+      expenses: [expense({ id: "local-expense-1" })],
+      documents: [localQuote, fiscalInvoice],
+      counters: {
+        factura: 42,
+        factura_rectificativa: 1,
+        presupuesto: 9999,
+        recibo: 9999,
+      },
+    });
+
+    const result = await adoptCentralBusinessEventsFromServerIntoAppData(
+      { ownerScope, limit: 2, maxPages: 5 },
+      {
+        ...target.dependencies,
+        pull: async ({ afterSequence, limit }) => {
+          const page = events
+            .filter((entry) => entry.eventSequence > afterSequence)
+            .slice(0, limit);
+          const nextSequence =
+            page.at(-1)?.eventSequence ?? afterSequence;
+          return {
+            ok: true,
+            schema: "CENTRAL_BUSINESS_EVENTS_CLIENT_V1",
+            events: page,
+            nextSequence,
+            hasMore: events.some(
+              (entry) => entry.eventSequence > nextSequence,
+            ),
+          };
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      pulled: 3,
+      applied: 3,
+      nextSequence: 3,
+      hasMore: false,
+    });
+    expect(target.data.profile.name).toBe("Empresa central");
+    expect(target.data.customers).toEqual([expect.objectContaining(customer())]);
+    expect(target.data.expenses).toEqual([]);
+    expect(target.data.documents).toEqual([
+      expect.objectContaining(fiscalInvoice),
+      expect.objectContaining(centralQuote),
+    ]);
+    expect(target.data.counters).toEqual({
+      factura: 42,
+      factura_rectificativa: 1,
+      presupuesto: 7,
+      recibo: 3,
+    });
+    expect(
+      target.data.documents.some((document) => document.id === localQuote.id),
+    ).toBe(false);
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, target.storage),
+    ).toMatchObject({
+      lastAppliedEventSequence: 3,
+      entityVersions: {
+        "profile:profile": {
+          version: 1,
+          contentHash: "profile-hash-v1",
+        },
+        "customer:customer-1": {
+          version: 1,
+          contentHash: "customer-hash-v1",
+        },
+        "quote:quote-central-1": {
+          version: 1,
+          contentHash: "quote-hash-v1",
+        },
+      },
+    });
+  });
+
+  it("no adopta servidor sobre operaciones centrales pendientes", async () => {
+    const storage = new MemoryStorage();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: "CENTRAL_CUSTOMER_PENDING_0001",
+      mutation: {
+        idempotencyKey: "CENTRAL_CUSTOMER_PENDING_0001",
+        operationKind: "upsert",
+        entityType: "customer",
+        entityId: "customer-1",
+        expectedVersion: 0,
+        payload: JSON.parse(JSON.stringify(customer())),
+      },
+      storage,
+    });
+    const target = harness(
+      { ...EMPTY_DATA, customers: [customer({ name: "Local" })] },
+      storage,
+    );
+
+    const result = await adoptCentralBusinessEventsFromServerIntoAppData(
+      { ownerScope },
+      {
+        ...target.dependencies,
+        pull: async () => {
+          throw new Error("No debe llamar al servidor");
+        },
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "CENTRAL_BUSINESS_PENDING_REVIEW",
+    });
+    expect(target.data.customers).toEqual([customer({ name: "Local" })]);
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage).operations,
+    ).toHaveLength(1);
   });
 
   it("conserva el cursor si el almacenamiento local no confirma el cambio", async () => {
