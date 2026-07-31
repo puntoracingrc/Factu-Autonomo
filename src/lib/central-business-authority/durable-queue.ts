@@ -29,6 +29,8 @@ const ENTITY_TYPES = new Set<CentralBusinessEntityType>([
   "expense",
   "recurring_expense",
   "user_reminder",
+  "quote",
+  "receipt",
   "profile",
 ]);
 const fallbackLocks = new Map<string, Promise<void>>();

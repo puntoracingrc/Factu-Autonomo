@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CentralBusinessQueueStorage } from "./durable-queue";
 import { loadCentralBusinessDurableQueue } from "./durable-queue";
+import type { CentralBusinessBootstrapBrowserEntity } from "./bootstrap-client";
 import { recordCentralBusinessBootstrapCheckpoint } from "./bootstrap-checkpoint";
 
 class MemoryStorage implements CentralBusinessQueueStorage {
@@ -18,7 +19,7 @@ class MemoryStorage implements CentralBusinessQueueStorage {
 }
 
 const ownerScope = "synthetic-bootstrap-user";
-const entities = [
+const entities: CentralBusinessBootstrapBrowserEntity[] = [
   {
     entityType: "customer" as const,
     entityId: "customer-created",
@@ -28,6 +29,24 @@ const entities = [
     entityType: "supplier" as const,
     entityId: "supplier-identical",
     payload: { id: "supplier-identical", name: "Igual" },
+  },
+  {
+    entityType: "quote" as const,
+    entityId: "quote-created",
+    payload: {
+      id: "quote-created",
+      type: "presupuesto",
+      number: "P-2026-0001",
+    },
+  },
+  {
+    entityType: "receipt" as const,
+    entityId: "receipt-identical",
+    payload: {
+      id: "receipt-identical",
+      type: "recibo",
+      number: "R-2026-0001",
+    },
   },
 ];
 
@@ -43,11 +62,11 @@ describe("central business bootstrap checkpoint", () => {
         centralStateDigest: "b".repeat(64),
         previewDigest: "c".repeat(64),
         summary: {
-          local: 2,
-          centralActive: 1,
+          local: 4,
+          centralActive: 2,
           centralDeleted: 0,
-          create: 1,
-          identical: 1,
+          create: 2,
+          identical: 2,
           conflict: 0,
           centralOnly: 0,
         },
@@ -66,6 +85,20 @@ describe("central business bootstrap checkpoint", () => {
             centralVersion: 4,
             centralDeleted: false,
           },
+          {
+            entityType: "quote",
+            entityId: "quote-created",
+            status: "create",
+            centralVersion: null,
+            centralDeleted: false,
+          },
+          {
+            entityType: "receipt",
+            entityId: "receipt-identical",
+            status: "identical",
+            centralVersion: 3,
+            centralDeleted: false,
+          },
         ],
         canCommit: true,
       },
@@ -80,6 +113,14 @@ describe("central business bootstrap checkpoint", () => {
     });
     expect(state.entityVersions["supplier:supplier-identical"]).toMatchObject({
       version: 4,
+      deleted: false,
+    });
+    expect(state.entityVersions["quote:quote-created"]).toMatchObject({
+      version: 1,
+      deleted: false,
+    });
+    expect(state.entityVersions["receipt:receipt-identical"]).toMatchObject({
+      version: 3,
       deleted: false,
     });
     expect(
