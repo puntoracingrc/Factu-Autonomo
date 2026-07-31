@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 19
+- Version: 20
 - Fecha: 2026-07-29
 
 ## Contexto
@@ -151,6 +151,14 @@ fuera del navegador y usa `no-store`. El cliente rechaza cualquier respuesta
 parcial y clasifica como conflicto no reintentable una serie sin conciliar, una
 entidad ya creada o una clave idempotente reutilizada. Esta API puede probarse
 sin cambiar todavia el guardado visible de los formularios.
+
+El inventario previo del navegador solo incluye documentos cuyo numero coincide
+exactamente con la plantilla configurada y envia una huella de IDs, numeros,
+fechas y secuencias, nunca datos de cliente ni lineas. El contador configurado
+actua como suelo monotono. Cuando la plantilla no contiene `{year}`, se revisan
+todos los ejercicios y se concilia el alcance global `0`, evitando reinicios en
+enero. El preflight rechaza una confirmacion con otro alcance o con un contador
+inferior antes de permitir cualquier alta central.
 
 El candado transaccional por propietario se toma tambien al insertar o
 reintentar cualquier comando ordinario. De este modo el bootstrap, una
