@@ -177,6 +177,18 @@ commit durable de AppStore, sin reducir ningun contador ya adelantado. El
 adaptador se carga bajo demanda y el diario solo podra acusar la operacion
 despues de que esta escritura haya terminado de forma confirmada.
 
+El alta central de presupuestos se activa por una bandera publica y una lista
+cerrada de UUID de usuario. Fuera de ese canario conserva el flujo local
+anterior. Dentro del canario falla cerrado: primero termina una operacion
+numerada anterior, recibe los eventos centrales, comprueba los gates del
+servidor y concilia la serie. Solo entonces conserva el comando y solicita el
+numero. Una respuesta perdida reintenta la misma clave; una confirmacion sin
+commit local queda en el diario y se recupera antes de aceptar otro alta. El
+formulario no puede degradar silenciosamente a numeracion local cuando el
+canario central esta activo. Si se apaga la bandera, un UUID retirado conserva
+el flujo local solo cuando su diario numerado esta vacio; una operacion ya
+confirmada o pendiente se termina antes de permitir otro alta.
+
 El candado transaccional por propietario se toma tambien al insertar o
 reintentar cualquier comando ordinario. De este modo el bootstrap, una
 reconciliacion de serie y una mutacion normal comparten el mismo orden de
