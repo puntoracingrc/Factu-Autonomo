@@ -23,6 +23,7 @@ import {
 } from "./durable-queue";
 import {
   buildCentralBusinessEventAppDataTransition,
+  selectCentralBusinessEventsSyncBaseline,
   syncCentralBusinessEventsIntoAppData,
   verifyCentralBusinessEventContentHash,
   type CentralBusinessEventLocalApplyValue,
@@ -225,6 +226,58 @@ function harness(initial: AppData, storage = new MemoryStorage()) {
 }
 
 describe("central business events app data sync", () => {
+  it("adopta la copia durable más reciente antes de consumir un cursor compartido", () => {
+    const memory: AppData = {
+      ...EMPTY_DATA,
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+    const persisted: AppData = {
+      ...EMPTY_DATA,
+      profile: { ...DEFAULT_PROFILE, phone: "600003333" },
+      meta: {
+        lastModified: "2026-07-30T20:01:00.000Z",
+        pendingChanges: [],
+      },
+    };
+
+    expect(
+      selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBe(persisted);
+  });
+
+  it("no elige entre copias divergentes con la misma fecha", () => {
+    const memory: AppData = {
+      ...EMPTY_DATA,
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+    const persisted: AppData = {
+      ...EMPTY_DATA,
+      profile: { ...DEFAULT_PROFILE, phone: "600003333" },
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+
+    expect(
+      selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBeNull();
+  });
+
   it("verifica la huella SHA-256 de eventos y tombstones", async () => {
     const tombstone = event(customer(), {
       operationKind: "delete",

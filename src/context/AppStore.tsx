@@ -1435,12 +1435,44 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ownerScope: string,
       options: { limit?: number } = {},
     ): Promise<CentralBusinessEventsAppDataSyncResult> => {
-      const { syncCentralBusinessEventsIntoAppData } =
-        await import("@/lib/central-business-authority/events-app-data-sync");
+      const {
+        selectCentralBusinessEventsSyncBaseline,
+        syncCentralBusinessEventsIntoAppData,
+      } = await import(
+        "@/lib/central-business-authority/events-app-data-sync"
+      );
+      const memory = dataRef.current;
+      const baseline = selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted: readPersistedDataSnapshot(),
+        persistedMatchesMemory:
+          inspectPersistedData(memory).status === "applied",
+      });
+      if (!baseline) {
+        return {
+          ok: false,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          code: "CENTRAL_BUSINESS_APP_DATA_BASELINE_AMBIGUOUS",
+          message:
+            "La copia visible y la copia guardada no tienen un orden verificable. Recarga antes de modificar datos centrales.",
+          retryable: false,
+          nextSequence: 0,
+        };
+      }
+      if (baseline !== memory) {
+        durableStorageBaselineRef.current = {
+          status: "known",
+          data: baseline,
+        };
+        lastKnownDurableDataRef.current = baseline;
+        durablyPersistedDataRef.current = baseline;
+        dataRef.current = baseline;
+        setData(baseline);
+      }
       return syncCentralBusinessEventsIntoAppData(
         { ownerScope, limit: options.limit },
         {
-          getCurrentData: () => dataRef.current,
+          getCurrentData: () => baseline,
           commit: (expected, build) => commitDurableAppData(expected, build),
         },
       );

@@ -74,6 +74,21 @@ describe("AppStore durable central business writes", () => {
     );
   });
 
+  it("adopta la copia durable reciente antes de consumir el cursor central compartido", () => {
+    const block = callbackBlock(
+      "pullCentralBusinessEvents",
+      "syncCentralBusinessEvents",
+    );
+
+    expect(block).toContain("selectCentralBusinessEventsSyncBaseline");
+    expect(block).toContain("persisted: readPersistedDataSnapshot()");
+    expect(block).toContain(
+      'code: "CENTRAL_BUSINESS_APP_DATA_BASELINE_AMBIGUOUS"',
+    );
+    expect(block).toContain("dataRef.current = baseline");
+    expect(block).toContain("getCurrentData: () => baseline");
+  });
+
   it("expone una relectura central que rebobina bajo bloqueo y aplica paginas durables", () => {
     const block = callbackBlock(
       "reconcileCentralBusinessEvents",
