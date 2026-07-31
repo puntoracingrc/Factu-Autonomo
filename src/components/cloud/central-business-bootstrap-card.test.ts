@@ -66,4 +66,15 @@ describe("central business bootstrap account card", () => {
     );
     expect(component).toContain("Restaurar ${preview.summary.centralOnly}");
   });
+
+  it("muestra los IDs bloqueados sin habilitar confirmacion si la preview no es confirmable", () => {
+    expect(component).toContain("REVIEW_ENTRY_LIMIT");
+    expect(component).toContain("isReviewEntry");
+    expect(component).toContain("Entradas que bloquean la migracion");
+    expect(component).toContain("reviewStatusLabel(entry)");
+    expect(component).toContain("centralVersionLabel(entry)");
+    expect(component).toContain("entry.entityId");
+    expect(component).toContain("preview?.canCommit");
+    expect(component).toContain("!preview.canCommit");
+  });
 });

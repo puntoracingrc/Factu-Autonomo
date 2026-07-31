@@ -21,6 +21,7 @@ import {
   type CentralBusinessBootstrapBrowserEntity,
   type CentralBusinessBootstrapBrowserEntityType,
   type CentralBusinessBootstrapBrowserPreview,
+  type CentralBusinessBootstrapBrowserPreviewEntry,
 } from "@/lib/central-business-authority/bootstrap-client";
 import { recordCentralBusinessBootstrapCheckpoint } from "@/lib/central-business-authority/bootstrap-checkpoint";
 import {
@@ -60,6 +61,8 @@ const BOOTSTRAP_ENTITY_TYPES = [
   "profile",
 ] as const satisfies readonly CentralBusinessBootstrapBrowserEntityType[];
 
+const REVIEW_ENTRY_LIMIT = 12;
+
 function noticeClass(tone: Notice["tone"]): string {
   if (tone === "success") {
     return "border-emerald-200 bg-white text-emerald-900";
@@ -68,6 +71,25 @@ function noticeClass(tone: Notice["tone"]): string {
     return "border-amber-200 bg-amber-50 text-amber-950";
   }
   return "border-red-200 bg-red-50 text-red-950";
+}
+
+function isReviewEntry(
+  entry: CentralBusinessBootstrapBrowserPreviewEntry,
+): boolean {
+  return entry.status === "conflict" || entry.status === "central_only";
+}
+
+function reviewStatusLabel(
+  entry: CentralBusinessBootstrapBrowserPreviewEntry,
+): string {
+  return entry.status === "conflict" ? "Conflicto" : "Solo servidor";
+}
+
+function centralVersionLabel(
+  entry: CentralBusinessBootstrapBrowserPreviewEntry,
+): string {
+  if (entry.centralVersion === null) return "Sin version central";
+  return `Version central ${entry.centralVersion}`;
 }
 
 export function CentralBusinessBootstrapCard() {
@@ -130,6 +152,12 @@ export function CentralBusinessBootstrapCard() {
     return null;
   }
   const activeOwnerScope = ownerScope;
+  const reviewEntries = preview?.entries.filter(isReviewEntry) ?? [];
+  const visibleReviewEntries = reviewEntries.slice(0, REVIEW_ENTRY_LIMIT);
+  const hiddenReviewEntryCount = Math.max(
+    0,
+    reviewEntries.length - visibleReviewEntries.length,
+  );
 
   async function syncAllCentralEvents(): Promise<Notice | null> {
     for (let page = 0; page < 100; page += 1) {
@@ -476,6 +504,41 @@ export function CentralBusinessBootstrapCard() {
               ? `${preview.summary.local} fichas verificadas. El lote puede confirmarse.`
               : `${preview.summary.conflict} conflictos y ${preview.summary.centralOnly} fichas solo centrales. No se escribirá nada.`}
           </div>
+
+          {!preview.canCommit && reviewEntries.length > 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-white px-4 py-3">
+              <p className="text-sm font-bold text-slate-900">
+                Entradas que bloquean la migracion
+              </p>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+                {visibleReviewEntries.map((entry) => (
+                  <li
+                    key={`${entry.entityType}:${entry.entityId}`}
+                    className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
+                  >
+                    <span className="font-semibold text-slate-900">
+                      {ENTITY_LABELS[entry.entityType]} ·{" "}
+                      {reviewStatusLabel(entry)}
+                    </span>
+                    <span className="ml-2 text-slate-600">
+                      {centralVersionLabel(entry)} ·{" "}
+                      {entry.centralDeleted
+                        ? "Retirada en servidor"
+                        : "Activa en servidor"}
+                    </span>
+                    <code className="mt-1 block break-all rounded bg-white px-2 py-1 text-xs text-slate-700">
+                      {entry.entityId}
+                    </code>
+                  </li>
+                ))}
+              </ul>
+              {hiddenReviewEntryCount > 0 ? (
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  {hiddenReviewEntryCount} entrada(s) mas bloquean este lote.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {preview.canCommit ? (
             <label className="flex items-start gap-3 rounded-lg border border-indigo-100 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
