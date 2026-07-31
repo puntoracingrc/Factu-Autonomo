@@ -12,6 +12,7 @@ import {
   type CentralBusinessBootstrapCentralRow,
   type CentralBusinessBootstrapEntityInput,
 } from "./bootstrap-preview";
+import { decodeCentralBusinessBootstrapRequestBody } from "./bootstrap-request-body";
 
 assertServerOnlyModule();
 
@@ -19,6 +20,7 @@ export const CENTRAL_BUSINESS_BOOTSTRAP_COMMIT_ROUTE =
   "CENTRAL_BUSINESS_BOOTSTRAP_COMMIT_ROUTE_V1";
 const MAX_ENTITIES = 5_000;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
+const MAX_DECODED_BODY_BYTES = 16 * 1024 * 1024;
 
 interface BootstrapCommitBody {
   idempotencyKey: string;
@@ -110,12 +112,14 @@ function json(
 }
 
 function parseBody(raw: string): BootstrapCommitBody {
-  if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) {
-    throw new Error("REQUEST_BODY_TOO_LARGE");
-  }
+  const decoded = decodeCentralBusinessBootstrapRequestBody(raw, {
+    maxRawBytes: MAX_BODY_BYTES,
+    maxDecodedBytes: MAX_DECODED_BODY_BYTES,
+  });
+  if (!decoded.ok) throw new Error(decoded.code);
   let value: unknown;
   try {
-    value = JSON.parse(raw);
+    value = JSON.parse(decoded.body);
   } catch {
     throw new Error("INVALID_JSON");
   }

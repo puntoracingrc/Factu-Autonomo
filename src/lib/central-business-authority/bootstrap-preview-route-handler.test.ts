@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { gzipSync } from "node:zlib";
 
 import type { CentralBusinessBootstrapCentralRow } from "./bootstrap-preview";
 import { createCentralBusinessBootstrapPreviewRouteHandler } from "./bootstrap-preview-route-handler";
+import { CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY } from "./bootstrap-request-body";
 
 function request(
   method = "POST",
@@ -48,6 +50,15 @@ function dependencies() {
   };
 }
 
+function compressedBody(raw: string) {
+  return JSON.stringify({
+    schema: CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY,
+    encoding: "gzip+base64",
+    uncompressedBytes: Buffer.byteLength(raw, "utf8"),
+    payload: gzipSync(Buffer.from(raw, "utf8")).toString("base64"),
+  });
+}
+
 describe("central business bootstrap preview route", () => {
   it("autentica y verifica el dispositivo antes de leer datos", async () => {
     const deps = dependencies();
@@ -79,6 +90,29 @@ describe("central business bootstrap preview route", () => {
     });
     expect(JSON.stringify(result.body)).not.toContain("Cliente A");
     expect(deps.listCentralEntities).toHaveBeenCalledWith("user-a");
+  });
+
+  it("acepta lotes comprimidos sin relajar la validacion del preview", async () => {
+    const deps = dependencies();
+    const handler = createCentralBusinessBootstrapPreviewRouteHandler(deps);
+    const raw = JSON.stringify({
+      entities: [
+        {
+          entityType: "customer",
+          entityId: "customer-a",
+          payload: { id: "customer-a", notes: "x".repeat(700_000) },
+        },
+      ],
+    });
+
+    const result = await handler.handle(request("POST", compressedBody(raw)));
+
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      ok: true,
+      preview: { summary: { create: 1, local: 1 } },
+    });
+    expect(JSON.stringify(result.body)).not.toContain("x".repeat(100));
   });
 
   it("no permite preparar una cuenta fuera del canario", async () => {

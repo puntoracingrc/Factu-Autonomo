@@ -13,6 +13,9 @@ export const CENTRAL_BUSINESS_BOOTSTRAP_CLIENT =
   "CENTRAL_BUSINESS_BOOTSTRAP_CLIENT_V1";
 export const CENTRAL_BUSINESS_BOOTSTRAP_CONFIRMATION =
   "COMMIT_CENTRAL_BUSINESS_BOOTSTRAP_V1";
+const CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY =
+  "CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY_V1";
+const BOOTSTRAP_BODY_COMPRESSION_THRESHOLD_BYTES = 512 * 1024;
 
 export type CentralBusinessBootstrapBrowserEntityType =
   | "customer"
@@ -314,6 +317,12 @@ function errorMessage(code: string): string {
   if (code === "CENTRAL_BUSINESS_BOOTSTRAP_NOT_ALLOWED") {
     return "Esta cuenta no esta autorizada para la migracion central.";
   }
+  if (code === "REQUEST_BODY_TOO_LARGE") {
+    return "La migracion contiene demasiados datos para enviarse en un unico lote.";
+  }
+  if (code === "INVALID_COMPRESSED_BOOTSTRAP_BODY") {
+    return "El servidor no pudo leer el lote comprimido. Prepara la comparacion de nuevo.";
+  }
   if (code === "BOOTSTRAP_PREVIEW_STALE") {
     return "Los datos locales o centrales cambiaron. Prepara una vista previa nueva.";
   }
@@ -343,6 +352,58 @@ async function authHeaders(
   });
 }
 
+function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, offset + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+async function gzipBase64(value: string): Promise<string | null> {
+  if (
+    typeof CompressionStream === "undefined" ||
+    typeof Blob === "undefined" ||
+    typeof Response === "undefined"
+  ) {
+    return null;
+  }
+  try {
+    const stream = new Blob([value])
+      .stream()
+      .pipeThrough(new CompressionStream("gzip"));
+    const buffer = await new Response(stream).arrayBuffer();
+    return bytesToBase64(new Uint8Array(buffer));
+  } catch {
+    return null;
+  }
+}
+
+async function serializeBootstrapRequestBody(body: unknown): Promise<string> {
+  const raw = JSON.stringify(body);
+  const rawBytes = utf8ByteLength(raw);
+  if (rawBytes < BOOTSTRAP_BODY_COMPRESSION_THRESHOLD_BYTES) {
+    return raw;
+  }
+
+  const payload = await gzipBase64(raw);
+  if (!payload) return raw;
+
+  const compressed = JSON.stringify({
+    schema: CENTRAL_BUSINESS_BOOTSTRAP_COMPRESSED_BODY,
+    encoding: "gzip+base64",
+    uncompressedBytes: rawBytes,
+    payload,
+  });
+  return utf8ByteLength(compressed) < rawBytes ? compressed : raw;
+}
+
 async function post(
   path: string,
   body: unknown,
@@ -360,7 +421,7 @@ async function post(
     const response = await (dependencies.fetchImpl ?? fetch)(path, {
       method: "POST",
       headers,
-      body: JSON.stringify(body),
+      body: await serializeBootstrapRequestBody(body),
       cache: "no-store",
     });
     return {
