@@ -43,6 +43,8 @@ const ENTITY_LABELS = {
   user_reminder: "Recordatorios",
   expense: "Gastos",
   recurring_expense: "Gastos fijos",
+  quote: "Presupuestos",
+  receipt: "Recibos",
   profile: "Perfil",
 } as const;
 
@@ -53,6 +55,8 @@ const BOOTSTRAP_ENTITY_TYPES = [
   "user_reminder",
   "expense",
   "recurring_expense",
+  "quote",
+  "receipt",
   "profile",
 ] as const satisfies readonly CentralBusinessBootstrapBrowserEntityType[];
 
@@ -410,9 +414,10 @@ export function CentralBusinessBootstrapCard() {
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Compara clientes, proveedores, productos, recordatorios, gastos,
-            gastos fijos y el perfil de este dispositivo antes de convertir
-            PostgreSQL en su autoridad. La vista previa no escribe nada y un
-            conflicto bloquea el lote completo.
+            gastos fijos, presupuestos, recibos y el perfil de este
+            dispositivo antes de convertir PostgreSQL en su autoridad. La
+            vista previa no escribe nada y un conflicto bloquea el lote
+            completo.
           </p>
         </div>
       </div>

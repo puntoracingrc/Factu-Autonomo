@@ -40,6 +40,8 @@ describe("central business bootstrap account card", () => {
     expect(component).toContain('user_reminder: "Recordatorios"');
     expect(component).toContain('expense: "Gastos"');
     expect(component).toContain('recurring_expense: "Gastos fijos"');
+    expect(component).toContain('quote: "Presupuestos"');
+    expect(component).toContain('receipt: "Recibos"');
     expect(component).toContain('profile: "Perfil"');
     expect(component).toContain("BOOTSTRAP_ENTITY_TYPES.map");
   });
