@@ -37,6 +37,7 @@ import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
+import { useCentralQuoteCreate } from "@/hooks/useCentralQuoteCreate";
 import {
   formatMoney,
   formatShortDate,
@@ -480,6 +481,7 @@ export function DocumentForm({
     registerVerifactuForDocument,
   } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
+  const { createQuote } = useCentralQuoteCreate();
   const {
     billingEnabled,
     checkCanCreateDocument,
@@ -1766,6 +1768,18 @@ export function DocumentForm({
         );
         return;
       }
+    } else if (type === "presupuesto") {
+      const quoteSave = await createQuote({
+        ...payload,
+        type: "presupuesto",
+      });
+      if (!quoteSave.ok) {
+        setSaveAction("idle");
+        setFormError(quoteSave.error);
+        return;
+      }
+      saved = quoteSave.document;
+      recordDocumentCreated();
     } else {
       const centralDocumentEligible =
         shouldUseCentralInvoiceAuthorityDocumentFormCanary({
