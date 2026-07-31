@@ -52,7 +52,7 @@ describe("temporary cloud sync pause", () => {
     expect(appStore).toContain("!isCloudSyncTemporarilyPaused()");
   });
 
-  it("presents the paused state as local-only work instead of a repair flow", () => {
+  it("distingue la copia completa pausada de las acciones centrales activas", () => {
     const accountCard = source("src/components/cloud/CloudAccountCard.tsx");
     const indicator = source("src/components/cloud/CloudSyncIndicator.tsx");
     const documentForm = source("src/components/forms/DocumentForm.tsx");
@@ -60,16 +60,17 @@ describe("temporary cloud sync pause", () => {
     expect(accountCard).toContain("cloudSyncPaused");
     expect(accountCard).toContain("Pausada temporalmente");
     expect(accountCard).toContain(
-      "Puedes trabajar y emitir en\n              este dispositivo",
+      "La copia completa entre dispositivos está pausada temporalmente.",
     );
+    expect(accountCard).toContain("&quot;Servidor central&quot;");
+    expect(accountCard).toContain("se confirman y sincronizan allí");
     expect(accountCard).toContain("limits.cloudSync && !cloudSyncPaused ?");
     expect(accountCard).toContain("canShowSyncActions && !cloudSyncPaused");
 
     expect(indicator).toContain("cloudSyncPaused");
-    expect(indicator).toContain("Los cambios quedan guardados en");
-    expect(indicator).toContain(
-      "este dispositivo y se subiran cuando reactivemos la nube.",
-    );
+    expect(indicator).toContain("Copia completa entre dispositivos pausada.");
+    expect(indicator).toContain("&quot;Servidor central&quot;");
+    expect(indicator).toContain("se confirman y sincronizan allí");
 
     expect(documentForm).toContain("cloudSyncPaused");
     expect(documentForm).toContain("!cloudSyncPaused");

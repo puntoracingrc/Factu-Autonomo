@@ -227,8 +227,9 @@ export function CloudSyncPendingBanner() {
     return (
       <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
         <div className="mx-auto max-w-3xl text-sm text-amber-950">
-          Sincronizacion pausada temporalmente. Los cambios quedan guardados en
-          este dispositivo y se subiran cuando reactivemos la nube.
+          Copia completa entre dispositivos pausada. Las acciones que indiquen
+          &quot;Servidor central&quot; se confirman y sincronizan allí; las
+          demás quedan en este dispositivo.
         </div>
       </div>
     );

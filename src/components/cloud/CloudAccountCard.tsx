@@ -524,9 +524,10 @@ export function CloudAccountCard({
           ) : null}
           {cloudSyncPaused && limits.cloudSync && !requiresEmailConfirmation ? (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
-              Sincronizacion pausada temporalmente. Puedes trabajar y emitir en
-              este dispositivo; los cambios quedan en local hasta que
-              reactivemos la nube.
+              La copia completa entre dispositivos está pausada temporalmente.
+              Puedes trabajar y emitir. Las acciones que indiquen
+              &quot;Servidor central&quot; se confirman y sincronizan allí; las
+              demás quedan en local hasta reactivar la copia completa.
             </p>
           ) : null}
           {!requiresEmailConfirmation &&

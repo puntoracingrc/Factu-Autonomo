@@ -1,5 +1,5 @@
 export const TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE =
-  "Sincronizacion pausada temporalmente. Los cambios se guardan solo en este dispositivo y se subiran cuando se reactive la nube.";
+  "Copia completa entre dispositivos pausada temporalmente. Las acciones confirmadas por el servidor central se sincronizan; las demás se guardan solo en este dispositivo hasta reactivar la copia completa.";
 
 export function isCloudEnabled(): boolean {
   const hasSupabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
