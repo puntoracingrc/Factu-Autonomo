@@ -140,7 +140,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
   if (eventSync && !eventSync.ok && !eventSync.retryable) {
     return {
       ok: false,
-      error: `Hay cambios centrales que este dispositivo no pudo aplicar. Revisa la sincronización antes de modificar ${input.entityLabel}.`,
+      error: `Hay cambios centrales que este dispositivo no pudo aplicar. Ve a Cuenta > Migración central y usa la copia del servidor en este dispositivo antes de modificar ${input.entityLabel}.`,
     };
   }
 

@@ -80,6 +80,7 @@ function serverAdoptionPreservedProjection(data: AppData): unknown {
   const cleared = clearCentralBusinessLocalProjection(data);
   return {
     ...cleared,
+    profile: null,
     counters: {
       ...cleared.counters,
       presupuesto: 0,

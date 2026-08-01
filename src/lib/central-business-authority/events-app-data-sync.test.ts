@@ -325,6 +325,7 @@ describe("central business events app data sync", () => {
     const sameInvoice = invoice();
     const memory: AppData = {
       ...EMPTY_DATA,
+      profile: { ...DEFAULT_PROFILE, name: "Perfil visible" },
       customers: [customer({ id: "local-customer" })],
       expenses: [expense({ id: "local-expense" })],
       documents: [quote({ id: "local-quote" }), sameInvoice],
@@ -341,6 +342,7 @@ describe("central business events app data sync", () => {
     };
     const persisted: AppData = {
       ...EMPTY_DATA,
+      profile: { ...DEFAULT_PROFILE, name: "Perfil guardado" },
       customers: [customer({ id: "persisted-customer" })],
       expenses: [],
       documents: [quote({ id: "persisted-quote" }), sameInvoice],

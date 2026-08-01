@@ -238,7 +238,7 @@ export async function applyProductCatalogBatchWithCentralCanary(input: {
     return {
       ok: false,
       error:
-        "Hay cambios centrales que este dispositivo no pudo aplicar. Revisa la sincronización antes de organizar el catálogo.",
+        "Hay cambios centrales que este dispositivo no pudo aplicar. Ve a Cuenta > Migración central y usa la copia del servidor en este dispositivo antes de organizar el catálogo.",
     };
   }
 

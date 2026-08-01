@@ -169,7 +169,7 @@ export async function createCustomerWithCentralCanary(input: {
     return {
       ok: false,
       error:
-        "Hay cambios centrales que este dispositivo no pudo aplicar. Revisa la sincronización antes de guardar el cliente.",
+        "Hay cambios centrales que este dispositivo no pudo aplicar. Ve a Cuenta > Migración central y usa la copia del servidor en este dispositivo antes de guardar el cliente.",
     };
   }
   const status = await statusWithTimeout(
