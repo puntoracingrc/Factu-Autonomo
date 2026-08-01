@@ -1524,6 +1524,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         };
       }
       if (drained.stoppedBy !== "empty") {
+        await pullCentralBusinessEvents(ownerScope, options);
         return {
           ok: false,
           schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",

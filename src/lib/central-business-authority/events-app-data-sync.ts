@@ -1051,12 +1051,13 @@ async function applyIndependentEventsFromBlockedPage(input: {
   events: CentralBusinessBrowserEvent[];
   baseline: AppData;
   commit: CentralBusinessEventsAppDataSyncDependencies["commit"];
+  blockedEntityKeys?: ReadonlySet<string>;
 }): Promise<{
   applied: number;
   skipped: number;
   error: CentralBusinessLocalApplyError | null;
 }> {
-  const blockedKeys = new Set<string>();
+  const blockedKeys = new Set<string>(input.blockedEntityKeys);
   const workingVersions = { ...input.state.entityVersions };
   let workingData = input.baseline;
   let locallyApplied = 0;
@@ -1253,13 +1254,23 @@ export async function syncCentralBusinessEventsIntoAppData(
       if (!page.ok) {
         if (
           localFailure.current?.code ===
-          "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT"
+            "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT" ||
+          page.code === "LOCAL_OPERATION_CONFLICT"
         ) {
+          const pendingEntityKeys = new Set(
+            page.state.operations
+              .filter((operation) => operation.resolution !== "accept_server")
+              .map(
+                (operation) =>
+                  `${operation.input.entityType}:${operation.input.entityId}`,
+              ),
+          );
           const partial = await applyIndependentEventsFromBlockedPage({
-            state,
+            state: page.state,
             events: pulled.events,
             baseline,
             commit: dependencies.commit,
+            blockedEntityKeys: pendingEntityKeys,
           });
           if (partial.error) {
             localFailure.current = partial.error;

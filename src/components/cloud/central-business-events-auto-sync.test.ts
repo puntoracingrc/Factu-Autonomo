@@ -30,6 +30,10 @@ describe("central business events auto sync wiring", () => {
     expect(normalSync.indexOf("drainCentralBusinessDurableQueue")).toBeLessThan(
       normalSync.indexOf("return pullCentralBusinessEvents"),
     );
+    expect(normalSync).toContain('if (drained.stoppedBy !== "empty")');
+    expect(normalSync).toContain(
+      "await pullCentralBusinessEvents(ownerScope, options);",
+    );
     expect(normalSync).toContain("mutateCentralBusinessBatchFromBrowser");
     expect(normalSync).toContain(
       "mutateBatch: mutateCentralBusinessBatchFromBrowser",
