@@ -68,6 +68,7 @@ export async function updateCustomerWithCentralCanary(input: {
     operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
     entityLabel: "este cliente",
     createMissingUpsertAfterFullSync: true,
+    allowVersionedUpsertAfterBlockedPreflight: true,
     dependencies: {
       ...dependencies,
       fallback: () => {
