@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS,
+  CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS,
   CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT,
   centralBusinessEventsRealtimeSubscription,
@@ -12,7 +13,7 @@ import {
 } from "./events-auto-sync";
 
 describe("central business events auto sync", () => {
-  it("solo se activa para UUIDs incluidos explícitamente", () => {
+  it("permite rollout general o lista explicita cuando el flag esta activo", () => {
     expect(
       isCentralBusinessEventsAutoSyncEnabledForUser("user-1", {
         enabled: "true",
@@ -23,6 +24,22 @@ describe("central business events auto sync", () => {
       isCentralBusinessEventsAutoSyncEnabledForUser("user-3", {
         enabled: "true",
         userIds: "user-1,user-2",
+      }),
+    ).toBe(false);
+    expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser("real-user-1", {
+        enabled: "true",
+      }),
+    ).toBe(true);
+    expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser("real-user-2", {
+        enabled: "true",
+        userIds: "*",
+      }),
+    ).toBe(true);
+    expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser(null, {
+        enabled: "true",
       }),
     ).toBe(false);
     expect(
@@ -69,6 +86,7 @@ describe("central business events auto sync", () => {
   });
 
   it("continúa páginas inmediatamente y separa red de conflictos", () => {
+    expect(CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT).toBe(500);
     expect(
       nextCentralBusinessEventsAutoSyncDelay({
         ok: true,
