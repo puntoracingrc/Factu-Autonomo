@@ -43,6 +43,16 @@ describe("central business events auto sync wiring", () => {
     expect(normalSync).toContain(
       "await pullCentralBusinessEvents(ownerScope, options);",
     );
+    const queueFailureBlock = normalSync.slice(
+      normalSync.indexOf("} catch {"),
+      normalSync.indexOf('if (drained.stoppedBy !== "empty")'),
+    );
+    expect(queueFailureBlock).toContain(
+      "const pulled = await pullCentralBusinessEvents(ownerScope, options)",
+    );
+    expect(queueFailureBlock).toContain(
+      "nextSequence: pulled?.ok ? pulled.nextSequence : 0",
+    );
     expect(normalSync).toContain("mutateCentralBusinessBatchFromBrowser");
     expect(normalSync).toContain(
       "mutateBatch: mutateCentralBusinessBatchFromBrowser",
