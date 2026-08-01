@@ -66,11 +66,32 @@ import {
 } from "@/lib/dashboard-visual-cache";
 import {
   buildListVisualCacheSnapshot,
+  LIST_VISUAL_CACHE_KINDS,
   readListVisualCacheSnapshot,
   writeListVisualCacheSnapshot,
   type ListVisualCacheKind,
   type ListVisualCacheSnapshot,
 } from "@/lib/list-visual-cache";
+
+function emptyListVisualCacheSnapshots(): Record<
+  ListVisualCacheKind,
+  ListVisualCacheSnapshot | null
+> {
+  return Object.fromEntries(
+    LIST_VISUAL_CACHE_KINDS.map((kind) => [kind, null]),
+  ) as Record<ListVisualCacheKind, ListVisualCacheSnapshot | null>;
+}
+
+function readListVisualCacheSnapshots(
+  scope: string,
+): Record<ListVisualCacheKind, ListVisualCacheSnapshot | null> {
+  return Object.fromEntries(
+    LIST_VISUAL_CACHE_KINDS.map((kind) => [
+      kind,
+      readListVisualCacheSnapshot(kind, scope),
+    ]),
+  ) as Record<ListVisualCacheKind, ListVisualCacheSnapshot | null>;
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -89,14 +110,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     Record<ListVisualCacheKind, ListVisualCacheSnapshot | null>
   >(() =>
     initialDemoMode
-      ? {
-          facturas: readListVisualCacheSnapshot("facturas", "local"),
-          gastos: readListVisualCacheSnapshot("gastos", "local"),
-        }
-      : {
-          facturas: null,
-          gastos: null,
-        },
+      ? readListVisualCacheSnapshots("local")
+      : emptyListVisualCacheSnapshots(),
   );
   const mobileNavRef = useRef<HTMLDivElement>(null);
   const previousPathnameRef = useRef(pathname);
@@ -113,7 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showFactu = baseShowFactu && !writeBlock;
   const workspaceLoading = !ready || !authReady;
   const visualCacheScope =
-    authReady || demoMode || initialDemoMode ? user?.id ?? "local" : null;
+    authReady || demoMode || initialDemoMode ? (user?.id ?? "local") : null;
   const accountLabel = workspaceLoading
     ? "Comprobando sesión"
     : data.profile.name.trim() || user?.email || "Cuenta";
@@ -192,24 +207,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!visualCacheScope) {
-      setListVisualCache({ facturas: null, gastos: null });
+      setListVisualCache(emptyListVisualCacheSnapshots());
       return;
     }
 
-    setListVisualCache({
-      facturas: readListVisualCacheSnapshot("facturas", visualCacheScope),
-      gastos: readListVisualCacheSnapshot("gastos", visualCacheScope),
-    });
+    setListVisualCache(readListVisualCacheSnapshots(visualCacheScope));
   }, [visualCacheScope]);
 
   useEffect(() => {
     if (!ready || !visualCacheScope) return;
 
-    const facturas = buildListVisualCacheSnapshot(data, "facturas");
-    const gastos = buildListVisualCacheSnapshot(data, "gastos");
-    writeListVisualCacheSnapshot(facturas, visualCacheScope);
-    writeListVisualCacheSnapshot(gastos, visualCacheScope);
-    setListVisualCache({ facturas, gastos });
+    const snapshots = emptyListVisualCacheSnapshots();
+    for (const kind of LIST_VISUAL_CACHE_KINDS) {
+      const snapshot = buildListVisualCacheSnapshot(data, kind);
+      writeListVisualCacheSnapshot(snapshot, visualCacheScope);
+      snapshots[kind] = snapshot;
+    }
+    setListVisualCache(snapshots);
   }, [data, ready, visualCacheScope]);
 
   useEffect(() => {
@@ -497,7 +511,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                     plan === "trial"
                       ? "bg-violet-100 text-violet-800"
-                    : "bg-amber-100 text-amber-800"
+                      : "bg-amber-100 text-amber-800"
                   }`}
                 >
                   <Crown className="h-3.5 w-3.5" />
@@ -639,7 +653,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               listVisualCache={listVisualCache}
             />
           ) : businessContentBlocked ? (
-            <div aria-disabled="true" className="pointer-events-none opacity-55">
+            <div
+              aria-disabled="true"
+              className="pointer-events-none opacity-55"
+            >
               {children}
             </div>
           ) : (
@@ -664,11 +681,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex w-max min-w-full items-stretch gap-1">
               {appNavItems.map(
                 ({ href, activeBase, label, shortLabel, icon: Icon }) => {
-                  const active = isAppNavItemActive(
-                    pathname,
-                    href,
-                    activeBase,
-                  );
+                  const active = isAppNavItemActive(pathname, href, activeBase);
                   const selected = isAppNavItemActive(
                     selectedPathname,
                     href,
@@ -742,7 +755,10 @@ function AppStartupMainContent({
       ? { label: "Panel principal" }
       : { label: "Esta sección" });
   const isHome = pathname === "/";
-  const listSnapshot = listVisualCacheSnapshotForPath(pathname, listVisualCache);
+  const listSnapshot = listVisualCacheSnapshotForPath(
+    pathname,
+    listVisualCache,
+  );
 
   return (
     <div aria-busy="true" className="space-y-4">
@@ -788,8 +804,13 @@ function listVisualCacheSnapshotForPath(
   pathname: string,
   snapshots: Record<ListVisualCacheKind, ListVisualCacheSnapshot | null>,
 ): ListVisualCacheSnapshot | null {
+  if (pathname === "/clientes") return snapshots.clientes;
+  if (pathname === "/presupuestos") return snapshots.presupuestos;
   if (pathname === "/facturas") return snapshots.facturas;
+  if (pathname === "/recibos") return snapshots.recibos;
   if (pathname === "/gastos") return snapshots.gastos;
+  if (pathname === "/proveedores") return snapshots.proveedores;
+  if (pathname === "/productos") return snapshots.productos;
   return null;
 }
 
@@ -861,11 +882,26 @@ function DashboardVisualCachePreview({
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <DashboardVisualMetric label="Facturado" value={snapshot.metrics.billed} />
-          <DashboardVisualMetric label="Cobrado" value={snapshot.metrics.collected} />
-          <DashboardVisualMetric label="Pendiente" value={snapshot.metrics.pending} />
-          <DashboardVisualMetric label="Gasto neto" value={snapshot.metrics.expenses} />
-          <DashboardVisualMetric label="Balance" value={snapshot.metrics.balance} />
+          <DashboardVisualMetric
+            label="Facturado"
+            value={snapshot.metrics.billed}
+          />
+          <DashboardVisualMetric
+            label="Cobrado"
+            value={snapshot.metrics.collected}
+          />
+          <DashboardVisualMetric
+            label="Pendiente"
+            value={snapshot.metrics.pending}
+          />
+          <DashboardVisualMetric
+            label="Gasto neto"
+            value={snapshot.metrics.expenses}
+          />
+          <DashboardVisualMetric
+            label="Balance"
+            value={snapshot.metrics.balance}
+          />
         </div>
       </div>
 
