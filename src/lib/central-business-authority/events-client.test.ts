@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { CLOUD_DEVICE_TOKEN_STORAGE_KEY } from "@/lib/cloud/device-token";
 import { pullCentralBusinessEventsFromBrowser } from "./events-client";
 
 const event = {
@@ -17,6 +18,11 @@ const event = {
 };
 
 describe("central business events client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it("lee por cursor monotono y valida cada evento", async () => {
     const fetchImpl = vi.fn(async () =>
       Response.json({
@@ -47,6 +53,53 @@ describe("central business events client", () => {
         method: "GET",
         cache: "no-store",
       }),
+    );
+  });
+
+  it("crea un token local de dispositivo antes de recibir eventos centrales", async () => {
+    const storage = new Map<string, string>();
+    const randomUUID = vi
+      .fn()
+      .mockReturnValueOnce("11111111-1111-4111-8111-111111111111")
+      .mockReturnValueOnce("22222222-2222-4222-8222-222222222222");
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        storage.set(key, value);
+      },
+      removeItem: (key: string) => {
+        storage.delete(key);
+      },
+    });
+    vi.stubGlobal("crypto", { randomUUID });
+    const fetchCalls: Parameters<typeof fetch>[] = [];
+    const fetchImpl: typeof fetch = async (...args) => {
+      fetchCalls.push(args);
+      return Response.json({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_EVENTS_ROUTE_V1",
+        events: [],
+        nextSequence: 0,
+        hasMore: false,
+      });
+    };
+
+    const result = await pullCentralBusinessEventsFromBrowser(
+      { afterSequence: 0, limit: 1 },
+      {
+        fetchImpl,
+        getAccessToken: async () => "access-token",
+      },
+    );
+
+    expect(result).toMatchObject({ ok: true, nextSequence: 0 });
+    const [, init] = fetchCalls[0];
+    const headers = new Headers(init?.headers);
+    expect(headers.get("X-Factu-Device-Token")).toBe(
+      "11111111-1111-4111-8111-111111111111.22222222-2222-4222-8222-222222222222",
+    );
+    expect(storage.get(CLOUD_DEVICE_TOKEN_STORAGE_KEY)).toBe(
+      headers.get("X-Factu-Device-Token"),
     );
   });
 

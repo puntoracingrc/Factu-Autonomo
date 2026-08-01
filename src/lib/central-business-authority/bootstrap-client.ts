@@ -2,7 +2,7 @@
 
 import {
   CLOUD_DEVICE_TOKEN_HEADER,
-  getLocalCloudDeviceToken,
+  getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { AppData } from "@/lib/types";
@@ -341,10 +341,11 @@ async function authHeaders(
   const accessToken = await (
     dependencies.getAccessToken ?? defaultAccessToken
   )();
+  if (!accessToken) return null;
   const deviceToken = (
-    dependencies.getDeviceToken ?? getLocalCloudDeviceToken
+    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
   )();
-  if (!accessToken || !deviceToken) return null;
+  if (!deviceToken) return null;
   return new Headers({
     Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json",

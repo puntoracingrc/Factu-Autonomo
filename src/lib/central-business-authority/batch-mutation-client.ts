@@ -2,7 +2,7 @@
 
 import {
   CLOUD_DEVICE_TOKEN_HEADER,
-  getLocalCloudDeviceToken,
+  getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
@@ -151,10 +151,18 @@ export async function mutateCentralBusinessBatchFromBrowser(
   const accessToken = await (
     dependencies.getAccessToken ?? defaultAccessToken
   )();
+  if (!accessToken) {
+    return failure({
+      status: 401,
+      code: "CENTRAL_BUSINESS_BATCH_SESSION_REQUIRED",
+      message:
+        "Inicia sesion y registra este dispositivo antes de guardar el lote central.",
+    });
+  }
   const deviceToken = (
-    dependencies.getDeviceToken ?? getLocalCloudDeviceToken
+    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
   )();
-  if (!accessToken || !deviceToken) {
+  if (!deviceToken) {
     return failure({
       status: 401,
       code: "CENTRAL_BUSINESS_BATCH_SESSION_REQUIRED",
