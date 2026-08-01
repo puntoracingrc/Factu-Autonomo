@@ -152,6 +152,29 @@ describe("central customer create canary", () => {
     ).toBe(false);
   });
 
+  it("usa la cohorte de auto-sync como activacion central de clientes", () => {
+    expect(
+      isCentralCustomerCreateCanaryEnabledForUser(userId, {
+        enabled: "false",
+        userIds: "",
+        autoSyncEnabled: "true",
+        autoSyncUserIds: userId,
+      }),
+    ).toBe(true);
+    expect(
+      isCentralCustomerCreateCanaryEnabledForUser("persianas-user", {
+        autoSyncEnabled: "true",
+        autoSyncUserIds: userId,
+      }),
+    ).toBe(false);
+    expect(
+      isCentralCustomerCreateCanaryEnabledForUser(userId, {
+        autoSyncEnabled: "true",
+        autoSyncUserIds: "",
+      }),
+    ).toBe(false);
+  });
+
   it("mantiene intacto el guardado local fuera del canario", async () => {
     const deps = dependencies();
     const result = await createCustomerWithCentralCanary({

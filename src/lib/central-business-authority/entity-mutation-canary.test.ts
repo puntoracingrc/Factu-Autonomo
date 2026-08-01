@@ -268,6 +268,127 @@ describe("central business entity mutation canary", () => {
     expect(fallback).toHaveBeenCalledOnce();
   });
 
+  it("promociona una ficha local como alta central si ya recibió todo el servidor", async () => {
+    const storage = new MemoryStorage();
+    let current: AppData = EMPTY_DATA;
+    const fallback = vi.fn(() => ({
+      ok: true as const,
+      value: "legacy",
+      delivery: "local" as const,
+    }));
+    const mutate = vi.fn(
+      async (): Promise<CentralBusinessBrowserMutationResult> => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: "event-create-from-local",
+        eventSequence: 1,
+        entityVersion: 1,
+        deleted: false,
+        contentHash: "hash-v1",
+      }),
+    );
+
+    const result = await mutateCentralBusinessEntityWithCanary({
+      enabled: true,
+      userId: ownerScope,
+      entityType: "customer",
+      entityId,
+      operationKind: "upsert",
+      operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
+      entityLabel: "este cliente",
+      createMissingUpsertAfterFullSync: true,
+      dependencies: {
+        storage,
+        getCurrentData: () => current,
+        fallback,
+        prepareLocal: ({ data }) => ({
+          ok: true,
+          payload: { id: entityId, name: "Cliente local revisado" },
+          transition: {
+            data: { ...data, updatedAt: now },
+            value: "promoted",
+          },
+        }),
+        commitLocal: (expected, transition) => {
+          current = transition.data;
+          expect(expected).toBe(EMPTY_DATA);
+          return {
+            status: "applied",
+            data: current,
+            value: transition.value,
+            replayed: false,
+          };
+        },
+        syncEventsBeforeWrite: async () => successSync(),
+        fetchStatus: async () => readyStatus(),
+        mutate,
+        createId: () => "operation-promote-local",
+        now: () => now,
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: "promoted",
+      delivery: "central_confirmed",
+    });
+    expect(fallback).not.toHaveBeenCalled();
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId,
+        expectedVersion: 0,
+        operationKind: "upsert",
+      }),
+    );
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage).entityVersions[
+        `customer:${entityId}`
+      ],
+    ).toMatchObject({ version: 1, deleted: false });
+  });
+
+  it("espera a terminar de recibir antes de promocionar una ficha local", async () => {
+    const fallback = vi.fn(() => ({
+      ok: true as const,
+      value: "legacy",
+      delivery: "local" as const,
+    }));
+
+    const result = await mutateCentralBusinessEntityWithCanary({
+      enabled: true,
+      userId: ownerScope,
+      entityType: "customer",
+      entityId,
+      operationKind: "upsert",
+      operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
+      entityLabel: "este cliente",
+      createMissingUpsertAfterFullSync: true,
+      dependencies: {
+        storage: new MemoryStorage(),
+        getCurrentData: () => EMPTY_DATA,
+        fallback,
+        prepareLocal: () => {
+          throw new Error("not expected");
+        },
+        commitLocal: () => {
+          throw new Error("not expected");
+        },
+        syncEventsBeforeWrite: async () => ({
+          ...successSync(),
+          hasMore: true,
+        }),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "Quedan cambios centrales por recibir. Espera a que termine la sincronización y vuelve a guardar esta ficha.",
+    });
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
   it("conserva en cola un cambio conocido cuando la red está caída", async () => {
     const storage = new MemoryStorage();
     await seedVersion(storage);
