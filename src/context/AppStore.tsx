@@ -1446,18 +1446,22 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       options: { limit?: number } = {},
     ): Promise<CentralBusinessEventsAppDataSyncResult> => {
       const {
+        selectCentralBusinessServerAdoptionBaseline,
         selectCentralBusinessEventsSyncBaseline,
         syncCentralBusinessEventsIntoAppData,
       } = await import(
         "@/lib/central-business-authority/events-app-data-sync"
       );
       const memory = dataRef.current;
-      const baseline = selectCentralBusinessEventsSyncBaseline({
+      const baselineInput = {
         memory,
         persisted: readPersistedDataSnapshot(),
         persistedMatchesMemory:
           inspectPersistedData(memory).status === "applied",
-      });
+      };
+      const baseline =
+        selectCentralBusinessEventsSyncBaseline(baselineInput) ??
+        selectCentralBusinessServerAdoptionBaseline(baselineInput);
       if (!baseline) {
         return {
           ok: false,
