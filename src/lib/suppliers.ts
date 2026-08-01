@@ -273,6 +273,47 @@ export function supplierPurchasedTotal(
     );
 }
 
+export type SupplierPurchasedTotals = ReadonlyMap<string, number>;
+
+/** Totales de compras precalculados para no recorrer todos los gastos por cada proveedor visible. */
+export function buildSupplierPurchasedTotals(
+  expenses: Expense[],
+  suppliers: Supplier[],
+  vatExempt = false,
+): SupplierPurchasedTotals {
+  const migratedSuppliers = suppliers.map(migrateSupplier);
+  const supplierById = new Map(
+    migratedSuppliers.map((supplier) => [supplier.id, supplier]),
+  );
+  const totals = new Map(
+    migratedSuppliers.map((supplier) => [supplier.id, 0]),
+  );
+
+  const addExpenseTotal = (supplierId: string, amount: number) => {
+    totals.set(supplierId, (totals.get(supplierId) ?? 0) + amount);
+  };
+
+  for (const expense of expenses) {
+    const amount = expenseTotals(expense, vatExempt).total;
+
+    if (expense.supplierId) {
+      const supplier = supplierById.get(expense.supplierId);
+      if (supplier && expenseMatchesSupplier(expense, supplier)) {
+        addExpenseTotal(supplier.id, amount);
+      }
+      continue;
+    }
+
+    for (const supplier of migratedSuppliers) {
+      if (expenseMatchesSupplier(expense, supplier)) {
+        addExpenseTotal(supplier.id, amount);
+      }
+    }
+  }
+
+  return totals;
+}
+
 export type SupplierSortField = "nombre" | "compras";
 export type SupplierSortDirection = "asc" | "desc";
 
@@ -297,24 +338,27 @@ export function sortSuppliers(
   field: SupplierSortField,
   direction: SupplierSortDirection,
   vatExempt = false,
+  purchasedTotals?: SupplierPurchasedTotals,
 ): Supplier[] {
   const factor = direction === "asc" ? 1 : -1;
+  const migratedSuppliers = suppliers.map(migrateSupplier);
+  const totals =
+    field === "compras"
+      ? (purchasedTotals ??
+        buildSupplierPurchasedTotals(expenses, migratedSuppliers, vatExempt))
+      : undefined;
   const compareText = (left: string, right: string) =>
     factor *
     left.localeCompare(right, "es", {
       sensitivity: "base",
     });
 
-  return [...suppliers].map(migrateSupplier).sort((a, b) => {
+  return [...migratedSuppliers].sort((a, b) => {
     switch (field) {
       case "nombre":
         return compareText(a.name, b.name);
       case "compras":
-        return (
-          factor *
-          (supplierPurchasedTotal(expenses, a, vatExempt) -
-            supplierPurchasedTotal(expenses, b, vatExempt))
-        );
+        return factor * ((totals?.get(a.id) ?? 0) - (totals?.get(b.id) ?? 0));
       default:
         return compareText(a.name, b.name);
     }

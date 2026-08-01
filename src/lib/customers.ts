@@ -341,6 +341,10 @@ export function buildCustomerInvoicedTotals(
   const canonicalInvoicedDocuments = taxableSaleDocumentsForPeriod(
     integrityCheckedDocuments,
   ).documents;
+  const migratedCustomers = customers.map(migrateCustomer);
+  const customerById = new Map(
+    migratedCustomers.map((customer) => [customer.id, customer]),
+  );
   const byCustomerId = new Map<string, string>();
   const byNif = new Map<string, string[]>();
   const byIdentity = new Map<string, string[]>();
@@ -354,8 +358,7 @@ export function buildCustomerInvoicedTotals(
     index.set(key, ids);
   };
 
-  for (const customer of customers) {
-    const migrated = migrateCustomer(customer);
+  for (const migrated of migratedCustomers) {
     totals.set(migrated.id, 0);
     for (const relatedId of customerReferenceIds(migrated)) {
       byCustomerId.set(relatedId, migrated.id);
@@ -383,7 +386,7 @@ export function buildCustomerInvoicedTotals(
     if (!doc.customerId || matchedIds.size === 0) {
       const nifMatches = byNif.get(normalizeCustomerNif(doc.client.nif)) ?? [];
       nifMatches.forEach((id) => {
-        const customer = customers.find((candidate) => candidate.id === id);
+        const customer = customerById.get(id);
         if (customer && clientMatchesCustomer(doc.client, customer)) {
           matchedIds.add(id);
         }
@@ -395,7 +398,7 @@ export function buildCustomerInvoicedTotals(
             customerIdentityKey(doc.client.firstName, doc.client.lastName),
           ) ?? [];
         identityMatches.forEach((id) => {
-          const customer = customers.find((candidate) => candidate.id === id);
+          const customer = customerById.get(id);
           if (customer && clientMatchesCustomer(doc.client, customer)) {
             matchedIds.add(id);
           }
@@ -404,7 +407,7 @@ export function buildCustomerInvoicedTotals(
         const clientName = (doc.client.name ?? "").trim().toLowerCase();
         const nameMatches = byDisplayName.get(clientName) ?? [];
         nameMatches.forEach((id) => {
-          const customer = customers.find((candidate) => candidate.id === id);
+          const customer = customerById.get(id);
           if (customer && clientMatchesCustomer(doc.client, customer)) {
             matchedIds.add(id);
           }

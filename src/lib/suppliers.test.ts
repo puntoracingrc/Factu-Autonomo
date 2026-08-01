@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSupplierPurchasedTotals,
   ensureSupplierForExpense,
   expenseMatchesSupplier,
   findBestSupplierMatch,
@@ -425,6 +426,45 @@ describe("supplierPurchasedTotal", () => {
     expect(supplierPurchasedTotal(expenses, supplier)).toBe(171);
   });
 
+  it("precalcula los mismos totales sin reasignar ids desconocidos por parecido", () => {
+    const list: Supplier[] = [
+      { id: "a", name: "Proveedor Alfa", createdAt: "" },
+      { id: "b", name: "Proveedor Beta", createdAt: "" },
+    ];
+    const expenses: Expense[] = [
+      expense({
+        id: "linked",
+        supplierId: "a",
+        supplierName: "Proveedor Alfa",
+        amount: 100,
+        ivaPercent: 21,
+      }),
+      expense({
+        id: "fuzzy",
+        supplierName: "Proveedor Beta SL",
+        amount: 50,
+        ivaPercent: 0,
+      }),
+      expense({
+        id: "unknown-id",
+        supplierId: "missing",
+        supplierName: "Proveedor Beta",
+        amount: 900,
+        ivaPercent: 0,
+      }),
+    ];
+
+    const totals = buildSupplierPurchasedTotals(expenses, list);
+
+    for (const supplier of list) {
+      expect(totals.get(supplier.id)).toBe(
+        supplierPurchasedTotal(expenses, supplier),
+      );
+    }
+    expect(totals.get("a")).toBe(121);
+    expect(totals.get("b")).toBe(50);
+  });
+
   it("usa el total canónico de IVA mixto y respeta perfiles exentos", () => {
     const supplier = suppliers[0];
     const mixed = expense({
@@ -452,6 +492,12 @@ describe("supplierPurchasedTotal", () => {
 
     expect(supplierPurchasedTotal([mixed], supplier)).toBe(231);
     expect(supplierPurchasedTotal([mixed], supplier, true)).toBe(200);
+    expect(buildSupplierPurchasedTotals([mixed], [supplier]).get(supplier.id)).toBe(
+      231,
+    );
+    expect(
+      buildSupplierPurchasedTotals([mixed], [supplier], true).get(supplier.id),
+    ).toBe(200);
   });
 
   it("compensa una compra y su abono firmado en el volumen del proveedor", () => {
@@ -555,7 +601,15 @@ describe("sortSuppliers", () => {
         ivaPercent: 0,
       }),
     ];
-    const sorted = sortSuppliers(list, expenses, "compras", "desc");
+    const purchasedTotals = buildSupplierPurchasedTotals(expenses, list);
+    const sorted = sortSuppliers(
+      list,
+      expenses,
+      "compras",
+      "desc",
+      false,
+      purchasedTotals,
+    );
     expect(sorted[0].id).toBe("b");
     expect(SUPPLIER_SORT_FIELD_LABELS.compras).toBe("Saldo neto de compras");
   });

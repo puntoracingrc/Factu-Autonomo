@@ -22,6 +22,7 @@ import { formatStreetLine } from "@/lib/customer-address";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 import { analyzeSupplierDeletion } from "@/lib/master-record-deletion";
 import {
+  buildSupplierPurchasedTotals,
   findBestSupplierMatch,
   findDuplicateSupplierGroups,
   migrateSupplier,
@@ -30,7 +31,6 @@ import {
   SUPPLIER_AUTO_LINK_SCORE,
   SUPPLIER_EMAIL_FORMAT_ERROR,
   SUPPLIER_SORT_FIELD_LABELS,
-  supplierPurchasedTotal,
   supplierSortDirectionLabel,
   validateSupplierContact,
   type SupplierSortDirection,
@@ -51,6 +51,8 @@ const EMPTY_FORM = {
   postalCode: "",
   notes: "",
 };
+
+const SUPPLIER_LIST_BATCH_SIZE = 30;
 
 export default function ProveedoresPage() {
   const { data, mergeSuppliers } = useAppStore();
@@ -76,10 +78,18 @@ export default function ProveedoresPage() {
   const [sortField, setSortField] = useState<SupplierSortField>("nombre");
   const [sortDirection, setSortDirection] =
     useState<SupplierSortDirection>("asc");
+  const [visibleSupplierCount, setVisibleSupplierCount] = useState(
+    SUPPLIER_LIST_BATCH_SIZE,
+  );
   const emailInputRef = useRef<HTMLInputElement>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Supplier | null>(null);
   const [deletingSupplier, setDeletingSupplier] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const supplierPurchasedTotals = useMemo(
+    () => buildSupplierPurchasedTotals(data.expenses, data.suppliers, vatExempt),
+    [data.expenses, data.suppliers, vatExempt],
+  );
 
   const suppliers = useMemo(
     () =>
@@ -89,8 +99,16 @@ export default function ProveedoresPage() {
         sortField,
         sortDirection,
         vatExempt,
+        supplierPurchasedTotals,
       ),
-    [data.suppliers, data.expenses, sortField, sortDirection, vatExempt],
+    [
+      data.suppliers,
+      data.expenses,
+      sortField,
+      sortDirection,
+      vatExempt,
+      supplierPurchasedTotals,
+    ],
   );
 
   const displayedSuppliers = useMemo(() => {
@@ -98,6 +116,14 @@ export default function ProveedoresPage() {
     const match = suppliers.find((supplier) => supplier.id === listFilterId);
     return match ? [match] : suppliers;
   }, [suppliers, listFilterId]);
+  const visibleSuppliers = useMemo(
+    () => displayedSuppliers.slice(0, visibleSupplierCount),
+    [displayedSuppliers, visibleSupplierCount],
+  );
+  const hiddenSupplierCount = Math.max(
+    displayedSuppliers.length - visibleSuppliers.length,
+    0,
+  );
 
   const mergeVisibleSuppliers = useMemo(() => {
     const term = mergeSearch.trim().toLowerCase();
@@ -139,6 +165,10 @@ export default function ProveedoresPage() {
       selectedIds.includes(current) ? current : canonical.id,
     );
   }, [selectedSuppliers, selectedIds, data.expenses]);
+
+  useEffect(() => {
+    setVisibleSupplierCount(SUPPLIER_LIST_BATCH_SIZE);
+  }, [data.suppliers.length, listFilterId, sortDirection, sortField]);
 
   function toggleSupplierSelection(id: string) {
     setSelectedIds((prev) =>
@@ -639,14 +669,10 @@ export default function ProveedoresPage() {
               ? "1 proveedor seleccionado"
               : `${suppliers.length} proveedor(es) — ${SUPPLIER_SORT_FIELD_LABELS[sortField].toLowerCase()}, ${supplierSortDirectionLabel(sortField, sortDirection).toLowerCase()}`}
           </p>
-          {(mergeMode ? mergeVisibleSuppliers : displayedSuppliers).map(
+          {(mergeMode ? mergeVisibleSuppliers : visibleSuppliers).map(
             (supplier) => {
               const selected = selectedIds.includes(supplier.id);
-              const purchased = supplierPurchasedTotal(
-                data.expenses,
-                supplier,
-                vatExempt,
-              );
+              const purchased = supplierPurchasedTotals.get(supplier.id) ?? 0;
               const migrated = migrateSupplier(supplier);
               return (
                 <Card
@@ -744,6 +770,29 @@ export default function ProveedoresPage() {
                 </Card>
               );
             },
+          )}
+          {!mergeMode && hiddenSupplierCount > 0 && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleSupplierCount((current) =>
+                    Math.min(
+                      current + SUPPLIER_LIST_BATCH_SIZE,
+                      displayedSuppliers.length,
+                    ),
+                  )
+                }
+                className="min-h-12 w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                Cargar {Math.min(SUPPLIER_LIST_BATCH_SIZE, hiddenSupplierCount)}{" "}
+                más
+              </button>
+              <p className="mt-2 text-center text-xs font-medium text-slate-400">
+                Mostrando {visibleSuppliers.length} de{" "}
+                {displayedSuppliers.length} proveedores
+              </p>
+            </div>
           )}
         </div>
       ) : null}
