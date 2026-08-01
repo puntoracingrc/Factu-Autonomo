@@ -10,9 +10,15 @@ const conditionalShellSource = source("./ConditionalAppShell.tsx");
 
 describe("app startup progressive loading", () => {
   it("keeps the app shell and navigation available while startup data resolves", () => {
-    expect(appShellSource).toContain("const workspaceLoading = !ready || !authReady");
-    expect(appShellSource).toContain("Preparando tus datos. Puedes seguir navegando.");
-    expect(appShellSource).toContain("dashboardVisualCache={dashboardVisualCache}");
+    expect(appShellSource).toContain(
+      "const workspaceLoading = !ready || !authReady",
+    );
+    expect(appShellSource).toContain(
+      "Preparando tus datos. Puedes seguir navegando.",
+    );
+    expect(appShellSource).toContain(
+      "dashboardVisualCache={dashboardVisualCache}",
+    );
     expect(appShellSource).toContain("listVisualCache={listVisualCache}");
     expect(appShellSource).toContain("children");
     expect(appShellSource).not.toContain("!ready ? (");
@@ -24,7 +30,9 @@ describe("app startup progressive loading", () => {
     expect(appShellSource).toContain("Últimos documentos");
     expect(appShellSource).toContain("Pendiente de cobro");
     expect(appShellSource).toContain("Datos principales");
-    expect(appShellSource).toContain("isAppNavItemActive(pathname, href, activeBase)");
+    expect(appShellSource).toContain(
+      "isAppNavItemActive(pathname, href, activeBase)",
+    );
   });
 
   it("does not classify the root route as public until auth and local data are known", () => {
@@ -36,7 +44,9 @@ describe("app startup progressive loading", () => {
 
   it("renders dashboard placeholders from the shell instead of blocking the app content area", () => {
     expect(appShellSource).toContain("Panel principal");
-    expect(appShellSource).toContain("<HomeStartupSummaryPlaceholder snapshot={dashboardVisualCache} />");
+    expect(appShellSource).toContain(
+      "<HomeStartupSummaryPlaceholder snapshot={dashboardVisualCache} />",
+    );
     expect(appShellSource).toContain("readDashboardVisualCache");
     expect(appShellSource).toContain("readListVisualCacheSnapshot");
     expect(appShellSource).toContain("Última vista, actualizando...");
@@ -44,15 +54,30 @@ describe("app startup progressive loading", () => {
     expect(appShellSource).toContain("Últimos documentos");
   });
 
-  it("only shows Facturas and Gastos visual cache after session scope is known", () => {
+  it("shows operational list visual cache after session scope is known", () => {
+    expect(appShellSource).toContain("LIST_VISUAL_CACHE_KINDS");
+    expect(appShellSource).toContain("readListVisualCacheSnapshots");
+    expect(appShellSource).toContain("emptyListVisualCacheSnapshots");
+    expect(appShellSource).toContain('pathname === "/clientes"');
+    expect(appShellSource).toContain('pathname === "/presupuestos"');
     expect(appShellSource).toContain('pathname === "/facturas"');
+    expect(appShellSource).toContain('pathname === "/recibos"');
     expect(appShellSource).toContain('pathname === "/gastos"');
-    expect(appShellSource).toContain("const [initialDemoMode] = useState(() => isDemoWorkspaceMode())");
-    expect(appShellSource).toContain('readListVisualCacheSnapshot("facturas", "local")');
-    expect(appShellSource).toContain('readListVisualCacheSnapshot("gastos", "local")');
-    expect(appShellSource).toContain("authReady || demoMode || initialDemoMode ? user?.id ?? \"local\" : null");
-    expect(appShellSource).toContain('if (!visualCacheScope)');
-    expect(appShellSource).toContain('writeListVisualCacheSnapshot(facturas, visualCacheScope)');
-    expect(appShellSource).toContain('writeListVisualCacheSnapshot(gastos, visualCacheScope)');
+    expect(appShellSource).toContain('pathname === "/proveedores"');
+    expect(appShellSource).toContain('pathname === "/productos"');
+    expect(appShellSource).toContain(
+      "const [initialDemoMode] = useState(() => isDemoWorkspaceMode())",
+    );
+    expect(appShellSource).toContain('readListVisualCacheSnapshots("local")');
+    expect(appShellSource).toContain(
+      'authReady || demoMode || initialDemoMode ? (user?.id ?? "local") : null',
+    );
+    expect(appShellSource).toContain("if (!visualCacheScope)");
+    expect(appShellSource).toContain(
+      "buildListVisualCacheSnapshot(data, kind)",
+    );
+    expect(appShellSource).toContain(
+      "writeListVisualCacheSnapshot(snapshot, visualCacheScope)",
+    );
   });
 });

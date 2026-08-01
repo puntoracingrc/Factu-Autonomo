@@ -1,10 +1,38 @@
-import { formatMoney, formatShortDate, roundMoneySymmetric } from "./calculations";
+import {
+  formatMoney,
+  formatShortDate,
+  roundMoneySymmetric,
+} from "./calculations";
 import { isExpenseBusinessRelated } from "./expenses";
 import { documentStatusLabel } from "./invoice-status-actions";
-import type { AppData, Document, Expense } from "./types";
+import type {
+  AppData,
+  Customer,
+  Document,
+  Expense,
+  Product,
+  Supplier,
+} from "./types";
 import { documentAmounts, expenseAmount, isVatExempt } from "./vat-regime";
 
-export type ListVisualCacheKind = "facturas" | "gastos";
+export type ListVisualCacheKind =
+  | "clientes"
+  | "presupuestos"
+  | "facturas"
+  | "recibos"
+  | "gastos"
+  | "proveedores"
+  | "productos";
+
+export const LIST_VISUAL_CACHE_KINDS = [
+  "clientes",
+  "presupuestos",
+  "facturas",
+  "recibos",
+  "gastos",
+  "proveedores",
+  "productos",
+] as const satisfies readonly ListVisualCacheKind[];
 
 export const LIST_VISUAL_CACHE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -42,10 +70,7 @@ export function buildListVisualCacheSnapshot(
   now = new Date(),
 ): ListVisualCacheSnapshot {
   const vatExempt = isVatExempt(data.profile);
-  const content =
-    kind === "facturas"
-      ? buildInvoiceListVisualContent(data.documents, vatExempt)
-      : buildExpenseListVisualContent(data.expenses, vatExempt);
+  const content = buildListVisualContent(data, kind, vatExempt);
   const snapshotWithoutSignature = {
     version: CACHE_VERSION,
     kind,
@@ -124,37 +149,124 @@ export function listVisualCacheStorageKey(
   ).slice(0, MAX_SCOPE_LENGTH)}`;
 }
 
+function buildListVisualContent(
+  data: AppData,
+  kind: ListVisualCacheKind,
+  vatExempt: boolean,
+): Omit<ListVisualCacheSnapshot, "version" | "kind" | "savedAt" | "signature"> {
+  switch (kind) {
+    case "clientes":
+      return buildCustomerListVisualContent(data.customers, data.documents);
+    case "presupuestos":
+      return buildDocumentTypeListVisualContent(
+        data.documents,
+        "presupuesto",
+        vatExempt,
+      );
+    case "facturas":
+      return buildInvoiceListVisualContent(data.documents, vatExempt);
+    case "recibos":
+      return buildDocumentTypeListVisualContent(
+        data.documents,
+        "recibo",
+        vatExempt,
+      );
+    case "gastos":
+      return buildExpenseListVisualContent(data.expenses, vatExempt);
+    case "proveedores":
+      return buildSupplierListVisualContent(data.suppliers, data.expenses);
+    case "productos":
+      return buildProductListVisualContent(data.products);
+  }
+}
+
 function buildInvoiceListVisualContent(
   documents: Document[],
   vatExempt: boolean,
 ): Omit<ListVisualCacheSnapshot, "version" | "kind" | "savedAt" | "signature"> {
-  const invoices = documents
-    .filter((document) => document.type === "factura")
+  return buildDocumentTypeListVisualContent(documents, "factura", vatExempt);
+}
+
+function buildDocumentTypeListVisualContent(
+  documents: Document[],
+  documentType: Document["type"],
+  vatExempt: boolean,
+): Omit<ListVisualCacheSnapshot, "version" | "kind" | "savedAt" | "signature"> {
+  const typedDocuments = documents
+    .filter((document) => document.type === documentType)
     .sort((a, b) => dateDesc(a.date, b.date) || textDesc(a.number, b.number));
-  const pendingCount = invoices.filter((document) =>
-    isInvoicePendingCollection(document),
-  ).length;
-  const totalAmount = invoices.reduce(
-    (sum, document) => sum + safeAmount(documentAmounts(document, vatExempt).total),
+  const statusMetric = buildDocumentStatusMetric(typedDocuments, documentType);
+  const totalAmount = typedDocuments.reduce(
+    (sum, document) =>
+      sum + safeAmount(documentAmounts(document, vatExempt).total),
     0,
   );
+  const title = documentListTitle(documentType);
+  const singular = documentListSingular(documentType);
 
   return {
-    title: "Facturas",
-    subtitle: `${invoices.length} factura${invoices.length === 1 ? "" : "s"} guardada${invoices.length === 1 ? "" : "s"}`,
+    title,
+    subtitle: `${typedDocuments.length} ${plural(typedDocuments.length, singular)} guardado${typedDocuments.length === 1 ? "" : "s"}`,
     metrics: [
-      { label: "Total", value: String(invoices.length) },
-      { label: "Pendientes", value: String(pendingCount) },
-      { label: "Importe", value: formatMoney(roundMoneySymmetric(totalAmount)) },
+      { label: "Total", value: String(typedDocuments.length) },
+      statusMetric,
+      {
+        label: "Importe",
+        value: formatMoney(roundMoneySymmetric(totalAmount)),
+      },
     ],
-    items: invoices.slice(0, PREVIEW_ITEM_LIMIT).map((document) => ({
+    items: typedDocuments.slice(0, PREVIEW_ITEM_LIMIT).map((document) => ({
       id: document.id,
-      title: cleanText(document.number || "Factura"),
-      detail: cleanText(
-        `${document.rectification ? "Rectificativa" : documentStatusLabel(document, "factura")} · ${formatShortDate(document.date)}`,
+      title: cleanText(
+        document.number || documentListItemFallback(documentType),
       ),
-      amount: formatMoney(safeAmount(documentAmounts(document, vatExempt).total)),
+      detail: cleanText(
+        `${document.rectification ? "Rectificativa" : documentStatusLabel(document, documentType)} · ${formatShortDate(document.date)}`,
+      ),
+      amount: formatMoney(
+        safeAmount(documentAmounts(document, vatExempt).total),
+      ),
     })),
+  };
+}
+
+function buildCustomerListVisualContent(
+  customers: Customer[],
+  documents: Document[],
+): Omit<ListVisualCacheSnapshot, "version" | "kind" | "savedAt" | "signature"> {
+  const sortedCustomers = [...customers].sort(
+    (a, b) =>
+      dateDesc(a.updatedAt, b.updatedAt) ||
+      dateDesc(a.createdAt, b.createdAt) ||
+      textAsc(customerDisplayName(a), customerDisplayName(b)),
+  );
+  const companyCount = sortedCustomers.filter(
+    (customer) => customer.customerType === "company",
+  ).length;
+  const documentCounts = countDocumentsByEntity(documents, "customerId");
+
+  return {
+    title: "Clientes",
+    subtitle: `${sortedCustomers.length} cliente${sortedCustomers.length === 1 ? "" : "s"} guardado${sortedCustomers.length === 1 ? "" : "s"}`,
+    metrics: [
+      { label: "Total", value: String(sortedCustomers.length) },
+      { label: "Empresas", value: String(companyCount) },
+      { label: "Con docs.", value: String(documentCounts.size) },
+    ],
+    items: sortedCustomers.slice(0, PREVIEW_ITEM_LIMIT).map((customer) => {
+      const documentCount = documentCounts.get(customer.id) ?? 0;
+      return {
+        id: customer.id,
+        title: cleanText(customerDisplayName(customer)),
+        detail: cleanText(
+          `${customer.customerType === "company" ? "Empresa" : "Cliente"} · ${formatShortDate(customer.updatedAt || customer.createdAt)}`,
+        ),
+        amount:
+          documentCount > 0
+            ? `${documentCount} doc${documentCount === 1 ? "." : "s."}`
+            : "",
+      };
+    }),
   };
 }
 
@@ -180,7 +292,10 @@ function buildExpenseListVisualContent(
     metrics: [
       { label: "Total", value: String(sortedExpenses.length) },
       { label: "Negocio", value: String(businessExpenses.length) },
-      { label: "Importe", value: formatMoney(roundMoneySymmetric(totalAmount)) },
+      {
+        label: "Importe",
+        value: formatMoney(roundMoneySymmetric(totalAmount)),
+      },
     ],
     items: sortedExpenses.slice(0, PREVIEW_ITEM_LIMIT).map((expense) => ({
       id: expense.id,
@@ -191,11 +306,170 @@ function buildExpenseListVisualContent(
   };
 }
 
+function buildSupplierListVisualContent(
+  suppliers: Supplier[],
+  expenses: Expense[],
+): Omit<ListVisualCacheSnapshot, "version" | "kind" | "savedAt" | "signature"> {
+  const sortedSuppliers = [...suppliers].sort(
+    (a, b) => dateDesc(a.createdAt, b.createdAt) || textAsc(a.name, b.name),
+  );
+  const categories = new Set(
+    sortedSuppliers
+      .map((supplier) => supplier.category?.trim())
+      .filter((category): category is string => Boolean(category)),
+  );
+  const expenseCounts = countExpensesBySupplier(expenses);
+
+  return {
+    title: "Proveedores",
+    subtitle: `${sortedSuppliers.length} proveedor${sortedSuppliers.length === 1 ? "" : "es"} guardado${sortedSuppliers.length === 1 ? "" : "s"}`,
+    metrics: [
+      { label: "Total", value: String(sortedSuppliers.length) },
+      { label: "Categorías", value: String(categories.size) },
+      { label: "Con gastos", value: String(expenseCounts.size) },
+    ],
+    items: sortedSuppliers.slice(0, PREVIEW_ITEM_LIMIT).map((supplier) => {
+      const expenseCount = expenseCounts.get(supplier.id) ?? 0;
+      return {
+        id: supplier.id,
+        title: cleanText(supplier.name || "Proveedor"),
+        detail: cleanText(
+          supplier.category || `Creado ${formatShortDate(supplier.createdAt)}`,
+        ),
+        amount:
+          expenseCount > 0
+            ? `${expenseCount} gasto${expenseCount === 1 ? "" : "s"}`
+            : "",
+      };
+    }),
+  };
+}
+
+function buildProductListVisualContent(
+  products: Product[],
+): Omit<ListVisualCacheSnapshot, "version" | "kind" | "savedAt" | "signature"> {
+  const sortedProducts = [...products].sort(
+    (a, b) =>
+      dateDesc(a.updatedAt, b.updatedAt) ||
+      dateDesc(a.createdAt, b.createdAt) ||
+      textAsc(a.name, b.name),
+  );
+  const visibleProducts = sortedProducts.filter((product) => !product.hidden);
+  const families = new Set(
+    visibleProducts
+      .map((product) => product.family?.trim())
+      .filter((family): family is string => Boolean(family)),
+  );
+  const manualCount = visibleProducts.filter(
+    (product) => product.source === "manual",
+  ).length;
+
+  return {
+    title: "Productos",
+    subtitle: `${visibleProducts.length} producto${visibleProducts.length === 1 ? "" : "s"} visible${visibleProducts.length === 1 ? "" : "s"}`,
+    metrics: [
+      { label: "Visibles", value: String(visibleProducts.length) },
+      { label: "Familias", value: String(families.size) },
+      { label: "Manual", value: String(manualCount) },
+    ],
+    items: visibleProducts.slice(0, PREVIEW_ITEM_LIMIT).map((product) => ({
+      id: product.id,
+      title: cleanText(product.name || "Producto"),
+      detail: cleanText(
+        [product.family, product.subfamily].filter(Boolean).join(" · ") ||
+          `Creado ${formatShortDate(product.createdAt)}`,
+      ),
+      amount: product.cost
+        ? `Coste ${formatMoney(safeAmount(product.cost))}`
+        : product.pvp
+          ? `PVP ${formatMoney(safeAmount(product.pvp))}`
+          : product.unit || "",
+    })),
+  };
+}
+
+function buildDocumentStatusMetric(
+  documents: Document[],
+  documentType: Document["type"],
+): ListVisualCacheMetric {
+  if (documentType === "factura") {
+    return {
+      label: "Pendientes",
+      value: String(documents.filter(isInvoicePendingCollection).length),
+    };
+  }
+  if (documentType === "presupuesto") {
+    return {
+      label: "Aceptados",
+      value: String(
+        documents.filter((document) => document.status === "aceptado").length,
+      ),
+    };
+  }
+  return {
+    label: "Cobrados",
+    value: String(
+      documents.filter((document) => document.status === "pagado").length,
+    ),
+  };
+}
+
 function isInvoicePendingCollection(document: Document): boolean {
-  if (document.paymentStatus === "pending" || document.paymentStatus === "overdue") {
+  if (
+    document.paymentStatus === "pending" ||
+    document.paymentStatus === "overdue"
+  ) {
     return true;
   }
   return document.status === "enviado" || document.status === "vencido";
+}
+
+function documentListTitle(documentType: Document["type"]): string {
+  if (documentType === "presupuesto") return "Presupuestos";
+  if (documentType === "recibo") return "Recibos";
+  return "Facturas";
+}
+
+function documentListSingular(documentType: Document["type"]): string {
+  if (documentType === "presupuesto") return "presupuesto";
+  if (documentType === "recibo") return "recibo";
+  return "factura";
+}
+
+function documentListItemFallback(documentType: Document["type"]): string {
+  if (documentType === "presupuesto") return "Presupuesto";
+  if (documentType === "recibo") return "Recibo";
+  return "Factura";
+}
+
+function customerDisplayName(customer: Customer): string {
+  return (
+    customer.name ||
+    [customer.firstName, customer.lastName].filter(Boolean).join(" ") ||
+    "Cliente"
+  );
+}
+
+function countDocumentsByEntity(
+  documents: Document[],
+  field: "customerId",
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const document of documents) {
+    const id = document[field];
+    if (!id) continue;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function countExpensesBySupplier(expenses: Expense[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const expense of expenses) {
+    if (!expense.supplierId) continue;
+    counts.set(expense.supplierId, (counts.get(expense.supplierId) ?? 0) + 1);
+  }
+  return counts;
 }
 
 function safeAmount(value: number): number {
@@ -212,6 +486,14 @@ function dateDesc(a: string | undefined, b: string | undefined): number {
 
 function textDesc(a: string, b: string): number {
   return b.localeCompare(a, "es");
+}
+
+function textAsc(a: string, b: string): number {
+  return a.localeCompare(b, "es");
+}
+
+function plural(count: number, singular: string): string {
+  return count === 1 ? singular : `${singular}s`;
 }
 
 function cleanText(value: string): string {
@@ -251,7 +533,9 @@ function isListVisualCacheSnapshot(
   );
 }
 
-function isListVisualCacheMetric(value: unknown): value is ListVisualCacheMetric {
+function isListVisualCacheMetric(
+  value: unknown,
+): value is ListVisualCacheMetric {
   if (!value || typeof value !== "object") return false;
   const metric = value as ListVisualCacheMetric;
   return typeof metric.label === "string" && typeof metric.value === "string";
