@@ -11,6 +11,11 @@ export function RegisterServiceWorker() {
       void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
 
+    if (document.readyState === "complete") {
+      register();
+      return;
+    }
+
     window.addEventListener("load", register);
     return () => window.removeEventListener("load", register);
   }, []);
