@@ -122,23 +122,15 @@ function durableFailure<T>(
   return "No se pudo guardar y verificar el cambio en este dispositivo.";
 }
 
-function createMissingUpsertDespiteBlockedPreflight(
-  input: {
-    enabled: boolean | undefined;
-    operationKind: CentralBusinessOperationKind;
-    knownVersion: unknown;
-    syncResult: CentralBusinessEventsAppDataSyncResult | undefined;
-  },
+function hasSafeBlockedPreflight(
+  syncResult: CentralBusinessEventsAppDataSyncResult | undefined,
 ): boolean {
   return (
-    input.enabled === true &&
-    input.operationKind === "upsert" &&
-    !input.knownVersion &&
-    input.syncResult?.ok === false &&
-    !input.syncResult.retryable &&
-    (input.syncResult.code === "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT" ||
-      input.syncResult.code === "LOCAL_OPERATION_CONFLICT" ||
-      input.syncResult.code === "CENTRAL_BUSINESS_PENDING_REVIEW")
+    syncResult?.ok === false &&
+    !syncResult.retryable &&
+    (syncResult.code === "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT" ||
+      syncResult.code === "LOCAL_OPERATION_CONFLICT" ||
+      syncResult.code === "CENTRAL_BUSINESS_PENDING_REVIEW")
   );
 }
 
@@ -151,6 +143,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
   operationIdPrefix: string;
   entityLabel: string;
   createMissingUpsertAfterFullSync?: boolean;
+  allowVersionedUpsertAfterBlockedPreflight?: boolean;
   dependencies: CentralBusinessEntityMutationDependencies<T>;
 }): Promise<CentralBusinessEntityMutationResult<T>> {
   const { dependencies } = input;
@@ -178,16 +171,28 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
     eventSync?.ok === true &&
     eventSync.hasMore === false;
   const createMissingUpsertAfterBlockedPreflight =
-    createMissingUpsertDespiteBlockedPreflight({
-      enabled: input.createMissingUpsertAfterFullSync,
-      operationKind: input.operationKind,
-      knownVersion: knownBeforeStatus,
-      syncResult: eventSync,
-    });
+    input.createMissingUpsertAfterFullSync === true &&
+    input.operationKind === "upsert" &&
+    !knownBeforeStatus &&
+    hasSafeBlockedPreflight(eventSync);
   const createMissingUpsert =
     createMissingUpsertAfterFullSync ||
     createMissingUpsertAfterBlockedPreflight;
-  if (eventSync && !eventSync.ok && !eventSync.retryable && !createMissingUpsert) {
+  const versionedUpsertAfterBlockedPreflight =
+    input.allowVersionedUpsertAfterBlockedPreflight === true &&
+    input.operationKind === "upsert" &&
+    Boolean(knownBeforeStatus) &&
+    hasSafeBlockedPreflight(eventSync);
+  const bypassBlockedPreflight =
+    createMissingUpsertAfterBlockedPreflight ||
+    versionedUpsertAfterBlockedPreflight;
+  if (
+    eventSync &&
+    !eventSync.ok &&
+    !eventSync.retryable &&
+    !createMissingUpsert &&
+    !versionedUpsertAfterBlockedPreflight
+  ) {
     return {
       ok: false,
       error: `Hay cambios centrales que este dispositivo no pudo aplicar. Ve a Cuenta > Migración central y usa la copia del servidor en este dispositivo antes de modificar ${input.entityLabel}.`,
@@ -300,9 +305,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
           expectedVersion: knownVersion?.version ?? 0,
           payload: prepared.payload,
         },
-        position: createMissingUpsertAfterBlockedPreflight
-          ? "front"
-          : "back",
+        position: bypassBlockedPreflight ? "front" : "back",
         storage: dependencies.storage,
         now: () => now,
       });
