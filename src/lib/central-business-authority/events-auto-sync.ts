@@ -14,7 +14,7 @@ export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_START_DELAY_MS = 0;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS = 15_000;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS = 30_000;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS = 60_000;
-export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT = 100;
+export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT = 500;
 
 export interface CentralBusinessEventsAutoSyncEnvironment {
   enabled?: string;
@@ -50,9 +50,19 @@ function values(value: string | undefined): Set<string> {
   return new Set(
     (value ?? "")
       .split(",")
-      .map((entry) => entry.trim())
+      .map((entry) => entry.trim().toLowerCase())
       .filter(Boolean),
   );
+}
+
+function allowsUser(
+  userId: string | null | undefined,
+  userIds: string | undefined,
+): boolean {
+  if (typeof userId !== "string" || !userId.trim()) return false;
+  const allowed = values(userIds);
+  if (allowed.size === 0 || allowed.has("*")) return true;
+  return allowed.has(userId.trim().toLowerCase());
 }
 
 export function isCentralBusinessEventsAutoSyncEnabledForUser(
@@ -61,8 +71,7 @@ export function isCentralBusinessEventsAutoSyncEnabledForUser(
 ): boolean {
   return (
     environment.enabled?.trim().toLowerCase() === "true" &&
-    typeof userId === "string" &&
-    values(environment.userIds).has(userId)
+    allowsUser(userId, environment.userIds)
   );
 }
 
