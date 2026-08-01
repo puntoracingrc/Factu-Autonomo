@@ -1513,6 +1513,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           }),
         );
       } catch {
+        const pulled = await pullCentralBusinessEvents(ownerScope, options).catch(
+          () => null,
+        );
         return {
           ok: false,
           schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
@@ -1520,7 +1523,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           message:
             "No se pudo verificar la cola central guardada en este dispositivo.",
           retryable: false,
-          nextSequence: 0,
+          nextSequence: pulled?.ok ? pulled.nextSequence : 0,
         };
       }
       if (drained.stoppedBy !== "empty") {
