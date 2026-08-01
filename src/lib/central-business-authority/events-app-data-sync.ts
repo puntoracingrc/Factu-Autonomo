@@ -4,6 +4,7 @@ import type {
   AppDataDurabilityResult,
   AppDataTransition,
 } from "@/lib/app-data-durability";
+import { appDataDomainEquals } from "@/lib/app-data-durability";
 import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import { countersFromDocuments } from "@/lib/documents";
 import { migrateCustomer } from "@/lib/customers";
@@ -66,6 +67,7 @@ export function selectCentralBusinessEventsSyncBaseline(input: {
 }): AppData | null {
   if (input.persistedMatchesMemory) return input.memory;
   if (!input.persisted) return null;
+  if (appDataDomainEquals(input.memory, input.persisted)) return input.memory;
 
   const memoryModified = parsedTimestamp(input.memory.meta?.lastModified);
   const persistedModified = parsedTimestamp(input.persisted.meta?.lastModified);

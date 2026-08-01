@@ -212,7 +212,7 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   return first;
 }
 
-function appDataDomainEquals(left: AppData, right: AppData): boolean {
+export function appDataDomainEquals(left: AppData, right: AppData): boolean {
   return jsonEqual(
     appDataDomainComparable(left),
     appDataDomainComparable(right),
