@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import {
+  registerCurrentCloudDevice,
   recoverRevokedCloudDeviceAfterFreshSignIn,
   releaseCurrentCloudDeviceSession,
   retireCurrentCloudDevice,
@@ -101,6 +102,25 @@ describe("cloud device client", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(values.size).toBe(0);
+  });
+
+  it("notifies central auto-sync after registering an allowed device", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        plan: "pro_plus",
+        limit: 5,
+        devices: [],
+        allowed: true,
+      }),
+    );
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("window", { dispatchEvent });
+
+    const result = await registerCurrentCloudDevice();
+
+    expect(result.allowed).toBe(true);
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 
   it("replaces a revoked token only after a fresh sign-in", async () => {
