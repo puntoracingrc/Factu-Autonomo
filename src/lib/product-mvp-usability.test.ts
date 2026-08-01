@@ -999,20 +999,22 @@ describe("MVP usability polish", () => {
 
     expect(accountPageSource).toContain("Opciones de cuenta");
     expect(accountPageSource).toContain("flex flex-wrap gap-2");
+    expect(accountPageSource).toContain("#instalar-app");
     expect(accountPageSource).toContain("#inicio-sesion");
     expect(accountPageSource).toContain("#plan-cuenta");
     expect(accountPageSource).toContain("#sincronizacion-cuenta");
     expect(accountPageSource).toContain("#copias-cuenta");
     expect(accountPageSource).toContain("#importar-datos");
     expect(accountPageSource).toContain("#legal-privacidad");
+    expect(accountPageSource).toContain("App");
     expect(accountPageSource).toContain("Acceso");
     expect(accountPageSource).toContain("Sincronización");
     expect(accountPageSource).toContain("Copias");
     expect(accountPageSource).toContain("Importación");
     expect(accountPageSource).not.toContain("#manual-cuenta");
-    expect(accountPageSource).not.toContain("#instalar-app");
     expect(accountPageSource).not.toContain("ManualHelpLink");
-    expect(accountPageSource).not.toContain("InstallAppCard");
+    expect(accountPageSource).toContain("InstallAppCard");
+    expect(accountPageSource).toContain('id="instalar-app"');
     expect(accountPageSource).toContain('id="plan-cuenta"');
     expect(accountPageSource).toContain('id="sincronizacion-cuenta"');
     expect(accountPageSource).toContain('id="copias-cuenta"');
@@ -1379,6 +1381,10 @@ describe("MVP usability polish", () => {
       new URL("../components/pwa/RegisterServiceWorker.tsx", import.meta.url),
       "utf8",
     );
+    const pwaWorkerSource = readFileSync(
+      new URL("../../public/sw.js", import.meta.url),
+      "utf8",
+    );
 
     expect(manifest.icons.map((icon: { src: string }) => icon.src)).toEqual(
       expect.arrayContaining([
@@ -1389,12 +1395,18 @@ describe("MVP usability polish", () => {
         "/apple-touch-icon.png",
       ]),
     );
+    expect(
+      manifest.shortcuts.map((shortcut: { url: string }) => shortcut.url),
+    ).toEqual(
+      expect.arrayContaining(["/", "/facturas/nuevo", "/gastos", "/cuenta"]),
+    );
     expect(layoutSource).toContain("RegisterServiceWorker");
     expect(appShellSource).toContain("/brand/app-icon.png");
     expect(appShellSource).toContain("object-contain");
     expect(appShellSource).not.toContain("object-cover");
     expect(appShellSource).not.toContain(">FA<");
     expect(homePageSource).toContain("InstallAppCard");
+    expect(installCardSource).toContain("detectInstallPlatform");
     expect(helpButtonSource).toContain('section?.title ?? "Manual de usuario"');
     expect(helpButtonSource).toContain("const href = manualHelpHref(pathname)");
     expect(helpButtonSource).not.toContain(
@@ -1402,8 +1414,16 @@ describe("MVP usability polish", () => {
     );
     expect(installCardSource).toContain("beforeinstallprompt");
     expect(installCardSource).toContain("appinstalled");
+    expect(installCardSource).toContain("Añadir a pantalla de inicio");
+    expect(installCardSource).toContain("Instalar app o Añadir");
     expect(installCardSource).toContain("object-contain");
     expect(installCardSource).not.toContain("object-cover");
     expect(serviceWorkerSource).toContain('register("/sw.js")');
+    expect(pwaWorkerSource).toContain("factu-pwa-static-v2");
+    expect(pwaWorkerSource).toContain('"/_next/static/"');
+    expect(pwaWorkerSource).toContain('"/api/"');
+    expect(pwaWorkerSource).toContain("return false");
+    expect(pwaWorkerSource).toContain("cache.addAll(PRECACHE_URLS)");
+    expect(pwaWorkerSource).toContain("event.respondWith(cacheFirst");
   });
 });
