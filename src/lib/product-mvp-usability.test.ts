@@ -1107,6 +1107,21 @@ describe("MVP usability polish", () => {
     expect(customersPageSource).toContain("Mostrando");
   });
 
+  it("carga proveedores por bloques y reutiliza totales precalculados", () => {
+    const suppliersPageSource = readFileSync(
+      new URL("../app/proveedores/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(suppliersPageSource).toContain("SUPPLIER_LIST_BATCH_SIZE = 30");
+    expect(suppliersPageSource).toContain("visibleSuppliers");
+    expect(suppliersPageSource).toContain("hiddenSupplierCount");
+    expect(suppliersPageSource).toContain("buildSupplierPurchasedTotals");
+    expect(suppliersPageSource).toContain("supplierPurchasedTotals.get");
+    expect(suppliersPageSource).toContain("Cargar");
+    expect(suppliersPageSource).toContain("Mostrando");
+  });
+
   it("carga facturas, presupuestos y recibos de 10 en 10", () => {
     const documentListSource = readFileSync(
       new URL("../components/documents/DocumentList.tsx", import.meta.url),

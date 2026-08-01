@@ -8,7 +8,10 @@ export function RegisterServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
 
     function register() {
-      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+      void navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => registration.update().catch(() => undefined))
+        .catch(() => undefined);
     }
 
     if (document.readyState === "complete") {
