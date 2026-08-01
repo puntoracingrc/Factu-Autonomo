@@ -321,6 +321,41 @@ describe("central business events app data sync", () => {
     ).toBeNull();
   });
 
+  it("acepta la copia visible si la durable solo difiere en metadatos de nube pausada", () => {
+    const memory: AppData = {
+      ...EMPTY_DATA,
+      profile: { ...DEFAULT_PROFILE, name: "Persianas Almar" },
+      customers: [customer({ id: "customer-1", name: "Cliente central" })],
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [
+          {
+            entityType: "customer",
+            entityId: "customer-1",
+            deleted: false,
+            payload: customer({ id: "customer-1", name: "Cliente central" }),
+            updatedAt: "2026-07-30T20:00:00.000Z",
+          },
+        ],
+      },
+    };
+    const persisted: AppData = {
+      ...memory,
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+
+    expect(
+      selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBe(memory);
+  });
+
   it("la adopción usa la copia durable si el empate solo afecta datos reemplazados por servidor", () => {
     const sameInvoice = invoice();
     const memory: AppData = {
