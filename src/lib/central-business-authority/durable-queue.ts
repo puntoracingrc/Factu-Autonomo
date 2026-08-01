@@ -569,6 +569,7 @@ export function enqueueCentralBusinessOperation(input: {
   ownerScope: string;
   operationId: string;
   mutation: CentralBusinessBrowserMutationInput;
+  position?: "back" | "front";
   storage?: CentralBusinessQueueStorage;
   now?: () => string;
 }): {
@@ -619,8 +620,12 @@ export function enqueueCentralBusinessOperation(input: {
     enqueuedAt: (input.now ?? (() => new Date().toISOString()))(),
     attemptCount: 0,
   };
+  const operations =
+    input.position === "front"
+      ? [queued, ...state.operations]
+      : [...state.operations, queued];
   const persisted = persistState(
-    { ...state, operations: [...state.operations, queued] },
+    { ...state, operations },
     storage,
   );
   return { queued, replayed: false, state: persisted };

@@ -122,6 +122,26 @@ function durableFailure<T>(
   return "No se pudo guardar y verificar el cambio en este dispositivo.";
 }
 
+function createMissingUpsertDespiteBlockedPreflight(
+  input: {
+    enabled: boolean | undefined;
+    operationKind: CentralBusinessOperationKind;
+    knownVersion: unknown;
+    syncResult: CentralBusinessEventsAppDataSyncResult | undefined;
+  },
+): boolean {
+  return (
+    input.enabled === true &&
+    input.operationKind === "upsert" &&
+    !input.knownVersion &&
+    input.syncResult?.ok === false &&
+    !input.syncResult.retryable &&
+    (input.syncResult.code === "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT" ||
+      input.syncResult.code === "LOCAL_OPERATION_CONFLICT" ||
+      input.syncResult.code === "CENTRAL_BUSINESS_PENDING_REVIEW")
+  );
+}
+
 export async function mutateCentralBusinessEntityWithCanary<T>(input: {
   enabled: boolean;
   userId: string | null | undefined;
@@ -138,13 +158,6 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
 
   const ownerScope = input.userId;
   const eventSync = await dependencies.syncEventsBeforeWrite?.();
-  if (eventSync && !eventSync.ok && !eventSync.retryable) {
-    return {
-      ok: false,
-      error: `Hay cambios centrales que este dispositivo no pudo aplicar. Ve a Cuenta > Migración central y usa la copia del servidor en este dispositivo antes de modificar ${input.entityLabel}.`,
-    };
-  }
-
   let knownBeforeStatus;
   try {
     knownBeforeStatus = loadCentralBusinessDurableQueue(
@@ -159,11 +172,27 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
     };
   }
 
-  const createMissingUpsert =
+  const createMissingUpsertAfterFullSync =
     input.createMissingUpsertAfterFullSync === true &&
     input.operationKind === "upsert" &&
     eventSync?.ok === true &&
     eventSync.hasMore === false;
+  const createMissingUpsertAfterBlockedPreflight =
+    createMissingUpsertDespiteBlockedPreflight({
+      enabled: input.createMissingUpsertAfterFullSync,
+      operationKind: input.operationKind,
+      knownVersion: knownBeforeStatus,
+      syncResult: eventSync,
+    });
+  const createMissingUpsert =
+    createMissingUpsertAfterFullSync ||
+    createMissingUpsertAfterBlockedPreflight;
+  if (eventSync && !eventSync.ok && !eventSync.retryable && !createMissingUpsert) {
+    return {
+      ok: false,
+      error: `Hay cambios centrales que este dispositivo no pudo aplicar. Ve a Cuenta > Migración central y usa la copia del servidor en este dispositivo antes de modificar ${input.entityLabel}.`,
+    };
+  }
   if (!knownBeforeStatus) {
     if (!createMissingUpsert) {
       if (
@@ -271,6 +300,9 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
           expectedVersion: knownVersion?.version ?? 0,
           payload: prepared.payload,
         },
+        position: createMissingUpsertAfterBlockedPreflight
+          ? "front"
+          : "back",
         storage: dependencies.storage,
         now: () => now,
       });
