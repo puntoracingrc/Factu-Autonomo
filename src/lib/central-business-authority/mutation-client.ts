@@ -2,7 +2,7 @@
 
 import {
   CLOUD_DEVICE_TOKEN_HEADER,
-  getLocalCloudDeviceToken,
+  getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
@@ -123,10 +123,18 @@ export async function mutateCentralBusinessFromBrowser(
   const accessToken = await (
     dependencies.getAccessToken ?? defaultAccessToken
   )();
+  if (!accessToken) {
+    return failure({
+      status: 401,
+      code: "CENTRAL_BUSINESS_MUTATION_SESSION_REQUIRED",
+      message:
+        "Inicia sesion y registra este dispositivo antes de guardar en el servidor central.",
+    });
+  }
   const deviceToken = (
-    dependencies.getDeviceToken ?? getLocalCloudDeviceToken
+    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
   )();
-  if (!accessToken || !deviceToken) {
+  if (!deviceToken) {
     return failure({
       status: 401,
       code: "CENTRAL_BUSINESS_MUTATION_SESSION_REQUIRED",

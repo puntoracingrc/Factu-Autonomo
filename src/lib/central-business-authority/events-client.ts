@@ -2,7 +2,7 @@
 
 import {
   CLOUD_DEVICE_TOKEN_HEADER,
-  getLocalCloudDeviceToken,
+  getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
@@ -160,10 +160,17 @@ export async function pullCentralBusinessEventsFromBrowser(
   const accessToken = await (
     dependencies.getAccessToken ?? defaultAccessToken
   )();
+  if (!accessToken) {
+    return failure(
+      401,
+      "CENTRAL_BUSINESS_EVENTS_SESSION_REQUIRED",
+      "Inicia sesion y registra este dispositivo antes de recibir cambios.",
+    );
+  }
   const deviceToken = (
-    dependencies.getDeviceToken ?? getLocalCloudDeviceToken
+    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
   )();
-  if (!accessToken || !deviceToken) {
+  if (!deviceToken) {
     return failure(
       401,
       "CENTRAL_BUSINESS_EVENTS_SESSION_REQUIRED",
