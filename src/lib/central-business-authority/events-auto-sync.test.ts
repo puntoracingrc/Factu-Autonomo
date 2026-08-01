@@ -50,6 +50,36 @@ describe("central business events auto sync", () => {
     ).toBe(false);
   });
 
+  it("se activa para usuarios incluidos en canarios centrales de escritura", () => {
+    expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser("user-1", {
+        enabled: "false",
+        customerCreateEnabled: "true",
+        customerCreateUserIds: "user-1,user-2",
+      }),
+    ).toBe(true);
+    expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser("user-2", {
+        enabled: "false",
+        productCreateEnabled: "true",
+        productCreateUserIds: "*",
+      }),
+    ).toBe(true);
+    expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser("user-3", {
+        enabled: "false",
+        supplierCreateEnabled: "true",
+        supplierCreateUserIds: "user-1,user-2",
+      }),
+    ).toBe(false);
+    expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser("user-1", {
+        enabled: "false",
+        customerCreateEnabled: "true",
+      }),
+    ).toBe(false);
+  });
+
   it("activa Realtime solo para UUIDs incluidos en su canario", () => {
     const allowed = "dee25bc5-381c-40a7-9402-383d4b309052";
     const other = "31fd96e3-5eda-4d35-ba6f-79719e1d4d8c";

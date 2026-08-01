@@ -19,6 +19,20 @@ export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT = 500;
 export interface CentralBusinessEventsAutoSyncEnvironment {
   enabled?: string;
   userIds?: string;
+  customerCreateEnabled?: string;
+  customerCreateUserIds?: string;
+  productCreateEnabled?: string;
+  productCreateUserIds?: string;
+  supplierCreateEnabled?: string;
+  supplierCreateUserIds?: string;
+  reminderEnabled?: string;
+  reminderUserIds?: string;
+  quoteCreateEnabled?: string;
+  quoteCreateUserIds?: string;
+  expenseEnabled?: string;
+  expenseUserIds?: string;
+  profileEnabled?: string;
+  profileUserIds?: string;
 }
 
 export interface CentralBusinessEventsRealtimeWakeupsEnvironment {
@@ -33,6 +47,34 @@ export interface CentralBusinessEventsRealtimeSubscription {
 const publicEnvironment: CentralBusinessEventsAutoSyncEnvironment = {
   enabled: process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_ENABLED,
   userIds: process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_USER_IDS,
+  customerCreateEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_CUSTOMER_CREATE_CANARY_ENABLED,
+  customerCreateUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_CUSTOMER_CREATE_CANARY_USER_IDS,
+  productCreateEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_PRODUCT_CREATE_CANARY_ENABLED,
+  productCreateUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_PRODUCT_CREATE_CANARY_USER_IDS,
+  supplierCreateEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_SUPPLIER_CREATE_CANARY_ENABLED,
+  supplierCreateUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_SUPPLIER_CREATE_CANARY_USER_IDS,
+  reminderEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_REMINDER_CANARY_ENABLED,
+  reminderUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_REMINDER_CANARY_USER_IDS,
+  quoteCreateEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_ENABLED,
+  quoteCreateUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_USER_IDS,
+  expenseEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EXPENSE_CANARY_ENABLED,
+  expenseUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EXPENSE_CANARY_USER_IDS,
+  profileEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_PROFILE_CANARY_ENABLED,
+  profileUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_PROFILE_CANARY_USER_IDS,
 };
 
 const publicRealtimeEnvironment: CentralBusinessEventsRealtimeWakeupsEnvironment =
@@ -65,14 +107,49 @@ function allowsUser(
   return allowed.has(userId.trim().toLowerCase());
 }
 
+function allowsExplicitUser(
+  userId: string | null | undefined,
+  userIds: string | undefined,
+): boolean {
+  if (typeof userId !== "string" || !userId.trim()) return false;
+  const allowed = values(userIds);
+  if (allowed.size === 0) return false;
+  return allowed.has("*") || allowed.has(userId.trim().toLowerCase());
+}
+
+function enabledFlag(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() === "true";
+}
+
+function isAnyCentralBusinessCanaryEnabledForUser(
+  userId: string | null | undefined,
+  environment: CentralBusinessEventsAutoSyncEnvironment,
+): boolean {
+  return [
+    [environment.customerCreateEnabled, environment.customerCreateUserIds],
+    [environment.productCreateEnabled, environment.productCreateUserIds],
+    [environment.supplierCreateEnabled, environment.supplierCreateUserIds],
+    [environment.reminderEnabled, environment.reminderUserIds],
+    [environment.quoteCreateEnabled, environment.quoteCreateUserIds],
+    [environment.expenseEnabled, environment.expenseUserIds],
+    [environment.profileEnabled, environment.profileUserIds],
+  ].some(
+    ([enabled, userIds]) =>
+      enabledFlag(enabled) && allowsExplicitUser(userId, userIds),
+  );
+}
+
 export function isCentralBusinessEventsAutoSyncEnabledForUser(
   userId: string | null | undefined,
   environment: CentralBusinessEventsAutoSyncEnvironment = publicEnvironment,
 ): boolean {
-  return (
-    environment.enabled?.trim().toLowerCase() === "true" &&
+  if (
+    enabledFlag(environment.enabled) &&
     allowsUser(userId, environment.userIds)
-  );
+  ) {
+    return true;
+  }
+  return isAnyCentralBusinessCanaryEnabledForUser(userId, environment);
 }
 
 export function isCentralBusinessEventsRealtimeWakeupsEnabledForUser(
