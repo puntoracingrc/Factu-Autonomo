@@ -5,6 +5,10 @@ import { useCallback } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
+  resolveCentralBusinessUserId,
+  useCentralBusinessResolvedUserId,
+} from "@/hooks/useCentralBusinessUserId";
+import {
   createCustomerWithCentralCanary,
   type CentralCustomerCreateResult,
 } from "@/lib/central-business-authority/customer-create-canary";
@@ -24,22 +28,24 @@ export function useCentralCustomerCreate(): {
     syncCentralBusinessEvents,
   } = useAppStore();
   const { user } = useCloudSync();
-  const userId = user?.id;
+  const userId = useCentralBusinessResolvedUserId(user?.id);
 
   const createCustomer = useCallback(
-    (draft: CustomerDraft) =>
-      createCustomerWithCentralCanary({
-        userId,
+    async (draft: CustomerDraft) => {
+      const resolvedUserId = await resolveCentralBusinessUserId(userId);
+      return createCustomerWithCentralCanary({
+        userId: resolvedUserId,
         draft,
         dependencies: {
           getCurrentData,
           addCustomerFallback: addCustomer,
           addCustomerDurably,
-          syncEventsBeforeWrite: userId
-            ? () => syncCentralBusinessEvents(userId)
+          syncEventsBeforeWrite: resolvedUserId
+            ? () => syncCentralBusinessEvents(resolvedUserId)
             : undefined,
         },
-      }),
+      });
+    },
     [
       addCustomer,
       addCustomerDurably,

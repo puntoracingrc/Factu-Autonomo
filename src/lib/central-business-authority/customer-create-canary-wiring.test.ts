@@ -8,6 +8,7 @@ function source(relativePath: string) {
 const appStore = source("../../context/AppStore.tsx");
 const hook = source("../../hooks/useCentralCustomerCreate.ts");
 const mutationHook = source("../../hooks/useCentralCustomerMutations.ts");
+const userIdHook = source("../../hooks/useCentralBusinessUserId.ts");
 const customersPage = source("../../app/clientes/page.tsx");
 const newCustomerPage = source("../../app/clientes/nuevo/page.tsx");
 const eventApply = source("./events-app-data-sync.ts");
@@ -30,6 +31,19 @@ describe("central customer create canary wiring", () => {
     expect(customersPage).toContain("await deleteCustomer(deleteCandidate.id)");
     expect(newCustomerPage).toContain("useCentralCustomerCreate");
     expect(newCustomerPage).toContain("await createCustomer({");
+  });
+
+  it("no depende de la copia completa pausada para resolver usuario central", () => {
+    expect(userIdHook).toContain("getSupabaseClientAsync");
+    expect(userIdHook).toContain("supabase.auth.getSession()");
+    expect(userIdHook).toContain("supabase.auth.onAuthStateChange");
+    expect(userIdHook).toContain("listener.subscription.unsubscribe()");
+    expect(hook).toContain("useCentralBusinessResolvedUserId");
+    expect(hook).toContain("await resolveCentralBusinessUserId(userId)");
+    expect(hook).toContain("syncCentralBusinessEvents(resolvedUserId)");
+    expect(mutationHook).toContain("useCentralBusinessResolvedUserId");
+    expect(mutationHook).toContain("await resolveCentralBusinessUserId(userId)");
+    expect(mutationHook).toContain("syncCentralBusinessEvents(resolvedUserId)");
   });
 
   it("aplica un borrado remoto con el contrato completo del maestro", () => {

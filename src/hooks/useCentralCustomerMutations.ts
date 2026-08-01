@@ -5,6 +5,10 @@ import { useCallback, useMemo } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
+  resolveCentralBusinessUserId,
+  useCentralBusinessResolvedUserId,
+} from "@/hooks/useCentralBusinessUserId";
+import {
   deleteCustomerWithCentralCanary,
   updateCustomerWithCentralCanary,
 } from "@/lib/central-business-authority/customer-mutation-canary";
@@ -31,48 +35,57 @@ export function useCentralCustomerMutations(): {
     updateCustomerDurably,
   } = useAppStore();
   const { user } = useCloudSync();
-  const userId = user?.id;
+  const userId = useCentralBusinessResolvedUserId(user?.id);
 
-  const commonDependencies = useMemo(
+  const baseDependencies = useMemo(
     () => ({
       getCurrentData,
       updateCustomerFallback,
       deleteCustomerFallback,
       updateCustomerDurably,
       deleteCustomerDurably,
-      syncEventsBeforeWrite: userId
-        ? () => syncCentralBusinessEvents(userId)
-        : undefined,
     }),
     [
       deleteCustomerDurably,
       deleteCustomerFallback,
       getCurrentData,
-      syncCentralBusinessEvents,
       updateCustomerDurably,
       updateCustomerFallback,
-      userId,
     ],
   );
 
   const updateCustomer = useCallback(
-    (customer: Customer) =>
-      updateCustomerWithCentralCanary({
-        userId,
+    async (customer: Customer) => {
+      const resolvedUserId = await resolveCentralBusinessUserId(userId);
+      return updateCustomerWithCentralCanary({
+        userId: resolvedUserId,
         customer,
-        dependencies: commonDependencies,
-      }),
-    [commonDependencies, userId],
+        dependencies: {
+          ...baseDependencies,
+          syncEventsBeforeWrite: resolvedUserId
+            ? () => syncCentralBusinessEvents(resolvedUserId)
+            : undefined,
+        },
+      });
+    },
+    [baseDependencies, syncCentralBusinessEvents, userId],
   );
 
   const deleteCustomer = useCallback(
-    (customerId: string) =>
-      deleteCustomerWithCentralCanary({
-        userId,
+    async (customerId: string) => {
+      const resolvedUserId = await resolveCentralBusinessUserId(userId);
+      return deleteCustomerWithCentralCanary({
+        userId: resolvedUserId,
         customerId,
-        dependencies: commonDependencies,
-      }),
-    [commonDependencies, userId],
+        dependencies: {
+          ...baseDependencies,
+          syncEventsBeforeWrite: resolvedUserId
+            ? () => syncCentralBusinessEvents(resolvedUserId)
+            : undefined,
+        },
+      });
+    },
+    [baseDependencies, syncCentralBusinessEvents, userId],
   );
 
   const isCentralCustomer = useCallback(
