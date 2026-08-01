@@ -81,6 +81,7 @@ describe("AppStore durable central business writes", () => {
     );
 
     expect(block).toContain("selectCentralBusinessEventsSyncBaseline");
+    expect(block).toContain("selectCentralBusinessServerAdoptionBaseline");
     expect(block).toContain("persisted: readPersistedDataSnapshot()");
     expect(block).toContain(
       'code: "CENTRAL_BUSINESS_APP_DATA_BASELINE_AMBIGUOUS"',
