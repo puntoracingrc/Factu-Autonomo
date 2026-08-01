@@ -1419,6 +1419,7 @@ describe("MVP usability polish", () => {
     expect(installCardSource).toContain("object-contain");
     expect(installCardSource).not.toContain("object-cover");
     expect(serviceWorkerSource).toContain('register("/sw.js")');
+    expect(serviceWorkerSource).toContain('document.readyState === "complete"');
     expect(pwaWorkerSource).toContain("factu-pwa-static-v2");
     expect(pwaWorkerSource).toContain('"/_next/static/"');
     expect(pwaWorkerSource).toContain('"/api/"');
