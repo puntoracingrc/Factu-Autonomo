@@ -12,6 +12,36 @@
   "orientation": "portrait",
   "lang": "es",
   "categories": ["business", "finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Panel",
+      "short_name": "Panel",
+      "description": "Abrir el panel principal",
+      "url": "/",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Nueva factura",
+      "short_name": "Factura",
+      "description": "Crear una factura nueva",
+      "url": "/facturas/nuevo",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Gastos",
+      "short_name": "Gastos",
+      "description": "Abrir gastos",
+      "url": "/gastos",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Cuenta",
+      "short_name": "Cuenta",
+      "description": "Abrir cuenta y sincronización",
+      "url": "/cuenta",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-72.png",

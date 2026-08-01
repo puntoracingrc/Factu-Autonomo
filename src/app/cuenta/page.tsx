@@ -7,6 +7,7 @@ import {
   Gift,
   HardDrive,
   LogIn,
+  MonitorSmartphone,
   RefreshCw,
   Scale,
   Upload,
@@ -24,6 +25,7 @@ import { CentralInvoiceAuthorityAccountReconciliationCard } from "@/components/c
 import { CentralInvoiceAuthorityStatusCard } from "@/components/cloud/CentralInvoiceAuthorityStatusCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
+import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PromoCodeRedeemer } from "@/components/promotions/PromoCodeRedeemer";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
@@ -38,6 +40,7 @@ const ACCOUNT_NAV_ITEMS: Array<{
   label: string;
   Icon: LucideIcon;
 }> = [
+  { href: "#instalar-app", label: "App", Icon: MonitorSmartphone },
   { href: "#inicio-sesion", label: "Acceso", Icon: LogIn },
   { href: "#plan-cuenta", label: "Plan", Icon: CreditCard },
   { href: "#sincronizacion-cuenta", label: "Sincronización", Icon: RefreshCw },
@@ -99,10 +102,14 @@ export default function CuentaPage() {
     <div>
       <PageHeader
         title="Cuenta"
-        subtitle="Acceso, plan, sincronización, copias, importación y documentos legales."
+        subtitle="Instalación, acceso, plan, sincronización, copias, importación y documentos legales."
       />
 
       <AccountQuickLinks />
+
+      <div id="instalar-app" className="scroll-mt-24">
+        <InstallAppCard />
+      </div>
 
       <AccountSection
         id="inicio-sesion"
