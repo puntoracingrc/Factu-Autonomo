@@ -33,6 +33,7 @@ import {
   applyCentralBusinessEventPage,
   loadCentralBusinessDurableQueue,
   resetCentralBusinessEventStateForServerAdoption,
+  type CentralBusinessDurableQueueState,
   type CentralBusinessEntityVersion,
   type CentralBusinessQueueStorage,
   withCentralBusinessQueueLock,
@@ -1029,6 +1030,120 @@ function initialServerAdoptionVersion(
   };
 }
 
+function centralBusinessEventKey(event: CentralBusinessBrowserEvent): string {
+  return `${event.entityType}:${event.entityId}`;
+}
+
+function shouldPartiallySkipEvent(
+  event: CentralBusinessBrowserEvent,
+  knownVersion: CentralBusinessEntityVersion | undefined,
+): boolean {
+  if (!knownVersion) return event.entityVersion !== 1;
+  if (event.entityVersion < knownVersion.version) return true;
+  if (event.entityVersion === knownVersion.version) {
+    return event.contentHash !== knownVersion.contentHash;
+  }
+  return event.entityVersion !== knownVersion.version + 1;
+}
+
+async function applyIndependentEventsFromBlockedPage(input: {
+  state: CentralBusinessDurableQueueState;
+  events: CentralBusinessBrowserEvent[];
+  baseline: AppData;
+  commit: CentralBusinessEventsAppDataSyncDependencies["commit"];
+}): Promise<{
+  applied: number;
+  skipped: number;
+  error: CentralBusinessLocalApplyError | null;
+}> {
+  const blockedKeys = new Set<string>();
+  const workingVersions = { ...input.state.entityVersions };
+  let workingData = input.baseline;
+  let locallyApplied = 0;
+  let skipped = 0;
+  let lastAppliedValue: CentralBusinessEventLocalApplyValue | null = null;
+
+  for (const event of input.events) {
+    const key = centralBusinessEventKey(event);
+    if (
+      blockedKeys.has(key) ||
+      shouldPartiallySkipEvent(event, workingVersions[key])
+    ) {
+      blockedKeys.add(key);
+      skipped += 1;
+      continue;
+    }
+
+    let transition:
+      | AppDataTransition<CentralBusinessEventLocalApplyValue>
+      | undefined;
+    try {
+      transition = buildCentralBusinessEventAppDataTransition({
+        data: workingData,
+        event,
+        knownVersion: workingVersions[key],
+      });
+    } catch (error) {
+      if (
+        error instanceof CentralBusinessLocalApplyError &&
+        error.code === "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT"
+      ) {
+        blockedKeys.add(key);
+        skipped += 1;
+        continue;
+      }
+      return {
+        applied: 0,
+        skipped,
+        error:
+          error instanceof CentralBusinessLocalApplyError
+            ? error
+            : new CentralBusinessLocalApplyError(
+                "CENTRAL_BUSINESS_EVENT_TRANSITION_FAILED",
+                "No se pudo preparar un cambio central independiente.",
+              ),
+      };
+    }
+
+    if (transition.value.action !== "unchanged") {
+      workingData = transition.data;
+      lastAppliedValue = transition.value;
+      locallyApplied += 1;
+    }
+    workingVersions[key] = {
+      entityType: event.entityType,
+      entityId: event.entityId,
+      version: event.entityVersion,
+      deleted: event.operationKind === "delete",
+      contentHash: event.contentHash,
+    };
+  }
+
+  if (!lastAppliedValue) return { applied: 0, skipped, error: null };
+
+  const committed = input.commit(input.baseline, () => ({
+    data: workingData,
+    value: lastAppliedValue!,
+  }));
+  if (committed.status === "applied") {
+    return { applied: locallyApplied, skipped, error: null };
+  }
+  return {
+    applied: 0,
+    skipped,
+    error: new CentralBusinessLocalApplyError(
+      committed.status === "indeterminate"
+        ? "CENTRAL_BUSINESS_LOCAL_STORAGE_UNKNOWN"
+        : "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED",
+      committed.status === "indeterminate"
+        ? "No se pudo confirmar el guardado local de los cambios centrales independientes."
+        : "Los datos locales cambiaron mientras se aplicaban cambios centrales independientes.",
+      committed.status === "blocked" &&
+        committed.reason === "stale_precondition",
+    ),
+  };
+}
+
 export async function syncCentralBusinessEventsIntoAppData(
   input: { ownerScope: string; limit?: number },
   dependencies: CentralBusinessEventsAppDataSyncDependencies,
@@ -1136,6 +1251,20 @@ export async function syncCentralBusinessEventsIntoAppData(
       });
 
       if (!page.ok) {
+        if (
+          localFailure.current?.code ===
+          "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT"
+        ) {
+          const partial = await applyIndependentEventsFromBlockedPage({
+            state,
+            events: pulled.events,
+            baseline,
+            commit: dependencies.commit,
+          });
+          if (partial.error) {
+            localFailure.current = partial.error;
+          }
+        }
         return failed(
           localFailure.current?.code ?? page.code,
           localFailure.current?.message ?? page.message,
