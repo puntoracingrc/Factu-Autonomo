@@ -23,6 +23,11 @@ describe("central business events auto sync wiring", () => {
     expect(component).toContain(
       "const enabled = isCentralBusinessEventsAutoSyncEnabledForUser(userId);",
     );
+    expect(component).toContain(
+      "const userId = cloudUserId ?? sessionFallbackUserId;",
+    );
+    expect(component).toContain("supabase.auth.getSession()");
+    expect(component).toContain("supabase.auth.onAuthStateChange");
     expect(component).not.toContain("emailConfirmed");
     expect(component).toContain("syncCentralBusinessEvents");
     const normalSync = appStore.slice(
