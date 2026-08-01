@@ -1589,12 +1589,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     ): Promise<CentralBusinessEventsAppDataSyncResult> => {
       const {
         adoptCentralBusinessEventsFromServerIntoAppData,
-        selectCentralBusinessEventsSyncBaseline,
+        selectCentralBusinessServerAdoptionBaseline,
       } = await import(
         "@/lib/central-business-authority/events-app-data-sync"
       );
       const memory = dataRef.current;
-      const baseline = selectCentralBusinessEventsSyncBaseline({
+      const baseline = selectCentralBusinessServerAdoptionBaseline({
         memory,
         persisted: readPersistedDataSnapshot(),
         persistedMatchesMemory:

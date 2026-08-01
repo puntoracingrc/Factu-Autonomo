@@ -26,6 +26,7 @@ import {
   adoptCentralBusinessEventsFromServerIntoAppData,
   buildCentralBusinessEventAppDataTransition,
   selectCentralBusinessEventsSyncBaseline,
+  selectCentralBusinessServerAdoptionBaseline,
   syncCentralBusinessEventsIntoAppData,
   verifyCentralBusinessEventContentHash,
   type CentralBusinessEventLocalApplyValue,
@@ -313,6 +314,84 @@ describe("central business events app data sync", () => {
 
     expect(
       selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("la adopción usa la copia durable si el empate solo afecta datos reemplazados por servidor", () => {
+    const sameInvoice = invoice();
+    const memory: AppData = {
+      ...EMPTY_DATA,
+      customers: [customer({ id: "local-customer" })],
+      expenses: [expense({ id: "local-expense" })],
+      documents: [quote({ id: "local-quote" }), sameInvoice],
+      counters: {
+        factura: 42,
+        factura_rectificativa: 1,
+        presupuesto: 99,
+        recibo: 88,
+      },
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+    const persisted: AppData = {
+      ...EMPTY_DATA,
+      customers: [customer({ id: "persisted-customer" })],
+      expenses: [],
+      documents: [quote({ id: "persisted-quote" }), sameInvoice],
+      counters: {
+        factura: 42,
+        factura_rectificativa: 1,
+        presupuesto: 1,
+        recibo: 1,
+      },
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+
+    expect(
+      selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBeNull();
+    expect(
+      selectCentralBusinessServerAdoptionBaseline({
+        memory,
+        persisted,
+        persistedMatchesMemory: false,
+      }),
+    ).toBe(persisted);
+  });
+
+  it("la adopción bloquea empates si cambia una factura preservada", () => {
+    const memory: AppData = {
+      ...EMPTY_DATA,
+      documents: [invoice({ id: "invoice-1", number: "F-2026-0001" })],
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+    const persisted: AppData = {
+      ...EMPTY_DATA,
+      documents: [invoice({ id: "invoice-1", number: "F-2026-0002" })],
+      meta: {
+        lastModified: "2026-07-30T20:00:00.000Z",
+        pendingChanges: [],
+      },
+    };
+
+    expect(
+      selectCentralBusinessServerAdoptionBaseline({
         memory,
         persisted,
         persistedMatchesMemory: false,
