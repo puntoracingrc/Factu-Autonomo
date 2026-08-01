@@ -964,6 +964,72 @@ describe("central business events app data sync", () => {
     ).toMatchObject({ lastAppliedEventSequence: 0, entityVersions: {} });
   });
 
+  it("aplica fichas independientes aunque una operación local pendiente bloquee el cursor", async () => {
+    const storage = new MemoryStorage();
+    const local = customer({
+      name: "Versión local pendiente",
+      firstName: "Versión local pendiente",
+    });
+    const centralNew = customer({
+      id: "customer-2",
+      name: "Cliente creado en otro dispositivo",
+      firstName: "Cliente creado en otro dispositivo",
+    });
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: "CENTRAL_CUSTOMER_PENDING_0002",
+      mutation: {
+        idempotencyKey: "CENTRAL_CUSTOMER_PENDING_0002",
+        operationKind: "upsert",
+        entityType: "customer",
+        entityId: local.id,
+        expectedVersion: 0,
+        payload: JSON.parse(JSON.stringify(local)),
+      },
+      storage,
+    });
+    const target = harness({ ...EMPTY_DATA, customers: [local] }, storage);
+
+    const result = await syncCentralBusinessEventsIntoAppData(
+      { ownerScope },
+      {
+        ...target.dependencies,
+        pull: async () => ({
+          ok: true,
+          schema: "CENTRAL_BUSINESS_EVENTS_CLIENT_V1",
+          events: [
+            event(customer(), {
+              eventId: "event-pending-conflict",
+              eventSequence: 1,
+            }),
+            event(centralNew, {
+              eventId: "event-independent-customer",
+              eventSequence: 2,
+              contentHash: "hash-customer-2-v1",
+            }),
+          ],
+          nextSequence: 2,
+          hasMore: false,
+        }),
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "LOCAL_OPERATION_CONFLICT",
+      nextSequence: 0,
+    });
+    expect(target.data.customers).toEqual([
+      local,
+      expect.objectContaining(centralNew),
+    ]);
+    expect(loadCentralBusinessDurableQueue(ownerScope, storage)).toMatchObject({
+      lastAppliedEventSequence: 0,
+      operations: [expect.objectContaining({ status: "conflict" })],
+      entityVersions: {},
+    });
+  });
+
   it("adopta el servidor en un dispositivo divergente sin tocar facturas emitidas", async () => {
     const localCustomer = customer({
       name: "Cliente móvil anterior",
