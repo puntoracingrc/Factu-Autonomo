@@ -348,6 +348,171 @@ describe("central business entity mutation canary", () => {
     ).toMatchObject({ version: 1, deleted: false });
   });
 
+  it("promociona una ficha local aunque haya una revisión antigua de otra ficha", async () => {
+    const storage = new MemoryStorage();
+    const oldEntityId = "customer-old-blocked-0001";
+    let current: AppData = EMPTY_DATA;
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: "CENTRAL_CUSTOMER_UPDATE:old-blocked",
+      mutation: {
+        idempotencyKey: "CENTRAL_CUSTOMER_UPDATE:old-blocked",
+        operationKind: "upsert",
+        entityType: "customer",
+        entityId: oldEntityId,
+        expectedVersion: 1,
+        payload: { id: oldEntityId, name: "Bloqueado antiguo" },
+      },
+      storage,
+      now: () => now,
+    });
+    await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate: async () => ({
+        ok: false,
+        status: 409,
+        code: "CENTRAL_BUSINESS_VERSION_CONFLICT",
+        message: "old blocked operation",
+        retryable: false,
+        conflict: true,
+      }),
+    });
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage).operations[0],
+    ).toMatchObject({
+      operationId: "CENTRAL_CUSTOMER_UPDATE:old-blocked",
+      status: "conflict",
+    });
+
+    const mutate = vi.fn(
+      async (): Promise<CentralBusinessBrowserMutationResult> => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: "event-promoted-while-blocked",
+        eventSequence: 12,
+        entityVersion: 1,
+        deleted: false,
+        contentHash: "hash-promoted",
+      }),
+    );
+
+    const result = await mutateCentralBusinessEntityWithCanary({
+      enabled: true,
+      userId: ownerScope,
+      entityType: "customer",
+      entityId,
+      operationKind: "upsert",
+      operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
+      entityLabel: "este cliente",
+      createMissingUpsertAfterFullSync: true,
+      dependencies: {
+        storage,
+        getCurrentData: () => current,
+        fallback: () => ({ ok: false, error: "not expected" }),
+        prepareLocal: ({ data }) => ({
+          ok: true,
+          payload: { id: entityId, name: "Cliente local promocionado" },
+          transition: {
+            data: { ...data, updatedAt: now },
+            value: "promoted",
+          },
+        }),
+        commitLocal: (expected, transition) => {
+          current = transition.data;
+          return {
+            status: "applied",
+            data: expected,
+            value: transition.value,
+            replayed: false,
+          };
+        },
+        syncEventsBeforeWrite: async () => ({
+          ok: false,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          code: "CENTRAL_BUSINESS_PENDING_REVIEW",
+          message: "old queue needs review",
+          retryable: false,
+          nextSequence: 3,
+        }),
+        fetchStatus: async () => readyStatus(),
+        mutate,
+        createId: () => "operation-promote-local-blocked",
+        now: () => now,
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: "promoted",
+      delivery: "central_confirmed",
+    });
+    expect(mutate).toHaveBeenCalledOnce();
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId,
+        expectedVersion: 0,
+        operationKind: "upsert",
+      }),
+    );
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage).operations,
+    ).toEqual([
+      expect.objectContaining({
+        operationId: "CENTRAL_CUSTOMER_UPDATE:old-blocked",
+        status: "conflict",
+      }),
+    ]);
+  });
+
+  it("no promociona una ficha local si el pre-pull falla por integridad", async () => {
+    const fallback = vi.fn(() => ({
+      ok: true as const,
+      value: "legacy",
+      delivery: "local" as const,
+    }));
+    const commitLocal = vi.fn();
+
+    const result = await mutateCentralBusinessEntityWithCanary({
+      enabled: true,
+      userId: ownerScope,
+      entityType: "customer",
+      entityId,
+      operationKind: "upsert",
+      operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
+      entityLabel: "este cliente",
+      createMissingUpsertAfterFullSync: true,
+      dependencies: {
+        storage: new MemoryStorage(),
+        getCurrentData: () => EMPTY_DATA,
+        fallback,
+        prepareLocal: () => ({
+          ok: true,
+          payload: { id: entityId },
+          transition: { data: EMPTY_DATA, value: "unsafe" },
+        }),
+        commitLocal,
+        syncEventsBeforeWrite: async () => ({
+          ok: false,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          code: "CENTRAL_BUSINESS_EVENT_HASH_MISMATCH",
+          message: "hash mismatch",
+          retryable: false,
+          nextSequence: 1,
+        }),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "Hay cambios centrales que este dispositivo no pudo aplicar. Ve a Cuenta > Migración central y usa la copia del servidor en este dispositivo antes de modificar este cliente.",
+    });
+    expect(fallback).not.toHaveBeenCalled();
+    expect(commitLocal).not.toHaveBeenCalled();
+  });
+
   it("espera a terminar de recibir antes de promocionar una ficha local", async () => {
     const fallback = vi.fn(() => ({
       ok: true as const,
