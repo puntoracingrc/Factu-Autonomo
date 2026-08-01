@@ -43,6 +43,8 @@ export type CentralCustomerCreateResult =
 export interface CentralCustomerCreateCanaryEnvironment {
   enabled?: string;
   userIds?: string;
+  autoSyncEnabled?: string;
+  autoSyncUserIds?: string;
 }
 
 export interface CentralCustomerCreateCanaryDependencies {
@@ -72,14 +74,37 @@ const publicEnvironment: CentralCustomerCreateCanaryEnvironment = {
     process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_CUSTOMER_CREATE_CANARY_ENABLED,
   userIds:
     process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_CUSTOMER_CREATE_CANARY_USER_IDS,
+  autoSyncEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_ENABLED,
+  autoSyncUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_USER_IDS,
 };
 
 function values(value: string | undefined): Set<string> {
   return new Set(
     (value ?? "")
       .split(",")
-      .map((entry) => entry.trim())
+      .map((entry) => entry.trim().toLowerCase())
       .filter(Boolean),
+  );
+}
+
+function enabledForUser(
+  userId: string | null | undefined,
+  enabled: string | undefined,
+  userIds: string | undefined,
+): boolean {
+  if (
+    enabled?.trim().toLowerCase() !== "true" ||
+    typeof userId !== "string" ||
+    !userId.trim()
+  ) {
+    return false;
+  }
+  const allowed = values(userIds);
+  return (
+    allowed.size > 0 &&
+    (allowed.has("*") || allowed.has(userId.trim().toLowerCase()))
   );
 }
 
@@ -88,9 +113,12 @@ export function isCentralCustomerCreateCanaryEnabledForUser(
   environment: CentralCustomerCreateCanaryEnvironment = publicEnvironment,
 ): boolean {
   return (
-    environment.enabled?.trim().toLowerCase() === "true" &&
-    typeof userId === "string" &&
-    values(environment.userIds).has(userId)
+    enabledForUser(userId, environment.enabled, environment.userIds) ||
+    enabledForUser(
+      userId,
+      environment.autoSyncEnabled,
+      environment.autoSyncUserIds,
+    )
   );
 }
 

@@ -130,6 +130,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
   operationKind: CentralBusinessOperationKind;
   operationIdPrefix: string;
   entityLabel: string;
+  createMissingUpsertAfterFullSync?: boolean;
   dependencies: CentralBusinessEntityMutationDependencies<T>;
 }): Promise<CentralBusinessEntityMutationResult<T>> {
   const { dependencies } = input;
@@ -158,15 +159,36 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
     };
   }
 
+  const createMissingUpsert =
+    input.createMissingUpsertAfterFullSync === true &&
+    input.operationKind === "upsert" &&
+    eventSync?.ok === true &&
+    eventSync.hasMore === false;
   if (!knownBeforeStatus) {
-    if (!eventSync || eventSync.ok) return dependencies.fallback();
+    if (!createMissingUpsert) {
+      if (
+        input.createMissingUpsertAfterFullSync === true &&
+        input.operationKind === "upsert" &&
+        eventSync?.ok === true &&
+        eventSync.hasMore
+      ) {
+        return {
+          ok: false,
+          error:
+            "Quedan cambios centrales por recibir. Espera a que termine la sincronización y vuelve a guardar esta ficha.",
+        };
+      }
+      if (!eventSync || eventSync.ok) return dependencies.fallback();
+    }
+  }
+  if (!knownBeforeStatus && !createMissingUpsert) {
     return {
       ok: false,
       error:
         "No se pudo confirmar si esta ficha ya pertenece al servidor central. Vuelve a intentarlo con conexión.",
     };
   }
-  if (knownBeforeStatus.deleted) {
+  if (knownBeforeStatus?.deleted) {
     return {
       ok: false,
       error: `La ficha de ${input.entityLabel} ya fue eliminada en el servidor central.`,
@@ -197,7 +219,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
       );
       const key = entityKey(input.entityType, input.entityId);
       const knownVersion = queue.entityVersions[key];
-      if (!knownVersion || knownVersion.deleted) {
+      if ((!knownVersion && !createMissingUpsert) || knownVersion?.deleted) {
         return {
           ok: false,
           error:
@@ -205,8 +227,10 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
         };
       }
       if (
-        knownVersion.version !== knownBeforeStatus.version ||
-        knownVersion.contentHash !== knownBeforeStatus.contentHash
+        knownVersion &&
+        knownBeforeStatus &&
+        (knownVersion.version !== knownBeforeStatus.version ||
+          knownVersion.contentHash !== knownBeforeStatus.contentHash)
       ) {
         return {
           ok: false,
@@ -244,7 +268,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
           operationKind: input.operationKind,
           entityType: input.entityType,
           entityId: input.entityId,
-          expectedVersion: knownVersion.version,
+          expectedVersion: knownVersion?.version ?? 0,
           payload: prepared.payload,
         },
         storage: dependencies.storage,
