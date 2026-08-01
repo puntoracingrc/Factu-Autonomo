@@ -4,6 +4,7 @@ import type {
   AppDataDurabilityResult,
   AppDataTransition,
 } from "@/lib/app-data-durability";
+import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import { countersFromDocuments } from "@/lib/documents";
 import { migrateCustomer } from "@/lib/customers";
 import {
@@ -73,6 +74,42 @@ export function selectCentralBusinessEventsSyncBaseline(input: {
   if (persistedModified > memoryModified) return input.persisted;
   if (memoryModified > persistedModified) return input.memory;
   return null;
+}
+
+function serverAdoptionPreservedProjection(data: AppData): unknown {
+  const cleared = clearCentralBusinessLocalProjection(data);
+  return {
+    ...cleared,
+    counters: {
+      ...cleared.counters,
+      presupuesto: 0,
+      recibo: 0,
+    },
+  };
+}
+
+function matchesServerAdoptionPreservedProjection(
+  memory: AppData,
+  persisted: AppData,
+): boolean {
+  return (
+    stableStringifySnapshot(serverAdoptionPreservedProjection(memory)) ===
+    stableStringifySnapshot(serverAdoptionPreservedProjection(persisted))
+  );
+}
+
+export function selectCentralBusinessServerAdoptionBaseline(input: {
+  memory: AppData;
+  persisted: AppData | null;
+  persistedMatchesMemory: boolean;
+}): AppData | null {
+  const baseline = selectCentralBusinessEventsSyncBaseline(input);
+  if (baseline) return baseline;
+  if (!input.persisted) return null;
+
+  return matchesServerAdoptionPreservedProjection(input.memory, input.persisted)
+    ? input.persisted
+    : null;
 }
 
 type SupportedEntityType =
