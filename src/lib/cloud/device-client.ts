@@ -84,13 +84,17 @@ export async function registerCurrentCloudDevice(
       error: "Inicia sesion para registrar este dispositivo.",
     };
   }
-  return requestCloudDevices("/api/cloud/devices", {
+  const result = await requestCloudDevices("/api/cloud/devices", {
     method: "POST",
     headers,
     body: JSON.stringify({
       markSynced: options.markSynced === true,
     }),
   });
+  if (!result.error && result.allowed !== false) {
+    notifyCloudDeviceReactivated();
+  }
+  return result;
 }
 
 export async function recoverRevokedCloudDeviceAfterFreshSignIn(): Promise<
@@ -101,9 +105,6 @@ export async function recoverRevokedCloudDeviceAfterFreshSignIn(): Promise<
 
   forgetLocalCloudDeviceToken();
   const replacement = await registerCurrentCloudDevice();
-  if (replacement.allowed !== false && !replacement.error) {
-    notifyCloudDeviceReactivated();
-  }
   return replacement;
 }
 
