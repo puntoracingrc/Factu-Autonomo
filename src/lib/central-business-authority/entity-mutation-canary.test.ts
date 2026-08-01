@@ -349,6 +349,84 @@ describe("central business entity mutation canary", () => {
     ).toMatchObject({ version: 2, deleted: false });
   });
 
+  it("actualiza una ficha versionada aunque el pre-pull vea baseline local ambiguo", async () => {
+    const storage = new MemoryStorage();
+    await seedVersion(storage);
+    let current: AppData = EMPTY_DATA;
+    const mutate = vi.fn(
+      async (): Promise<CentralBusinessBrowserMutationResult> => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+        status: "committed",
+        eventId: "event-versioned-update-after-ambiguous-baseline",
+        eventSequence: 13,
+        entityVersion: 2,
+        deleted: false,
+        contentHash: "hash-v2",
+      }),
+    );
+
+    const result = await mutateCentralBusinessEntityWithCanary({
+      enabled: true,
+      userId: ownerScope,
+      entityType: "customer",
+      entityId,
+      operationKind: "upsert",
+      operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
+      entityLabel: "este cliente",
+      allowVersionedUpsertAfterBlockedPreflight: true,
+      dependencies: {
+        storage,
+        getCurrentData: () => current,
+        fallback: () => ({ ok: false, error: "not expected" }),
+        prepareLocal: ({ data }) => ({
+          ok: true,
+          payload: { id: entityId, name: "Cliente editado" },
+          transition: {
+            data: { ...data, updatedAt: now },
+            value: "updated",
+          },
+        }),
+        commitLocal: (expected, transition) => {
+          current = transition.data;
+          return {
+            status: "applied",
+            data: current,
+            value: transition.value,
+            replayed: false,
+          };
+        },
+        syncEventsBeforeWrite: async () => ({
+          ok: false,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          code: "CENTRAL_BUSINESS_APP_DATA_BASELINE_AMBIGUOUS",
+          message:
+            "La copia visible y la copia guardada no tienen un orden verificable.",
+          retryable: false,
+          nextSequence: 3,
+        }),
+        fetchStatus: async () => readyStatus(),
+        mutate,
+        createId: () => "operation-versioned-update-ambiguous-baseline",
+        now: () => now,
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: "updated",
+      delivery: "central_confirmed",
+    });
+    expect(mutate).toHaveBeenCalledOnce();
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId,
+        expectedVersion: 1,
+        operationKind: "upsert",
+      }),
+    );
+  });
+
   it("no salta el pre-pull bloqueado de una ficha versionada sin permiso explicito", async () => {
     const storage = new MemoryStorage();
     await seedVersion(storage);

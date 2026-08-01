@@ -134,6 +134,16 @@ function hasSafeBlockedPreflight(
   );
 }
 
+function hasLocalBaselineAmbiguity(
+  syncResult: CentralBusinessEventsAppDataSyncResult | undefined,
+): boolean {
+  return (
+    syncResult?.ok === false &&
+    !syncResult.retryable &&
+    syncResult.code === "CENTRAL_BUSINESS_APP_DATA_BASELINE_AMBIGUOUS"
+  );
+}
+
 export async function mutateCentralBusinessEntityWithCanary<T>(input: {
   enabled: boolean;
   userId: string | null | undefined;
@@ -182,7 +192,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
     input.allowVersionedUpsertAfterBlockedPreflight === true &&
     input.operationKind === "upsert" &&
     Boolean(knownBeforeStatus) &&
-    hasSafeBlockedPreflight(eventSync);
+    (hasSafeBlockedPreflight(eventSync) || hasLocalBaselineAmbiguity(eventSync));
   const bypassBlockedPreflight =
     createMissingUpsertAfterBlockedPreflight ||
     versionedUpsertAfterBlockedPreflight;
