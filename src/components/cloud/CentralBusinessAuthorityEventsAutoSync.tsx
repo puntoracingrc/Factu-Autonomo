@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -26,10 +26,27 @@ type LatestState = {
   sync: ReturnType<typeof useAppStore>["syncCentralBusinessEvents"];
 };
 
+type SupabaseBrowserSession =
+  | {
+      user?: {
+        id?: unknown;
+      } | null;
+    }
+  | null
+  | undefined;
+
+function sessionUserId(session: SupabaseBrowserSession): string | null {
+  return typeof session?.user?.id === "string" ? session.user.id : null;
+}
+
 export function CentralBusinessAuthorityEventsAutoSync() {
   const { ready, syncCentralBusinessEvents } = useAppStore();
   const { user } = useCloudSync();
-  const userId = typeof user?.id === "string" ? user.id : null;
+  const cloudUserId = typeof user?.id === "string" ? user.id : null;
+  const [sessionFallbackUserId, setSessionFallbackUserId] = useState<
+    string | null
+  >(null);
+  const userId = cloudUserId ?? sessionFallbackUserId;
   const enabled = isCentralBusinessEventsAutoSyncEnabledForUser(userId);
   const realtimeWakeupsEnabled =
     isCentralBusinessEventsRealtimeWakeupsEnabledForUser(userId);
@@ -42,6 +59,50 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     userId,
     sync: syncCentralBusinessEvents,
   });
+
+  useEffect(() => {
+    if (cloudUserId) {
+      setSessionFallbackUserId(null);
+      return;
+    }
+
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    function rememberSessionId(session: SupabaseBrowserSession) {
+      if (cancelled) return;
+      setSessionFallbackUserId(sessionUserId(session));
+    }
+
+    void import("@/lib/supabase/client")
+      .then(async ({ getSupabaseClientAsync }) => getSupabaseClientAsync())
+      .then(async (supabase) => {
+        if (cancelled) return;
+        if (supabase === null) {
+          setSessionFallbackUserId(null);
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+        rememberSessionId(data.session);
+
+        const { data: listener } = supabase.auth.onAuthStateChange(
+          (_event, session) => {
+            rememberSessionId(session);
+          },
+        );
+        unsubscribe = () => listener.subscription.unsubscribe();
+      })
+      .catch(() => {
+        if (!cancelled) setSessionFallbackUserId(null);
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [cloudUserId]);
 
   useEffect(() => {
     latestRef.current = {
