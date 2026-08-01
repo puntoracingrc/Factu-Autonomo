@@ -28,12 +28,10 @@ type LatestState = {
 
 export function CentralBusinessAuthorityEventsAutoSync() {
   const { ready, syncCentralBusinessEvents } = useAppStore();
-  const { user, emailConfirmed } = useCloudSync();
+  const { user } = useCloudSync();
   const userId = typeof user?.id === "string" ? user.id : null;
-  const enabled =
-    emailConfirmed && isCentralBusinessEventsAutoSyncEnabledForUser(userId);
+  const enabled = isCentralBusinessEventsAutoSyncEnabledForUser(userId);
   const realtimeWakeupsEnabled =
-    emailConfirmed &&
     isCentralBusinessEventsRealtimeWakeupsEnabledForUser(userId);
   const runningRef = useRef(false);
   const pendingWakeRef = useRef(false);

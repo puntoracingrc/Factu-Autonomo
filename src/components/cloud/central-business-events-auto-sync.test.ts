@@ -20,6 +20,10 @@ describe("central business events auto sync wiring", () => {
     expect(component).toContain(
       "isCentralBusinessEventsAutoSyncEnabledForUser",
     );
+    expect(component).toContain(
+      "const enabled = isCentralBusinessEventsAutoSyncEnabledForUser(userId);",
+    );
+    expect(component).not.toContain("emailConfirmed");
     expect(component).toContain("syncCentralBusinessEvents");
     const normalSync = appStore.slice(
       appStore.indexOf("const syncCentralBusinessEvents = useCallback"),
