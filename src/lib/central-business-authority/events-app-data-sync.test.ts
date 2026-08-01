@@ -913,6 +913,57 @@ describe("central business events app data sync", () => {
     ).toMatchObject({ lastAppliedEventSequence: 0 });
   });
 
+  it("aplica fichas independientes aunque una divergente bloquee el cursor", async () => {
+    const local = customer({
+      name: "Versión local",
+      firstName: "Versión local",
+    });
+    const centralNew = customer({
+      id: "customer-2",
+      name: "Cliente creado en móvil",
+      firstName: "Cliente creado en móvil",
+    });
+    const target = harness({ ...EMPTY_DATA, customers: [local] });
+
+    const result = await syncCentralBusinessEventsIntoAppData(
+      { ownerScope },
+      {
+        ...target.dependencies,
+        pull: async () => ({
+          ok: true,
+          schema: "CENTRAL_BUSINESS_EVENTS_CLIENT_V1",
+          events: [
+            event(customer(), {
+              eventId: "event-conflict",
+              eventSequence: 1,
+            }),
+            event(centralNew, {
+              eventId: "event-central-new",
+              eventSequence: 2,
+              contentHash: "hash-customer-2-v1",
+            }),
+          ],
+          nextSequence: 2,
+          hasMore: false,
+        }),
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT",
+      nextSequence: 0,
+    });
+    expect(target.data.customers).toEqual([
+      local,
+      expect.objectContaining(centralNew),
+    ]);
+    expect(target.commit).toHaveBeenCalledTimes(1);
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, target.storage),
+    ).toMatchObject({ lastAppliedEventSequence: 0, entityVersions: {} });
+  });
+
   it("adopta el servidor en un dispositivo divergente sin tocar facturas emitidas", async () => {
     const localCustomer = customer({
       name: "Cliente móvil anterior",
