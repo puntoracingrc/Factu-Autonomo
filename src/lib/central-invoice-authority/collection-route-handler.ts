@@ -153,6 +153,7 @@ function rpcErrorResponse(error: CentralInvoiceAuthorityCollectionRpcAdapterErro
       code: error.code,
       message: error.message,
       causeCode: error.causeCode,
+      causeMessage: error.causeMessage,
     },
   });
 }

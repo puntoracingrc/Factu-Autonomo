@@ -111,6 +111,8 @@ describe("central invoice authority collection client", () => {
           error: {
             code: "COLLECTION_RPC_REJECTED",
             message: "Version antigua.",
+            causeCode: "P0001",
+            causeMessage: "central invoice collection version mismatch",
           },
         }),
       ),
@@ -123,6 +125,8 @@ describe("central invoice authority collection client", () => {
       status: 409,
       code: "COLLECTION_RPC_REJECTED",
       message: "Version antigua.",
+      causeCode: "P0001",
+      causeMessage: "central invoice collection version mismatch",
     });
   });
 });
