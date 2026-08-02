@@ -439,7 +439,7 @@ function FiscalNotificationReviewWorkspace({
     fiscalNotificationsWorkspaceWasQuarantined &&
     !hasPendingFiscalWorkspaceSync;
 
-  const repairEmptyDuplicateHistoryAutomatically = useCallback(() => {
+  const repairEmptyDuplicateHistoryAutomatically = useCallback(async () => {
     if (
       !shouldInitializeEmptyHistory ||
       repairingDuplicateHistoryRef.current ||
@@ -449,17 +449,19 @@ function FiscalNotificationReviewWorkspace({
     }
     emptyHistoryAutoRepairAttemptedRef.current = true;
     repairingDuplicateHistoryRef.current = true;
-    const execution = (() => {
-      try {
-        return repairFiscalNotificationEmptyHistory({
-          expected: getCurrentData(),
-          ownerScope,
-          confirmedAt: new Date().toISOString(),
-        });
-      } finally {
-        repairingDuplicateHistoryRef.current = false;
-      }
-    })();
+    let execution;
+    try {
+      execution = await repairFiscalNotificationEmptyHistory({
+        expected: getCurrentData(),
+        ownerScope,
+        confirmedAt: new Date().toISOString(),
+      });
+    } catch {
+      setError(DUPLICATE_HISTORY_INVALID_MESSAGE);
+      return null;
+    } finally {
+      repairingDuplicateHistoryRef.current = false;
+    }
     if (execution.status !== "applied") {
       setError(DUPLICATE_HISTORY_INVALID_MESSAGE);
     }
@@ -473,8 +475,9 @@ function FiscalNotificationReviewWorkspace({
 
   useEffect(() => {
     if (!appStoreReady || !shouldInitializeEmptyHistory) return;
-    const execution = repairEmptyDuplicateHistoryAutomatically();
-    if (execution?.status === "applied") setError(null);
+    void repairEmptyDuplicateHistoryAutomatically().then((execution) => {
+      if (execution?.status === "applied") setError(null);
+    });
   }, [
     appStoreReady,
     repairEmptyDuplicateHistoryAutomatically,
@@ -619,7 +622,7 @@ function FiscalNotificationReviewWorkspace({
         persistedWorkspaceWasQuarantined
       ) {
         blockedDuplicateFilesRef.current = [...files];
-        const execution = repairEmptyDuplicateHistoryAutomatically();
+        const execution = await repairEmptyDuplicateHistoryAutomatically();
         if (execution?.status === "applied") {
           blockedDuplicateFilesRef.current = [];
           setError(null);
@@ -870,7 +873,7 @@ function FiscalNotificationReviewWorkspace({
     void addFiles(Array.from(event.dataTransfer.files));
   }
 
-  function saveStructuredReview(): void {
+  async function saveStructuredReview(): Promise<void> {
     if (!pendingReview || saveOperationRef.current) return;
     const activeId = queueRef.current.find(
       (item) => item.documentId === activeDocumentIdRef.current,
@@ -887,7 +890,7 @@ function FiscalNotificationReviewWorkspace({
     setPersistenceState("saving");
     try {
       const currentData = getCurrentData();
-      const accountWrite = saveFiscalNotificationStructuredReview({
+      const accountWrite = await saveFiscalNotificationStructuredReview({
         expected: currentData,
         ownerScope,
         reviewId: pendingReview.reviewId,
@@ -922,6 +925,14 @@ function FiscalNotificationReviewWorkspace({
 
       filesRef.current.delete(activeId);
       advanceAfterSuccessfulSave(activeId, savedDocumentIds[0] ?? null);
+    } catch {
+      if (saveOperationRef.current === operation) {
+        updateStoredReview(activeId, "blocked", false);
+        setPersistenceState("blocked");
+        setSaveError(
+          "No se ha podido cargar la operación de guardado. Recarga e inténtalo de nuevo.",
+        );
+      }
     } finally {
       if (saveOperationRef.current === operation) {
         saveOperationRef.current = null;
@@ -964,7 +975,7 @@ function FiscalNotificationReviewWorkspace({
       await waitForSavingIndicatorPaint();
       if (saveOperationRef.current !== operation) return;
 
-      const batchWrite = runFiscalNotificationBatchReviewSaveV1({
+      const batchWrite = await runFiscalNotificationBatchReviewSaveV1({
         ownerScope,
         items,
         getCurrentData,
@@ -1024,6 +1035,13 @@ function FiscalNotificationReviewWorkspace({
       clearReviewDisplay();
       setRecentlySavedDocumentId(lastSavedDocumentId);
       setScannerOpen(remainingQueue.length > 0);
+    } catch {
+      if (saveOperationRef.current === operation) {
+        setPersistenceState("blocked");
+        setSaveError(
+          "No se ha podido cargar la operación de guardado. Recarga e inténtalo de nuevo.",
+        );
+      }
     } finally {
       if (saveOperationRef.current === operation) {
         saveOperationRef.current = null;

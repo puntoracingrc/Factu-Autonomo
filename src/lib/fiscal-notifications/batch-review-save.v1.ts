@@ -29,7 +29,7 @@ export type FiscalNotificationBatchReviewSaveResultV1 =
       >;
     }>;
 
-export function runFiscalNotificationBatchReviewSaveV1(input: {
+export async function runFiscalNotificationBatchReviewSaveV1(input: {
   readonly ownerScope: string;
   readonly items: readonly FiscalNotificationBatchReviewSaveItemV1[];
   readonly getCurrentData: () => AppData;
@@ -41,12 +41,14 @@ export function runFiscalNotificationBatchReviewSaveV1(input: {
     createdAt: string;
     confirmedAt: string;
     analysis: FiscalNotificationLocalAnalysisResult;
-  }) => DurableFiscalNotificationStructuredReviewSaveResultV1;
-}): FiscalNotificationBatchReviewSaveResultV1 {
+  }) =>
+    | DurableFiscalNotificationStructuredReviewSaveResultV1
+    | Promise<DurableFiscalNotificationStructuredReviewSaveResultV1>;
+}): Promise<FiscalNotificationBatchReviewSaveResultV1> {
   const saved: FiscalNotificationBatchReviewSavedItemV1[] = [];
 
   for (const item of input.items) {
-    const write = input.save({
+    const write = await input.save({
       expected: input.getCurrentData(),
       ownerScope: input.ownerScope,
       reviewId: item.reviewId,

@@ -101,21 +101,8 @@ export function useFiscalNotificationDocumentDeletion(input: {
       driveTrashChanged = execution.value.changedByOperation;
     }
 
-    const result = deleteFiscalNotificationDocument({
-      expected,
-      ownerScope: input.ownerScope,
-      documentId: selectedDocumentId,
-      deletedAt: new Date().toISOString(),
-    });
-    if (result.status === "applied") {
-      setBusy(false);
-      setError(null);
-      setDocumentId(null);
-      input.onDeleted?.(selectedDocumentId);
-      return;
-    }
-    let rollbackFailed = false;
-    if (deleteDriveOriginal && archive && driveTrashChanged) {
+    async function restoreDriveOriginalAfterFailure(): Promise<boolean> {
+      if (!deleteDriveOriginal || !archive || !driveTrashChanged) return false;
       const rollback = await runExclusiveDriveOperation(() =>
         restoreFiscalNotificationOriginalInGoogleDriveV1(
           {
@@ -128,9 +115,36 @@ export function useFiscalNotificationDocumentDeletion(input: {
           },
         ),
       );
-      rollbackFailed =
-        !rollback.started || (rollback.started && !rollback.value.ok);
+      return !rollback.started || (rollback.started && !rollback.value.ok);
     }
+
+    const result = await deleteFiscalNotificationDocument({
+      expected,
+      ownerScope: input.ownerScope,
+      documentId: selectedDocumentId,
+      deletedAt: new Date().toISOString(),
+    }).catch(() => null);
+    if (result === null) {
+      const rollbackFailed = await restoreDriveOriginalAfterFailure();
+      setBusy(false);
+      const localError =
+        "No se ha podido cargar la operación de borrado. No se ha eliminado la ficha; recarga e inténtalo de nuevo.";
+      setError(
+        rollbackFailed
+          ? `${localError} Revisa también la papelera de Google Drive.`
+          : localError,
+      );
+      return;
+    }
+    if (result.status === "applied") {
+      setBusy(false);
+      setError(null);
+      setDocumentId(null);
+      input.onDeleted?.(selectedDocumentId);
+      return;
+    }
+    let rollbackFailed = false;
+    rollbackFailed = await restoreDriveOriginalAfterFailure();
     setBusy(false);
     const localError =
       result.status === "indeterminate"

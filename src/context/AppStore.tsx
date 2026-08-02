@@ -242,28 +242,12 @@ import type {
   TestDocumentRetirementRollbackPreview,
 } from "@/lib/document-integrity/test-document-retirement";
 import type { FiscalNotificationLocalAnalysisResult } from "@/lib/fiscal-notifications/local-review-flow";
-import {
-  runSaveFiscalNotificationStructuredReviewCommandV1,
-  type DurableFiscalNotificationStructuredReviewSaveResultV1,
-} from "@/lib/fiscal-notifications/structured-review-save-command.v1";
-import { runFiscalNotificationCommandAgainstLatestPersistedV1 } from "@/lib/fiscal-notifications/persisted-command.v1";
-import {
-  runFiscalNotificationDriveArchiveCommandV1,
-  type DurableFiscalNotificationDriveArchiveResultV1,
-} from "@/lib/fiscal-notifications/drive-original-archive-command.v1";
+import type { DurableFiscalNotificationStructuredReviewSaveResultV1 } from "@/lib/fiscal-notifications/structured-review-save-command.v1";
+import type { DurableFiscalNotificationDriveArchiveResultV1 } from "@/lib/fiscal-notifications/drive-original-archive-command.v1";
 import type { FiscalNotificationOriginalArchiveReceiptV1 } from "@/lib/fiscal-notifications/drive-original-archive.v1";
-import {
-  runDeleteFiscalNotificationDocumentCommandV1,
-  type DurableFiscalNotificationDocumentDeletionResultV1,
-} from "@/lib/fiscal-notifications/document-deletion-command.v1";
-import {
-  runDeleteAllFiscalNotificationDocumentsCommandV1,
-  type DurableDeleteAllFiscalNotificationDocumentsResultV1,
-} from "@/lib/fiscal-notifications/delete-all-documents-command.v1";
-import {
-  runRepairFiscalNotificationEmptyHistoryCommandV1,
-  type DurableFiscalNotificationEmptyHistoryRepairResultV1,
-} from "@/lib/fiscal-notifications/empty-history-repair.v1";
+import type { DurableFiscalNotificationDocumentDeletionResultV1 } from "@/lib/fiscal-notifications/document-deletion-command.v1";
+import type { DurableDeleteAllFiscalNotificationDocumentsResultV1 } from "@/lib/fiscal-notifications/delete-all-documents-command.v1";
+import type { DurableFiscalNotificationEmptyHistoryRepairResultV1 } from "@/lib/fiscal-notifications/empty-history-repair.v1";
 import { reportAppError } from "@/lib/monitoring/client";
 import {
   isCloudEnabled,
@@ -482,29 +466,29 @@ interface AppStoreValue {
     createdAt: string;
     confirmedAt: string;
     analysis: FiscalNotificationLocalAnalysisResult;
-  }) => DurableFiscalNotificationStructuredReviewSaveResultV1;
+  }) => Promise<DurableFiscalNotificationStructuredReviewSaveResultV1>;
   archiveFiscalNotificationOriginal: (input: {
     expected: AppData;
     ownerScope: string;
     receipt: FiscalNotificationOriginalArchiveReceiptV1;
     archivedAt: string;
-  }) => DurableFiscalNotificationDriveArchiveResultV1;
+  }) => Promise<DurableFiscalNotificationDriveArchiveResultV1>;
   deleteFiscalNotificationDocument: (input: {
     expected: AppData;
     ownerScope: string;
     documentId: string;
     deletedAt: string;
-  }) => DurableFiscalNotificationDocumentDeletionResultV1;
+  }) => Promise<DurableFiscalNotificationDocumentDeletionResultV1>;
   deleteAllFiscalNotificationDocuments: (input: {
     expected: AppData;
     ownerScope: string;
     deletedAt: string;
-  }) => DurableDeleteAllFiscalNotificationDocumentsResultV1;
+  }) => Promise<DurableDeleteAllFiscalNotificationDocumentsResultV1>;
   repairFiscalNotificationEmptyHistory: (input: {
     expected: AppData;
     ownerScope: string;
     confirmedAt: string;
-  }) => DurableFiscalNotificationEmptyHistoryRepairResultV1;
+  }) => Promise<DurableFiscalNotificationEmptyHistoryRepairResultV1>;
   syncCentralInvoiceAuthorityEvents: (
     expected: AppData,
     options?: { limit?: number | null; receivedAt?: string },
@@ -1315,16 +1299,22 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const saveFiscalNotificationStructuredReview = useCallback(
-    (input: {
+    async (input: {
       expected: AppData;
       ownerScope: string;
       reviewId: string;
       createdAt: string;
       confirmedAt: string;
       analysis: FiscalNotificationLocalAnalysisResult;
-    }): DurableFiscalNotificationStructuredReviewSaveResultV1 => {
+    }): Promise<DurableFiscalNotificationStructuredReviewSaveResultV1> => {
+      const [persistedCommand, saveCommand] = await Promise.all([
+        import("@/lib/fiscal-notifications/persisted-command.v1"),
+        import(
+          "@/lib/fiscal-notifications/structured-review-save-command.v1"
+        ),
+      ]);
       const result =
-        runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
+        persistedCommand.runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
           {
             fallback: dataRef.current,
             storageBaseline: durableStorageBaselineRef.current,
@@ -1345,7 +1335,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               reason,
             }),
             run: (expected, commit) =>
-              runSaveFiscalNotificationStructuredReviewCommandV1({
+              saveCommand.runSaveFiscalNotificationStructuredReviewCommandV1({
                 ...input,
                 expected,
                 commit,
@@ -1381,28 +1371,38 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const archiveFiscalNotificationOriginal = useCallback(
-    (input: {
+    async (input: {
       expected: AppData;
       ownerScope: string;
       receipt: FiscalNotificationOriginalArchiveReceiptV1;
       archivedAt: string;
-    }): DurableFiscalNotificationDriveArchiveResultV1 =>
-      runFiscalNotificationDriveArchiveCommandV1({
+    }): Promise<DurableFiscalNotificationDriveArchiveResultV1> => {
+      const { runFiscalNotificationDriveArchiveCommandV1 } = await import(
+        "@/lib/fiscal-notifications/drive-original-archive-command.v1"
+      );
+      return runFiscalNotificationDriveArchiveCommandV1({
         ...input,
         commit: commitDurableAppData,
-      }),
+      });
+    },
     [commitDurableAppData],
   );
 
   const deleteFiscalNotificationDocument = useCallback(
-    (input: {
+    async (input: {
       expected: AppData;
       ownerScope: string;
       documentId: string;
       deletedAt: string;
-    }): DurableFiscalNotificationDocumentDeletionResultV1 => {
+    }): Promise<DurableFiscalNotificationDocumentDeletionResultV1> => {
+      const [persistedCommand, deleteCommand] = await Promise.all([
+        import("@/lib/fiscal-notifications/persisted-command.v1"),
+        import(
+          "@/lib/fiscal-notifications/document-deletion-command.v1"
+        ),
+      ]);
       const result =
-        runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationDocumentDeletionResultV1>(
+        persistedCommand.runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationDocumentDeletionResultV1>(
           {
             fallback: dataRef.current,
             storageBaseline: durableStorageBaselineRef.current,
@@ -1420,7 +1420,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 ? { status: "indeterminate", reason }
                 : { status: "blocked", reason },
             run: (expected, commit) =>
-              runDeleteFiscalNotificationDocumentCommandV1({
+              deleteCommand.runDeleteFiscalNotificationDocumentCommandV1({
                 ...input,
                 expected,
                 commit,
@@ -1446,13 +1446,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteAllFiscalNotificationDocuments = useCallback(
-    (input: {
+    async (input: {
       expected: AppData;
       ownerScope: string;
       deletedAt: string;
-    }): DurableDeleteAllFiscalNotificationDocumentsResultV1 => {
+    }): Promise<DurableDeleteAllFiscalNotificationDocumentsResultV1> => {
+      const [persistedCommand, deleteAllCommand] = await Promise.all([
+        import("@/lib/fiscal-notifications/persisted-command.v1"),
+        import(
+          "@/lib/fiscal-notifications/delete-all-documents-command.v1"
+        ),
+      ]);
       const result =
-        runFiscalNotificationCommandAgainstLatestPersistedV1<DurableDeleteAllFiscalNotificationDocumentsResultV1>(
+        persistedCommand.runFiscalNotificationCommandAgainstLatestPersistedV1<DurableDeleteAllFiscalNotificationDocumentsResultV1>(
           {
             fallback: dataRef.current,
             storageBaseline: durableStorageBaselineRef.current,
@@ -1470,7 +1476,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 ? { status: "indeterminate", reason }
                 : { status: "blocked", reason },
             run: (expected, commit) =>
-              runDeleteAllFiscalNotificationDocumentsCommandV1({
+              deleteAllCommand.runDeleteAllFiscalNotificationDocumentsCommandV1({
                 ...input,
                 expected,
                 commit,
@@ -1496,15 +1502,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const repairFiscalNotificationEmptyHistory = useCallback(
-    (input: {
+    async (input: {
       expected: AppData;
       ownerScope: string;
       confirmedAt: string;
-    }): DurableFiscalNotificationEmptyHistoryRepairResultV1 =>
-      runRepairFiscalNotificationEmptyHistoryCommandV1({
+    }): Promise<DurableFiscalNotificationEmptyHistoryRepairResultV1> => {
+      const { runRepairFiscalNotificationEmptyHistoryCommandV1 } = await import(
+        "@/lib/fiscal-notifications/empty-history-repair.v1"
+      );
+      return runRepairFiscalNotificationEmptyHistoryCommandV1({
         ...input,
         commit: commitDurableAppData,
-      }),
+      });
+    },
     [commitDurableAppData],
   );
 
