@@ -33,11 +33,23 @@ describe("collection toggle wiring", () => {
     );
   });
 
+  it("responde al toque antes del trabajo asíncrono y bloquea repeticiones", () => {
+    expect(buttonSource).toContain("setPendingTarget(target)");
+    expect(buttonSource).toContain("window.setTimeout(() => {");
+    expect(buttonSource).toContain("disabled={pending}");
+    expect(buttonSource).toContain("aria-busy={pending}");
+    expect(buttonSource).toContain("pending ? \"Guardando\"");
+    expect(buttonSource).toContain("touch-manipulation");
+    expect(buttonSource).toContain("LoaderCircle");
+  });
+
   it("usa el overlay histórico sin reescribir los campos fiscales atestados", () => {
     expect(storeSource).toContain(
       'withHistoricalCollectionStatus(doc, "pending", now)',
     );
-    expect(storeSource).toContain('doc,\n          "collected",\n          now');
+    expect(storeSource).toContain(
+      'withHistoricalCollectionStatus(doc, "collected", now)',
+    );
     expect(storeSource).not.toMatch(
       /historical[\s\S]{0,260}status:\s*newStatus/,
     );
