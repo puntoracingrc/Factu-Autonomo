@@ -124,6 +124,7 @@ const PRODUCT_SORT_OPTIONS: Array<{ value: ProductSort; label: string }> = [
   { value: "amountAsc", label: "Menor importe" },
   { value: "name", label: "Nombre" },
 ];
+const PRODUCT_LIST_BATCH_SIZE = 30;
 
 function productQuantityUnit(product: PurchaseProductSummary): string {
   const rawUnit =
@@ -214,7 +215,7 @@ export default function ProductosPage() {
   const [catalogView, setCatalogView] = useState<ProductCatalogView>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(30);
+  const [visibleCount, setVisibleCount] = useState(PRODUCT_LIST_BATCH_SIZE);
   const [bulkFamilyDraft, setBulkFamilyDraft] = useState("");
   const [bulkSubfamilyDraft, setBulkSubfamilyDraft] = useState("");
   const [familyStructureOpen, setFamilyStructureOpen] = useState(false);
@@ -570,6 +571,14 @@ export default function ProductosPage() {
     catalogView === "hidden"
       ? filteredHiddenProducts.length
       : filteredProducts.length;
+  const visibleProductResultCount =
+    catalogView === "hidden"
+      ? visibleHiddenProducts.length
+      : visibleProducts.length;
+  const hiddenProductResultCount = Math.max(
+    currentResultCount - visibleProductResultCount,
+    0,
+  );
 
   const bulkSubfamilyOptions = useMemo(() => {
     if (!bulkFamilyDraft.trim()) return [];
@@ -579,7 +588,7 @@ export default function ProductosPage() {
   }, [bulkFamilyDraft, subfamilyEntries]);
 
   useEffect(() => {
-    setVisibleCount(30);
+    setVisibleCount(PRODUCT_LIST_BATCH_SIZE);
   }, [catalogView, family, query, sort, subfamily, supplier]);
 
   useEffect(() => {
@@ -647,7 +656,7 @@ export default function ProductosPage() {
 
   function applyCatalogView(view: ProductCatalogView) {
     setCatalogView(view);
-    setVisibleCount(30);
+    setVisibleCount(PRODUCT_LIST_BATCH_SIZE);
   }
 
   function clearCatalogFilters() {
@@ -1236,7 +1245,7 @@ export default function ProductosPage() {
     setSubfamily(ALL);
     setSupplier(ALL);
     setSort("newest");
-    setVisibleCount((current) => Math.max(current, 30));
+    setVisibleCount((current) => Math.max(current, PRODUCT_LIST_BATCH_SIZE));
     setEditingProductKey(created.key);
   }
 
@@ -1903,19 +1912,25 @@ export default function ProductosPage() {
               ))}
             </div>
           )}
-          {(
-            catalogView === "hidden"
-              ? visibleHiddenProducts.length < filteredHiddenProducts.length
-              : visibleProducts.length < filteredProducts.length
-          ) ? (
-            <div className="flex justify-center">
+          {hiddenProductResultCount > 0 ? (
+            <div className="space-y-2 text-center">
               <button
                 type="button"
-                onClick={() => setVisibleCount((current) => current + 30)}
+                onClick={() =>
+                  setVisibleCount(
+                    (current) => current + PRODUCT_LIST_BATCH_SIZE,
+                  )
+                }
                 className="inline-flex min-h-12 items-center justify-center rounded-lg border border-blue-200 bg-white px-5 text-base font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
-                Cargar 30 más
+                Cargar{" "}
+                {Math.min(PRODUCT_LIST_BATCH_SIZE, hiddenProductResultCount)}{" "}
+                más
               </button>
+              <p className="text-xs font-semibold text-slate-500">
+                Mostrando {visibleProductResultCount} de {currentResultCount}{" "}
+                productos
+              </p>
             </div>
           ) : null}
         </>

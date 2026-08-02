@@ -1184,6 +1184,21 @@ describe("MVP usability polish", () => {
     expect(expensesPageSource).toContain("Mostrando");
   });
 
+  it("carga productos por bloques y muestra el progreso del listado", () => {
+    const productsPageSource = readFileSync(
+      new URL("../app/productos/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(productsPageSource).toContain("PRODUCT_LIST_BATCH_SIZE = 30");
+    expect(productsPageSource).toContain("visibleProducts");
+    expect(productsPageSource).toContain("visibleHiddenProducts");
+    expect(productsPageSource).toContain("hiddenProductResultCount");
+    expect(productsPageSource).toContain("PRODUCT_LIST_BATCH_SIZE");
+    expect(productsPageSource).toContain("Cargar");
+    expect(productsPageSource).toContain("Mostrando");
+  });
+
   it("muestra productos con nombre bonito sin romper el nombre detectado", () => {
     const productsPageSource = readFileSync(
       new URL("../app/productos/page.tsx", import.meta.url),
