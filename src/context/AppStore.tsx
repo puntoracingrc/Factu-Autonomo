@@ -2219,6 +2219,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               metadata: {
                 status: result.status,
                 code: result.code,
+                causeCode: result.causeCode,
+                causeMessage: result.causeMessage,
               },
             });
             return;

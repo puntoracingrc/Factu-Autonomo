@@ -114,6 +114,7 @@ describe("central invoice authority collection RPC adapter", () => {
     ).rejects.toMatchObject({
       code: "COLLECTION_RPC_REJECTED",
       causeCode: "P0001",
+      causeMessage: "denied",
     });
   });
 });

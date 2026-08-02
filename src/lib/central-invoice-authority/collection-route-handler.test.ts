@@ -167,4 +167,36 @@ describe("central invoice authority collection route handler", () => {
     expect(response.status).toBe(400);
     expect(dependencies.getRpcClient).not.toHaveBeenCalled();
   });
+
+  it("devuelve el motivo seguro cuando la RPC rechaza un cobro", async () => {
+    const dependencies = deps({
+      getRpcClient: vi.fn(() => ({
+        async rpc() {
+          return {
+            data: null,
+            error: {
+              code: "P0001",
+              message: "central invoice collection payload mismatch",
+            },
+          };
+        },
+      })),
+    });
+    const response = await request(dependencies);
+    const payload = response.body as {
+      ok: boolean;
+      error?: {
+        code?: string;
+        causeCode?: string;
+        causeMessage?: string;
+      };
+    };
+
+    expect(response.status).toBe(409);
+    expect(payload.error).toMatchObject({
+      code: "COLLECTION_RPC_REJECTED",
+      causeCode: "P0001",
+      causeMessage: "central invoice collection payload mismatch",
+    });
+  });
 });

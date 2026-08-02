@@ -90,16 +90,19 @@ export type CentralInvoiceAuthorityCollectionRpcAdapterErrorCode =
 export class CentralInvoiceAuthorityCollectionRpcAdapterError extends Error {
   readonly code: CentralInvoiceAuthorityCollectionRpcAdapterErrorCode;
   readonly causeCode?: string;
+  readonly causeMessage?: string;
 
   constructor(
     code: CentralInvoiceAuthorityCollectionRpcAdapterErrorCode,
     message: string,
     causeCode?: string,
+    causeMessage?: string,
   ) {
     super(message);
     this.name = "CentralInvoiceAuthorityCollectionRpcAdapterError";
     this.code = code;
     this.causeCode = causeCode;
+    this.causeMessage = causeMessage;
   }
 }
 
@@ -289,6 +292,7 @@ export async function updateCentralInvoiceCollectionThroughRpc(
       "COLLECTION_RPC_REJECTED",
       "Supabase rechazo la actualizacion central de cobro.",
       error.code,
+      error.message,
     );
   }
 

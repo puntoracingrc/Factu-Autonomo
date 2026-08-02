@@ -121,6 +121,8 @@ const allowedHistoricalInvoiceImportMigration =
   "20260802104638_central_invoice_historical_invoice_import.sql";
 const allowedCollectionStatusEventsMigration =
   "20260802123000_central_invoice_collection_status_events.sql";
+const allowedCollectionStatusEventsV2Migration =
+  "20260802155754_central_invoice_collection_device_version_relaxation.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -133,6 +135,7 @@ const allowedCentralMigrations = new Set([
   allowedSeriesReconciliationMigration,
   allowedHistoricalInvoiceImportMigration,
   allowedCollectionStatusEventsMigration,
+  allowedCollectionStatusEventsV2Migration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -377,6 +380,81 @@ if (centralMigrations.includes(allowedCollectionStatusEventsMigration)) {
   );
   assert.doesNotMatch(collectionStatusEvents, /\buser_backups\b/i);
   assert.doesNotMatch(collectionStatusEvents, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedCollectionStatusEventsV2Migration)) {
+  const collectionStatusEventsV2 = read(
+    `supabase/migrations/${allowedCollectionStatusEventsV2Migration}`,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /CENTRAL_INVOICE_AUTHORITY_COLLECTION_STATUS_EVENTS_V2/,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /\bcreate\s+or\s+replace\s+function\s+public\.update_central_invoice_collection_v1\b/i,
+  );
+  assert.match(collectionStatusEventsV2, /\bsecurity\s+definer\b/i);
+  assert.match(collectionStatusEventsV2, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(
+    collectionStatusEventsV2,
+    /auth\.role\(\)\s*<>\s*'service_role'/i,
+  );
+  assert.match(collectionStatusEventsV2, /\bfor\s+update\b/i);
+  assert.match(
+    collectionStatusEventsV2,
+    /\bp_expected_version\s*>\s*v_document\.current_version\b/i,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /\bp_expected_version\s*<\s*v_document\.current_version\b/i,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /\bchange_kind\s*<>\s*'collection_status_updated'/i,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /\bv_payload_local_document_id\s+is\s+null/i,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /\binvoice_collection_updated\b/i,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /\bcollection_status_updated\b/i,
+  );
+  assert.match(
+    collectionStatusEventsV2,
+    /\bgrant\s+execute\s+on\s+function\s+public\.update_central_invoice_collection_v1[\s\S]*\bto\s+service_role/i,
+  );
+  assert.doesNotMatch(
+    collectionStatusEventsV2,
+    /\bgrant\s+execute\s+on\s+function\s+public\.update_central_invoice_collection_v1[\s\S]*\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    collectionStatusEventsV2,
+    /v_payload_document->>'id'\s+is\s+distinct\s+from\s+v_document\.local_document_id/i,
+  );
+  assert.doesNotMatch(
+    collectionStatusEventsV2,
+    /\bupdate\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    collectionStatusEventsV2,
+    /\binsert\s+into\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    collectionStatusEventsV2,
+    /\bemitted_snapshot\s*=/i,
+  );
+  assert.doesNotMatch(
+    collectionStatusEventsV2,
+    /\bemitted_hash\s*=/i,
+  );
+  assert.doesNotMatch(collectionStatusEventsV2, /\buser_backups\b/i);
+  assert.doesNotMatch(collectionStatusEventsV2, /\bsync_entities\b/i);
 }
 
 if (centralMigrations.includes(allowedTenantGuardMigration)) {

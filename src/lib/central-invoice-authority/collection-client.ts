@@ -55,6 +55,8 @@ export type CentralInvoiceAuthorityCollectionUpdateResult =
       code: string;
       message: string;
       status: number;
+      causeCode?: string;
+      causeMessage?: string;
     };
 
 export interface CentralInvoiceAuthorityCollectionDependencies {
@@ -82,8 +84,19 @@ function errorResult(
   status: number,
   code: string,
   message: string,
+  cause?: {
+    causeCode?: string;
+    causeMessage?: string;
+  },
 ): CentralInvoiceAuthorityCollectionUpdateResult {
-  return { ok: false, status, code, message };
+  return {
+    ok: false,
+    status,
+    code,
+    message,
+    ...(cause?.causeCode ? { causeCode: cause.causeCode } : {}),
+    ...(cause?.causeMessage ? { causeMessage: cause.causeMessage } : {}),
+  };
 }
 
 function identityFromPayload(
@@ -171,6 +184,14 @@ export async function updateCentralInvoiceCollectionFromBrowser(
       typeof error.message === "string"
         ? error.message
         : "La autoridad central no acepto el cambio de cobro.",
+      {
+        causeCode:
+          typeof error.causeCode === "string" ? error.causeCode : undefined,
+        causeMessage:
+          typeof error.causeMessage === "string"
+            ? error.causeMessage
+            : undefined,
+      },
     );
   }
 
