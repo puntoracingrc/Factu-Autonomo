@@ -1,21 +1,30 @@
 import type { AppData } from "./types";
+import {
+  rememberPersistedAppDerivedCache,
+  type PersistedAppDerivedCache,
+} from "./persisted-app-derived-cache";
 
 const CACHE_DATABASE_NAME = "factura-autonomo-normalized-cache";
-const CACHE_DATABASE_VERSION = 1;
+const CACHE_DATABASE_VERSION = 2;
 const CACHE_STORE_NAME = "snapshots";
-// Bump when normalizeLoadedData semantics change so every snapshot is rebuilt.
-export const PERSISTED_APP_DATA_CACHE_VERSION = 1;
+// Bump when the record shape changes. The release id also rebuilds snapshots
+// whenever application semantics change in a new deployment.
+export const PERSISTED_APP_DATA_CACHE_VERSION = 2;
+export const PERSISTED_APP_DATA_CACHE_RELEASE_ID =
+  process.env.NEXT_PUBLIC_APP_BUILD_SHA?.trim() || "development";
 
 interface PersistedAppDataCacheRecord {
   id: string;
   version: number;
+  releaseId: string;
   storageKey: string;
   raw: string | null;
   data: AppData;
+  derived?: PersistedAppDerivedCache;
 }
 
 function cacheRecordId(storageKey: string): string {
-  return `${PERSISTED_APP_DATA_CACHE_VERSION}:${storageKey}`;
+  return `${PERSISTED_APP_DATA_CACHE_VERSION}:${PERSISTED_APP_DATA_CACHE_RELEASE_ID}:${storageKey}`;
 }
 
 function hasAppDataShape(value: unknown): value is AppData {
@@ -44,6 +53,7 @@ export function matchesPersistedAppDataCacheRecord(
   return (
     record.id === cacheRecordId(storageKey) &&
     record.version === PERSISTED_APP_DATA_CACHE_VERSION &&
+    record.releaseId === PERSISTED_APP_DATA_CACHE_RELEASE_ID &&
     record.storageKey === storageKey &&
     record.raw === raw &&
     hasAppDataShape(record.data)
@@ -65,6 +75,8 @@ function openCacheDatabase(factory: IDBFactory): Promise<IDBDatabase> {
       const database = request.result;
       if (!database.objectStoreNames.contains(CACHE_STORE_NAME)) {
         database.createObjectStore(CACHE_STORE_NAME, { keyPath: "id" });
+      } else {
+        request.transaction?.objectStore(CACHE_STORE_NAME).clear();
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -104,9 +116,11 @@ export async function readPersistedAppDataCache(
         .objectStore(CACHE_STORE_NAME)
         .get(cacheRecordId(storageKey)),
     );
-    return matchesPersistedAppDataCacheRecord(record, storageKey, raw)
-      ? record.data
-      : null;
+    if (!matchesPersistedAppDataCacheRecord(record, storageKey, raw)) {
+      return null;
+    }
+    rememberPersistedAppDerivedCache(record.data, record.derived);
+    return record.data;
   } catch {
     return null;
   } finally {
@@ -118,6 +132,7 @@ export async function writePersistedAppDataCache(
   storageKey: string,
   raw: string | null,
   data: AppData,
+  derived?: PersistedAppDerivedCache,
 ): Promise<void> {
   const factory = availableIndexedDb();
   if (!factory) return;
@@ -129,9 +144,11 @@ export async function writePersistedAppDataCache(
     transaction.objectStore(CACHE_STORE_NAME).put({
       id: cacheRecordId(storageKey),
       version: PERSISTED_APP_DATA_CACHE_VERSION,
+      releaseId: PERSISTED_APP_DATA_CACHE_RELEASE_ID,
       storageKey,
       raw,
       data,
+      derived,
     } satisfies PersistedAppDataCacheRecord);
     await transactionComplete(transaction);
   } catch {

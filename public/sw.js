@@ -1,4 +1,4 @@
-const STATIC_CACHE = "factu-pwa-static-v3";
+const STATIC_CACHE = "factu-pwa-static-v4";
 const CACHE_PREFIX = "factu-pwa-";
 const PRECACHE_URLS = [
   "/manifest.json",

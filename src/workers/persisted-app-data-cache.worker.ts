@@ -1,6 +1,7 @@
 import { gunzipSync, strFromU8 } from "fflate";
 
 import { writePersistedAppDataCache } from "../lib/persisted-app-data-cache";
+import { buildPersistedAppDerivedCache } from "../lib/persisted-app-derived-cache-builder";
 import { normalizeLoadedData } from "../lib/storage";
 
 const COMPRESSED_STORAGE_PREFIX = "factu-gzip-v1:";
@@ -34,10 +35,12 @@ self.onmessage = (event: MessageEvent<CacheWorkerRequest>) => {
   void (async () => {
     try {
       const normalized = normalizeLoadedData(parseStoredData(event.data.raw));
+      const derived = buildPersistedAppDerivedCache(normalized);
       await writePersistedAppDataCache(
         event.data.storageKey,
         event.data.raw,
         normalized,
+        derived,
       );
       self.postMessage({ ok: true } satisfies CacheWorkerResponse);
     } catch {

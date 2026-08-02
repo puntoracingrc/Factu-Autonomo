@@ -60,6 +60,11 @@ const nextConfig: NextConfig = {
       "",
     NEXT_PUBLIC_VERCEL_ENV:
       process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.VERCEL_ENV ?? "",
+    NEXT_PUBLIC_APP_BUILD_SHA:
+      process.env.NEXT_PUBLIC_APP_BUILD_SHA ??
+      process.env.VERCEL_GIT_COMMIT_SHA ??
+      process.env.GITHUB_SHA ??
+      "development",
   },
   ...(isVercelBuild
     ? {

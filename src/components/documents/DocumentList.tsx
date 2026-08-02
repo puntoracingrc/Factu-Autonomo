@@ -51,12 +51,10 @@ import {
 } from "@/lib/document-client-contact";
 import {
   filterDocumentsByQuery,
-  getFacturasIncludingRectificativas,
   isDocumentEditable,
   isDraftInvoiceNumber,
-  sortDocumentsByNumberDesc,
-  sortInvoicesByPeriodAndNumberDesc,
 } from "@/lib/documents";
+import { getDocumentListBase } from "@/lib/document-list-derived-cache";
 import type {
   InvoicePdfDocumentSelection,
 } from "@/lib/billing/export-invoice-pdf-archive";
@@ -95,7 +93,6 @@ import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
 import {
   PRODUCT_MONTH_NAMES,
   PRODUCT_QUARTERS,
-  availableProductPeriodYears,
   filterDocumentsByProductPeriod,
   formatProductPeriodLabel,
   getDefaultProductPeriod,
@@ -284,18 +281,13 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   const [expenseAllocationsByDocumentId, setExpenseAllocationsByDocumentId] =
     useState<Record<string, ExpenseCostAllocationsByExpenseId>>({});
 
-  const allDocuments = useMemo(
-    () =>
-      type === "factura"
-        ? getFacturasIncludingRectificativas(data.documents)
-        : data.documents.filter((document) => document.type === type),
-    [data.documents, type],
+  const documentListBase = useMemo(
+    () => getDocumentListBase(data.documents, data.profile),
+    [data.documents, data.profile],
   );
+  const allDocuments = documentListBase.byType[type];
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
-  const years = useMemo(
-    () => availableProductPeriodYears(allDocuments, []),
-    [allDocuments],
-  );
+  const years = documentListBase.yearsByType[type];
   const invoiceIntegrityInspection = useMemo(
     () =>
       type === "factura"
@@ -329,23 +321,14 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
         fiscalBlockedDocumentIds,
       ),
     );
-    const sorted =
-      type === "factura"
-        ? sortInvoicesByPeriodAndNumberDesc(
-            statusDocuments,
-            data.profile.numbering,
-          )
-        : sortDocumentsByNumberDesc(statusDocuments);
-    return filterDocumentsByQuery(sorted, search, { vatExempt });
+    return filterDocumentsByQuery(statusDocuments, search, { vatExempt });
   }, [
     allDocuments,
     data.documents,
-    data.profile.numbering,
     fiscalBlockedDocumentIds,
     period,
     search,
     statusFilter,
-    type,
     vatExempt,
   ]);
 
