@@ -53,6 +53,7 @@ import {
 } from "@/lib/document-client-contact";
 import {
   filterDocumentsByQuery,
+  getFacturasIncludingRectificativas,
   isDocumentEditable,
   isDraftInvoiceNumber,
   sortDocumentsByNumberDesc,
@@ -86,7 +87,7 @@ import {
 } from "@/lib/document-list-profitability";
 import { getDocumentChainItems } from "@/lib/document-links";
 import {
-  getExpenseCostAllocationsForWork,
+  getExpenseCostAllocationsByWork,
   type ExpenseCostAllocationsByExpenseId,
 } from "@/lib/rentabilidad-real/expense-linking";
 import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
@@ -259,7 +260,7 @@ interface InvoiceExportScope {
 }
 
 export function DocumentList({ type, basePath }: DocumentListProps) {
-  const { data, getDocumentsByType, repairDocumentCustomer } = useAppStore();
+  const { data, repairDocumentCustomer } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
   const { limits } = useBilling();
   const vatExempt = isVatExempt(data.profile);
@@ -286,22 +287,30 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   const [expenseAllocationsByDocumentId, setExpenseAllocationsByDocumentId] =
     useState<Record<string, ExpenseCostAllocationsByExpenseId>>({});
 
-  const allDocuments = getDocumentsByType(type);
+  const allDocuments = useMemo(
+    () =>
+      type === "factura"
+        ? getFacturasIncludingRectificativas(data.documents)
+        : data.documents.filter((document) => document.type === type),
+    [data.documents, type],
+  );
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const years = useMemo(
     () => availableProductPeriodYears(allDocuments, []),
     [allDocuments],
   );
   const fiscalBlockedDocumentIds = useMemo(
-    () =>
-      new Set(
+    () => {
+      if (type !== "factura") return new Set<string>();
+      return new Set(
         selectCanonicalFiscalDocumentsForExport(
           data.documents,
           data.profile,
           () => true,
         ).blockedDocuments.map((document) => document.id),
-      ),
-    [data.documents, data.profile],
+      );
+    },
+    [data.documents, data.profile, type],
   );
 
   useEffect(() => {
@@ -420,24 +429,25 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   ]);
 
   const workExpenseSummaries = useMemo(() => {
-    return summarizeWorkDocumentExpensesById(data.expenses);
-  }, [data.expenses]);
+    return type === "presupuesto"
+      ? summarizeWorkDocumentExpensesById(data.expenses)
+      : new Map();
+  }, [data.expenses, type]);
   const appIssuedRecoveryCollection = useMemo(
-    () => inspectAppIssuedDocumentRecoveryCollection(data.documents),
-    [data.documents],
+    () =>
+      type === "factura"
+        ? inspectAppIssuedDocumentRecoveryCollection(data.documents)
+        : {
+            claimedDocumentIds: new Set<string>(),
+            validDocumentIds: new Set<string>(),
+            issuesByDocumentId: new Map(),
+          },
+    [data.documents, type],
   );
 
   useEffect(() => {
     if (type !== "factura") return;
-    const nextAllocations: Record<string, ExpenseCostAllocationsByExpenseId> =
-      {};
-    for (const document of data.documents) {
-      if (document.type !== "factura") continue;
-      nextAllocations[document.id] = getExpenseCostAllocationsForWork(
-        document.id,
-      );
-    }
-    setExpenseAllocationsByDocumentId(nextAllocations);
+    setExpenseAllocationsByDocumentId(getExpenseCostAllocationsByWork());
   }, [data.documents, type]);
 
   const totalCount = allDocuments.length;

@@ -66,12 +66,34 @@ import {
 } from "@/lib/dashboard-visual-cache";
 import {
   buildListVisualCacheSnapshot,
+  changedListVisualCacheKinds,
   LIST_VISUAL_CACHE_KINDS,
   readListVisualCacheSnapshot,
   writeListVisualCacheSnapshot,
+  type ListVisualCacheDependencies,
   type ListVisualCacheKind,
   type ListVisualCacheSnapshot,
 } from "@/lib/list-visual-cache";
+import { isVatExempt } from "@/lib/vat-regime";
+
+type IdleCapableWindow = Window & {
+  requestIdleCallback?: (
+    callback: () => void,
+    options?: { timeout: number },
+  ) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
+function scheduleVisualCacheRefresh(callback: () => void): () => void {
+  const idleWindow = window as IdleCapableWindow;
+  if (idleWindow.requestIdleCallback) {
+    const handle = idleWindow.requestIdleCallback(callback, { timeout: 1_200 });
+    return () => idleWindow.cancelIdleCallback?.(handle);
+  }
+
+  const handle = window.setTimeout(callback, 50);
+  return () => window.clearTimeout(handle);
+}
 
 function emptyListVisualCacheSnapshots(): Record<
   ListVisualCacheKind,
@@ -114,13 +136,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       : emptyListVisualCacheSnapshots(),
   );
   const mobileNavRef = useRef<HTMLDivElement>(null);
+  const visualCacheDataRef = useRef(data);
+  const writtenListVisualCacheDependenciesRef =
+    useRef<ListVisualCacheDependencies | null>(null);
   const previousPathnameRef = useRef(pathname);
   const prefetchedNavigationHrefsRef = useRef(new Set<string>());
   const navigationPrefetchTimersRef = useRef(new Map<string, number>());
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
   const appNavItems = APP_NAV_ITEMS;
+  visualCacheDataRef.current = data;
   const selectedPathname = pendingNavigation?.href ?? pathname;
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
+  const visualCacheVatExempt = isVatExempt(data.profile);
   const resolvedTheme =
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
   const baseShowFactu =
@@ -215,16 +242,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [visualCacheScope]);
 
   useEffect(() => {
-    if (!ready || !visualCacheScope) return;
-
-    const snapshots = emptyListVisualCacheSnapshots();
-    for (const kind of LIST_VISUAL_CACHE_KINDS) {
-      const snapshot = buildListVisualCacheSnapshot(data, kind);
-      writeListVisualCacheSnapshot(snapshot, visualCacheScope);
-      snapshots[kind] = snapshot;
+    if (!ready || !visualCacheScope) {
+      writtenListVisualCacheDependenciesRef.current = null;
+      return;
     }
-    setListVisualCache(snapshots);
-  }, [data, ready, visualCacheScope]);
+
+    const nextDependencies: ListVisualCacheDependencies = {
+      scope: visualCacheScope,
+      documents: data.documents,
+      customers: data.customers,
+      expenses: data.expenses,
+      suppliers: data.suppliers,
+      products: data.products,
+      vatExempt: visualCacheVatExempt,
+    };
+    const changedKinds = changedListVisualCacheKinds(
+      writtenListVisualCacheDependenciesRef.current,
+      nextDependencies,
+    );
+    if (changedKinds.length === 0) {
+      writtenListVisualCacheDependenciesRef.current = nextDependencies;
+      return;
+    }
+    const cacheData = visualCacheDataRef.current;
+
+    return scheduleVisualCacheRefresh(() => {
+      const snapshots: Partial<
+        Record<ListVisualCacheKind, ListVisualCacheSnapshot>
+      > = {};
+      for (const kind of changedKinds) {
+        const snapshot = buildListVisualCacheSnapshot(cacheData, kind);
+        writeListVisualCacheSnapshot(snapshot, visualCacheScope);
+        snapshots[kind] = snapshot;
+      }
+      writtenListVisualCacheDependenciesRef.current = nextDependencies;
+      setListVisualCache((current) => ({ ...current, ...snapshots }));
+    });
+  }, [
+    data.customers,
+    data.documents,
+    data.expenses,
+    data.products,
+    data.suppliers,
+    ready,
+    visualCacheVatExempt,
+    visualCacheScope,
+  ]);
 
   useEffect(() => {
     if (!ready) return;

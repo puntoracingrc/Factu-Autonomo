@@ -13,7 +13,7 @@ interface RentabilidadRealLocalStorageLike {
 
 export type ExpenseCostAllocationsByExpenseId = Record<string, number>;
 export type ExpenseLineExclusionsByExpenseId = Record<string, string[]>;
-type ExpenseCostAllocationsByWork = Record<
+export type ExpenseCostAllocationsByWork = Record<
   string,
   ExpenseCostAllocationsByExpenseId
 >;
@@ -156,6 +156,12 @@ export function getExpenseCostAllocationsForWork(
 ): ExpenseCostAllocationsByExpenseId {
   if (!workDocumentId) return {};
   return readAllocations(storage)[workDocumentId] ?? {};
+}
+
+export function getExpenseCostAllocationsByWork(
+  storage?: RentabilidadRealLocalStorageLike,
+): ExpenseCostAllocationsByWork {
+  return readAllocations(storage);
 }
 
 export function setExpenseCostAllocationForWork(

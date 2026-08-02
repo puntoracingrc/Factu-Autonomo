@@ -1017,6 +1017,25 @@ describe("storage", () => {
     expect(loadData().profile.name).toBe(candidate.profile.name);
   });
 
+  it("proyecta y comprime una sola vez un cambio ordinario", () => {
+    const nativeBtoa = globalThis.btoa;
+    let compressionCount = 0;
+    vi.stubGlobal("btoa", (value: string) => {
+      compressionCount += 1;
+      return nativeBtoa(value);
+    });
+    const candidate: AppData = {
+      ...sampleData(),
+      profile: {
+        ...sampleData().profile,
+        name: "contenido ordinario grande ".repeat(40_000),
+      },
+    };
+
+    expect(saveData(candidate)).toEqual({ status: "applied" });
+    expect(compressionCount).toBe(1);
+  });
+
   it("distingue un workspace fiscal que no supera la proyección privada", () => {
     const setItem = vi.spyOn(localStorage, "setItem");
     const malformed = {
@@ -1307,6 +1326,27 @@ describe("storage", () => {
 
     expect(inspectPersistedData(expected)).toEqual({ status: "applied" });
     expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("reutiliza una instantánea durable ya normalizada mientras el raw no cambia", () => {
+    const expected = normalizeLoadedData(sampleData());
+    const raw = JSON.stringify(expected);
+    const store = new Map([[STORAGE_KEY, raw]]);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+
+    const first = readPersistedDataSnapshot();
+    const parse = vi.spyOn(JSON, "parse");
+    parse.mockClear();
+
+    const second = readPersistedDataSnapshot();
+
+    expect(second).toBe(first);
+    expect(inspectPersistedData(first!)).toEqual({ status: "applied" });
+    expect(parse).not.toHaveBeenCalled();
   });
 
   it("rechaza una recuperación cuando otra pestaña conserva datos distintos", () => {
