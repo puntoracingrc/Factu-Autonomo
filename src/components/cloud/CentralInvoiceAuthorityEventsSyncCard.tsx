@@ -1,24 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileUp, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
+import { RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
-import {
-  CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS,
-  CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID,
-  importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser,
-} from "@/lib/central-invoice-authority/historical-import-client";
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import type { CentralInvoiceAuthorityEventsSyncStateV1 } from "@/lib/types";
 
 const CENTRAL_AUTHORITY_EVENTS_MANUAL_LIMIT = 50;
-const CENTRAL_AUTHORITY_HISTORICAL_IMPORT_NUMBER_SET = new Set<string>(
-  CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS,
-);
 
 type ManualNotice = {
   tone: "success" | "warning" | "error";
@@ -40,10 +32,6 @@ function formatCentralAuthorityDate(value: string | undefined): string {
 
 function plural(value: number, singular: string, pluralText: string): string {
   return value === 1 ? `${value} ${singular}` : `${value} ${pluralText}`;
-}
-
-function normalizeInvoiceNumber(value: string): string {
-  return value.trim().toUpperCase();
 }
 
 export function describeCentralAuthorityEventsSyncState(
@@ -110,7 +98,6 @@ export function CentralInvoiceAuthorityEventsSyncCard() {
   const { data, ready, syncCentralInvoiceAuthorityEvents } = useAppStore();
   const { cloudEnabled, user, requiresEmailConfirmation } = useCloudSync();
   const [checking, setChecking] = useState(false);
-  const [importingHistorical, setImportingHistorical] = useState(false);
   const [notice, setNotice] = useState<ManualNotice | null>(null);
 
   const state = data.centralInvoiceAuthorityEventsSync;
@@ -132,56 +119,6 @@ export function CentralInvoiceAuthorityEventsSyncCard() {
           ? "Cargando datos locales."
           : null;
   const canCheck = !checking && !unavailableReason;
-  const historicalImportEnabled =
-    user?.id === CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID;
-  const historicalCandidates = useMemo(
-    () =>
-      historicalImportEnabled
-        ? data.documents.filter((document) =>
-            CENTRAL_AUTHORITY_HISTORICAL_IMPORT_NUMBER_SET.has(
-              normalizeInvoiceNumber(document.number),
-            ),
-          )
-        : [],
-    [data.documents, historicalImportEnabled],
-  );
-  const historicalDocuments = useMemo(() => {
-    const byNumber = new Map(
-      historicalCandidates.map((document) => [
-        normalizeInvoiceNumber(document.number),
-        document,
-      ]),
-    );
-    return CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS.map((number) =>
-      byNumber.get(number),
-    );
-  }, [historicalCandidates]);
-  const historicalMissingCount = historicalDocuments.filter(
-    (document) => !document,
-  ).length;
-  const historicalDuplicateCount =
-    historicalCandidates.length -
-    historicalDocuments.filter((document) => document).length;
-  const historicalMissingSnapshotCount = historicalDocuments.filter(
-    (document) => document && !document.documentSnapshot,
-  ).length;
-  const historicalImportUnavailableReason = !historicalImportEnabled
-    ? null
-    : !ready
-      ? "Cargando datos locales."
-      : historicalMissingCount > 0
-        ? "No estan las siete facturas pendientes en este dispositivo."
-        : historicalDuplicateCount > 0
-          ? "Hay numeros repetidos en este dispositivo; no se importa nada."
-          : historicalMissingSnapshotCount > 0
-            ? "Alguna factura no conserva snapshot fiscal; no se importa nada."
-            : null;
-  const canImportHistorical =
-    historicalImportEnabled &&
-    !checking &&
-    !importingHistorical &&
-    !unavailableReason &&
-    !historicalImportUnavailableReason;
 
   async function handleCheckCentralEvents() {
     setChecking(true);
@@ -193,38 +130,6 @@ export function CentralInvoiceAuthorityEventsSyncCard() {
       setNotice(describeCentralAuthorityEventsManualResult(result));
     } finally {
       setChecking(false);
-    }
-  }
-
-  async function handleHistoricalImport() {
-    const documents = historicalDocuments.flatMap((document) =>
-      document ? [document] : [],
-    );
-    setImportingHistorical(true);
-    setNotice(null);
-    try {
-      const result =
-        await importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser(
-          documents,
-        );
-      if (!result.ok) {
-        setNotice({
-          tone: "error",
-          message: result.message,
-        });
-        return;
-      }
-
-      const syncResult = await syncCentralInvoiceAuthorityEvents(data, {
-        limit: CENTRAL_AUTHORITY_EVENTS_MANUAL_LIMIT,
-      });
-      const syncNotice = describeCentralAuthorityEventsManualResult(syncResult);
-      setNotice({
-        tone: syncNotice.tone === "error" ? "warning" : "success",
-        message: `Importacion central terminada: ${plural(result.imported.length, "factura registrada", "facturas registradas")}. ${syncNotice.message}`,
-      });
-    } finally {
-      setImportingHistorical(false);
     }
   }
 
@@ -289,39 +194,6 @@ export function CentralInvoiceAuthorityEventsSyncCard() {
         <RefreshCw className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
         {checking ? "Comprobando…" : "Comprobar facturas centrales"}
       </Button>
-
-      {historicalImportEnabled ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 text-sm leading-6 text-amber-950">
-              <p className="font-bold">
-                Importación temporal de facturas pendientes
-              </p>
-              <p>
-                F-2026-2959 a F-2026-2965 desde este dispositivo.
-              </p>
-              {historicalImportUnavailableReason ? (
-                <p className="mt-1 text-amber-900">
-                  {historicalImportUnavailableReason}
-                </p>
-              ) : null}
-            </div>
-            <Button
-              variant="secondary"
-              onClick={() => void handleHistoricalImport()}
-              disabled={!canImportHistorical}
-              aria-busy={importingHistorical}
-            >
-              <FileUp
-                className={`h-4 w-4 ${
-                  importingHistorical ? "animate-pulse" : ""
-                }`}
-              />
-              {importingHistorical ? "Importando…" : "Subir pendientes"}
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </Card>
   );
 }
