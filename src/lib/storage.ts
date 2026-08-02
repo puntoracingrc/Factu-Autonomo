@@ -127,6 +127,19 @@ const STORAGE_KEY = "factura-autonomo-data";
 const COMPRESSED_STORAGE_PREFIX = "factu-gzip-v1:";
 const STORAGE_COMPRESSION_THRESHOLD = 750_000;
 
+interface PersistedSnapshotCache {
+  storage: Storage;
+  storageKey: string;
+  raw: string | null;
+  parsed?: unknown;
+  normalized?: AppData;
+  normalizedTimestamp?: string;
+  equivalentData?: AppData;
+  equivalentDataTimestamp?: string;
+}
+
+let persistedSnapshotCache: PersistedSnapshotCache | null = null;
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   const chunkSize = 0x8000;
@@ -272,6 +285,17 @@ export function projectAppDataForPersistence(
   return result;
 }
 
+function needsBaseAwareFiscalProjection(data: AppData): boolean {
+  if (data.fiscalNotificationsWorkspace) return true;
+  return Boolean(
+    data.meta?.pendingChanges?.some(
+      (change) =>
+        change.entityType === "fiscal_notifications_workspace" &&
+        !change.deleted,
+    ),
+  );
+}
+
 function parseStoredData(raw: string): unknown {
   if (!raw.startsWith(COMPRESSED_STORAGE_PREFIX)) return JSON.parse(raw);
 
@@ -282,6 +306,80 @@ function parseStoredData(raw: string): unknown {
 
 function currentStorageKey(): string {
   return isDemoWorkspaceMode() ? DEMO_WORKSPACE_STORAGE_KEY : STORAGE_KEY;
+}
+
+function matchingPersistedSnapshotCache(
+  storage: Storage,
+  storageKey: string,
+  raw: string | null,
+): PersistedSnapshotCache | null {
+  const cached = persistedSnapshotCache;
+  return cached &&
+    cached.storage === storage &&
+    cached.storageKey === storageKey &&
+    cached.raw === raw
+    ? cached
+    : null;
+}
+
+function rememberPersistedSnapshot(
+  storage: Storage,
+  storageKey: string,
+  raw: string | null,
+  values: Pick<
+    PersistedSnapshotCache,
+    "parsed" | "normalized" | "equivalentData"
+  >,
+): PersistedSnapshotCache {
+  persistedSnapshotCache = {
+    storage,
+    storageKey,
+    raw,
+    ...values,
+    ...(values.normalized
+      ? { normalizedTimestamp: getDataTimestamp(values.normalized) }
+      : {}),
+    ...(values.equivalentData
+      ? {
+          equivalentDataTimestamp: getDataTimestamp(values.equivalentData),
+        }
+      : {}),
+  };
+  return persistedSnapshotCache;
+}
+
+function cachedNormalizedSnapshot(
+  cached: PersistedSnapshotCache | null,
+): AppData | null {
+  if (
+    !cached?.normalized ||
+    cached.normalizedTimestamp !== getDataTimestamp(cached.normalized)
+  ) {
+    return null;
+  }
+  return cached.normalized;
+}
+
+function readCachedParsedStoredData(
+  storage: Storage,
+  storageKey: string,
+  raw: string,
+): { ok: true; value: unknown } | { ok: false } {
+  const cached = matchingPersistedSnapshotCache(storage, storageKey, raw);
+  if (cached && Object.hasOwn(cached, "parsed")) {
+    return { ok: true, value: cached.parsed };
+  }
+
+  try {
+    const parsed = parseStoredData(raw);
+    persistedSnapshotCache = {
+      ...(cached ?? { storage, storageKey, raw }),
+      parsed,
+    };
+    return { ok: true, value: parsed };
+  } catch {
+    return { ok: false };
+  }
 }
 
 export interface NormalizeLoadedDataOptions {
@@ -1361,20 +1459,32 @@ function normalizedDemoWorkspaceData(): AppData {
 
 export function loadData(): AppData {
   if (typeof window === "undefined") return EMPTY_DATA;
+  let storage: Storage;
+  let storageKey: string;
   let raw: string | null;
   try {
-    raw = localStorage.getItem(currentStorageKey());
+    storage = localStorage;
+    storageKey = currentStorageKey();
+    raw = storage.getItem(storageKey);
   } catch {
     return isDemoWorkspaceMode() ? normalizedDemoWorkspaceData() : EMPTY_DATA;
   }
+  const cached = matchingPersistedSnapshotCache(storage, storageKey, raw);
+  const cachedNormalized = cachedNormalizedSnapshot(cached);
+  if (cachedNormalized) return cachedNormalized;
   if (!raw) {
-    return isDemoWorkspaceMode() ? normalizedDemoWorkspaceData() : EMPTY_DATA;
+    const fallback = isDemoWorkspaceMode()
+      ? normalizedDemoWorkspaceData()
+      : EMPTY_DATA;
+    rememberPersistedSnapshot(storage, storageKey, null, {
+      normalized: fallback,
+      equivalentData: fallback,
+    });
+    return fallback;
   }
 
-  let parsed: unknown;
-  try {
-    parsed = parseStoredData(raw);
-  } catch {
+  const parsedResult = readCachedParsedStoredData(storage, storageKey, raw);
+  if (!parsedResult.ok) {
     const quarantined: AppData = {
       ...EMPTY_DATA,
       workspaceIntegrityQuarantine: [
@@ -1388,9 +1498,14 @@ export function loadData(): AppData {
     saveData(quarantined);
     return quarantined;
   }
+  const parsed = parsedResult.value;
 
   try {
     const normalized = normalizeLoadedData(parsed);
+    rememberPersistedSnapshot(storage, storageKey, raw, {
+      normalized,
+      equivalentData: cached?.equivalentData ?? normalized,
+    });
     if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
       saveData(normalized);
     }
@@ -1419,11 +1534,30 @@ export function loadData(): AppData {
 export function readPersistedDataSnapshot(): AppData | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(currentStorageKey());
+    const storage = localStorage;
+    const storageKey = currentStorageKey();
+    const raw = storage.getItem(storageKey);
+    const cached = matchingPersistedSnapshotCache(storage, storageKey, raw);
+    const cachedNormalized = cachedNormalizedSnapshot(cached);
+    if (cachedNormalized) return cachedNormalized;
     if (!raw) {
-      return isDemoWorkspaceMode() ? normalizedDemoWorkspaceData() : EMPTY_DATA;
+      const fallback = isDemoWorkspaceMode()
+        ? normalizedDemoWorkspaceData()
+        : EMPTY_DATA;
+      rememberPersistedSnapshot(storage, storageKey, null, {
+        normalized: fallback,
+        equivalentData: fallback,
+      });
+      return fallback;
     }
-    return normalizeLoadedData(parseStoredData(raw));
+    const parsedResult = readCachedParsedStoredData(storage, storageKey, raw);
+    if (!parsedResult.ok) return null;
+    const normalized = normalizeLoadedData(parsedResult.value);
+    rememberPersistedSnapshot(storage, storageKey, raw, {
+      normalized,
+      equivalentData: cached?.equivalentData ?? normalized,
+    });
+    return normalized;
   } catch {
     return null;
   }
@@ -1587,9 +1721,10 @@ export function inspectPersistedData(expected: AppData): SaveDataResult {
   }
 
   try {
+    const storage = localStorage;
     const storageKey = currentStorageKey();
-    const raw = localStorage.getItem(storageKey);
-    return storedRawMatchesExpected(raw, expected, storageKey)
+    const raw = storage.getItem(storageKey);
+    return storedRawMatchesExpected(raw, expected, storageKey, storage)
       ? { status: "applied" }
       : { status: "blocked", reason: "stale_precondition" };
   } catch {
@@ -1656,6 +1791,7 @@ function storedRawMatchesExpected(
   raw: string | null,
   expected: AppData,
   storageKey: string,
+  storage: Storage,
 ): boolean {
   if (raw === null) {
     if (inMemoryDataIsEmpty(expected)) return true;
@@ -1667,8 +1803,24 @@ function storedRawMatchesExpected(
   }
 
   try {
-    const parsed = parseStoredData(raw);
-    const normalizedCurrent = normalizeLoadedData(parsed);
+    const cached = matchingPersistedSnapshotCache(storage, storageKey, raw);
+    if (
+      (cached?.equivalentData === expected &&
+        cached.equivalentDataTimestamp === getDataTimestamp(expected)) ||
+      (cachedNormalizedSnapshot(cached) === expected &&
+        cached?.normalizedTimestamp === getDataTimestamp(expected))
+    ) {
+      return true;
+    }
+    const parsedResult = readCachedParsedStoredData(storage, storageKey, raw);
+    if (!parsedResult.ok) return false;
+    const parsed = parsedResult.value;
+    const normalizedCurrent =
+      cachedNormalizedSnapshot(cached) ?? normalizeLoadedData(parsed);
+    rememberPersistedSnapshot(storage, storageKey, raw, {
+      normalized: normalizedCurrent,
+      equivalentData: cached?.equivalentData,
+    });
     return (
       stableStringifySnapshot(
         projectAppDataForPersistence(normalizedCurrent, parsed),
@@ -1688,10 +1840,12 @@ export function saveData(
     return { status: "blocked", reason: "storage_unavailable" };
   }
 
-  let serialized = "";
+  let projectedWithoutBase: unknown;
+  let serializedWithoutBase: string | undefined;
   if (!options.fiscalNotificationsBaseAwareProjection) {
     try {
-      serialized = serializeStoredData(projectAppDataForPersistence(data));
+      projectedWithoutBase = projectAppDataForPersistence(data);
+      serializedWithoutBase = serializeStoredData(projectedWithoutBase);
     } catch {
       return { status: "blocked", reason: "serialization_failed" };
     }
@@ -1710,51 +1864,77 @@ export function saveData(
 
   if (
     options.expected &&
-    !storedRawMatchesExpected(beforeRaw, options.expected, storageKey)
+    !storedRawMatchesExpected(
+      beforeRaw,
+      options.expected,
+      storageKey,
+      storage,
+    )
   ) {
     return { status: "blocked", reason: "stale_precondition" };
   }
 
   let projected: unknown;
-  try {
+  let serialized: string;
+  if (
+    !options.fiscalNotificationsBaseAwareProjection &&
+    !needsBaseAwareFiscalProjection(data)
+  ) {
+    projected = projectedWithoutBase;
+    serialized = serializedWithoutBase!;
+  } else {
     let baseValue: unknown;
-    try {
-      baseValue = beforeRaw === null ? undefined : parseStoredData(beforeRaw);
-    } catch {
-      baseValue = undefined;
+    if (beforeRaw !== null) {
+      const parsedResult = readCachedParsedStoredData(
+        storage,
+        storageKey,
+        beforeRaw,
+      );
+      if (parsedResult.ok) baseValue = parsedResult.value;
     }
-    projected = projectAppDataForPersistence(data, baseValue);
-  } catch (error) {
-    return {
-      status: "blocked",
-      reason: options.fiscalNotificationsBaseAwareProjection
-        ? fiscalProjectionFailureReason(error)
-        : "serialization_failed",
-    };
-  }
-  try {
-    serialized = serializeStoredData(projected);
-  } catch {
-    return {
-      status: "blocked",
-      reason: options.fiscalNotificationsBaseAwareProjection
-        ? "fiscal_serialization_failed"
-        : "serialization_failed",
-    };
+    try {
+      projected = projectAppDataForPersistence(data, baseValue);
+    } catch (error) {
+      return {
+        status: "blocked",
+        reason: options.fiscalNotificationsBaseAwareProjection
+          ? fiscalProjectionFailureReason(error)
+          : "serialization_failed",
+      };
+    }
+    try {
+      serialized = serializeStoredData(projected);
+    } catch {
+      return {
+        status: "blocked",
+        reason: options.fiscalNotificationsBaseAwareProjection
+          ? "fiscal_serialization_failed"
+          : "serialization_failed",
+      };
+    }
   }
 
   if (beforeRaw && inMemoryDataIsEmpty(data)) {
-    try {
-      const parsed = parseStoredData(beforeRaw) as Partial<AppData>;
-      if (storedDataHasContent(parsed)) {
-        return { status: "blocked", reason: "protected_existing_data" };
-      }
-    } catch {
+    const parsedResult = readCachedParsedStoredData(
+      storage,
+      storageKey,
+      beforeRaw,
+    );
+    if (!parsedResult.ok) {
+      return { status: "blocked", reason: "protected_existing_data" };
+    }
+    if (storedDataHasContent(parsedResult.value as Partial<AppData>)) {
       return { status: "blocked", reason: "protected_existing_data" };
     }
   }
 
-  if (beforeRaw === serialized) return { status: "applied" };
+  if (beforeRaw === serialized) {
+    rememberPersistedSnapshot(storage, storageKey, serialized, {
+      parsed: projected,
+      equivalentData: data,
+    });
+    return { status: "applied" };
+  }
 
   // La serialización y la protección anti-vaciado pueden ser costosas. Una
   // segunda lectura inmediatamente antes del write evita pisar un cambio de
@@ -1783,6 +1963,10 @@ export function saveData(
   }
 
   if (writeError === undefined && writtenRaw === serialized) {
+    rememberPersistedSnapshot(storage, storageKey, serialized, {
+      parsed: projected,
+      equivalentData: data,
+    });
     return { status: "applied" };
   }
 
@@ -1829,7 +2013,7 @@ export function clearPersistedAppData(expected: AppData): SaveDataResult {
     return { status: "blocked", reason: "storage_unavailable" };
   }
 
-  if (!storedRawMatchesExpected(beforeRaw, expected, storageKey)) {
+  if (!storedRawMatchesExpected(beforeRaw, expected, storageKey, storage)) {
     return { status: "blocked", reason: "stale_precondition" };
   }
 
@@ -1840,9 +2024,11 @@ export function clearPersistedAppData(expected: AppData): SaveDataResult {
   }
 
   try {
-    return storage.getItem(storageKey) === null
-      ? { status: "applied" }
-      : { status: "blocked", reason: "verification_failed" };
+    if (storage.getItem(storageKey) !== null) {
+      return { status: "blocked", reason: "verification_failed" };
+    }
+    persistedSnapshotCache = null;
+    return { status: "applied" };
   } catch {
     return { status: "indeterminate", reason: "storage_state_unknown" };
   }

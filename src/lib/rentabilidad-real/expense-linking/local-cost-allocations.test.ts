@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearExpenseCostAllocationForWork,
   clearExpenseCostAllocationsForTests,
+  getExpenseCostAllocationsByWork,
   getExpenseCostAllocationsForWork,
   getExpenseLineExclusionsForWork,
   setExpenseCostAllocationForWork,
@@ -39,6 +40,19 @@ describe("rentabilidad real local expense cost allocations", () => {
     expect(getExpenseCostAllocationsForWork("invoice_1")).toEqual({
       expense_1: 75.56,
     });
+  });
+
+  it("lee todas las asignaciones con una sola consulta al almacenamiento", () => {
+    setExpenseCostAllocationForWork("invoice_1", "expense_1", 75, 200);
+    setExpenseCostAllocationForWork("invoice_2", "expense_2", 40, 100);
+    const getItem = vi.spyOn(localStorage, "getItem");
+    getItem.mockClear();
+
+    expect(getExpenseCostAllocationsByWork()).toEqual({
+      invoice_1: { expense_1: 75 },
+      invoice_2: { expense_2: 40 },
+    });
+    expect(getItem).toHaveBeenCalledTimes(1);
   });
 
   it("aplicar todo elimina el ajuste local", () => {

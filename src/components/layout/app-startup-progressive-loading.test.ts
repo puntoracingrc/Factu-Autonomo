@@ -74,7 +74,7 @@ describe("app startup progressive loading", () => {
     );
     expect(appShellSource).toContain("if (!visualCacheScope)");
     expect(appShellSource).toContain(
-      "buildListVisualCacheSnapshot(data, kind)",
+      "buildListVisualCacheSnapshot(cacheData, kind)",
     );
     expect(appShellSource).toContain(
       "writeListVisualCacheSnapshot(snapshot, visualCacheScope)",

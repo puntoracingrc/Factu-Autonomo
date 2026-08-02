@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildListVisualCacheSnapshot,
+  changedListVisualCacheKinds,
   hasListVisualCacheChanges,
   LIST_VISUAL_CACHE_KINDS,
   listVisualCacheStorageKey,
@@ -8,8 +9,10 @@ import {
   readListVisualCacheSnapshot,
   writeListVisualCacheSnapshot,
   type ListVisualCacheKind,
+  type ListVisualCacheDependencies,
 } from "./list-visual-cache";
 import { createDemoWorkspaceData } from "./demo-workspace";
+import { isVatExempt } from "./vat-regime";
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -35,6 +38,21 @@ function snapshot(
     kind,
     date,
   );
+}
+
+function dependencies(
+  scope: string,
+  data = createDemoWorkspaceData(new Date("2026-07-25T10:00:00.000Z")),
+): ListVisualCacheDependencies {
+  return {
+    scope,
+    documents: data.documents,
+    customers: data.customers,
+    expenses: data.expenses,
+    suppliers: data.suppliers,
+    products: data.products,
+    vatExempt: isVatExempt(data.profile),
+  };
 }
 
 describe("list visual cache", () => {
@@ -143,5 +161,43 @@ describe("list visual cache", () => {
 
     expect(hasListVisualCacheChanges(first, sameDataLater)).toBe(false);
     expect(hasListVisualCacheChanges(first, changed)).toBe(true);
+  });
+
+  it("recalcula solo facturas y clientes al modificar una factura", () => {
+    const previous = dependencies("user-1");
+    const invoiceIndex = previous.documents.findIndex(
+      (document) => document.type === "factura",
+    );
+    const documents = [...previous.documents];
+    documents[invoiceIndex] = {
+      ...documents[invoiceIndex],
+      status: "pagado",
+    };
+
+    expect(
+      changedListVisualCacheKinds(previous, { ...previous, documents }),
+    ).toEqual(["facturas", "clientes"]);
+  });
+
+  it("recalcula gastos y proveedores al modificar un gasto", () => {
+    const previous = dependencies("user-1");
+    const expenses = previous.expenses.map((expense, index) =>
+      index === 0 ? { ...expense, amount: expense.amount + 1 } : expense,
+    );
+
+    expect(
+      changedListVisualCacheKinds(previous, { ...previous, expenses }),
+    ).toEqual(["gastos", "proveedores"]);
+  });
+
+  it("no recalcula listados si solo cambia la identidad del array", () => {
+    const previous = dependencies("user-1");
+
+    expect(
+      changedListVisualCacheKinds(previous, {
+        ...previous,
+        documents: [...previous.documents],
+      }),
+    ).toEqual([]);
   });
 });

@@ -64,6 +64,78 @@ export interface ListVisualCacheSnapshot {
   signature: string;
 }
 
+export interface ListVisualCacheDependencies {
+  scope: string;
+  documents: AppData["documents"];
+  customers: AppData["customers"];
+  expenses: AppData["expenses"];
+  suppliers: AppData["suppliers"];
+  products: AppData["products"];
+  vatExempt: boolean;
+}
+
+export function changedListVisualCacheKinds(
+  previous: ListVisualCacheDependencies | null,
+  next: ListVisualCacheDependencies,
+): ListVisualCacheKind[] {
+  if (!previous || previous.scope !== next.scope) {
+    return [...LIST_VISUAL_CACHE_KINDS];
+  }
+
+  const changed = new Set<ListVisualCacheKind>();
+  if (previous.documents !== next.documents) {
+    const documentsChanged = collectChangedDocumentKinds(
+      previous.documents,
+      next.documents,
+      changed,
+    );
+    if (documentsChanged) changed.add("clientes");
+  }
+  if (previous.customers !== next.customers) changed.add("clientes");
+  if (previous.expenses !== next.expenses) {
+    changed.add("gastos");
+    changed.add("proveedores");
+  }
+  if (previous.suppliers !== next.suppliers) changed.add("proveedores");
+  if (previous.products !== next.products) changed.add("productos");
+  if (previous.vatExempt !== next.vatExempt) {
+    changed.add("presupuestos");
+    changed.add("facturas");
+    changed.add("recibos");
+    changed.add("gastos");
+  }
+  return [...changed];
+}
+
+function collectChangedDocumentKinds(
+  previous: AppData["documents"],
+  next: AppData["documents"],
+  changed: Set<ListVisualCacheKind>,
+): boolean {
+  let documentsChanged = false;
+  const length = Math.max(previous.length, next.length);
+  for (let index = 0; index < length; index += 1) {
+    const previousDocument = previous[index];
+    const nextDocument = next[index];
+    if (previousDocument === nextDocument) continue;
+    documentsChanged = true;
+    if (previousDocument) changed.add(documentListCacheKind(previousDocument));
+    if (nextDocument) changed.add(documentListCacheKind(nextDocument));
+  }
+  return documentsChanged;
+}
+
+function documentListCacheKind(document: Document): ListVisualCacheKind {
+  switch (document.type) {
+    case "factura":
+      return "facturas";
+    case "presupuesto":
+      return "presupuestos";
+    case "recibo":
+      return "recibos";
+  }
+}
+
 export function buildListVisualCacheSnapshot(
   data: AppData,
   kind: ListVisualCacheKind,
