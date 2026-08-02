@@ -79,12 +79,15 @@ function diffById<T extends { id: string }>(
   next: T[],
   timestamp: string,
 ): SyncChange[] {
+  if (prev === next) return [];
+
   const changes: SyncChange[] = [];
   const prevMap = new Map(prev.map((item) => [item.id, item]));
   const nextMap = new Map(next.map((item) => [item.id, item]));
 
   for (const item of next) {
     const before = prevMap.get(item.id);
+    if (before === item) continue;
     if (!before || stableJson(before) !== stableJson(item)) {
       changes.push({
         entityType,
