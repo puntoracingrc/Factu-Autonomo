@@ -48,6 +48,9 @@ function isCentralLinkCompatible(document: Document): boolean {
   if (link.eventType === "rectification_issued") {
     return document.type === "factura" && Boolean(document.rectification);
   }
+  if (link.eventType === "invoice_collection_updated") {
+    return document.type === "factura" && !document.rectification;
+  }
   return link.eventType === "document_repaired";
 }
 

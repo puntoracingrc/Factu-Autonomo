@@ -31,4 +31,34 @@ describe("AppStore central authority events sync bridge", () => {
     expect(block).not.toContain("setInterval");
     expect(block).not.toContain("CloudSyncContext");
   });
+
+  it("confirma cambios de cobro en autoridad central sin ensuciar la cola local", () => {
+    const syncStart = source.indexOf(
+      "const syncCentralInvoiceCollectionStatus = useCallback",
+    );
+    const syncEnd = source.indexOf("const markAsCollected = useCallback", syncStart);
+    expect(syncStart).toBeGreaterThan(-1);
+    expect(syncEnd).toBeGreaterThan(syncStart);
+    const syncBlock = source.slice(syncStart, syncEnd);
+
+    expect(syncBlock).toContain(
+      'import("@/lib/central-invoice-authority/collection-client")',
+    );
+    expect(syncBlock).toContain("updateCentralInvoiceCollectionFromBrowser");
+    expect(syncBlock).toContain('eventType: "invoice_collection_updated"');
+    expect(syncBlock).toContain("{ skipDirty: true }");
+
+    const markStart = source.indexOf("const markAsCollected = useCallback");
+    const receiptStart = source.indexOf(
+      "const generateReceiptForInvoice = useCallback",
+      markStart,
+    );
+    const markBlock = source.slice(markStart, receiptStart);
+    expect(markBlock).toContain("syncCentralInvoiceCollectionStatus(updated);");
+
+    const unmarkStart = source.indexOf("const unmarkAsCollected = useCallback");
+    const quoteStart = source.indexOf("const markQuoteAsAccepted = useCallback", unmarkStart);
+    const unmarkBlock = source.slice(unmarkStart, quoteStart);
+    expect(unmarkBlock).toContain("syncCentralInvoiceCollectionStatus(updated);");
+  });
 });

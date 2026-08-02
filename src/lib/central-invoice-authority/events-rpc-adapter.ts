@@ -9,7 +9,8 @@ export const CENTRAL_INVOICE_AUTHORITY_EVENTS_RPC_ADAPTER =
 export type CentralInvoiceAuthorityEventType =
   | "invoice_issued"
   | "rectification_issued"
-  | "document_repaired";
+  | "document_repaired"
+  | "invoice_collection_updated";
 
 export interface CentralInvoiceAuthorityEventsRpcClient {
   rpc(
@@ -118,7 +119,8 @@ function eventType(value: unknown): CentralInvoiceAuthorityEventType | null {
   if (
     value === "invoice_issued" ||
     value === "rectification_issued" ||
-    value === "document_repaired"
+    value === "document_repaired" ||
+    value === "invoice_collection_updated"
   ) {
     return value;
   }

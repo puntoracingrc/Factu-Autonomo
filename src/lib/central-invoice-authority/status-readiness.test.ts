@@ -12,6 +12,7 @@ function client(
     tableError?: { code?: string; message?: string } | null;
     issueError?: { code?: string; message?: string } | null;
     eventsError?: { code?: string; message?: string } | null;
+    collectionError?: { code?: string; message?: string } | null;
   } = {},
 ) {
   const tableCalls: unknown[] = [];
@@ -39,6 +40,17 @@ function client(
             : {
                 code: "P0001",
                 message: "invalid central invoice issue command",
+              },
+        };
+      }
+      if (name === "update_central_invoice_collection_v1") {
+        return {
+          data: null,
+          error: Object.hasOwn(overrides, "collectionError")
+            ? overrides.collectionError ?? null
+            : {
+                code: "P0001",
+                message: "invalid central invoice collection command",
               },
         };
       }
@@ -81,7 +93,7 @@ describe("central invoice authority status readiness", () => {
         count: 1,
       })),
     );
-    expect(rpcCalls).toHaveLength(2);
+    expect(rpcCalls).toHaveLength(3);
     expect(JSON.stringify(result)).not.toContain("documentPayload");
     expect(JSON.stringify(result)).not.toContain("emittedSnapshot");
   });
@@ -108,6 +120,17 @@ describe("central invoice authority status readiness", () => {
         p_user_id: null,
         p_device_id: "",
         p_limit: 1,
+      },
+    });
+    expect(rpcCalls[2]).toMatchObject({
+      name: "update_central_invoice_collection_v1",
+      args: {
+        p_user_id: null,
+        p_device_id: "",
+        p_expected_version: -1,
+        p_status: "__invalid__",
+        p_payment_status: "__invalid__",
+        p_document_payload: null,
       },
     });
   });
@@ -194,6 +217,30 @@ describe("central invoice authority status readiness", () => {
     ).resolves.toMatchObject({
       ready: false,
       blockers: ["central_invoice_events_rpc_unavailable"],
+    });
+  });
+
+  it("bloquea si la RPC de cobros falta o no corta con el error esperado", async () => {
+    const missing = client({
+      collectionError: { code: "PGRST202", message: "function not found" },
+    });
+    const unexpectedSuccess = client({ collectionError: null });
+
+    await expect(
+      probeCentralInvoiceAuthorityStatusReadiness({
+        client: missing.probeClient,
+      }),
+    ).resolves.toMatchObject({
+      ready: false,
+      blockers: ["central_invoice_collection_rpc_unavailable"],
+    });
+    await expect(
+      probeCentralInvoiceAuthorityStatusReadiness({
+        client: unexpectedSuccess.probeClient,
+      }),
+    ).resolves.toMatchObject({
+      ready: false,
+      blockers: ["central_invoice_collection_rpc_unavailable"],
     });
   });
 });

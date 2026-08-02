@@ -47,18 +47,30 @@ function readyProbeClient(): CentralInvoiceAuthorityStatusProbeClient {
       };
     },
     async rpc(name) {
+      if (name === "issue_central_invoice_v1") {
+        return {
+          data: null,
+          error: {
+            code: "P0001",
+            message: "invalid central invoice issue command",
+          },
+        };
+      }
+      if (name === "update_central_invoice_collection_v1") {
+        return {
+          data: null,
+          error: {
+            code: "P0001",
+            message: "invalid central invoice collection command",
+          },
+        };
+      }
       return {
         data: null,
-        error:
-          name === "issue_central_invoice_v1"
-            ? {
-                code: "P0001",
-                message: "invalid central invoice issue command",
-              }
-            : {
-                code: "P0001",
-                message: "invalid central invoice event pull request",
-              },
+        error: {
+          code: "P0001",
+          message: "invalid central invoice event pull request",
+        },
       };
     },
   };

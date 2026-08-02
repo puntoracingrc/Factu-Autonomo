@@ -52,6 +52,7 @@ const expectedMethods: Record<string, string[]> = {
     "POST",
   ],
   "central-business-authority/status/route.ts": ["GET", "OPTIONS", "POST"],
+  "central-invoice-authority/collection/route.ts": ["GET", "OPTIONS", "POST"],
   "central-invoice-authority/events/route.ts": ["GET", "OPTIONS", "POST"],
   "central-invoice-authority/historical-import/route.ts": [
     "GET",
@@ -152,6 +153,7 @@ const bearerRoutes = [
   "central-business-authority/mutate/route.ts",
   "central-business-authority/numbered-document/route.ts",
   "central-business-authority/status/route.ts",
+  "central-invoice-authority/collection/route.ts",
   "central-invoice-authority/events/route.ts",
   "central-invoice-authority/historical-import/route.ts",
   "central-invoice-authority/issue/route.ts",
@@ -233,6 +235,7 @@ const boundedBodyRoutes = [
   "central-business-authority/mutate-batch/route.ts",
   "central-business-authority/mutate/route.ts",
   "central-business-authority/numbered-document/route.ts",
+  "central-invoice-authority/collection/route.ts",
   "central-invoice-authority/historical-import/route.ts",
   "central-invoice-authority/issue/route.ts",
   "central-invoice-authority/reconcile/route.ts",

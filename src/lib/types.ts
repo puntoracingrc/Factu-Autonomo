@@ -33,7 +33,11 @@ export interface DocumentCentralInvoiceAuthorityLinkV1 {
   serverDocumentId: string;
   identityId: string;
   outboxEventId: string;
-  eventType: "invoice_issued" | "rectification_issued" | "document_repaired";
+  eventType:
+    | "invoice_issued"
+    | "rectification_issued"
+    | "document_repaired"
+    | "invoice_collection_updated";
   fullNumber: string;
   sequence: number;
   documentVersion: number;

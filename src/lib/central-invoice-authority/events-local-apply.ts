@@ -15,7 +15,8 @@ export const CENTRAL_INVOICE_AUTHORITY_EVENTS_LOCAL_APPLY =
 
 export type CentralInvoiceAuthorityEventsLocalApplyAction =
   | "inserted"
-  | "metadata_attached";
+  | "metadata_attached"
+  | "collection_updated";
 
 export type CentralInvoiceAuthorityEventsLocalSkipCode =
   | "unsupported_event_type"
@@ -86,7 +87,12 @@ function kindForDocument(doc: Pick<Document, "type" | "rectification">): Documen
 function kindForEvent(
   event: CentralInvoiceAuthorityPulledBrowserEvent,
 ): Extract<DocumentKind, "factura" | "factura_rectificativa"> | null {
-  if (event.eventType === "invoice_issued") return "factura";
+  if (
+    event.eventType === "invoice_issued" ||
+    event.eventType === "invoice_collection_updated"
+  ) {
+    return "factura";
+  }
   if (event.eventType === "rectification_issued") {
     return "factura_rectificativa";
   }
@@ -178,6 +184,61 @@ function attachCentralMetadata(
     ...doc,
     centralInvoiceAuthority: centralLinkFromEvent(event, receivedAt),
   };
+}
+
+function isCollectionUpdateEvent(
+  event: CentralInvoiceAuthorityPulledBrowserEvent,
+): boolean {
+  return event.eventType === "invoice_collection_updated";
+}
+
+function isSupportedCollectionStatus(
+  doc: Document,
+): doc is Document & {
+  status: "enviado" | "pagado" | "vencido";
+  paymentStatus: "pending" | "paid" | "overdue";
+} {
+  return (
+    doc.type === "factura" &&
+    !doc.rectification &&
+    ((doc.status === "pagado" &&
+      doc.paymentStatus === "paid" &&
+      typeof doc.paidAt === "string") ||
+      (doc.status === "enviado" &&
+        doc.paymentStatus === "pending" &&
+        doc.paidAt === undefined) ||
+      (doc.status === "vencido" &&
+        doc.paymentStatus === "overdue" &&
+        doc.paidAt === undefined))
+  );
+}
+
+function applyCollectionStatusFromEvent(
+  existing: Document,
+  event: CentralInvoiceAuthorityPulledBrowserEvent,
+  receivedAt: string,
+): Document | null {
+  const incoming = documentFromEventPayload(event);
+  if (
+    !incoming ||
+    !isSupportedCollectionStatus(incoming) ||
+    kindForDocument(incoming) !== "factura" ||
+    normalizeNumber(incoming.number) !== normalizeNumber(event.fullNumber)
+  ) {
+    return null;
+  }
+
+  return attachCentralMetadata(
+    {
+      ...existing,
+      status: incoming.status,
+      paymentStatus: incoming.paymentStatus,
+      paidAt: incoming.paidAt,
+      updatedAt: incoming.updatedAt,
+    },
+    event,
+    receivedAt,
+  );
 }
 
 function stripLocalIntegrityForReceivedDraft(
@@ -335,19 +396,34 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
         continue;
       }
 
+      const nextDocument = isCollectionUpdateEvent(event)
+        ? applyCollectionStatusFromEvent(existing, event, receivedAt)
+        : attachCentralMetadata(documents[centralIndex]!, event, receivedAt);
+
+      if (!nextDocument) {
+        skipped.push({
+          eventId: event.eventId,
+          fullNumber: event.fullNumber,
+          code: "invalid_document_payload",
+        });
+        continue;
+      }
+
       documents = documents.map((doc, index) =>
-        index === centralIndex ? attachCentralMetadata(doc, event, receivedAt) : doc,
+        index === centralIndex ? nextDocument : doc,
       );
       documents = applyReceivedRectificationToOriginal(
         documents,
-        documents[centralIndex]!,
+        nextDocument,
         receivedAt,
       );
       applied.push({
         eventId: event.eventId,
         documentId: existing.id,
         fullNumber: event.fullNumber,
-        action: "metadata_attached",
+        action: isCollectionUpdateEvent(event)
+          ? "collection_updated"
+          : "metadata_attached",
       });
       continue;
     }

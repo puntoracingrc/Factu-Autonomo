@@ -19,7 +19,8 @@ export type CentralInvoiceAuthorityStatusCheckId =
   | "admin_client"
   | `table:${CentralInvoiceAuthorityStatusRequiredTable}`
   | "rpc:issue_central_invoice_v1:dry_invalid"
-  | "rpc:list_central_invoice_events_v1:dry_invalid";
+  | "rpc:list_central_invoice_events_v1:dry_invalid"
+  | "rpc:update_central_invoice_collection_v1:dry_invalid";
 
 export type CentralInvoiceAuthorityStatusCheckKind =
   | "configuration"
@@ -34,7 +35,8 @@ export type CentralInvoiceAuthorityStatusBlocker =
   | "missing_admin_client"
   | "central_invoice_table_unavailable"
   | "central_invoice_issue_rpc_unavailable"
-  | "central_invoice_events_rpc_unavailable";
+  | "central_invoice_events_rpc_unavailable"
+  | "central_invoice_collection_rpc_unavailable";
 
 export interface CentralInvoiceAuthorityStatusProbeError {
   code?: string;
@@ -56,7 +58,10 @@ export interface CentralInvoiceAuthorityStatusProbeClient {
     };
   };
   rpc(
-    name: "issue_central_invoice_v1" | "list_central_invoice_events_v1",
+    name:
+      | "issue_central_invoice_v1"
+      | "list_central_invoice_events_v1"
+      | "update_central_invoice_collection_v1",
     args: Record<string, unknown>,
   ): Promise<CentralInvoiceAuthorityStatusProbeResult>;
 }
@@ -89,6 +94,8 @@ const EXPECTED_ISSUE_DRY_RUN_ERROR =
   "invalid central invoice issue command";
 const EXPECTED_EVENTS_DRY_RUN_ERROR =
   "invalid central invoice event pull request";
+const EXPECTED_COLLECTION_DRY_RUN_ERROR =
+  "invalid central invoice collection command";
 
 function assertServerOnlyModule() {
   if (typeof window !== "undefined") {
@@ -243,6 +250,43 @@ async function probeEventsRpc(
   );
 }
 
+async function probeCollectionRpc(
+  client: CentralInvoiceAuthorityStatusProbeClient,
+): Promise<CentralInvoiceAuthorityStatusCheck> {
+  const result = await client.rpc("update_central_invoice_collection_v1", {
+    p_user_id: null,
+    p_device_id: "",
+    p_session_hash: "",
+    p_idempotency_key_hash: "",
+    p_request_hash: "",
+    p_document_id: null,
+    p_identity_id: null,
+    p_expected_version: -1,
+    p_status: "__invalid__",
+    p_payment_status: "__invalid__",
+    p_paid_at: null,
+    p_document_payload: null,
+  });
+
+  if (expectedError(result.error, EXPECTED_COLLECTION_DRY_RUN_ERROR)) {
+    return readyCheck(
+      "rpc:update_central_invoice_collection_v1:dry_invalid",
+      "rpc",
+      "RPC de cobro central existe y corta el dry-run antes de escribir.",
+    );
+  }
+
+  return blockedCheck(
+    "rpc:update_central_invoice_collection_v1:dry_invalid",
+    "rpc",
+    "central_invoice_collection_rpc_unavailable",
+    missingRpc(result.error)
+      ? "La RPC de cobro central no existe o no esta expuesta al servidor."
+      : "La RPC de cobro central no devolvio el rechazo seguro esperado.",
+    result.error,
+  );
+}
+
 function blockersFromChecks(checks: readonly CentralInvoiceAuthorityStatusCheck[]) {
   return Array.from(
     new Set(
@@ -291,6 +335,7 @@ export async function probeCentralInvoiceAuthorityStatusReadiness(
   }
   checks.push(await probeIssueRpc(input.client));
   checks.push(await probeEventsRpc(input.client));
+  checks.push(await probeCollectionRpc(input.client));
 
   const blockers = blockersFromChecks(checks);
   return {
