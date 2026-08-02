@@ -1,0 +1,15 @@
+export const CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID =
+  "31fd96e3-5eda-4d35-ba6f-79719e1d4d8c";
+
+export const CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS = [
+  "F-2026-2959",
+  "F-2026-2960",
+  "F-2026-2961",
+  "F-2026-2962",
+  "F-2026-2963",
+  "F-2026-2964",
+  "F-2026-2965",
+] as const;
+
+export type CentralInvoiceAuthorityHistoricalImportNumber =
+  (typeof CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS)[number];

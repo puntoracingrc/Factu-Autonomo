@@ -117,6 +117,8 @@ const allowedExplicitDeniesMigration =
   "20260728175925_central_invoice_authority_explicit_denies.sql";
 const allowedSeriesReconciliationMigration =
   "20260728213000_central_invoice_authority_series_reconciliation.sql";
+const allowedHistoricalInvoiceImportMigration =
+  "20260802104638_central_invoice_historical_invoice_import.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -127,6 +129,7 @@ const allowedCentralMigrations = new Set([
   allowedIndexesMigration,
   allowedExplicitDeniesMigration,
   allowedSeriesReconciliationMigration,
+  allowedHistoricalInvoiceImportMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -257,6 +260,61 @@ if (centralMigrations.includes(allowedSeriesReconciliationMigration)) {
   );
   assert.doesNotMatch(seriesReconciliation, /\buser_backups\b/i);
   assert.doesNotMatch(seriesReconciliation, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedHistoricalInvoiceImportMigration)) {
+  const historicalInvoiceImport = read(
+    `supabase/migrations/${allowedHistoricalInvoiceImportMigration}`,
+  );
+  assert.match(
+    historicalInvoiceImport,
+    /CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_V1/,
+  );
+  assert.match(
+    historicalInvoiceImport,
+    /\bcreate\s+or\s+replace\s+function\s+public\.import_central_invoice_historical_v1\b/i,
+  );
+  assert.match(historicalInvoiceImport, /\bsecurity\s+definer\b/i);
+  assert.match(historicalInvoiceImport, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(
+    historicalInvoiceImport,
+    /auth\.role\(\)\s*<>\s*'service_role'/i,
+  );
+  assert.match(historicalInvoiceImport, /\bfor\s+update\b/i);
+  assert.match(
+    historicalInvoiceImport,
+    /historical invoice sequence exceeds central series state/i,
+  );
+  assert.match(
+    historicalInvoiceImport,
+    /\binsert\s+into\s+public\.central_invoice_identities\b/i,
+  );
+  assert.match(
+    historicalInvoiceImport,
+    /\binsert\s+into\s+public\.central_invoice_outbox\b/i,
+  );
+  assert.match(
+    historicalInvoiceImport,
+    /\bgrant\s+execute\s+on\s+function\s+public\.import_central_invoice_historical_v1[\s\S]*\bto\s+service_role/i,
+  );
+  assert.doesNotMatch(
+    historicalInvoiceImport,
+    /\bgrant\s+execute\s+on\s+function\s+public\.import_central_invoice_historical_v1[\s\S]*\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    historicalInvoiceImport,
+    /\bupdate\s+public\.central_invoice_series_state\b/i,
+  );
+  assert.doesNotMatch(
+    historicalInvoiceImport,
+    /\bupdate\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    historicalInvoiceImport,
+    /\binsert\s+into\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(historicalInvoiceImport, /\buser_backups\b/i);
+  assert.doesNotMatch(historicalInvoiceImport, /\bsync_entities\b/i);
 }
 
 if (centralMigrations.includes(allowedTenantGuardMigration)) {
