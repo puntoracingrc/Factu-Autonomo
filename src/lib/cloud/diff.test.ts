@@ -377,6 +377,51 @@ describe("sync por cambios", () => {
     expect(changes[0].entityId).toBe("c1");
   });
 
+  it("serializa solo la ficha modificada en colecciones grandes", () => {
+    let serializations = 0;
+    const trackedCustomer = (value: Customer): Customer => {
+      Object.defineProperty(value, "toJSON", {
+        enumerable: false,
+        value: () => {
+          serializations += 1;
+          return {
+            id: value.id,
+            firstName: value.firstName,
+            lastName: value.lastName,
+            name: value.name,
+            createdAt: value.createdAt,
+            updatedAt: value.updatedAt,
+          };
+        },
+      });
+      return value;
+    };
+    const customers = Array.from({ length: 2_400 }, (_, index) =>
+      trackedCustomer(customer(`customer-${index}`, `Cliente ${index}`)),
+    );
+    const changedIndex = 1_275;
+    const changed = trackedCustomer({
+      ...customers[changedIndex]!,
+      name: "Cliente actualizado",
+      updatedAt: "2026-08-02T14:45:00.000Z",
+    });
+    const nextCustomers = customers.map((entry, index) =>
+      index === changedIndex ? changed : entry,
+    );
+
+    const changes = diffAppData(
+      { ...EMPTY_DATA, customers },
+      { ...EMPTY_DATA, customers: nextCustomers },
+    );
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({
+      entityType: "customer",
+      entityId: `customer-${changedIndex}`,
+    });
+    expect(serializations).toBe(2);
+  });
+
   it("conserva en cola el proveedor y el gasto añadidos en dos transiciones", () => {
     const supplier = {
       id: "supplier-batch",
