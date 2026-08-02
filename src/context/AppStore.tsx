@@ -22,7 +22,10 @@ import type {
   RecurringExpense,
   UserReminder,
 } from "@/lib/types";
-import type { CentralInvoiceAuthorityFormIssueIdentity } from "@/lib/central-invoice-authority/form-canary-client";
+import type {
+  CentralInvoiceAuthorityFormIssueIdentity,
+  CentralInvoiceAuthorityFormJson,
+} from "@/lib/central-invoice-authority/form-canary-client";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
 import type { CentralBusinessDrainResult } from "@/lib/central-business-authority/durable-queue";
@@ -301,6 +304,65 @@ type DurableRecurringExpenseChangeResult =
   | { status: "blocked"; reason: RecurringExpenseChangeBlockedReason };
 
 export type GenerateReceiptForInvoiceResult = ReceiptGenerationCommandResult;
+
+const CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY_SCHEMA =
+  "CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY_V1";
+
+function centralCollectionIdempotencyPart(value: string): string {
+  return (
+    value
+      .trim()
+      .replace(/[^a-zA-Z0-9:_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 24) || "value"
+  );
+}
+
+function centralCollectionIdempotencyKey(doc: Document): string {
+  const link = doc.centralInvoiceAuthority;
+  const version = link?.documentVersion ?? 0;
+  const state = `${doc.status}:${doc.paymentStatus ?? "none"}`;
+  return [
+    "central-collection",
+    centralCollectionIdempotencyPart(doc.id),
+    String(version),
+    centralCollectionIdempotencyPart(state),
+    centralCollectionIdempotencyPart(doc.updatedAt),
+  ].join(":");
+}
+
+function centralCollectionPayload(doc: Document): CentralInvoiceAuthorityFormJson {
+  return JSON.parse(
+    JSON.stringify({
+      schema: CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY_SCHEMA,
+      localDocumentId: doc.id,
+      document: doc,
+    }),
+  ) as CentralInvoiceAuthorityFormJson;
+}
+
+function isCentralInvoiceCollectionSyncCandidate(
+  doc: Document | null | undefined,
+): doc is Document & {
+  centralInvoiceAuthority: NonNullable<Document["centralInvoiceAuthority"]>;
+  status: "enviado" | "pagado" | "vencido";
+  paymentStatus: "pending" | "paid" | "overdue";
+} {
+  if (!doc?.centralInvoiceAuthority || doc.type !== "factura" || doc.rectification) {
+    return false;
+  }
+  return (
+    (doc.status === "pagado" &&
+      doc.paymentStatus === "paid" &&
+      typeof doc.paidAt === "string") ||
+    (doc.status === "enviado" &&
+      doc.paymentStatus === "pending" &&
+      doc.paidAt === undefined) ||
+    (doc.status === "vencido" &&
+      doc.paymentStatus === "overdue" &&
+      doc.paidAt === undefined)
+  );
+}
 
 function reportFiscalNotificationStructuredReviewSaveFailure(
   result: DurableFiscalNotificationStructuredReviewSaveResultV1,
@@ -2125,8 +2187,94 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const syncCentralInvoiceCollectionStatus = useCallback(
+    (doc: Document | null | undefined) => {
+      if (!isCentralInvoiceCollectionSyncCandidate(doc)) return;
+      const link = doc.centralInvoiceAuthority;
+      const localDocumentId = doc.id;
+
+      void import("@/lib/central-invoice-authority/collection-client")
+        .then(({ updateCentralInvoiceCollectionFromBrowser }) =>
+          updateCentralInvoiceCollectionFromBrowser({
+            idempotencyKey: centralCollectionIdempotencyKey(doc),
+            documentRef: {
+              serverDocumentId: link.serverDocumentId,
+              identityId: link.identityId,
+              expectedVersion: link.documentVersion,
+            },
+            status: doc.status,
+            paymentStatus: doc.paymentStatus,
+            paidAt: doc.paidAt ?? null,
+            documentPayload: centralCollectionPayload(doc),
+          }),
+        )
+        .then((result) => {
+          if (!result.ok) {
+            void reportAppError({
+              severity: "warning",
+              area: "central_invoice_authority",
+              code: "collection_update_failed",
+              message:
+                "No se pudo confirmar en servidor central un cambio de cobro.",
+              metadata: {
+                status: result.status,
+                code: result.code,
+              },
+            });
+            return;
+          }
+
+          const receivedAt = new Date().toISOString();
+          setAppData(
+            (prev) => ({
+              ...prev,
+              documents: prev.documents.map((current) => {
+                if (current.id !== localDocumentId) return current;
+                const currentLink = current.centralInvoiceAuthority;
+                if (
+                  !currentLink ||
+                  currentLink.serverDocumentId !==
+                    result.identity.serverDocumentId ||
+                  currentLink.documentVersion > result.identity.documentVersion
+                ) {
+                  return current;
+                }
+
+                return {
+                  ...current,
+                  centralInvoiceAuthority: {
+                    ...currentLink,
+                    serverDocumentId: result.identity.serverDocumentId,
+                    identityId: result.identity.identityId,
+                    outboxEventId: result.identity.outboxEventId,
+                    eventType: "invoice_collection_updated",
+                    fullNumber: result.identity.fullNumber,
+                    sequence: result.identity.sequence,
+                    documentVersion: result.identity.documentVersion,
+                    receivedAt,
+                  },
+                };
+              }),
+            }),
+            { skipDirty: true },
+          );
+        })
+        .catch(() => {
+          void reportAppError({
+            severity: "warning",
+            area: "central_invoice_authority",
+            code: "collection_update_unexpected_error",
+            message:
+              "No se pudo preparar la confirmacion central de un cambio de cobro.",
+          });
+        });
+    },
+    [setAppData],
+  );
+
   const markAsCollected = useCallback(
     (id: string) => {
+      let updated: Document | null = null;
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || !canMarkAsCollected(doc) || isCollectedDocument(doc)) {
@@ -2143,14 +2291,16 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           historical === doc
             ? markDocumentPaidWithIntegrity(doc, now)
             : historical;
+        updated = paid;
 
         return {
           ...prev,
           documents: prev.documents.map((d) => (d.id === id ? paid : d)),
         };
       });
+      syncCentralInvoiceCollectionStatus(updated);
     },
-    [setAppData],
+    [setAppData, syncCentralInvoiceCollectionStatus],
   );
 
   const generateReceiptForInvoice = useCallback(
@@ -2169,6 +2319,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const unmarkAsCollected = useCallback(
     (id: string) => {
+      let updated: Document | null = null;
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
         if (!doc || !canUnmarkAsCollected(doc)) return prev;
@@ -2176,6 +2327,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         const now = new Date().toISOString();
         const historical = withHistoricalCollectionStatus(doc, "pending", now);
         if (historical !== doc) {
+          updated = historical;
           return {
             ...prev,
             documents: prev.documents.map((d) =>
@@ -2196,6 +2348,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           );
 
           if (result.removedReceiptId) {
+            updated =
+              result.documents.find((candidate) => candidate.id === id) ?? null;
             return {
               ...prev,
               profile: {
@@ -2214,27 +2368,33 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             };
           }
 
+          const resultDocument =
+            result.documents.find((candidate) => candidate.id === id) ?? null;
+          updated = resultDocument && resultDocument !== doc ? resultDocument : null;
           return { ...prev, documents: result.documents };
         }
+
+        updated = {
+          ...doc,
+          status: newStatus,
+          paymentStatus:
+            newStatus === "vencido" ? "overdue" : "pending",
+          paidAt: undefined,
+          updatedAt: now,
+        };
 
         return {
           ...prev,
           documents: prev.documents.map((d) =>
             d.id === id
-              ? {
-                  ...d,
-                  status: newStatus,
-                  paymentStatus:
-                    newStatus === "vencido" ? "overdue" : "pending",
-                  paidAt: undefined,
-                  updatedAt: now,
-                }
+              ? updated!
               : d,
           ),
         };
       });
+      syncCentralInvoiceCollectionStatus(updated);
     },
-    [setAppData],
+    [setAppData, syncCentralInvoiceCollectionStatus],
   );
 
   const markQuoteAsAccepted = useCallback(

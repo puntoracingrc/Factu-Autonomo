@@ -25,6 +25,7 @@ const BLOCKER_LABELS: Record<string, string> = {
   central_invoice_table_unavailable: "tablas centrales no disponibles",
   central_invoice_issue_rpc_unavailable: "RPC de emision no disponible",
   central_invoice_events_rpc_unavailable: "RPC de eventos no disponible",
+  central_invoice_collection_rpc_unavailable: "RPC de cobros no disponible",
 };
 
 const CHECK_LABELS: Record<string, string> = {
@@ -36,6 +37,7 @@ const CHECK_LABELS: Record<string, string> = {
   "table:central_invoice_outbox": "Tabla eventos de salida",
   "rpc:issue_central_invoice_v1:dry_invalid": "RPC de emision",
   "rpc:list_central_invoice_events_v1:dry_invalid": "RPC de eventos",
+  "rpc:update_central_invoice_collection_v1:dry_invalid": "RPC de cobros",
 };
 
 const CHECK_KIND_LABELS: Record<CentralInvoiceAuthorityStatusCheck["kind"], string> = {
@@ -94,6 +96,9 @@ export function centralAuthorityStatusCheckAction(
   }
   if (check.blocker === "central_invoice_events_rpc_unavailable") {
     return "Verifica la RPC de eventos para que otros dispositivos puedan actualizarse.";
+  }
+  if (check.blocker === "central_invoice_collection_rpc_unavailable") {
+    return "Verifica la RPC de cobros para sincronizar marcada/desmarcada como cobrada.";
   }
   return "Revisa este gate antes de permitir escrituras fiscales.";
 }

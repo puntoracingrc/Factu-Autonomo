@@ -129,6 +129,27 @@ describe("central invoice authority operation state", () => {
     expect(state.requiresReview).toBe(false);
   });
 
+  it("mantiene como emitida central una factura cuyo ultimo evento fue cobro", () => {
+    const state = getCentralInvoiceAuthorityOperationState(
+      withCentralAuthority(
+        issuedInvoice({
+          status: "pagado",
+          paymentStatus: "paid",
+          paidAt: "2026-07-28T09:00:00.000Z",
+        }),
+        {
+          eventType: "invoice_collection_updated",
+          outboxEventId: "event-paid-1",
+          documentVersion: 2,
+        },
+      ),
+    );
+
+    expect(state.kind).toBe("server_issued");
+    expect(state.badgeLabel).toBe("Servidor central");
+    expect(state.requiresReview).toBe(false);
+  });
+
   it("pide revision si la identidad central no coincide con el documento", () => {
     const state = getCentralInvoiceAuthorityOperationState(
       withCentralAuthority(issuedInvoice(), {

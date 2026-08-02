@@ -211,6 +211,74 @@ describe("central invoice authority local event apply", () => {
     ]);
   });
 
+  it("aplica un cambio central de cobro sobre una factura ya recibida", () => {
+    const local = document({
+      centralInvoiceAuthority: {
+        schemaVersion: 1,
+        source: "central_invoice_authority",
+        serverDocumentId: "server-document-1",
+        identityId: "identity-1",
+        outboxEventId: "event-1",
+        eventType: "invoice_issued",
+        fullNumber: "F-2026-0001",
+        sequence: 1,
+        documentVersion: 1,
+        emittedHash: "sha256:server-materialized",
+        receivedAt: "2026-07-27T12:01:00.000Z",
+      },
+      paymentStatus: "pending",
+      paidAt: undefined,
+    });
+    const paid = document({
+      status: "pagado",
+      paymentStatus: "paid",
+      paidAt: "2026-07-28T09:00:00.000Z",
+      updatedAt: "2026-07-28T09:00:00.000Z",
+    });
+
+    const result = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+      documents: [local],
+      profile,
+      events: [
+        event(
+          {
+            eventId: "event-paid-1",
+            eventType: "invoice_collection_updated",
+            documentVersion: 2,
+            createdAt: "2026-07-28T09:00:01.000Z",
+          },
+          paid,
+        ),
+      ],
+      receivedAt: "2026-07-28T09:00:02.000Z",
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.skipped).toEqual([]);
+    expect(result.applied).toEqual([
+      {
+        eventId: "event-paid-1",
+        documentId: local.id,
+        fullNumber: "F-2026-0001",
+        action: "collection_updated",
+      },
+    ]);
+    expect(result.documents[0]).toMatchObject({
+      id: local.id,
+      status: "pagado",
+      paymentStatus: "paid",
+      paidAt: "2026-07-28T09:00:00.000Z",
+      updatedAt: "2026-07-28T09:00:00.000Z",
+      centralInvoiceAuthority: {
+        outboxEventId: "event-paid-1",
+        eventType: "invoice_collection_updated",
+        documentVersion: 2,
+      },
+    });
+    expect(result.documents[0]?.documentSnapshot).toBe(local.documentSnapshot);
+    expect(result.documents[0]?.pdfSnapshot).toBe(local.pdfSnapshot);
+  });
+
   it("inserta una rectificativa central y marca la original local", () => {
     const original = document({
       id: "original-invoice-1",
