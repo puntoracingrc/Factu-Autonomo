@@ -32,7 +32,7 @@ describe("AppStore central authority events sync bridge", () => {
     expect(block).not.toContain("CloudSyncContext");
   });
 
-  it("confirma cambios de cobro en autoridad central sin ensuciar la cola local", () => {
+  it("confirma un cobro central sin recorrer ni ensuciar la cola local", () => {
     const syncStart = source.indexOf(
       "const syncCentralInvoiceCollectionStatus = useCallback",
     );
@@ -42,11 +42,14 @@ describe("AppStore central authority events sync bridge", () => {
     const syncBlock = source.slice(syncStart, syncEnd);
 
     expect(syncBlock).toContain(
-      'import("@/lib/central-invoice-authority/collection-client")',
+      '"@/lib/central-invoice-authority/collection-client"',
     );
     expect(syncBlock).toContain("updateCentralInvoiceCollectionFromBrowser");
-    expect(syncBlock).toContain('eventType: "invoice_collection_updated"');
-    expect(syncBlock).toContain("{ skipDirty: true }");
+    expect(source).toContain('eventType: "invoice_collection_updated"');
+    expect(syncBlock).toContain(
+      "{ skipDirty: true, confirmedCentralState: true }",
+    );
+    expect(syncBlock).toContain("applyConfirmedCentralCollectionState");
 
     const markStart = source.indexOf("const markAsCollected = useCallback");
     const receiptStart = source.indexOf(
@@ -54,11 +57,22 @@ describe("AppStore central authority events sync bridge", () => {
       markStart,
     );
     const markBlock = source.slice(markStart, receiptStart);
-    expect(markBlock).toContain("syncCentralInvoiceCollectionStatus(updated);");
+    expect(markBlock).toContain(
+      "return syncCentralInvoiceCollectionStatus(updated);",
+    );
+    expect(markBlock.indexOf("syncCentralInvoiceCollectionStatus(updated)")).toBeLessThan(
+      markBlock.indexOf("const resolved = setAppData"),
+    );
 
     const unmarkStart = source.indexOf("const unmarkAsCollected = useCallback");
     const quoteStart = source.indexOf("const markQuoteAsAccepted = useCallback", unmarkStart);
     const unmarkBlock = source.slice(unmarkStart, quoteStart);
-    expect(unmarkBlock).toContain("syncCentralInvoiceCollectionStatus(updated);");
+    expect(unmarkBlock).toContain("if (central && documentOnly)");
+    expect(unmarkBlock).toContain(
+      "return syncCentralInvoiceCollectionStatus(updated);",
+    );
+    expect(unmarkBlock.indexOf("if (central && documentOnly)")).toBeLessThan(
+      unmarkBlock.indexOf("const resolved = setAppData"),
+    );
   });
 });

@@ -26,6 +26,9 @@ import type {
   CentralInvoiceAuthorityFormIssueIdentity,
   CentralInvoiceAuthorityFormJson,
 } from "@/lib/central-invoice-authority/form-canary-client";
+import type {
+  CentralInvoiceAuthorityCollectionUpdateIdentity,
+} from "@/lib/central-invoice-authority/collection-client";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
 import type { CentralBusinessDrainResult } from "@/lib/central-business-authority/durable-queue";
@@ -305,6 +308,12 @@ type DurableRecurringExpenseChangeResult =
 
 export type GenerateReceiptForInvoiceResult = ReceiptGenerationCommandResult;
 
+interface AppDataUpdateOptions {
+  skipDirty?: boolean;
+  confirmedCentralState?: boolean;
+  bypassWriteBlock?: boolean;
+}
+
 const CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY_SCHEMA =
   "CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY_V1";
 
@@ -362,6 +371,38 @@ function isCentralInvoiceCollectionSyncCandidate(
       doc.paymentStatus === "overdue" &&
       doc.paidAt === undefined)
   );
+}
+
+function applyConfirmedCentralCollectionState(
+  current: Document,
+  requested: Document,
+  identity: CentralInvoiceAuthorityCollectionUpdateIdentity,
+  receivedAt: string,
+): Document {
+  const collectionState = requested.collectionStatusOverride
+    ? { collectionStatusOverride: requested.collectionStatusOverride }
+    : {
+        status: requested.status,
+        paymentStatus: requested.paymentStatus,
+        paidAt: requested.paidAt,
+        updatedAt: requested.updatedAt,
+      };
+
+  return {
+    ...current,
+    ...collectionState,
+    centralInvoiceAuthority: {
+      ...current.centralInvoiceAuthority!,
+      serverDocumentId: identity.serverDocumentId,
+      identityId: identity.identityId,
+      outboxEventId: identity.outboxEventId,
+      eventType: "invoice_collection_updated",
+      fullNumber: identity.fullNumber,
+      sequence: identity.sequence,
+      documentVersion: identity.documentVersion,
+      receivedAt,
+    },
+  };
 }
 
 function reportFiscalNotificationStructuredReviewSaveFailure(
@@ -519,8 +560,8 @@ interface AppStoreValue {
     customerId: string,
   ) => Document | null;
   updateDocumentLink: (update: DocumentLinkUpdate) => void;
-  markAsCollected: (id: string) => void;
-  unmarkAsCollected: (id: string) => void;
+  markAsCollected: (id: string) => Promise<boolean>;
+  unmarkAsCollected: (id: string) => Promise<boolean>;
   generateReceiptForInvoice: (
     invoiceId: string,
   ) => GenerateReceiptForInvoiceResult;
@@ -909,7 +950,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const setAppData = useCallback(
     (
       updater: AppData | ((prev: AppData) => AppData),
-      options?: { skipDirty?: boolean; bypassWriteBlock?: boolean },
+      options?: AppDataUpdateOptions,
     ) => {
       if (durableStorageBaselineRef.current.status === "indeterminate") {
         return dataRef.current;
@@ -920,7 +961,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const prev = dataRef.current;
       const next = typeof updater === "function" ? updater(prev) : updater;
       if (next === prev) return prev;
-      const touched = touchAppData(next);
+      const touched = options?.confirmedCentralState
+        ? next
+        : touchAppData(next);
       const resolved = options?.skipDirty
         ? touched
         : trackDataDiff(prev, touched);
@@ -2188,119 +2231,136 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const syncCentralInvoiceCollectionStatus = useCallback(
-    (doc: Document | null | undefined) => {
-      if (!isCentralInvoiceCollectionSyncCandidate(doc)) return;
+    async (doc: Document | null | undefined): Promise<boolean> => {
+      if (!isCentralInvoiceCollectionSyncCandidate(doc)) return false;
       const link = doc.centralInvoiceAuthority;
       const localDocumentId = doc.id;
 
-      void import("@/lib/central-invoice-authority/collection-client")
-        .then(({ updateCentralInvoiceCollectionFromBrowser }) =>
-          updateCentralInvoiceCollectionFromBrowser({
-            idempotencyKey: centralCollectionIdempotencyKey(doc),
-            documentRef: {
-              serverDocumentId: link.serverDocumentId,
-              identityId: link.identityId,
-              expectedVersion: link.documentVersion,
-            },
-            status: doc.status,
-            paymentStatus: doc.paymentStatus,
-            paidAt: doc.paidAt ?? null,
-            documentPayload: centralCollectionPayload(doc),
-          }),
-        )
-        .then((result) => {
-          if (!result.ok) {
-            void reportAppError({
-              severity: "warning",
-              area: "central_invoice_authority",
-              code: "collection_update_failed",
-              message:
-                "No se pudo confirmar en servidor central un cambio de cobro.",
-              metadata: {
-                status: result.status,
-                code: result.code,
-                causeCode: result.causeCode,
-                causeMessage: result.causeMessage,
-              },
-            });
-            return;
-          }
-
-          const receivedAt = new Date().toISOString();
-          setAppData(
-            (prev) => ({
-              ...prev,
-              documents: prev.documents.map((current) => {
-                if (current.id !== localDocumentId) return current;
-                const currentLink = current.centralInvoiceAuthority;
-                if (
-                  !currentLink ||
-                  currentLink.serverDocumentId !==
-                    result.identity.serverDocumentId ||
-                  currentLink.documentVersion > result.identity.documentVersion
-                ) {
-                  return current;
-                }
-
-                return {
-                  ...current,
-                  centralInvoiceAuthority: {
-                    ...currentLink,
-                    serverDocumentId: result.identity.serverDocumentId,
-                    identityId: result.identity.identityId,
-                    outboxEventId: result.identity.outboxEventId,
-                    eventType: "invoice_collection_updated",
-                    fullNumber: result.identity.fullNumber,
-                    sequence: result.identity.sequence,
-                    documentVersion: result.identity.documentVersion,
-                    receivedAt,
-                  },
-                };
-              }),
-            }),
-            { skipDirty: true },
-          );
-        })
-        .catch(() => {
+      try {
+        const { updateCentralInvoiceCollectionFromBrowser } = await import(
+          "@/lib/central-invoice-authority/collection-client"
+        );
+        const result = await updateCentralInvoiceCollectionFromBrowser({
+          idempotencyKey: centralCollectionIdempotencyKey(doc),
+          documentRef: {
+            serverDocumentId: link.serverDocumentId,
+            identityId: link.identityId,
+            expectedVersion: link.documentVersion,
+          },
+          status: doc.status,
+          paymentStatus: doc.paymentStatus,
+          paidAt: doc.paidAt ?? null,
+          documentPayload: centralCollectionPayload(doc),
+        });
+        if (!result.ok) {
           void reportAppError({
             severity: "warning",
             area: "central_invoice_authority",
-            code: "collection_update_unexpected_error",
+            code: "collection_update_failed",
             message:
-              "No se pudo preparar la confirmacion central de un cambio de cobro.",
+              "No se pudo confirmar en servidor central un cambio de cobro.",
+            metadata: {
+              status: result.status,
+              code: result.code,
+              causeCode: result.causeCode,
+              causeMessage: result.causeMessage,
+            },
           });
+          return false;
+        }
+
+        const receivedAt = new Date().toISOString();
+        let applied = false;
+        setAppData(
+          (prev) => {
+            const current = findUniqueDocumentById(
+              prev.documents,
+              localDocumentId,
+            );
+            const currentLink = current?.centralInvoiceAuthority;
+            if (
+              !current ||
+              !currentLink ||
+              currentLink.serverDocumentId !==
+                result.identity.serverDocumentId
+            ) {
+              return prev;
+            }
+            if (
+              currentLink.documentVersion > result.identity.documentVersion
+            ) {
+              applied = true;
+              return prev;
+            }
+
+            applied = true;
+            const confirmed = applyConfirmedCentralCollectionState(
+              current,
+              doc,
+              result.identity,
+              receivedAt,
+            );
+            return {
+              ...prev,
+              meta: {
+                ...prev.meta,
+                lastModified: receivedAt,
+              },
+              documents: prev.documents.map((candidate) =>
+                candidate.id === localDocumentId ? confirmed : candidate,
+              ),
+            };
+          },
+          { skipDirty: true, confirmedCentralState: true },
+        );
+        return applied;
+      } catch {
+        void reportAppError({
+          severity: "warning",
+          area: "central_invoice_authority",
+          code: "collection_update_unexpected_error",
+          message:
+            "No se pudo preparar la confirmacion central de un cambio de cobro.",
         });
+        return false;
+      }
     },
     [setAppData],
   );
 
   const markAsCollected = useCallback(
-    (id: string) => {
-      let updated: Document | null = null;
-      setAppData((prev) => {
-        const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || !canMarkAsCollected(doc) || isCollectedDocument(doc)) {
-          return prev;
-        }
+    async (id: string): Promise<boolean> => {
+      if (
+        durableStorageBaselineRef.current.status === "indeterminate" ||
+        writeBlockRef.current
+      ) {
+        return false;
+      }
 
-        const now = new Date().toISOString();
-        const historical = withHistoricalCollectionStatus(
-          doc,
-          "collected",
-          now,
-        );
-        const paid =
-          historical === doc
-            ? markDocumentPaidWithIntegrity(doc, now)
-            : historical;
-        updated = paid;
+      const previous = dataRef.current;
+      const doc = findUniqueDocumentById(previous.documents, id);
+      if (!doc || !canMarkAsCollected(doc) || isCollectedDocument(doc)) {
+        return false;
+      }
 
-        return {
-          ...prev,
-          documents: prev.documents.map((d) => (d.id === id ? paid : d)),
-        };
+      const now = new Date().toISOString();
+      const historical = withHistoricalCollectionStatus(doc, "collected", now);
+      const updated =
+        historical === doc
+          ? markDocumentPaidWithIntegrity(doc, now)
+          : historical;
+
+      if (isCentralInvoiceCollectionSyncCandidate(updated)) {
+        return syncCentralInvoiceCollectionStatus(updated);
+      }
+
+      const resolved = setAppData({
+        ...previous,
+        documents: previous.documents.map((candidate) =>
+          candidate.id === id ? updated : candidate,
+        ),
       });
-      syncCentralInvoiceCollectionStatus(updated);
+      return resolved !== previous;
     },
     [setAppData, syncCentralInvoiceCollectionStatus],
   );
@@ -2320,42 +2380,54 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const unmarkAsCollected = useCallback(
-    (id: string) => {
-      let updated: Document | null = null;
-      setAppData((prev) => {
-        const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || !canUnmarkAsCollected(doc)) return prev;
+    async (id: string): Promise<boolean> => {
+      if (
+        durableStorageBaselineRef.current.status === "indeterminate" ||
+        writeBlockRef.current
+      ) {
+        return false;
+      }
 
-        const now = new Date().toISOString();
-        const historical = withHistoricalCollectionStatus(doc, "pending", now);
-        if (historical !== doc) {
-          updated = historical;
-          return {
-            ...prev,
-            documents: prev.documents.map((d) =>
-              d.id === id ? historical : d,
-            ),
-          };
-        }
+      const previous = dataRef.current;
+      const doc = findUniqueDocumentById(previous.documents, id);
+      if (!doc || !canUnmarkAsCollected(doc)) return false;
+
+      const now = new Date().toISOString();
+      const historical = withHistoricalCollectionStatus(doc, "pending", now);
+      let updated: Document | null = null;
+      let next: AppData;
+      let documentOnly = true;
+
+      if (historical !== doc) {
+        updated = historical;
+        next = {
+          ...previous,
+          documents: previous.documents.map((candidate) =>
+            candidate.id === id ? historical : candidate,
+          ),
+        };
+      } else {
         const newStatus = statusAfterUnmarkingCollection(doc);
-        const numbering = prev.profile.numbering;
+        const numbering = previous.profile.numbering;
 
         if (doc.type === "factura") {
           const result = unmarkInvoiceCollection(
-            prev.documents,
+            previous.documents,
             doc.id,
             newStatus,
             now,
             numbering,
           );
+          updated =
+            result.documents.find((candidate) => candidate.id === id) ?? null;
+          if (!updated || updated === doc) return false;
 
           if (result.removedReceiptId) {
-            updated =
-              result.documents.find((candidate) => candidate.id === id) ?? null;
-            return {
-              ...prev,
+            documentOnly = false;
+            next = {
+              ...previous,
               profile: {
-                ...prev.profile,
+                ...previous.profile,
                 numbering: syncNumberingToDocuments(
                   numbering,
                   result.documents,
@@ -2368,33 +2440,36 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 numbering,
               ),
             };
+          } else {
+            next = { ...previous, documents: result.documents };
           }
-
-          const resultDocument =
-            result.documents.find((candidate) => candidate.id === id) ?? null;
-          updated = resultDocument && resultDocument !== doc ? resultDocument : null;
-          return { ...prev, documents: result.documents };
+        } else {
+          updated = {
+            ...doc,
+            status: newStatus,
+            paymentStatus: newStatus === "vencido" ? "overdue" : "pending",
+            paidAt: undefined,
+            updatedAt: now,
+          };
+          next = {
+            ...previous,
+            documents: previous.documents.map((candidate) =>
+              candidate.id === id ? updated! : candidate,
+            ),
+          };
         }
+      }
 
-        updated = {
-          ...doc,
-          status: newStatus,
-          paymentStatus:
-            newStatus === "vencido" ? "overdue" : "pending",
-          paidAt: undefined,
-          updatedAt: now,
-        };
+      const central = isCentralInvoiceCollectionSyncCandidate(updated);
+      if (central && documentOnly) {
+        return syncCentralInvoiceCollectionStatus(updated);
+      }
 
-        return {
-          ...prev,
-          documents: prev.documents.map((d) =>
-            d.id === id
-              ? updated!
-              : d,
-          ),
-        };
-      });
-      syncCentralInvoiceCollectionStatus(updated);
+      const resolved = setAppData(next);
+      if (resolved === previous) return false;
+      return central
+        ? syncCentralInvoiceCollectionStatus(updated)
+        : true;
     },
     [setAppData, syncCentralInvoiceCollectionStatus],
   );
