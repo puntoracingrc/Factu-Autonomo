@@ -109,11 +109,14 @@ import {
 } from "@/lib/receipt-generation-command";
 import {
   inspectPersistedData,
-  loadData,
+  loadDataPreferPersistentCache,
   readPersistedDataSnapshot,
-  saveData,
+  saveData as saveDataWithoutPersistentCacheRefresh,
   touchAppData,
+  type SaveDataOptions,
+  type SaveDataResult,
 } from "@/lib/storage";
+import { schedulePersistedAppDataCacheRefresh } from "@/lib/persisted-app-data-cache-refresh";
 import {
   commitLatestAppDataDurably,
   commitAppDataDurablyWithStorageRecovery,
@@ -926,6 +929,17 @@ function assertDocumentEmissionValid(
   }
 }
 
+function saveData(
+  data: AppData,
+  options: SaveDataOptions = {},
+): SaveDataResult {
+  const result = saveDataWithoutPersistentCacheRefresh(data, options);
+  if (result.status === "applied") {
+    schedulePersistedAppDataCacheRefresh();
+  }
+  return result;
+}
+
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const initialWriteBlock = useRef<AppWriteBlock | null>(
     initialCloudSyncWriteBlock(),
@@ -1080,13 +1094,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    const persisted = loadData();
-    durableStorageBaselineRef.current = { status: "known", data: persisted };
-    lastKnownDurableDataRef.current = persisted;
-    const loaded = syncRecurringExpenses(persisted);
-    dataRef.current = loaded;
-    setData(loaded);
-    setReady(true);
+    let cancelled = false;
+    void loadDataPreferPersistentCache({
+      onCacheMissLoaded: schedulePersistedAppDataCacheRefresh,
+    }).then((persisted) => {
+      if (cancelled) return;
+      durableStorageBaselineRef.current = { status: "known", data: persisted };
+      lastKnownDurableDataRef.current = persisted;
+      const loaded = syncRecurringExpenses(persisted);
+      dataRef.current = loaded;
+      setData(loaded);
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

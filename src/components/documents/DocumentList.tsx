@@ -40,11 +40,9 @@ import {
   isDocumentUsableForFinancialCalculations,
   isUsableLegacyImportedDocument,
 } from "@/lib/document-integrity/legacy-import-attestation";
-import {
-  inspectAppIssuedDocumentRecovery,
-  inspectAppIssuedDocumentRecoveryCollection,
-} from "@/lib/document-integrity/app-issued-recovery";
+import { inspectAppIssuedDocumentRecovery } from "@/lib/document-integrity/app-issued-recovery";
 import { hasAppIssuedRecoveryProtectionClaim } from "@/lib/document-integrity/app-issued-recovery-protection";
+import { inspectInvoiceListIntegrity } from "@/lib/document-list-integrity-cache";
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import {
   documentHasLinkedCustomerNameMismatch,
@@ -68,7 +66,6 @@ import {
   type InvoicePdfExportPeriod,
 } from "@/lib/billing/invoice-pdf-export-period";
 import { buildInvoiceCustomerEmail } from "@/lib/billing/invoice-customer-email";
-import { selectCanonicalFiscalDocumentsForExport } from "@/lib/billing/fiscal-export-documents";
 import {
   resolveInvoiceCustomerExportContext,
   type InvoiceCustomerExportContext,
@@ -299,18 +296,16 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     () => availableProductPeriodYears(allDocuments, []),
     [allDocuments],
   );
-  const fiscalBlockedDocumentIds = useMemo(
-    () => {
-      if (type !== "factura") return new Set<string>();
-      return new Set(
-        selectCanonicalFiscalDocumentsForExport(
-          data.documents,
-          data.profile,
-          () => true,
-        ).blockedDocuments.map((document) => document.id),
-      );
-    },
+  const invoiceIntegrityInspection = useMemo(
+    () =>
+      type === "factura"
+        ? inspectInvoiceListIntegrity(data.documents, data.profile)
+        : null,
     [data.documents, data.profile, type],
+  );
+  const fiscalBlockedDocumentIds = useMemo(
+    () => invoiceIntegrityInspection?.blockedDocumentIds ?? new Set<string>(),
+    [invoiceIntegrityInspection],
   );
 
   useEffect(() => {
@@ -435,14 +430,12 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   }, [data.expenses, type]);
   const appIssuedRecoveryCollection = useMemo(
     () =>
-      type === "factura"
-        ? inspectAppIssuedDocumentRecoveryCollection(data.documents)
-        : {
-            claimedDocumentIds: new Set<string>(),
-            validDocumentIds: new Set<string>(),
-            issuesByDocumentId: new Map(),
-          },
-    [data.documents, type],
+      invoiceIntegrityInspection?.recovery ?? {
+        claimedDocumentIds: new Set<string>(),
+        validDocumentIds: new Set<string>(),
+        issuesByDocumentId: new Map(),
+      },
+    [invoiceIntegrityInspection],
   );
 
   useEffect(() => {

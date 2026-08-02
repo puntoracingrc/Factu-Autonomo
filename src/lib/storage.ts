@@ -74,6 +74,10 @@ import type {
   WorkspaceIntegrityQuarantineEntry,
 } from "./types";
 import { DEFAULT_PROFILE, EMPTY_DATA } from "./types";
+import {
+  deletePersistedAppDataCache,
+  readPersistedAppDataCache,
+} from "./persisted-app-data-cache";
 
 type NormalizedCentralInvoiceAuthorityEventsSyncState = NonNullable<
   AppData["centralInvoiceAuthorityEventsSync"]
@@ -1526,6 +1530,66 @@ export function loadData(): AppData {
   }
 }
 
+export async function loadDataPreferPersistentCache(
+  options: {
+    readCache?: typeof readPersistedAppDataCache;
+    onCacheMissLoaded?: (storageKey: string, raw: string | null) => void;
+  } = {},
+): Promise<AppData> {
+  if (typeof window === "undefined") return EMPTY_DATA;
+
+  let storage: Storage;
+  let storageKey: string;
+  let raw: string | null;
+  try {
+    storage = localStorage;
+    storageKey = currentStorageKey();
+    raw = storage.getItem(storageKey);
+  } catch {
+    return loadData();
+  }
+
+  const memoryCache = matchingPersistedSnapshotCache(
+    storage,
+    storageKey,
+    raw,
+  );
+  const memorySnapshot = cachedNormalizedSnapshot(memoryCache);
+  if (memorySnapshot) return memorySnapshot;
+
+  if (raw !== null) {
+    const persistentSnapshot = await (
+      options.readCache ?? readPersistedAppDataCache
+    )(
+      storageKey,
+      raw,
+    );
+    if (persistentSnapshot) {
+      try {
+        if (storage.getItem(storageKey) === raw) {
+          rememberPersistedSnapshot(storage, storageKey, raw, {
+            normalized: persistentSnapshot,
+            equivalentData: persistentSnapshot,
+          });
+          return persistentSnapshot;
+        }
+      } catch {
+        return loadData();
+      }
+    }
+  }
+
+  const loaded = loadData();
+  try {
+    const currentKey = currentStorageKey();
+    const currentRaw = localStorage.getItem(currentKey);
+    options.onCacheMissLoaded?.(currentKey, currentRaw);
+  } catch {
+    // La copia normalizada es opcional; el estado durable ya se ha cargado.
+  }
+  return loaded;
+}
+
 /**
  * Lee el estado durable actual sin escribir normalizaciones en localStorage.
  * Permite recuperar una precondición obsoleta cuando el dominio de negocio
@@ -2028,6 +2092,7 @@ export function clearPersistedAppData(expected: AppData): SaveDataResult {
       return { status: "blocked", reason: "verification_failed" };
     }
     persistedSnapshotCache = null;
+    void deletePersistedAppDataCache(storageKey);
     return { status: "applied" };
   } catch {
     return { status: "indeterminate", reason: "storage_state_unknown" };

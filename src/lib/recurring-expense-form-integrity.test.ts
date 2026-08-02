@@ -121,7 +121,10 @@ describe("recurring expense form integrity", () => {
     expect(appStore).toContain(
       "saveData(candidate, { expected: storageExpected })",
     );
-    expect(appStore).toContain("const persisted = loadData();");
+    expect(appStore).toContain("loadDataPreferPersistentCache({");
+    expect(appStore).toContain(
+      "onCacheMissLoaded: schedulePersistedAppDataCacheRefresh",
+    );
     expect(appStore).toContain("syncRecurringExpenses(persisted)");
     expect(
       appStore.match(

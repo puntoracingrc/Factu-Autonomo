@@ -5,11 +5,18 @@ const source = readFileSync(
   new URL("./DocumentList.tsx", import.meta.url),
   "utf8",
 );
+const integrityCacheSource = readFileSync(
+  new URL("../../lib/document-list-integrity-cache.ts", import.meta.url),
+  "utf8",
+);
 
 describe("invoice list blocked filter", () => {
   it("expone el estado Bloqueadas y usa la selección fiscal canónica", () => {
     expect(source).toContain('{ value: "blocked", label: "Bloqueadas" }');
-    expect(source).toContain("selectCanonicalFiscalDocumentsForExport");
+    expect(source).toContain("inspectInvoiceListIntegrity");
+    expect(integrityCacheSource).toContain(
+      "selectCanonicalFiscalDocumentsForExport",
+    );
     expect(source).toContain("fiscalBlockedDocumentIds.has(document.id)");
   });
 
