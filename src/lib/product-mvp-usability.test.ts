@@ -1131,6 +1131,10 @@ describe("MVP usability polish", () => {
       new URL("../components/ui/TimelineMonthDivider.tsx", import.meta.url),
       "utf8",
     );
+    const documentListCacheSource = readFileSync(
+      new URL("./document-list-derived-cache.ts", import.meta.url),
+      "utf8",
+    );
 
     expect(documentListSource).toContain("DOCUMENT_LIST_BATCH_SIZE = 10");
     expect(documentListSource).toContain('"factura"');
@@ -1142,9 +1146,11 @@ describe("MVP usability polish", () => {
     expect(documentListSource).toContain("Mostrando");
     expect(documentListSource).toContain("TimelineMonthDivider");
     expect(documentListSource).toContain("formatTimelineMonthLabel");
-    expect(documentListSource.replace(/\s+/g, " ")).toContain(
-      'type === "factura" ? sortInvoicesByPeriodAndNumberDesc( statusDocuments, data.profile.numbering, ) : sortDocumentsByNumberDesc(statusDocuments)',
+    expect(documentListSource).toContain("getDocumentListBase");
+    expect(documentListCacheSource).toContain(
+      "sortInvoicesByPeriodAndNumberDesc",
     );
+    expect(documentListCacheSource).toContain("sortDocumentsByNumberDesc");
     expect(documentListSource).toContain(
       "Ordenadas por año y mes; dentro de cada mes, por el último número de mayor a menor",
     );
@@ -1450,7 +1456,7 @@ describe("MVP usability polish", () => {
     expect(installCardSource).not.toContain("object-cover");
     expect(serviceWorkerSource).toContain('register("/sw.js")');
     expect(serviceWorkerSource).toContain('document.readyState === "complete"');
-    expect(pwaWorkerSource).toContain("factu-pwa-static-v3");
+    expect(pwaWorkerSource).toContain("factu-pwa-static-v4");
     expect(pwaWorkerSource).toContain('"/_next/static/"');
     expect(pwaWorkerSource).toContain('"/api/"');
     expect(pwaWorkerSource).toContain("return false");

@@ -42,22 +42,24 @@ import {
   CUSTOMER_TYPE_LABELS,
   customerFullName,
   customerListWindow,
-  buildCustomerInvoicedTotals,
   countDocumentsForCustomer,
   customerPayloadFromInput,
   CUSTOMER_SORT_FIELD_LABELS,
   customerSortDirectionLabel,
   findCustomerByIdOrMergedId,
-  findDuplicateCustomerGroups,
   getCustomerDisplayName,
   migrateCustomer,
   normalizeCustomerType,
-  sortCustomers,
   filterCustomers,
   validateCustomerInput,
   type CustomerSortDirection,
   type CustomerSortField,
 } from "@/lib/customers";
+import {
+  buildCustomerInvoicedTotalsCached,
+  findDuplicateCustomerGroupsCached,
+  sortCustomersCached,
+} from "@/lib/customer-list-derived-cache";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
 import { analyzeCustomerDeletion } from "@/lib/master-record-deletion";
 import type {
@@ -220,13 +222,13 @@ export default function ClientesPage() {
   const [pageError, setPageError] = useState<string | null>(null);
 
   const customerInvoicedTotals = useMemo(
-    () => buildCustomerInvoicedTotals(data.customers, data.documents),
+    () => buildCustomerInvoicedTotalsCached(data.customers, data.documents),
     [data.customers, data.documents],
   );
 
   const customers = useMemo(
     () =>
-      sortCustomers(
+      sortCustomersCached(
         data.customers,
         data.documents,
         sortField,
@@ -260,8 +262,8 @@ export default function ClientesPage() {
   }, [customers, mergeSearch]);
 
   const duplicateGroups = useMemo(
-    () => findDuplicateCustomerGroups(data.customers),
-    [data.customers],
+    () => findDuplicateCustomerGroupsCached(data.customers, data.documents),
+    [data.customers, data.documents],
   );
 
   const selectedCustomers = useMemo(
