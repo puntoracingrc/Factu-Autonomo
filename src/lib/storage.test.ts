@@ -15,6 +15,7 @@ import {
   clearPersistedAppData,
   inspectPersistedData,
   loadData,
+  loadDataPreferPersistentCache,
   normalizeLoadedData,
   readPersistedDataSnapshot,
   saveData,
@@ -488,6 +489,35 @@ describe("storage", () => {
     expect(snapshot?.profile.name).toBe(current.profile.name);
     expect(localStorage.getItem(STORAGE_KEY)).toBe(raw);
     expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("rehidrata la copia normalizada persistente cuando coincide el raw exacto", async () => {
+    const raw = JSON.stringify(sampleData());
+    localStorage.setItem(STORAGE_KEY, raw);
+    const cached = normalizeLoadedData(sampleData());
+    const readCache = vi.fn().mockResolvedValue(cached);
+
+    const loaded = await loadDataPreferPersistentCache({ readCache });
+
+    expect(readCache).toHaveBeenCalledWith(STORAGE_KEY, raw);
+    expect(loaded).toBe(cached);
+  });
+
+  it("descarta la copia normalizada si el almacenamiento cambia durante la lectura", async () => {
+    const initial = sampleData();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+    const replacement = {
+      ...initial,
+      profile: { ...initial.profile, name: "Cambio de otra pestaña" },
+    };
+    const readCache = vi.fn().mockImplementation(async () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(replacement));
+      return normalizeLoadedData(initial);
+    });
+
+    const loaded = await loadDataPreferPersistentCache({ readCache });
+
+    expect(loaded.profile.name).toBe("Cambio de otra pestaña");
   });
 
   it("rehidrata únicamente preferencias manuales de modelos válidas", () => {
