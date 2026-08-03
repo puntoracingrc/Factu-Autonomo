@@ -1,5 +1,8 @@
 export const APP_NAVIGATION_PREFETCH_DELAY_MS = 90;
 
+export const APP_NAVIGATION_WARMUP_INITIAL_DELAY_MS = 1_600;
+export const APP_NAVIGATION_WARMUP_STEP_DELAY_MS = 350;
+
 export const APP_NAVIGATION_PREFETCH_HREFS = [
   "/",
   "/clientes",
@@ -10,6 +13,17 @@ export const APP_NAVIGATION_PREFETCH_HREFS = [
   "/proveedores",
   "/productos",
   "/rentabilidad-real",
+] as const;
+
+export const APP_NAVIGATION_WARMUP_HREFS = [
+  "/",
+  "/clientes",
+  "/facturas",
+  "/gastos",
+  "/presupuestos",
+  "/recibos",
+  "/proveedores",
+  "/productos",
 ] as const;
 
 type NavigationConnectionInfo = {
@@ -55,4 +69,14 @@ export function shouldPrefetchAppNavigationHref(
   if (href === currentPathname) return false;
   if (!prefetchHrefSet.has(href)) return false;
   return canPrefetchForNavigationConnection(connection);
+}
+
+export function getAppNavigationWarmupHrefs(
+  currentPathname: string,
+  connection?: NavigationConnectionInfo,
+): string[] {
+  if (!canPrefetchForNavigationConnection(connection)) return [];
+  return APP_NAVIGATION_WARMUP_HREFS.filter(
+    (href) => href !== currentPathname,
+  );
 }

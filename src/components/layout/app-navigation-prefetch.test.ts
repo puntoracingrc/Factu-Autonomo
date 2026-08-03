@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   APP_NAVIGATION_PREFETCH_DELAY_MS,
   APP_NAVIGATION_PREFETCH_HREFS,
+  APP_NAVIGATION_WARMUP_INITIAL_DELAY_MS,
+  APP_NAVIGATION_WARMUP_STEP_DELAY_MS,
   canPrefetchForNavigationConnection,
+  getAppNavigationWarmupHrefs,
   shouldPrefetchAppNavigationHref,
 } from "./app-navigation-prefetch";
 
@@ -41,7 +44,7 @@ describe("prefetch prudente de navegación principal", () => {
     );
   });
 
-  it("se activa por intención y no por carga automática de todos los links", () => {
+  it("se activa de inmediato por intención", () => {
     expect(APP_NAVIGATION_PREFETCH_DELAY_MS).toBeGreaterThanOrEqual(50);
     expect(appShellSource).toContain("router.prefetch(href)");
     expect(appShellSource).toContain("prefetch={false}");
@@ -56,6 +59,32 @@ describe("prefetch prudente de navegación principal", () => {
     );
     expect(appShellSource).toContain(
       "onTouchStart={() => scheduleNavigationPrefetch(href)}",
+    );
+  });
+
+  it("calienta las rutas operativas de una en una cuando el equipo queda libre", () => {
+    expect(
+      getAppNavigationWarmupHrefs("/facturas", { effectiveType: "4g" }),
+    ).toEqual([
+      "/",
+      "/clientes",
+      "/gastos",
+      "/presupuestos",
+      "/recibos",
+      "/proveedores",
+      "/productos",
+    ]);
+    expect(
+      getAppNavigationWarmupHrefs("/facturas", { saveData: true }),
+    ).toEqual([]);
+    expect(APP_NAVIGATION_WARMUP_INITIAL_DELAY_MS).toBeGreaterThanOrEqual(
+      1_000,
+    );
+    expect(APP_NAVIGATION_WARMUP_STEP_DELAY_MS).toBeGreaterThanOrEqual(250);
+    expect(appShellSource).toContain("scheduleNavigationWarmup");
+    expect(appShellSource).toContain("getAppNavigationWarmupHrefs");
+    expect(appShellSource).toContain(
+      "prefetchedNavigationHrefsRef.current.add(href)",
     );
   });
 });
