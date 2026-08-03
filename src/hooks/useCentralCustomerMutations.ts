@@ -3,11 +3,10 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
 import {
-  resolveCentralBusinessUserId,
-  useCentralBusinessResolvedUserId,
-} from "@/hooks/useCentralBusinessUserId";
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
 import type { Customer } from "@/lib/types";
 
@@ -28,8 +27,8 @@ export function useCentralCustomerMutations(): {
     updateCustomer: updateCustomerFallback,
     updateCustomerDurably,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = useCentralBusinessResolvedUserId(user?.id);
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const baseDependencies = useMemo(
     () => ({
@@ -50,18 +49,19 @@ export function useCentralCustomerMutations(): {
 
   const updateCustomer = useCallback(
     async (customer: Customer) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
       try {
-        const resolvedUserId = await resolveCentralBusinessUserId(userId);
-        const { updateCustomerWithCentralCanary } = await import(
-          "@/lib/central-business-authority/customer-mutation-canary"
-        );
+        const { updateCustomerWithCentralCanary } =
+          await import("@/lib/central-business-authority/customer-mutation-canary");
         return await updateCustomerWithCentralCanary({
-          userId: resolvedUserId,
+          userId,
           customer,
           dependencies: {
             ...baseDependencies,
-            syncEventsBeforeWrite: resolvedUserId
-              ? () => syncCentralBusinessEvents(resolvedUserId)
+            syncEventsBeforeWrite: userId
+              ? () => syncCentralBusinessEvents(userId)
               : undefined,
           },
         });
@@ -73,23 +73,24 @@ export function useCentralCustomerMutations(): {
         };
       }
     },
-    [baseDependencies, syncCentralBusinessEvents, userId],
+    [baseDependencies, planGate.mode, syncCentralBusinessEvents, userId],
   );
 
   const deleteCustomer = useCallback(
     async (customerId: string) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
       try {
-        const resolvedUserId = await resolveCentralBusinessUserId(userId);
-        const { deleteCustomerWithCentralCanary } = await import(
-          "@/lib/central-business-authority/customer-mutation-canary"
-        );
+        const { deleteCustomerWithCentralCanary } =
+          await import("@/lib/central-business-authority/customer-mutation-canary");
         return await deleteCustomerWithCentralCanary({
-          userId: resolvedUserId,
+          userId,
           customerId,
           dependencies: {
             ...baseDependencies,
-            syncEventsBeforeWrite: resolvedUserId
-              ? () => syncCentralBusinessEvents(resolvedUserId)
+            syncEventsBeforeWrite: userId
+              ? () => syncCentralBusinessEvents(userId)
               : undefined,
           },
         });
@@ -101,11 +102,12 @@ export function useCentralCustomerMutations(): {
         };
       }
     },
-    [baseDependencies, syncCentralBusinessEvents, userId],
+    [baseDependencies, planGate.mode, syncCentralBusinessEvents, userId],
   );
 
   const isCentralCustomer = useCallback(
     async (customerId: string) => {
+      if (planGate.mode === "loading") return true;
       if (!userId) {
         return false;
       }
@@ -128,7 +130,7 @@ export function useCentralCustomerMutations(): {
         return true;
       }
     },
-    [userId],
+    [planGate.mode, userId],
   );
 
   return { updateCustomer, deleteCustomer, isCentralCustomer };

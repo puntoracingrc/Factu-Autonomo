@@ -3,14 +3,11 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
 import {
-  resolveCentralBusinessUserId,
-  useCentralBusinessResolvedUserId,
-} from "@/hooks/useCentralBusinessUserId";
-import type {
-  CentralCustomerCreateResult,
-} from "@/lib/central-business-authority/customer-create-canary";
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
+import type { CentralCustomerCreateResult } from "@/lib/central-business-authority/customer-create-canary";
 import type { Customer } from "@/lib/types";
 
 type CustomerDraft = Omit<Customer, "id" | "createdAt" | "updatedAt">;
@@ -26,25 +23,26 @@ export function useCentralCustomerCreate(): {
     getCurrentData,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = useCentralBusinessResolvedUserId(user?.id);
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const createCustomer = useCallback(
     async (draft: CustomerDraft) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
       try {
-        const resolvedUserId = await resolveCentralBusinessUserId(userId);
-        const { createCustomerWithCentralCanary } = await import(
-          "@/lib/central-business-authority/customer-create-canary"
-        );
+        const { createCustomerWithCentralCanary } =
+          await import("@/lib/central-business-authority/customer-create-canary");
         return await createCustomerWithCentralCanary({
-          userId: resolvedUserId,
+          userId,
           draft,
           dependencies: {
             getCurrentData,
             addCustomerFallback: addCustomer,
             addCustomerDurably,
-            syncEventsBeforeWrite: resolvedUserId
-              ? () => syncCentralBusinessEvents(resolvedUserId)
+            syncEventsBeforeWrite: userId
+              ? () => syncCentralBusinessEvents(userId)
               : undefined,
           },
         });
@@ -60,6 +58,7 @@ export function useCentralCustomerCreate(): {
       addCustomer,
       addCustomerDurably,
       getCurrentData,
+      planGate.mode,
       syncCentralBusinessEvents,
       userId,
     ],

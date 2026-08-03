@@ -3,11 +3,10 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
 import {
-  resolveCentralBusinessUserId,
-  useCentralBusinessResolvedUserId,
-} from "@/hooks/useCentralBusinessUserId";
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import { useCentralCustomerCreate } from "@/hooks/useCentralCustomerCreate";
 import { useCentralCustomerMutations } from "@/hooks/useCentralCustomerMutations";
 import {
@@ -22,21 +21,21 @@ export function useCentralDocumentCustomerUpsert(): {
     selectedCustomerId: string | null,
   ) => Promise<CentralCustomerDocumentUpsertResult>;
 } {
-  const {
-    getCurrentData,
-    upsertCustomerForDocument: upsertCustomerFallback,
-  } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = useCentralBusinessResolvedUserId(user?.id);
+  const { getCurrentData, upsertCustomerForDocument: upsertCustomerFallback } =
+    useAppStore();
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
   const { createCustomer } = useCentralCustomerCreate();
   const { updateCustomer } = useCentralCustomerMutations();
 
   const upsertDocumentCustomer = useCallback(
     async (input: ClientInput, selectedCustomerId: string | null) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
       try {
-        const resolvedUserId = await resolveCentralBusinessUserId(userId);
         return await upsertCustomerForDocumentWithCentralCanary({
-          userId: resolvedUserId,
+          userId,
           customerInput: input,
           selectedCustomerId,
           dependencies: {
@@ -57,6 +56,7 @@ export function useCentralDocumentCustomerUpsert(): {
     [
       createCustomer,
       getCurrentData,
+      planGate.mode,
       updateCustomer,
       upsertCustomerFallback,
       userId,

@@ -54,4 +54,22 @@ describe("central authority rollout wiring", () => {
     expect(businessEvents).not.toContain("PublicWriteRolloutUser");
     expect(invoiceEvents).not.toContain("PublicWriteRolloutUser");
   });
+
+  it("separa Gratis del bootstrap central y retira el escritor legacy del rollout", () => {
+    const planGate = source("../../hooks/useCentralAuthorityPlanGate.ts");
+    const automaticBootstrap = source(
+      "../../components/cloud/CentralBusinessAutomaticBootstrap.tsx",
+    );
+    const legacyRetirement = source("../supabase/config.ts");
+
+    expect(planGate).toContain("limits.cloudSync");
+    expect(planGate).toContain("hasVerifiedCentralBusinessAutomaticBootstrap");
+    expect(automaticBootstrap).toContain(
+      "previewCentralBusinessBootstrapFromBrowser",
+    );
+    expect(automaticBootstrap).toContain("automaticBootstrapDisposition");
+    expect(legacyRetirement).toContain(
+      "isCentralAuthorityRolloutSelected",
+    );
+  });
 });

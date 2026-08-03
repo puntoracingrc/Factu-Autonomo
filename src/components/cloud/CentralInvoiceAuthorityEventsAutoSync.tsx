@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCentralAuthorityPlanGate } from "@/hooks/useCentralAuthorityPlanGate";
 import type { AppData } from "@/lib/types";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
@@ -35,16 +36,21 @@ type LatestCentralAuthorityAutoSyncState = {
   hasUser: boolean;
   emailConfirmed: boolean;
   userCanaryAllowed: boolean;
-  syncCentralInvoiceAuthorityEvents: ReturnType<typeof useAppStore>["syncCentralInvoiceAuthorityEvents"];
+  syncCentralInvoiceAuthorityEvents: ReturnType<
+    typeof useAppStore
+  >["syncCentralInvoiceAuthorityEvents"];
 };
 
 export function CentralInvoiceAuthorityEventsAutoSync() {
   const { data, ready, syncCentralInvoiceAuthorityEvents } = useAppStore();
-  const { cloudEnabled, user, emailConfirmed } = useCloudSync();
-  const enabled = isCentralInvoiceAuthorityEventsAutoSyncEnabled();
+  const { cloudEnabled, emailConfirmed } = useCloudSync();
+  const planGate = useCentralAuthorityPlanGate();
+  const enabled =
+    planGate.mode === "central" &&
+    isCentralInvoiceAuthorityEventsAutoSyncEnabled();
   const realtimeWakeupsEnabled =
     isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled();
-  const userId = typeof user?.id === "string" ? user.id : null;
+  const userId = planGate.centralUserId;
   const userCanaryAllowed =
     isCentralInvoiceAuthorityEventsCanaryUserAllowed(userId);
   const runningRef = useRef(false);
@@ -55,8 +61,8 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
   const latestRef = useRef<LatestCentralAuthorityAutoSyncState>({
     data,
     ready,
-    cloudEnabled,
-    hasUser: Boolean(user),
+    cloudEnabled: cloudEnabled && planGate.mode === "central",
+    hasUser: Boolean(userId),
     emailConfirmed,
     userCanaryAllowed,
     syncCentralInvoiceAuthorityEvents,
@@ -66,8 +72,8 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     latestRef.current = {
       data,
       ready,
-      cloudEnabled,
-      hasUser: Boolean(user),
+      cloudEnabled: cloudEnabled && planGate.mode === "central",
+      hasUser: Boolean(userId),
       emailConfirmed,
       userCanaryAllowed,
       syncCentralInvoiceAuthorityEvents,
@@ -76,7 +82,8 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     data,
     ready,
     cloudEnabled,
-    user,
+    planGate.mode,
+    userId,
     emailConfirmed,
     userCanaryAllowed,
     syncCentralInvoiceAuthorityEvents,
@@ -180,15 +187,16 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
   }, [enabled, userCanaryAllowed]);
 
   useEffect(() => {
-    const decision = shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
-      autoSyncEnabled: enabled,
-      realtimeWakeupsEnabled,
-      ready,
-      cloudEnabled,
-      hasUser: Boolean(userId),
-      emailConfirmed,
-      userCanaryAllowed,
-    });
+    const decision =
+      shouldSubscribeCentralInvoiceAuthorityEventsRealtimeWakeups({
+        autoSyncEnabled: enabled,
+        realtimeWakeupsEnabled,
+        ready,
+        cloudEnabled: cloudEnabled && planGate.mode === "central",
+        hasUser: Boolean(userId),
+        emailConfirmed,
+        userCanaryAllowed,
+      });
     const subscription =
       centralInvoiceAuthorityEventsRealtimeWakeupsSubscription(userId);
 
@@ -247,6 +255,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     realtimeWakeupsEnabled,
     ready,
     cloudEnabled,
+    planGate.mode,
     userId,
     emailConfirmed,
     userCanaryAllowed,

@@ -3,7 +3,10 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import {
   applyProductCatalogBatchWithCentralCanary,
   type CentralProductCatalogBatchResult,
@@ -21,12 +24,15 @@ export function useCentralProductCatalogStructure(): {
     getCurrentData,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const applyCatalogStructure = useCallback(
-    (operation: ProductCatalogStructureOperation) =>
-      applyProductCatalogBatchWithCentralCanary({
+    async (operation: ProductCatalogStructureOperation) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return applyProductCatalogBatchWithCentralCanary({
         userId,
         operation,
         dependencies: {
@@ -37,11 +43,13 @@ export function useCentralProductCatalogStructure(): {
             ? () => syncCentralBusinessEvents(userId)
             : undefined,
         },
-      }),
+      });
+    },
     [
       applyProductCatalogStructure,
       commitPreparedAppDataDurably,
       getCurrentData,
+      planGate.mode,
       syncCentralBusinessEvents,
       userId,
     ],

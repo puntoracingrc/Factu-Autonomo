@@ -3,7 +3,10 @@
 import { useCallback, useMemo, useRef } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
 import {
   updateProfileWithCentralCanary,
@@ -23,8 +26,8 @@ export function useCentralProfileMutation(): {
     updateProfile: updateProfileFallback,
     updateProfileDurably,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
   const runSerialMutation = useRef(createSerialMutationRunner()).current;
 
   const dependencies = useMemo(
@@ -47,6 +50,9 @@ export function useCentralProfileMutation(): {
 
   const updateProfile = useCallback(
     (profile: CentralProfileUpdate) => {
+      if (planGate.mode === "loading") {
+        return Promise.resolve(centralAuthorityPlanLoadingFailure());
+      }
       return runSerialMutation(() =>
         updateProfileWithCentralCanary({
           userId,
@@ -55,7 +61,7 @@ export function useCentralProfileMutation(): {
         }),
       );
     },
-    [dependencies, runSerialMutation, userId],
+    [dependencies, planGate.mode, runSerialMutation, userId],
   );
 
   return { updateProfile };

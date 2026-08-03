@@ -3,7 +3,10 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import {
   createSupplierWithCentralCanary,
   type CentralSupplierCreateResult,
@@ -23,12 +26,15 @@ export function useCentralSupplierCreate(): {
     getCurrentData,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const createSupplier = useCallback(
-    (draft: SupplierDraft) =>
-      createSupplierWithCentralCanary({
+    async (draft: SupplierDraft) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return createSupplierWithCentralCanary({
         userId,
         draft,
         dependencies: {
@@ -39,11 +45,13 @@ export function useCentralSupplierCreate(): {
             ? () => syncCentralBusinessEvents(userId)
             : undefined,
         },
-      }),
+      });
+    },
     [
       addSupplier,
       addSupplierDurably,
       getCurrentData,
+      planGate.mode,
       syncCentralBusinessEvents,
       userId,
     ],

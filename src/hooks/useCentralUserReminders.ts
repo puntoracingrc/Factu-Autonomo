@@ -3,7 +3,10 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import {
   createReminderWithCentralCanary,
   type CentralReminderCreateResult,
@@ -39,8 +42,8 @@ export function useCentralUserReminders(): {
     syncCentralBusinessEvents,
     updateUserReminderDurably,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const syncEventsBeforeWrite = useMemo(
     () => (userId ? () => syncCentralBusinessEvents(userId) : undefined),
@@ -48,8 +51,11 @@ export function useCentralUserReminders(): {
   );
 
   const createReminder = useCallback(
-    (draft: UserReminderDraft) =>
-      createReminderWithCentralCanary({
+    async (draft: UserReminderDraft) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return createReminderWithCentralCanary({
         userId,
         draft,
         dependencies: {
@@ -58,11 +64,13 @@ export function useCentralUserReminders(): {
           addUserReminderDurably,
           syncEventsBeforeWrite,
         },
-      }),
+      });
+    },
     [
       addUserReminder,
       addUserReminderDurably,
       getCurrentData,
+      planGate.mode,
       syncEventsBeforeWrite,
       userId,
     ],
@@ -90,24 +98,32 @@ export function useCentralUserReminders(): {
   );
 
   const setReminderCompleted = useCallback(
-    (reminderId: string, completed: boolean) =>
-      setReminderCompletedWithCentralCanary({
+    async (reminderId: string, completed: boolean) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return setReminderCompletedWithCentralCanary({
         userId,
         reminderId,
         completed,
         dependencies: mutationDependencies,
-      }),
-    [mutationDependencies, userId],
+      });
+    },
+    [mutationDependencies, planGate.mode, userId],
   );
 
   const deleteReminder = useCallback(
-    (reminderId: string) =>
-      deleteReminderWithCentralCanary({
+    async (reminderId: string) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return deleteReminderWithCentralCanary({
         userId,
         reminderId,
         dependencies: mutationDependencies,
-      }),
-    [mutationDependencies, userId],
+      });
+    },
+    [mutationDependencies, planGate.mode, userId],
   );
 
   return { createReminder, setReminderCompleted, deleteReminder };

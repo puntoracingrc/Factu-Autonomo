@@ -40,6 +40,10 @@ import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { useCentralQuoteCreate } from "@/hooks/useCentralQuoteCreate";
 import { useCentralDocumentCustomerUpsert } from "@/hooks/useCentralDocumentCustomerUpsert";
 import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
+import {
   formatMoney,
   formatShortDate,
   lineGrossUnitPrice,
@@ -483,6 +487,7 @@ export function DocumentForm({
   const { upsertDocumentCustomer } = useCentralDocumentCustomerUpsert();
   const { updateProfile } = useCentralProfileMutation();
   const { createQuote } = useCentralQuoteCreate();
+  const centralPlanGate = useCentralAuthorityPlanGate();
   const {
     billingEnabled,
     checkCanCreateDocument,
@@ -1789,10 +1794,15 @@ export function DocumentForm({
           payload,
           resolvedStatus,
         });
+      if (centralDocumentEligible && centralPlanGate.mode === "loading") {
+        setSaveAction("idle");
+        setFormError(centralAuthorityPlanLoadingFailure().error);
+        return;
+      }
       const centralPolicy = centralDocumentEligible
         ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
             publicFormCanaryEnabled: centralCanaryEnabled,
-            publicFormCanaryUserId: cloudUser?.id,
+            publicFormCanaryUserId: centralPlanGate.centralUserId,
           })
         : null;
 

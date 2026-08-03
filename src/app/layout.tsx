@@ -6,6 +6,7 @@ import { AppErrorMonitor } from "@/components/monitoring/AppErrorMonitor";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { AppStoreProvider } from "@/context/AppStore";
 import { BillingProvider } from "@/context/BillingContext";
+import { CentralAuthorityPlanGateProvider } from "@/hooks/useCentralAuthorityPlanGate";
 import { CloudSyncProvider } from "@/context/CloudSyncContext";
 import { APP_BRAND_NAME } from "@/lib/brand";
 import {
@@ -104,11 +105,13 @@ export default function RootLayout({
         <AppStoreProvider>
           <CloudSyncProvider>
             <BillingProvider>
-              <QuickToolsProvider>
-                <ConditionalAppShell>{children}</ConditionalAppShell>
-              </QuickToolsProvider>
-              <AppErrorMonitor />
-              <RegisterServiceWorker />
+              <CentralAuthorityPlanGateProvider>
+                <QuickToolsProvider>
+                  <ConditionalAppShell>{children}</ConditionalAppShell>
+                </QuickToolsProvider>
+                <AppErrorMonitor />
+                <RegisterServiceWorker />
+              </CentralAuthorityPlanGateProvider>
             </BillingProvider>
           </CloudSyncProvider>
         </AppStoreProvider>

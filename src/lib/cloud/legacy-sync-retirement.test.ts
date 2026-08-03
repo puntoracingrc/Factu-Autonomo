@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { isLegacyCloudRetiredForUser } from "@/lib/supabase/config";
+import {
+  isLegacyCloudExplicitlyRetiredForUser,
+  isLegacyCloudRetiredForUser,
+} from "@/lib/supabase/config";
 
 const ROOT = process.cwd();
 const ownerId = "11111111-1111-4111-8111-111111111111";
@@ -11,21 +14,38 @@ function source(relativePath: string): string {
 }
 
 describe("legacy cloud retirement", () => {
-  it("requires an explicit valid UUID allowlist entry", () => {
+  it("preserves explicit UUID cutovers without accepting a wildcard there", () => {
     expect(
-      isLegacyCloudRetiredForUser(ownerId, {
+      isLegacyCloudExplicitlyRetiredForUser(ownerId, {
         userIds: ` other, ${ownerId.toUpperCase()} `,
       }),
     ).toBe(true);
     expect(
-      isLegacyCloudRetiredForUser(ownerId, { userIds: "*" }),
+      isLegacyCloudExplicitlyRetiredForUser(ownerId, { userIds: "*" }),
     ).toBe(false);
     expect(
-      isLegacyCloudRetiredForUser(ownerId, {
+      isLegacyCloudExplicitlyRetiredForUser(ownerId, {
         userIds: "user@example.test",
       }),
     ).toBe(false);
-    expect(isLegacyCloudRetiredForUser(null, { userIds: ownerId })).toBe(false);
+    expect(
+      isLegacyCloudExplicitlyRetiredForUser(null, { userIds: ownerId }),
+    ).toBe(false);
+  });
+
+  it("retires the legacy writer for a selected central rollout owner", () => {
+    expect(
+      isLegacyCloudRetiredForUser(ownerId, {
+        rolloutPercent: "100",
+        rolloutEligibleUserIds: "*",
+      }),
+    ).toBe(true);
+    expect(
+      isLegacyCloudRetiredForUser(ownerId, {
+        rolloutPercent: "0",
+        rolloutEligibleUserIds: "*",
+      }),
+    ).toBe(false);
   });
 
   it("keeps the legacy synchronizer paused for a retired owner", () => {

@@ -30,7 +30,7 @@ describe("central expense and profile UI wiring", () => {
     expect(page).toContain("useCentralExpenseMutations");
     expect(page).toContain("await createExpense(payload)");
     expect(page).toContain("await updateCentralExpense({");
-    expect(page).toContain("updateExpenseFallback({");
+    expect(page).not.toContain("updateExpenseFallback({");
   });
 
   it("routes list deletion through the central hook", () => {
@@ -49,7 +49,9 @@ describe("central expense and profile UI wiring", () => {
     expect(hook).toContain("prepareCentralScannedExpenseBundle");
     expect(hook).toContain("prepareCentralFixedExpenseBundle");
     expect(page).toContain("await saveScannedExpenseDurably(durableExpense");
-    expect(page).toContain("ensureSupplierForExpense(durableExpected.suppliers");
+    expect(page).toContain(
+      "ensureSupplierForExpense(durableExpected.suppliers",
+    );
     expect(page).toContain("supplier: resolved.create");
     expect(page).toContain("await saveFixedExpenseWithRecurringTemplate(");
     expect(page).toContain("centralResult.localFailure");

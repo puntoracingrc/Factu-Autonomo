@@ -21,9 +21,7 @@ describe("RectificativaForm central authority canary wiring", () => {
     );
     expect(form).toContain("isCentralInvoiceAuthorityFormCanaryEnabled");
     expect(form).toContain("issueCentralInvoiceAuthorityFromBrowser");
-    expect(form).toContain(
-      "preflightCentralInvoiceAuthorityFormSeries",
-    );
+    expect(form).toContain("preflightCentralInvoiceAuthorityFormSeries");
     expect(form).toContain("addDocumentWithCentralIdentity");
     expect(form).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(form).toContain("buildRectificativaPayload");
@@ -32,13 +30,14 @@ describe("RectificativaForm central authority canary wiring", () => {
     );
     expect(form).toContain("syncCentralInvoiceAuthorityEvents");
     expect(form).toContain("CentralInvoiceAuthorityFormPolicyNotice");
+    expect(form).toContain("useCentralAuthorityPlanGate");
   });
 
   it("muestra preflight y resuelve la identidad central antes de emitir", () => {
     expect(form).toContain("centralRectificationPolicyNoticeEligible");
     expect(form).toContain("resolveCentralInvoiceAuthorityRectificationTarget");
     expect(form).toContain("publicFormCanaryEnabled={centralCanaryEnabled}");
-    expect(form).toContain("documentLabel=\"factura rectificativa\"");
+    expect(form).toContain('documentLabel="factura rectificativa"');
   });
 
   it("solo intercepta rectificativas centrales cuando la politica central lo permite", () => {
@@ -53,13 +52,13 @@ describe("RectificativaForm central authority canary wiring", () => {
       "buildCentralInvoiceAuthorityRectificationFormIssueRequest",
     );
     expect(branch).toContain("issueCentralInvoiceAuthorityFromBrowser");
-    expect(branch).toContain(
-      "preflightCentralInvoiceAuthorityFormSeries",
-    );
+    expect(branch).toContain("preflightCentralInvoiceAuthorityFormSeries");
     expect(branch).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(branch).toContain("addDocumentWithCentralIdentity");
     expect(branch).toContain("localDocumentId");
-    expect(branch).toContain("saved = await addRectificativa(original.id, payload)");
+    expect(branch).toContain(
+      "saved = await addRectificativa(original.id, payload)",
+    );
   });
 
   it("falla cerrado si la autoridad central rechaza antes de escribir localmente", () => {
@@ -93,9 +92,7 @@ describe("RectificativaForm central authority canary wiring", () => {
     const issueIndex = branch.indexOf(
       "issueCentralInvoiceAuthorityFromBrowser",
     );
-    const centralStoreIndex = branch.indexOf(
-      "addDocumentWithCentralIdentity",
-    );
+    const centralStoreIndex = branch.indexOf("addDocumentWithCentralIdentity");
 
     expect(preflightIndex).toBeGreaterThanOrEqual(0);
     expect(issueIndex).toBeGreaterThan(preflightIndex);
