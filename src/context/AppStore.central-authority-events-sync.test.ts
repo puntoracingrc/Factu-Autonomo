@@ -14,7 +14,8 @@ describe("AppStore central authority events sync bridge", () => {
     expect(source).toContain(
       "selectCentralInvoiceAuthorityEventsSyncBaseline",
     );
-    expect(source).toContain("commitDurableAppData(baseline, (previous) =>");
+    expect(source).toMatch(/commitDurableAppData\(\s*baseline,/);
+    expect(source).toContain("{ trackLegacyChanges: false }");
   });
 
   it("no activa polling automático ni se engancha al efecto de carga inicial", () => {

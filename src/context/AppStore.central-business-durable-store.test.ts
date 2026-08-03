@@ -17,8 +17,9 @@ describe("AppStore durable central business writes", () => {
     const durable = callbackBlock("updateProfileDurably", "addDocument");
 
     expect(local).toContain("normalizeProfileForAppStore(profile)");
-    expect(durable).toContain("commitDurableAppData(expected");
+    expect(durable).toMatch(/commitDurableAppData\(\s*expected,/);
     expect(durable).toContain("normalizeProfileForAppStore(profile)");
+    expect(durable).toContain("{ trackLegacyChanges: false }");
     expect(durable).not.toContain("setAppData(");
   });
 

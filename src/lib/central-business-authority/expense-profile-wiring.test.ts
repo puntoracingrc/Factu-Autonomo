@@ -7,6 +7,23 @@ function source(path: string) {
 }
 
 describe("central expense and profile UI wiring", () => {
+  it("documenta los cuatro gates publicos de gasto y perfil", () => {
+    const environment = source("../../../.env.example");
+
+    expect(environment).toContain(
+      "NEXT_PUBLIC_CENTRAL_BUSINESS_EXPENSE_CANARY_ENABLED=false",
+    );
+    expect(environment).toContain(
+      "NEXT_PUBLIC_CENTRAL_BUSINESS_EXPENSE_CANARY_USER_IDS=",
+    );
+    expect(environment).toContain(
+      "NEXT_PUBLIC_CENTRAL_BUSINESS_PROFILE_CANARY_ENABLED=false",
+    );
+    expect(environment).toContain(
+      "NEXT_PUBLIC_CENTRAL_BUSINESS_PROFILE_CANARY_USER_IDS=",
+    );
+  });
+
   it("routes manual expense writes through the central hook", () => {
     const page = source("../../app/gastos/nuevo/page.tsx");
 

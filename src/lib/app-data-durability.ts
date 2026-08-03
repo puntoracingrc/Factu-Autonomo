@@ -58,6 +58,7 @@ export interface AppDataTransition<T> {
 export function commitAppDataDurably<T>(input: {
   expected: AppData;
   storageBaseline?: DurableStorageBaseline;
+  trackLegacyChanges?: boolean;
   getCurrent: () => AppData;
   build: (previous: AppData) => AppDataTransition<T>;
   persist: (candidate: AppData, storageExpected: AppData) => SaveDataResult;
@@ -75,7 +76,11 @@ export function commitAppDataDurably<T>(input: {
   let resolved: AppData;
   try {
     transition = input.build(input.expected);
-    resolved = trackDataDiff(input.expected, touchAppData(transition.data));
+    const touched = touchAppData(transition.data);
+    resolved =
+      input.trackLegacyChanges === false
+        ? touched
+        : trackDataDiff(input.expected, touched);
   } catch {
     return { status: "blocked", reason: "transition_failed" };
   }
@@ -159,6 +164,7 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   expected: AppData;
   storageBaseline?: DurableStorageBaseline;
   lastKnownStorageBaseline?: AppData;
+  trackLegacyChanges?: boolean;
   getCurrent: () => AppData;
   build: (previous: AppData) => AppDataTransition<T>;
   persist: (candidate: AppData, storageExpected: AppData) => SaveDataResult;
@@ -175,6 +181,7 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
     commitAppDataDurably({
       expected: effectiveExpected,
       storageBaseline,
+      trackLegacyChanges: input.trackLegacyChanges,
       getCurrent: input.getCurrent,
       build: input.build,
       persist: input.persist,

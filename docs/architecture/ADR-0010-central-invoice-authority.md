@@ -1,8 +1,8 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 1
-- Fecha: 2026-07-23
+- Version: 2
+- Fecha: 2026-08-03
 
 ## Contexto
 
@@ -70,6 +70,12 @@ Los documentos existentes se registraran como historicos sin reemitirlos,
 renumerarlos ni fabricar evidencia. Las colisiones previas se clasificaran de
 forma explicita y conservaran todos sus IDs y copias. Una identidad que haya
 estado emitida o retirada queda reservada.
+
+La aplicacion durable de eventos fiscales centrales no vuelve a publicar el
+documento recibido en la cola legacy pausada. El cursor solo avanza despues del
+guardado y readback habituales. Esta regla no vacia entradas legacy previas ni
+autoriza a retirar, editar o renumerar facturas: esas entradas se conservan
+hasta una decision explicita de migracion.
 
 ## Rollback
 
