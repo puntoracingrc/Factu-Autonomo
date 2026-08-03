@@ -145,10 +145,10 @@ export function CentralBusinessAutomaticBootstrap() {
       ) {
         return "retry";
       }
-      const businessSync = await syncAllBusinessEvents();
-      if (businessSync !== "ok") return businessSync;
       const invoiceSync = await syncAllInvoiceEvents();
       if (invoiceSync !== "ok") return invoiceSync;
+      const businessSync = await syncAllBusinessEvents();
+      if (businessSync !== "ok") return businessSync;
 
       const snapshot =
         buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData());
