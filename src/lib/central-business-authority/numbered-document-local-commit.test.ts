@@ -6,7 +6,9 @@ import {
   type AppData,
   type Document,
 } from "@/lib/types";
+import { issueDocument, markDocumentPaid } from "@/lib/document-integrity";
 
+import { buildCentralBusinessReceiptPayloadWithoutNumber } from "./central-receipt-materialization";
 import type {
   CentralBusinessNumberedDocumentCreateBrowserResult,
 } from "./numbered-document-client";
@@ -15,13 +17,22 @@ import {
   CentralBusinessNumberedDocumentLocalCommitError,
 } from "./numbered-document-local-commit";
 
+const PROFILE = {
+  ...DEFAULT_PROFILE,
+  name: "Emisor sintetico",
+  nif: "B12345678",
+  address: "Calle Central 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
+
 function appData(overrides: Partial<AppData> = {}): AppData {
   return {
     ...EMPTY_DATA,
     profile: {
-      ...DEFAULT_PROFILE,
+      ...PROFILE,
       numbering: {
-        ...DEFAULT_PROFILE.numbering,
+        ...PROFILE.numbering,
         year: 2026,
         lastSequence: {
           factura: 42,
@@ -40,6 +51,41 @@ function appData(overrides: Partial<AppData> = {}): AppData {
     },
     ...overrides,
   };
+}
+
+function paidInvoice(): Document {
+  return markDocumentPaid(
+    issueDocument(
+      {
+        id: "invoice-central-1",
+        type: "factura",
+        number: "F-2026-0042",
+        date: "2026-07-29",
+        client: {
+          name: "Cliente sintetico",
+          nif: "X1234567L",
+          address: "Calle Cliente 2",
+          postalCode: "28002",
+          city: "Madrid",
+        },
+        items: [
+          {
+            id: "invoice-line-1",
+            description: "Trabajo sintetico",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "borrador",
+        createdAt: "2026-07-29T09:00:00.000Z",
+        updatedAt: "2026-07-29T09:00:00.000Z",
+      },
+      PROFILE,
+      "2026-07-29T09:00:00.000Z",
+    ),
+    "2026-07-29T09:30:00.000Z",
+  );
 }
 
 function document(
@@ -90,6 +136,24 @@ function confirmation(
   };
 }
 
+function receiptConfirmation(
+  before: AppData,
+): CentralBusinessNumberedDocumentCreateBrowserResult {
+  const payload = {
+    ...buildCentralBusinessReceiptPayloadWithoutNumber({
+      data: before,
+      invoiceId: "invoice-central-1",
+      receiptId: "receipt-central-1",
+      issuedAt: "2026-07-29T10:00:00.000Z",
+      createLineId: () => "receipt-line-1",
+    }),
+    number: "R-2026-0006",
+  };
+  return confirmation("receipt", {
+    documentPayload: JSON.parse(JSON.stringify(payload)),
+  });
+}
+
 function expectCommitError(
   callback: () => unknown,
   code: CentralBusinessNumberedDocumentLocalCommitError["code"],
@@ -135,14 +199,24 @@ describe("central numbered document local commit", () => {
   });
 
   it("aplica el mismo contrato a recibos", () => {
+    const before = appData({ documents: [paidInvoice()] });
     const result = buildCentralBusinessNumberedDocumentLocalCommit(
-      appData(),
+      before,
       "receipt",
-      confirmation("receipt"),
+      receiptConfirmation(before),
     );
 
     expect(result.value.type).toBe("recibo");
     expect(result.value.number).toBe("R-2026-0006");
+    expect(result.value.documentLifecycle).toBe("issued");
+    expect(result.value.snapshotSeal).toBeDefined();
+    expect(result.value.centralBusinessReceiptAuthority).toMatchObject({
+      source: "central_business_authority",
+    });
+    expect(
+      result.data.documents.find((entry) => entry.id === "invoice-central-1")
+        ?.receiptDocumentId,
+    ).toBe("receipt-central-1");
     expect(result.data.counters.presupuesto).toBe(7);
     expect(result.data.counters.recibo).toBe(6);
   });

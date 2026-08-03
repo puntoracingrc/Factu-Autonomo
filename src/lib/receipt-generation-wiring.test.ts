@@ -30,8 +30,10 @@ describe("wiring durable y feedback de generación de recibos", () => {
     expect(button).toContain('label="Ver recibo"');
     expect(button).toContain("receiptGenerationBlockedMessage");
     expect(button).toContain("showFactuToast");
+    expect(button).toContain("useCentralReceiptCreate");
+    expect(button).toContain("await createReceipt(doc.id)");
+    expect(button).toContain("showFactuToast(result.error");
     expect(button).toContain("No se ha creado otro");
-    expect(button).toContain("no se ha publicado en pantalla");
     expect(button).toContain("La generación se interrumpió");
   });
 });

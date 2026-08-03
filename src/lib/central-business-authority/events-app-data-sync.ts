@@ -50,6 +50,12 @@ import {
   parseCentralProfilePayload,
   parseCentralRecurringExpensePayload,
 } from "./payload-parsers";
+import {
+  CentralBusinessReceiptMaterializationError,
+  centralBusinessReceiptServerPayload,
+  isCentralBusinessReceipt,
+  materializeCentralBusinessReceipt,
+} from "./central-receipt-materialization";
 
 export const CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC =
   "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1";
@@ -813,6 +819,12 @@ export function buildCentralBusinessEventAppDataTransition(input: {
     const existing = matches[0];
     if (event.operationKind === "delete") {
       if (!existing) return { data, value: value("unchanged") };
+      if (event.entityType === "receipt" && isCentralBusinessReceipt(existing)) {
+        throw new CentralBusinessLocalApplyError(
+          "CENTRAL_BUSINESS_RECEIPT_DELETE_NOT_SUPPORTED",
+          "Un recibo central emitido no se puede borrar mediante sincronizacion.",
+        );
+      }
       if (!knownPrevious) {
         return localConflict(
           "El documento local no tiene una versión central confirmada para borrarlo.",
@@ -837,6 +849,47 @@ export function buildCentralBusinessEventAppDataTransition(input: {
       throw new CentralBusinessLocalApplyError(
         "CENTRAL_BUSINESS_INVALID_DOCUMENT_EVENT",
         "El servidor devolvió un presupuesto o recibo incompleto.",
+      );
+    }
+    if (event.entityType === "receipt" && isCentralBusinessReceipt(incoming)) {
+      if (existing) {
+        if (
+          stableJson(centralBusinessReceiptServerPayload(existing)) ===
+          stableJson(incoming)
+        ) {
+          return { data, value: value("unchanged") };
+        }
+        return localConflict(
+          "El recibo central difiere del recibo ya sellado en este dispositivo.",
+        );
+      }
+      try {
+        const materialized = materializeCentralBusinessReceipt({
+          data,
+          receiptPayload: incoming,
+        });
+        return {
+          data: materialized.data,
+          value: value("added"),
+        };
+      } catch (error) {
+        if (error instanceof CentralBusinessReceiptMaterializationError) {
+          throw new CentralBusinessLocalApplyError(
+            `CENTRAL_BUSINESS_${error.code}`,
+            error.message,
+            error.code === "RECEIPT_SOURCE_MISSING",
+          );
+        }
+        throw error;
+      }
+    }
+    if (
+      event.entityType === "receipt" &&
+      existing &&
+      isCentralBusinessReceipt(existing)
+    ) {
+      return localConflict(
+        "El servidor no puede sustituir un recibo central sellado por un documento sin autoridad.",
       );
     }
     if (!existing) {

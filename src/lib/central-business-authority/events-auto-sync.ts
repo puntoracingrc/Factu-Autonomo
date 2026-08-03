@@ -29,6 +29,8 @@ export interface CentralBusinessEventsAutoSyncEnvironment {
   reminderUserIds?: string;
   quoteCreateEnabled?: string;
   quoteCreateUserIds?: string;
+  receiptCreateEnabled?: string;
+  receiptCreateUserIds?: string;
   expenseEnabled?: string;
   expenseUserIds?: string;
   profileEnabled?: string;
@@ -67,6 +69,10 @@ const publicEnvironment: CentralBusinessEventsAutoSyncEnvironment = {
     process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_ENABLED,
   quoteCreateUserIds:
     process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_USER_IDS,
+  receiptCreateEnabled:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_RECEIPT_CREATE_CANARY_ENABLED,
+  receiptCreateUserIds:
+    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_RECEIPT_CREATE_CANARY_USER_IDS,
   expenseEnabled:
     process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_EXPENSE_CANARY_ENABLED,
   expenseUserIds:
@@ -131,6 +137,7 @@ function isAnyCentralBusinessCanaryEnabledForUser(
     [environment.supplierCreateEnabled, environment.supplierCreateUserIds],
     [environment.reminderEnabled, environment.reminderUserIds],
     [environment.quoteCreateEnabled, environment.quoteCreateUserIds],
+    [environment.receiptCreateEnabled, environment.receiptCreateUserIds],
     [environment.expenseEnabled, environment.expenseUserIds],
     [environment.profileEnabled, environment.profileUserIds],
   ].some(

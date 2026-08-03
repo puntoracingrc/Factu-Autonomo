@@ -4,6 +4,7 @@ import { FileText } from "lucide-react";
 import { useState } from "react";
 import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralReceiptCreate } from "@/hooks/useCentralReceiptCreate";
 import { documentDetailPath } from "@/lib/document-links";
 import { showFactuToast } from "@/lib/factu/occasional";
 import { inspectReceiptGenerationForDisplay } from "@/lib/receipts";
@@ -15,7 +16,8 @@ interface GenerateReceiptButtonProps {
 }
 
 export function GenerateReceiptButton({ doc }: GenerateReceiptButtonProps) {
-  const { data, generateReceiptForInvoice } = useAppStore();
+  const { data } = useAppStore();
+  const { createReceipt } = useCentralReceiptCreate();
   const [saving, setSaving] = useState(false);
   const inspection = inspectReceiptGenerationForDisplay(
     data.documents,
@@ -52,30 +54,26 @@ export function GenerateReceiptButton({ doc }: GenerateReceiptButtonProps) {
     );
   }
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (saving) return;
     setSaving(true);
     try {
-      const result = generateReceiptForInvoice(doc.id);
-      if (result.status === "created") {
-        showFactuToast(`Recibo ${result.receipt.number} creado y guardado.`, 5000);
-        return;
-      }
-      if (result.status === "existing") {
+      const result = await createReceipt(doc.id);
+      if (result.ok) {
+        if (result.delivery === "existing") {
+          showFactuToast(
+            `Esta factura ya tenía el recibo ${result.receipt.number}. No se ha creado otro.`,
+            5500,
+          );
+          return;
+        }
         showFactuToast(
-          `Esta factura ya tenía el recibo ${result.receipt.number}. No se ha creado otro.`,
-          5500,
+          `Recibo ${result.receipt.number} creado y guardado.`,
+          5000,
         );
         return;
       }
-      if (result.status === "blocked") {
-        showFactuToast(receiptGenerationBlockedMessage(result.reason), 6500);
-        return;
-      }
-      showFactuToast(
-        "No se pudo confirmar el estado del almacenamiento. El recibo no se ha publicado en pantalla; recarga o exporta una copia antes de continuar.",
-        7500,
-      );
+      showFactuToast(result.error, 7500);
     } catch {
       showFactuToast(
         "La generación se interrumpió y no se puede confirmar el estado del guardado. No cierres esta pestaña: recarga o exporta una copia antes de continuar.",

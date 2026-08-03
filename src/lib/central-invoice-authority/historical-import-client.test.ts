@@ -4,6 +4,7 @@ import type { Document } from "@/lib/types";
 import {
   CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_CLIENT,
   importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser,
+  importCentralInvoiceAuthorityHistoricalOriginalFromBrowser,
 } from "./historical-import-client";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -102,6 +103,18 @@ function document(number: string): Document {
   } as unknown as Document;
 }
 
+function importedItem(number: string, sequence: number) {
+  return {
+    status: "committed",
+    documentId: `document-${sequence}`,
+    identityId: `identity-${sequence}`,
+    outboxEventId: `event-${sequence}`,
+    fullNumber: number,
+    sequence,
+    documentVersion: 1,
+  };
+}
+
 describe("central invoice authority historical import client", () => {
   it("no contacta la ruta sin sesion o dispositivo local", async () => {
     const fetchImpl = vi.fn();
@@ -125,14 +138,7 @@ describe("central invoice authority historical import client", () => {
       jsonResponse(200, {
         ok: true,
         schema: "CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_ROUTE_V1",
-        imported: [
-          {
-            status: "committed",
-            fullNumber: "F-2026-2959",
-            sequence: 2959,
-            documentVersion: 1,
-          },
-        ],
+        imported: [importedItem("F-2026-2959", 2959)],
         counts: {
           committed: 1,
           replayed: 0,
@@ -166,8 +172,10 @@ describe("central invoice authority historical import client", () => {
       [string, RequestInit]
     >;
     const body = JSON.parse(calls[0]![1].body as string) as {
+      mode: string;
       documents: Record<string, unknown>[];
     };
+    expect(body.mode).toBe("cutover_batch");
     expect(body.documents[0]).toMatchObject({
       number: "F-2026-2959",
       documentSnapshot: expect.objectContaining({ number: "F-2026-2959" }),
@@ -196,6 +204,9 @@ describe("central invoice authority historical import client", () => {
               imported: [
                 {
                   status: "committed",
+                  documentId: "document-2958",
+                  identityId: "identity-2958",
+                  outboxEventId: "event-2958",
                   fullNumber: "F-2026-2958",
                   sequence: 2958,
                   documentVersion: 1,
@@ -217,6 +228,53 @@ describe("central invoice authority historical import client", () => {
       ok: false,
       status: 502,
       code: "CENTRAL_HISTORICAL_IMPORT_INVALID_RESPONSE",
+    });
+  });
+
+  it("registra bajo demanda una sola factura original fuera del lote de corte", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(200, {
+        ok: true,
+        schema: "CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_ROUTE_V1",
+        imported: [importedItem("F-2024-0123", 123)],
+        counts: {
+          committed: 1,
+          replayed: 0,
+          alreadyPresent: 0,
+        },
+      }),
+    );
+    const original = document("F-2024-0123");
+    original.date = "2024-05-06";
+    original.documentSnapshot = {
+      ...original.documentSnapshot!,
+      number: "F-2024-0123",
+    };
+
+    const result =
+      await importCentralInvoiceAuthorityHistoricalOriginalFromBrowser(
+        original,
+        {
+          fetchImpl,
+          getAccessToken: async () => "access-token",
+          getDeviceToken: () => "device-token",
+        },
+      );
+    const calls = fetchImpl.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    const body = JSON.parse(calls[0]![1].body as string) as {
+      mode: string;
+      documents: Array<{ number: string }>;
+    };
+
+    expect(result).toMatchObject({
+      ok: true,
+      imported: [{ fullNumber: "F-2024-0123", sequence: 123 }],
+    });
+    expect(body).toMatchObject({
+      mode: "on_demand_original",
+      documents: [{ number: "F-2024-0123" }],
     });
   });
 });

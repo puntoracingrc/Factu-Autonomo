@@ -9,13 +9,18 @@ import type { AppData, Document, DocumentKind } from "@/lib/types";
 import type {
   CentralBusinessNumberedDocumentCreateBrowserResult,
 } from "./numbered-document-client";
+import {
+  centralBusinessReceiptServerPayload,
+  materializeCentralBusinessReceipt,
+} from "./central-receipt-materialization";
 import { parseCentralBusinessDocumentPayload } from "./payload-parsers";
 
 export type CentralBusinessNumberedDocumentLocalCommitErrorCode =
   | "INVALID_CONFIRMATION"
   | "MALFORMED_DOCUMENT"
   | "DOCUMENT_ID_COLLISION"
-  | "DOCUMENT_NUMBER_COLLISION";
+  | "DOCUMENT_NUMBER_COLLISION"
+  | "RECEIPT_MATERIALIZATION_FAILED";
 
 export class CentralBusinessNumberedDocumentLocalCommitError extends Error {
   readonly code: CentralBusinessNumberedDocumentLocalCommitErrorCode;
@@ -140,7 +145,11 @@ export function buildCentralBusinessNumberedDocumentLocalCommit(
     );
   }
   if (sameId.length === 1) {
-    if (stableJson(sameId[0]) === stableJson(document)) {
+    const comparableExisting =
+      entityType === "receipt"
+        ? centralBusinessReceiptServerPayload(sameId[0])
+        : sameId[0];
+    if (stableJson(comparableExisting) === stableJson(document)) {
       return { data, value: sameId[0], replayed: true };
     }
     throw new CentralBusinessNumberedDocumentLocalCommitError(
@@ -170,7 +179,25 @@ export function buildCentralBusinessNumberedDocumentLocalCommit(
     year,
     confirmation.sequence,
   );
-  const nextDocuments = [...data.documents, document];
+  let value = document;
+  let nextDocuments: Document[];
+  if (entityType === "receipt") {
+    try {
+      const materialized = materializeCentralBusinessReceipt({
+        data,
+        receiptPayload: document,
+      });
+      value = materialized.receipt;
+      nextDocuments = materialized.data.documents;
+    } catch {
+      throw new CentralBusinessNumberedDocumentLocalCommitError(
+        "RECEIPT_MATERIALIZATION_FAILED",
+        "El recibo central no pudo sellarse y vincularse localmente.",
+      );
+    }
+  } else {
+    nextDocuments = [...data.documents, document];
+  }
   const calculatedCounters = countersFromDocuments(
     nextDocuments,
     year,
@@ -195,7 +222,7 @@ export function buildCentralBusinessNumberedDocumentLocalCommit(
         [kind]: nextCounter,
       },
     },
-    value: document,
+    value,
     replayed: false,
   };
 }

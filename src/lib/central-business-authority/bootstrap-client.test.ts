@@ -131,6 +131,16 @@ describe("central business bootstrap browser client", () => {
           client: { name: "Cliente recibo" },
           items: [],
           status: "pagado",
+          sourceDocumentId: "invoice-excluded",
+          centralBusinessReceiptAuthority: {
+            schemaVersion: 1,
+            source: "central_business_authority",
+            issuedAt: "2026-07-30T08:00:00.000Z",
+          },
+          documentLifecycle: "issued",
+          paymentStatus: "paid",
+          paidAt: "2026-07-30T08:00:00.000Z",
+          documentSnapshot: { generated: "local-only" },
           createdAt: "2026-07-30T08:00:00.000Z",
           updatedAt: "2026-07-30T08:00:00.000Z",
         },
@@ -160,6 +170,17 @@ describe("central business bootstrap browser client", () => {
     expect(first[0].payload).not.toHaveProperty("optional");
     expect(first.find((entry) => entry.entityType === "profile")?.payload)
       .not.toHaveProperty("id");
+    const receiptPayload = first.find(
+      (entry) => entry.entityType === "receipt",
+    )?.payload;
+    expect(receiptPayload).not.toHaveProperty("documentLifecycle");
+    expect(receiptPayload).not.toHaveProperty("paymentStatus");
+    expect(receiptPayload).not.toHaveProperty("paidAt");
+    expect(receiptPayload).not.toHaveProperty("documentSnapshot");
+    expect(receiptPayload).toHaveProperty(
+      "centralBusinessReceiptAuthority.source",
+      "central_business_authority",
+    );
     expect(centralBusinessBootstrapSnapshotSignature(first)).toBe(
       centralBusinessBootstrapSnapshotSignature(second),
     );

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
+import { issueDocument, markDocumentPaid } from "@/lib/document-integrity";
 import {
   DEFAULT_PROFILE,
   EMPTY_DATA,
@@ -32,6 +33,7 @@ import {
   type CentralBusinessEventLocalApplyValue,
 } from "./events-app-data-sync";
 import type { CentralBusinessBrowserEvent } from "./events-client";
+import { buildCentralBusinessReceiptPayloadWithoutNumber } from "./central-receipt-materialization";
 
 class MemoryStorage implements CentralBusinessQueueStorage {
   readonly values = new Map<string, string>();
@@ -166,6 +168,63 @@ function invoice(overrides: Partial<Document> = {}): Document {
     }),
     ...overrides,
   };
+}
+
+const receiptProfile: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Emisor sintetico",
+  nif: "B12345678",
+  address: "Calle Central 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
+
+function paidReceiptSourceInvoice(): Document {
+  return markDocumentPaid(
+    issueDocument(
+      {
+        id: "invoice-receipt-source",
+        type: "factura",
+        number: "F-2026-0042",
+        date: "2026-07-29",
+        client: {
+          name: "Cliente sintetico",
+          nif: "X1234567L",
+          address: "Calle Cliente 2",
+          postalCode: "28002",
+          city: "Madrid",
+        },
+        items: [
+          {
+            id: "invoice-line-1",
+            description: "Trabajo sintetico",
+            quantity: 1,
+            unitPrice: 100,
+            ivaPercent: 21,
+          },
+        ],
+        status: "borrador",
+        createdAt: "2026-07-29T09:00:00.000Z",
+        updatedAt: "2026-07-29T09:00:00.000Z",
+      },
+      receiptProfile,
+      "2026-07-29T09:00:00.000Z",
+    ),
+    "2026-07-29T10:00:00.000Z",
+  );
+}
+
+function centralReceiptPayload(data: AppData): Document {
+  return {
+    ...buildCentralBusinessReceiptPayloadWithoutNumber({
+      data,
+      invoiceId: "invoice-receipt-source",
+      receiptId: "receipt-central-1",
+      issuedAt: "2026-07-29T11:00:00.000Z",
+      createLineId: () => "receipt-line-1",
+    }),
+    number: "R-2026-0001",
+  } as Document;
 }
 
 function event(
@@ -803,6 +862,82 @@ describe("central business events app data sync", () => {
         }),
       }),
     ).toThrow("El servidor devolvió un presupuesto o recibo incompleto.");
+  });
+
+  it("materializa recibos centrales, enlaza su factura y reconoce el replay", () => {
+    const source = paidReceiptSourceInvoice();
+    const initial: AppData = {
+      ...EMPTY_DATA,
+      profile: receiptProfile,
+      documents: [source],
+    };
+    const payload = centralReceiptPayload(initial);
+    const created = buildCentralBusinessEventAppDataTransition({
+      data: initial,
+      event: event(payload),
+    });
+
+    expect(created.value).toMatchObject({
+      entityType: "receipt",
+      action: "added",
+    });
+    expect(created.data.documents).toHaveLength(2);
+    expect(created.data.documents[0]?.receiptDocumentId).toBe(
+      "receipt-central-1",
+    );
+    expect(created.data.documents[1]).toMatchObject({
+      id: "receipt-central-1",
+      documentLifecycle: "issued",
+      snapshotSeal: expect.any(Object),
+    });
+
+    const replayed = buildCentralBusinessEventAppDataTransition({
+      data: created.data,
+      event: event(payload, { entityVersion: 2 }),
+      knownVersion: {
+        entityType: "receipt",
+        entityId: payload.id,
+        version: 1,
+        deleted: false,
+        contentHash: "hash-v1",
+      },
+    });
+    expect(replayed.value.action).toBe("unchanged");
+    expect(replayed.data).toBe(created.data);
+
+    expect(() =>
+      buildCentralBusinessEventAppDataTransition({
+        data: created.data,
+        event: event(payload, {
+          operationKind: "delete",
+          payload: null,
+          entityVersion: 2,
+        }),
+        knownVersion: {
+          entityType: "receipt",
+          entityId: payload.id,
+          version: 1,
+          deleted: false,
+          contentHash: "hash-v1",
+        },
+      }),
+    ).toThrow("no se puede borrar");
+  });
+
+  it("deja reintentable un recibo cuyo evento llega antes que la factura", () => {
+    const complete: AppData = {
+      ...EMPTY_DATA,
+      profile: receiptProfile,
+      documents: [paidReceiptSourceInvoice()],
+    };
+    const payload = centralReceiptPayload(complete);
+
+    expect(() =>
+      buildCentralBusinessEventAppDataTransition({
+        data: { ...complete, documents: [] },
+        event: event(payload),
+      }),
+    ).toThrow("factura de origen");
   });
 
   it("rechaza gastos incompletos y no permite pisar un perfil sin versión", () => {

@@ -7,6 +7,7 @@ import {
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { AppData } from "@/lib/types";
 
+import { centralBusinessReceiptServerPayload } from "./central-receipt-materialization";
 import type { CentralBusinessJson } from "./mutation-command";
 
 export const CENTRAL_BUSINESS_BOOTSTRAP_CLIENT =
@@ -192,7 +193,10 @@ export function buildCentralBusinessBootstrapBrowserSnapshot(
       .map((entity) => ({
         entityType: "receipt" as const,
         entityId: entity.id,
-        payload: jsonPayload(entity, entity.id),
+        payload: jsonPayload(
+          centralBusinessReceiptServerPayload(entity),
+          entity.id,
+        ),
       })),
     {
       entityType: "profile",

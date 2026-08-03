@@ -75,8 +75,10 @@ function document(number: string, overrides: Record<string, unknown> = {}) {
 
 function body(
   numbers: readonly string[] = CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS,
+  mode: "cutover_batch" | "on_demand_original" = "cutover_batch",
 ) {
   return JSON.stringify({
+    mode,
     documents: numbers.map((number) => document(number)),
   });
 }
@@ -141,7 +143,7 @@ async function request(
 }
 
 describe("central invoice authority historical import route handler", () => {
-  it("rechaza otros usuarios antes de leer o importar documentos", async () => {
+  it("rechaza el lote de corte para otros usuarios despues de los controles de acceso", async () => {
     const dependencies = deps({
       authenticate: vi.fn(async () => ({
         userId: "00000000-0000-4000-8000-000000000099",
@@ -151,7 +153,8 @@ describe("central invoice authority historical import route handler", () => {
     const response = await request(dependencies);
 
     expect(response.status).toBe(403);
-    expect(dependencies.rateLimit).not.toHaveBeenCalled();
+    expect(dependencies.rateLimit).toHaveBeenCalledOnce();
+    expect(dependencies.verifyDevice).toHaveBeenCalledOnce();
     expect(dependencies.getRpcClient).not.toHaveBeenCalled();
   });
 
@@ -253,5 +256,83 @@ describe("central invoice authority historical import route handler", () => {
       issuer: { nif: "B00000000" },
     });
     expect(JSON.stringify(response.body)).not.toContain("documentSnapshot");
+  });
+
+  it("permite registrar bajo demanda una sola original para cualquier cuenta con autoridad fiscal activa", async () => {
+    const rpc = vi.fn(async (_name, args) => ({
+      error: null,
+      data: {
+        result_status: "committed",
+        document_id: "document-123",
+        identity_id: "identity-123",
+        outbox_event_id: "event-123",
+        full_number: args.p_expected_full_number,
+        sequence: args.p_sequence,
+        document_version: 1,
+      },
+    }));
+    const userId = "00000000-0000-4000-8000-000000000099";
+    const dependencies = deps({
+      authenticate: vi.fn(async () => ({ userId, sessionId })),
+      evaluateActivation: vi.fn(() => ({
+        requestedMode: "canary",
+        effectiveMode: "canary",
+        enabled: true,
+        fiscalWritesEnabled: true,
+        appliesToUser: true,
+        production: true,
+        reason: "canary_enabled",
+      }) as const),
+      getRpcClient: vi.fn(() => ({ rpc })),
+    });
+    const original = document("F-2024-0123", {
+      date: "2024-05-06",
+      documentSnapshot: {
+        ...document("F-2024-0123").documentSnapshot,
+        number: "F-2024-0123",
+      },
+    });
+    const response = await request(dependencies, {
+      rawBody: JSON.stringify({
+        mode: "on_demand_original",
+        documents: [original],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc.mock.calls[0]![1]).toMatchObject({
+      p_user_id: userId,
+      p_expected_full_number: "F-2024-0123",
+      p_sequence: 123,
+      p_series_code: "F-2024",
+      p_fiscal_year: 2024,
+    });
+  });
+
+  it("bloquea el registro bajo demanda si la cuenta no tiene escrituras fiscales activas", async () => {
+    const dependencies = deps({
+      evaluateActivation: vi.fn(() => ({
+        requestedMode: "shadow",
+        effectiveMode: "shadow",
+        enabled: true,
+        fiscalWritesEnabled: false,
+        appliesToUser: true,
+        production: true,
+        reason: "shadow_only",
+      }) as const),
+    });
+    const response = await request(dependencies, {
+      rawBody: JSON.stringify({
+        mode: "on_demand_original",
+        documents: [document("F-2026-2959")],
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({
+      error: { code: "CENTRAL_HISTORICAL_IMPORT_AUTHORITY_DISABLED" },
+    });
+    expect(dependencies.getRpcClient).not.toHaveBeenCalled();
   });
 });

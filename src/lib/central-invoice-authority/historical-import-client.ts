@@ -9,7 +9,6 @@ import type { Document } from "@/lib/types";
 import {
   CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS,
   CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID,
-  type CentralInvoiceAuthorityHistoricalImportNumber,
 } from "./historical-import-scope";
 
 export const CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_CLIENT =
@@ -21,7 +20,10 @@ export {
 
 export interface CentralInvoiceAuthorityHistoricalImportItem {
   status: "committed" | "replayed" | "already_present";
-  fullNumber: CentralInvoiceAuthorityHistoricalImportNumber;
+  documentId: string;
+  identityId: string;
+  outboxEventId: string;
+  fullNumber: string;
   sequence: number;
   documentVersion: number;
 }
@@ -87,17 +89,34 @@ function parseImportedItem(
   value: unknown,
 ): CentralInvoiceAuthorityHistoricalImportItem | null {
   if (!isObject(value)) return null;
-  const { status, fullNumber, sequence, documentVersion } = value;
+  const {
+    status,
+    documentId,
+    identityId,
+    outboxEventId,
+    fullNumber,
+    sequence,
+    documentVersion,
+  } = value;
+  const numberMatch =
+    typeof fullNumber === "string"
+      ? /^([A-Z0-9][A-Z0-9._-]{0,22}-(\d{4}))-(\d{4})$/u.exec(fullNumber)
+      : null;
   if (
     (status !== "committed" &&
       status !== "replayed" &&
       status !== "already_present") ||
-    !CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS.includes(
-      fullNumber as CentralInvoiceAuthorityHistoricalImportNumber,
-    ) ||
+    typeof documentId !== "string" ||
+    !documentId.trim() ||
+    typeof identityId !== "string" ||
+    !identityId.trim() ||
+    typeof outboxEventId !== "string" ||
+    !outboxEventId.trim() ||
+    !numberMatch ||
     typeof sequence !== "number" ||
     !Number.isInteger(sequence) ||
     sequence <= 0 ||
+    sequence !== Number.parseInt(numberMatch[3]!, 10) ||
     typeof documentVersion !== "number" ||
     !Number.isInteger(documentVersion) ||
     documentVersion <= 0
@@ -107,7 +126,10 @@ function parseImportedItem(
 
   return {
     status,
-    fullNumber: fullNumber as CentralInvoiceAuthorityHistoricalImportNumber,
+    documentId,
+    identityId,
+    outboxEventId,
+    fullNumber: numberMatch[0],
     sequence,
     documentVersion,
   };
@@ -149,8 +171,44 @@ function parseImportPayload(
   };
 }
 
-export async function importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser(
+function importResponseMatchesRequest(
+  result: Extract<CentralInvoiceAuthorityHistoricalImportResult, { ok: true }>,
   documents: Document[],
+): boolean {
+  const expectedNumbers = documents.map((document) =>
+    document.number.trim().toUpperCase(),
+  );
+  const receivedNumbers = result.imported.map((item) => item.fullNumber);
+  const counted =
+    result.counts.committed +
+    result.counts.replayed +
+    result.counts.alreadyPresent;
+  const actualCounts = {
+    committed: result.imported.filter((item) => item.status === "committed")
+      .length,
+    replayed: result.imported.filter((item) => item.status === "replayed")
+      .length,
+    alreadyPresent: result.imported.filter(
+      (item) => item.status === "already_present",
+    ).length,
+  };
+
+  return (
+    counted === documents.length &&
+    result.imported.length === documents.length &&
+    new Set(receivedNumbers).size === receivedNumbers.length &&
+    expectedNumbers.every(
+      (number, index) => receivedNumbers[index] === number,
+    ) &&
+    actualCounts.committed === result.counts.committed &&
+    actualCounts.replayed === result.counts.replayed &&
+    actualCounts.alreadyPresent === result.counts.alreadyPresent
+  );
+}
+
+async function importHistoricalInvoicesFromBrowser(
+  documents: Document[],
+  mode: "cutover_batch" | "on_demand_original",
   dependencies: CentralInvoiceAuthorityHistoricalImportDependencies = {},
 ): Promise<CentralInvoiceAuthorityHistoricalImportResult> {
   const getAccessToken = dependencies.getAccessToken ?? defaultAccessToken;
@@ -177,6 +235,7 @@ export async function importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser
         [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },
       body: JSON.stringify({
+        mode,
         documents: documents.map(sanitizeDocumentForHistoricalImport),
       }),
       cache: "no-store",
@@ -205,7 +264,7 @@ export async function importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser
   }
 
   const parsed = parseImportPayload(payload);
-  if (!parsed) {
+  if (!parsed || !importResponseMatchesRequest(parsed, documents)) {
     return errorResult(
       502,
       "CENTRAL_HISTORICAL_IMPORT_INVALID_RESPONSE",
@@ -213,4 +272,26 @@ export async function importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser
     );
   }
   return parsed;
+}
+
+export async function importCentralInvoiceAuthorityHistoricalInvoicesFromBrowser(
+  documents: Document[],
+  dependencies: CentralInvoiceAuthorityHistoricalImportDependencies = {},
+): Promise<CentralInvoiceAuthorityHistoricalImportResult> {
+  return importHistoricalInvoicesFromBrowser(
+    documents,
+    "cutover_batch",
+    dependencies,
+  );
+}
+
+export async function importCentralInvoiceAuthorityHistoricalOriginalFromBrowser(
+  document: Document,
+  dependencies: CentralInvoiceAuthorityHistoricalImportDependencies = {},
+): Promise<CentralInvoiceAuthorityHistoricalImportResult> {
+  return importHistoricalInvoicesFromBrowser(
+    [document],
+    "on_demand_original",
+    dependencies,
+  );
 }

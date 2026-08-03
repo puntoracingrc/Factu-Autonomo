@@ -45,6 +45,12 @@ export interface DocumentCentralInvoiceAuthorityLinkV1 {
   receivedAt: string;
 }
 
+export interface DocumentCentralBusinessReceiptAuthorityV1 {
+  schemaVersion: 1;
+  source: "central_business_authority";
+  issuedAt: string;
+}
+
 export interface CentralInvoiceAuthorityEventsCursorV1 {
   afterCreatedAt: string;
   afterEventId: string;
@@ -240,6 +246,8 @@ export interface Document {
   documentSnapshot?: DocumentSnapshot;
   /** Identidad operativa emitida por la autoridad central. No forma parte del snapshot fiscal. */
   centralInvoiceAuthority?: DocumentCentralInvoiceAuthorityLinkV1;
+  /** Contrato de materializacion local de un recibo numerado por el servidor. */
+  centralBusinessReceiptAuthority?: DocumentCentralBusinessReceiptAuthorityV1;
   /**
    * Atestación explícita de un documento histórico importado. No es un sello
    * de emisión de esta app ni acredita Veri*Factu.
