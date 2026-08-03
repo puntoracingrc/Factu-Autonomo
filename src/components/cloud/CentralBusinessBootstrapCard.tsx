@@ -24,9 +24,8 @@ import {
   type CentralBusinessBootstrapBrowserPreviewEntry,
 } from "@/lib/central-business-authority/bootstrap-client";
 import { recordCentralBusinessBootstrapCheckpoint } from "@/lib/central-business-authority/bootstrap-checkpoint";
-import {
-  loadCentralBusinessDurableQueue,
-} from "@/lib/central-business-authority/durable-queue";
+import { loadCentralBusinessDurableQueue } from "@/lib/central-business-authority/durable-queue";
+import { centralAdoptionLegacyQueueSignature } from "@/lib/central-business-authority/legacy-queue-retirement";
 import {
   fetchCentralBusinessAuthorityStatusFromBrowser,
   type CentralBusinessAuthorityBrowserStatus,
@@ -62,6 +61,7 @@ const BOOTSTRAP_ENTITY_TYPES = [
 ] as const satisfies readonly CentralBusinessBootstrapBrowserEntityType[];
 
 const REVIEW_ENTRY_LIMIT = 12;
+const CENTRAL_INVOICE_EVENT_PAGE_LIMIT = 50;
 
 function noticeClass(tone: Notice["tone"]): string {
   if (tone === "success") {
@@ -97,9 +97,11 @@ export function CentralBusinessBootstrapCard() {
     ready,
     getCurrentData,
     adoptCentralBusinessEventsFromServer,
+    retireLegacyPendingChangesAfterCentralAdoption,
+    syncCentralInvoiceAuthorityEvents,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { user, requiresEmailConfirmation } = useCloudSync();
+  const { pendingChangeCount, user, requiresEmailConfirmation } = useCloudSync();
   const ownerScope = user?.id ?? null;
   const [status, setStatus] =
     useState<CentralBusinessAuthorityBrowserStatus | null>(null);
@@ -159,11 +161,14 @@ export function CentralBusinessBootstrapCard() {
     0,
     reviewEntries.length - visibleReviewEntries.length,
   );
-  const canAdoptServerCopy = Boolean(
+  const hasServerDifferences = Boolean(
     preview &&
       !preview.canCommit &&
       (preview.summary.conflict > 0 || preview.summary.centralOnly > 0),
   );
+  const canResetDeviceFromServer = Boolean(preview && pendingChangeCount > 0);
+  const canAdoptServerCopy =
+    hasServerDifferences || canResetDeviceFromServer;
   const canConfirmBootstrap = Boolean(
     preview?.canCommit && preview.summary.create > 0,
   );
@@ -185,6 +190,43 @@ export function CentralBusinessBootstrapCard() {
       tone: "warning",
       message:
         "Quedan demasiados eventos por revisar. Vuelve a comprobar antes de migrar.",
+    };
+  }
+
+  async function syncAllCentralInvoiceEvents(): Promise<Notice | null> {
+    for (let page = 0; page < 100; page += 1) {
+      const result = await syncCentralInvoiceAuthorityEvents(getCurrentData(), {
+        limit: CENTRAL_INVOICE_EVENT_PAGE_LIMIT,
+      });
+      if (result.status === "blocked") {
+        return {
+          tone: "warning",
+          message:
+            "Las facturas locales cambiaron durante la comprobación. La cola antigua se conserva.",
+        };
+      }
+      if (result.status === "indeterminate") {
+        return {
+          tone: "error",
+          message:
+            "No se pudo confirmar el guardado local de las facturas centrales. La cola antigua se conserva.",
+        };
+      }
+      const localSync = result.value.localSync;
+      if (!localSync.ok) {
+        return {
+          tone: localSync.conflicts.length > 0 ? "warning" : "error",
+          message: `${localSync.message} La cola antigua se conserva.`,
+        };
+      }
+      if (localSync.pulledEvents < CENTRAL_INVOICE_EVENT_PAGE_LIMIT) {
+        return null;
+      }
+    }
+    return {
+      tone: "warning",
+      message:
+        "Quedan demasiados eventos de facturas por comprobar. La cola antigua se conserva.",
     };
   }
 
@@ -280,12 +322,33 @@ export function CentralBusinessBootstrapCard() {
   }
 
   async function handleAdoptServerCopy() {
+    const expectedPendingChanges =
+      getCurrentData().meta?.pendingChanges ?? [];
+    const expectedPendingChangeCount = expectedPendingChanges.length;
+    const expectedPendingChangesSignature =
+      centralAdoptionLegacyQueueSignature(expectedPendingChanges);
+    if (expectedPendingChangeCount !== pendingChangeCount) {
+      resetPreview();
+      setNotice({
+        tone: "warning",
+        message:
+          "La cola antigua cambió después de comparar. Prepara una vista previa nueva.",
+      });
+      return;
+    }
+    const hasBlockingServerDifferences = Boolean(
+      preview &&
+        !preview.canCommit &&
+        (preview.summary.conflict > 0 || preview.summary.centralOnly > 0),
+    );
+    const isExplicitDeviceReset = Boolean(
+      preview && expectedPendingChangeCount > 0,
+    );
     if (
       !preview ||
       !snapshotSignature ||
-      preview.canCommit ||
       !adoptConfirmed ||
-      (preview.summary.conflict < 1 && preview.summary.centralOnly < 1)
+      (!hasBlockingServerDifferences && !isExplicitDeviceReset)
     ) {
       return;
     }
@@ -334,6 +397,7 @@ export function CentralBusinessBootstrapCard() {
       }
       storePreview(restoredEntities, verified.preview);
       if (
+        verified.preview.summary.create > 0 ||
         verified.preview.summary.centralOnly > 0 ||
         verified.preview.summary.conflict > 0
       ) {
@@ -344,9 +408,35 @@ export function CentralBusinessBootstrapCard() {
         });
         return;
       }
+
+      let discardedLegacyChanges = 0;
+      if (expectedPendingChangeCount > 0) {
+        const invoiceSyncNotice = await syncAllCentralInvoiceEvents();
+        if (invoiceSyncNotice) {
+          setNotice(invoiceSyncNotice);
+          return;
+        }
+        const retired = await retireLegacyPendingChangesAfterCentralAdoption(
+          getCurrentData(),
+          expectedPendingChangeCount,
+          expectedPendingChangesSignature,
+        );
+        if (retired.status !== "applied") {
+          setNotice({
+            tone: retired.status === "blocked" ? "warning" : "error",
+            message:
+              "La cola antigua cambió o no pudo guardarse durante la adopción. Se conserva intacta; vuelve a comparar.",
+          });
+          return;
+        }
+        discardedLegacyChanges = retired.value.discarded;
+      }
       setNotice({
         tone: "success",
-        message: `${adopted.applied} ficha(s) centrales adoptada(s) desde el servidor en este dispositivo. No se ha escrito nada en el servidor y la comparación se ha verificado de nuevo.`,
+        message:
+          discardedLegacyChanges > 0
+            ? `${adopted.applied} ficha(s) centrales adoptada(s) desde el servidor en este dispositivo. Se comprobaron también las facturas centrales y se retiraron ${discardedLegacyChanges} cambio(s) de la cola antigua. No se ha escrito nada en el servidor y la comparación se ha verificado de nuevo.`
+            : `${adopted.applied} ficha(s) centrales adoptada(s) desde el servidor en este dispositivo. No se ha escrito nada en el servidor y la comparación se ha verificado de nuevo.`,
       });
       setConfirmed(false);
       setAdoptConfirmed(false);
@@ -582,10 +672,11 @@ export function CentralBusinessBootstrapCard() {
                 className="mt-1 h-4 w-4 shrink-0 accent-amber-700"
               />
               <span>
-                Entiendo que este dispositivo usará la copia del servidor para
-                clientes, proveedores, productos, recordatorios, gastos, gastos
-                fijos, presupuestos, recibos y perfil. No escribe en el
-                servidor ni toca facturas emitidas.
+                {canResetDeviceFromServer
+                  ? `Autorizo reemplazar en este dispositivo clientes, proveedores, productos, recordatorios, gastos, gastos fijos, presupuestos, recibos y perfil por la copia central. Se descartarán aquí ${preview.summary.create} ficha(s) que solo existen en este dispositivo, se comprobarán las facturas centrales y se retirarán ${pendingChangeCount} cambio(s) de la cola antigua.`
+                  : "Entiendo que este dispositivo usará la copia del servidor para clientes, proveedores, productos, recordatorios, gastos, gastos fijos, presupuestos, recibos y perfil."} No
+                escribe en el servidor ni modifica el contenido de las facturas
+                emitidas.
               </span>
             </label>
           ) : null}

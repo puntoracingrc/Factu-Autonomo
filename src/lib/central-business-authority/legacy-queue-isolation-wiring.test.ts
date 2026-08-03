@@ -38,4 +38,16 @@ describe("aislamiento de la cola legacy durante la migracion central", () => {
     expect(durability).toContain("input.trackLegacyChanges === false");
     expect(durability).toContain(": trackDataDiff(input.expected, touched)");
   });
+
+  it("retira la cola legacy solo mediante la adopcion central explicita", () => {
+    const adoption = section(
+      "const retireLegacyPendingChangesAfterCentralAdoption",
+      "const resolveCentralBusinessConflictKeepingServer",
+    );
+
+    expect(adoption).toContain("buildCentralAdoptionLegacyQueueRetirement");
+    expect(adoption).toContain("expectedPendingChangeCount");
+    expect(adoption).toContain("expectedPendingChangesSignature");
+    expect(adoption).toContain("trackLegacyChanges: false");
+  });
 });

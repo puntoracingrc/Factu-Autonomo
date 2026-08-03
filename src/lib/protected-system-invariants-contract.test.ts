@@ -57,6 +57,9 @@ describe("mandatory protected-system registry", () => {
       "Una ficha antigua sin versión central permanece local",
     );
     expect(registry).toContain(
+      "La cola legacy de un dispositivo solo puede retirarse",
+    );
+    expect(registry).toContain(
       "Fusiones y cambios masivos con entidades centrales exigen un comando atómico",
     );
   });

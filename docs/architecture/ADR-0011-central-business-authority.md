@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 22
+- Version: 23
 - Fecha: 2026-08-03
 
 ## Contexto
@@ -53,6 +53,21 @@ cambio solo evita duplicar una confirmacion entrante en la cola legacy pausada.
 Las entradas legacy que ya existan se conservan sin alteraciones hasta una
 accion explicita de migracion o restauracion, y cualquier guardado local fuera
 del contrato central mantiene el seguimiento anterior.
+
+La restauracion explicita de un dispositivo desde las autoridades centrales
+puede retirar su `meta.pendingChanges` legacy sin publicar esas operaciones.
+La confirmacion muestra cuantas fichas existen solo en el dispositivo y avisa
+que se descartaran localmente. Tras la adopcion, clientes, proveedores,
+productos, recordatorios, gastos, gastos fijos, presupuestos, recibos y perfil
+se vuelven a comparar sin diferencias.
+Antes de retirar la cola, el dispositivo descarga y guarda hasta vaciar los
+eventos de facturas de ADR-0010. El recuento y el contenido exacto de los
+pendientes confirmados al iniciar la accion deben seguir intactos y la retirada
+se persiste con readback en una unica transicion que no vuelve a generar
+tracking legacy. Cualquier cambio, conflicto, pagina pendiente o escritura
+local indeterminada conserva la cola completa. La operacion no escribe en el
+servidor ni modifica el contenido de los documentos; solo impide que una copia
+expresamente descartada vuelva a publicarse desde ese dispositivo.
 
 La ruta de mutacion de la fase 2 permanece apagada por defecto. Para escribir
 exige esquema, gate operativo, aprobacion de produccion y allowlist explicita.

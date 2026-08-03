@@ -36,6 +36,7 @@ import type { CentralBusinessConflictRecoveryResult } from "@/lib/central-busine
 import type { CentralBusinessEventReconciliationResult } from "@/lib/central-business-authority/event-reconciliation";
 import type { CentralBusinessEntityType } from "@/lib/central-business-authority/mutation-command";
 import type { CentralBusinessNumberedDocumentCreateBrowserResult } from "@/lib/central-business-authority/numbered-document-client";
+import type { CentralAdoptionLegacyQueueRetirementValue } from "@/lib/central-business-authority/legacy-queue-retirement";
 import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
@@ -499,6 +500,13 @@ interface AppStoreValue {
     ownerScope: string,
     options?: { limit?: number; maxPages?: number },
   ) => Promise<CentralBusinessEventsAppDataSyncResult>;
+  retireLegacyPendingChangesAfterCentralAdoption: (
+    expected: AppData,
+    expectedPendingChangeCount: number,
+    expectedPendingChangesSignature: string,
+  ) => Promise<
+    AppDataDurabilityResult<CentralAdoptionLegacyQueueRetirementValue>
+  >;
   resolveCentralBusinessConflictKeepingServer: (input: {
     ownerScope: string;
     entityType: CentralBusinessEntityType;
@@ -1776,6 +1784,31 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               trackLegacyChanges: false,
             }),
         },
+      );
+    },
+    [commitDurableAppData],
+  );
+
+  const retireLegacyPendingChangesAfterCentralAdoption = useCallback(
+    async (
+      expected: AppData,
+      expectedPendingChangeCount: number,
+      expectedPendingChangesSignature: string,
+    ): Promise<
+      AppDataDurabilityResult<CentralAdoptionLegacyQueueRetirementValue>
+    > => {
+      const { buildCentralAdoptionLegacyQueueRetirement } = await import(
+        "@/lib/central-business-authority/legacy-queue-retirement"
+      );
+      return commitDurableAppData(
+        expected,
+        (previous) =>
+          buildCentralAdoptionLegacyQueueRetirement({
+            data: previous,
+            expectedPendingChangeCount,
+            expectedPendingChangesSignature,
+          }),
+        { trackLegacyChanges: false },
       );
     },
     [commitDurableAppData],
@@ -3827,6 +3860,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralBusinessEvents,
       reconcileCentralBusinessEvents,
       adoptCentralBusinessEventsFromServer,
+      retireLegacyPendingChangesAfterCentralAdoption,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
       updateProfile,
@@ -3921,6 +3955,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       syncCentralBusinessEvents,
       reconcileCentralBusinessEvents,
       adoptCentralBusinessEventsFromServer,
+      retireLegacyPendingChangesAfterCentralAdoption,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
       updateProfile,

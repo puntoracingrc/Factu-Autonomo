@@ -63,11 +63,28 @@ describe("central business bootstrap account card", () => {
     expect(component).toContain("canAdoptServerCopy");
     expect(component).toContain("preview.summary.conflict > 0");
     expect(component).toContain("preview.summary.centralOnly > 0");
+    expect(component).toContain("canResetDeviceFromServer");
+    expect(component).toContain("preview && pendingChangeCount > 0");
+    expect(component).toContain("pendingChangeCount > 0");
     expect(component).toContain(
       "previewCentralBusinessBootstrapFromBrowser(restoredEntities)",
     );
+    expect(component).toContain("syncAllCentralInvoiceEvents");
+    expect(component).toContain("syncCentralInvoiceAuthorityEvents");
+    expect(component).toContain(
+      "retireLegacyPendingChangesAfterCentralAdoption",
+    );
+    expect(component).toContain("expectedPendingChangeCount");
+    expect(component).toContain("expectedPendingChangesSignature");
+    expect(component).toContain("centralAdoptionLegacyQueueSignature");
+    expect(component).toContain("isExplicitDeviceReset");
+    expect(component).toContain("preview.summary.create");
+    expect(component).toContain(
+      "expectedPendingChangeCount !== pendingChangeCount",
+    );
+    expect(component).toContain("La cola antigua se conserva");
     expect(component).toContain("No se ha escrito nada en el servidor");
-    expect(component).toContain("ni toca facturas emitidas");
+    expect(component).toContain("ni modifica el contenido de las facturas");
     expect(component).toContain("Usar servidor en este dispositivo");
   });
 
