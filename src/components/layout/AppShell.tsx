@@ -144,11 +144,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [initialDemoMode] = useState(() => isDemoWorkspaceMode());
   const [listVisualCache, setListVisualCache] = useState<
     Record<ListVisualCacheKind, ListVisualCacheSnapshot | null>
-  >(() =>
-    initialDemoMode
-      ? readListVisualCacheSnapshots("local")
-      : emptyListVisualCacheSnapshots(),
-  );
+  >(() => emptyListVisualCacheSnapshots());
   const mobileNavRef = useRef<HTMLDivElement>(null);
   const visualCacheDataRef = useRef(data);
   const writtenListVisualCacheDependenciesRef =
