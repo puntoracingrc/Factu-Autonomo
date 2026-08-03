@@ -8,11 +8,10 @@ function source(relativePath: string) {
 const appStore = source("../../context/AppStore.tsx");
 const hook = source("../../hooks/useCentralCustomerCreate.ts");
 const mutationHook = source("../../hooks/useCentralCustomerMutations.ts");
-const documentHook = source(
-  "../../hooks/useCentralDocumentCustomerUpsert.ts",
-);
+const documentHook = source("../../hooks/useCentralDocumentCustomerUpsert.ts");
 const documentForm = source("../../components/forms/DocumentForm.tsx");
 const userIdHook = source("../../hooks/useCentralBusinessUserId.ts");
+const planGateHook = source("../../hooks/useCentralAuthorityPlanGate.ts");
 const customersPage = source("../../app/clientes/page.tsx");
 const newCustomerPage = source("../../app/clientes/nuevo/page.tsx");
 const eventApply = source("./events-app-data-sync.ts");
@@ -48,10 +47,10 @@ describe("central customer create canary wiring", () => {
 
   it("carga las mutaciones centrales bajo demanda y falla de forma cerrada", () => {
     expect(hook).toContain(
-      'await import(\n          "@/lib/central-business-authority/customer-create-canary"',
+      'import("@/lib/central-business-authority/customer-create-canary")',
     );
     expect(mutationHook).toContain(
-      'await import(\n          "@/lib/central-business-authority/customer-mutation-canary"',
+      'import("@/lib/central-business-authority/customer-mutation-canary")',
     );
     expect(mutationHook).toContain(
       'import("@/lib/central-business-authority/durable-queue")',
@@ -69,12 +68,13 @@ describe("central customer create canary wiring", () => {
     expect(userIdHook).toContain("supabase.auth.getSession()");
     expect(userIdHook).toContain("supabase.auth.onAuthStateChange");
     expect(userIdHook).toContain("listener.subscription.unsubscribe()");
-    expect(hook).toContain("useCentralBusinessResolvedUserId");
-    expect(hook).toContain("await resolveCentralBusinessUserId(userId)");
-    expect(hook).toContain("syncCentralBusinessEvents(resolvedUserId)");
-    expect(mutationHook).toContain("useCentralBusinessResolvedUserId");
-    expect(mutationHook).toContain("await resolveCentralBusinessUserId(userId)");
-    expect(mutationHook).toContain("syncCentralBusinessEvents(resolvedUserId)");
+    expect(planGateHook).toContain("useCentralBusinessResolvedUserId");
+    expect(hook).toContain("useCentralAuthorityPlanGate");
+    expect(hook).toContain("planGate.centralUserId");
+    expect(hook).toContain("syncCentralBusinessEvents(userId)");
+    expect(mutationHook).toContain("useCentralAuthorityPlanGate");
+    expect(mutationHook).toContain("planGate.centralUserId");
+    expect(mutationHook).toContain("syncCentralBusinessEvents(userId)");
   });
 
   it("aplica un borrado remoto con el contrato completo del maestro", () => {

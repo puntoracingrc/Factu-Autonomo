@@ -3,7 +3,8 @@
 ## Objetivo
 
 Reducir consultas vacias sin perder recuperacion ante avisos Realtime perdidos y
-ampliar la autoridad central solo a cuentas cuyo corte ya este preparado.
+ampliar la autoridad central a las cuentas con plan cloud despues de verificar
+su bootstrap seguro.
 
 ## Plan de lectura
 
@@ -46,17 +47,17 @@ probar 500 o mas dispositivos abiertos debe verificarse y, si corresponde,
 elevar el limite especifico del proyecto. La simulacion de 1.000 y 5.000 no
 autoriza por si sola esos escalones.
 
-## Despliegue gradual
+## Despliegue general
 
 1. Mantener `CENTRAL_AUTHORITY_ROLLOUT_PERCENT=0` y su espejo publico al 0.
-2. Incluir solo UUID con corte verificado en las listas privada y publica de
-   elegibilidad.
-3. Subir 1, 5, 10, 25, 50 y 100 por ciento dentro de esa lista, manteniendo las
-   allowlists explicitas existentes y sin aproximarse a la cuota Realtime.
-4. Detener el avance ante errores centrales, 429 sostenidos, cursores atrasados
-   o latencia fuera del objetivo.
-5. No usar `*` hasta que el alta de usuarios nuevos nazca central y el corte de
-   cuentas antiguas este automatizado y verificado.
+2. Incluir dos cuentas sinteticas en las listas privada y publica, asignarles
+   plan cloud y comprobar todos los tipos operativos, facturas, rectificativas,
+   recibos y aislamiento en dos dispositivos.
+3. Eliminar las cuentas sinteticas y sus sesiones despues del readback.
+4. Si toda la aceptacion es verde, configurar porcentaje 100 y elegibilidad
+   `*` en servidor y navegador. Gratis continua local por la compuerta de plan.
+5. Detener o revertir el rollout ante errores centrales, 429 sostenidos,
+   cursores atrasados o latencia fuera del objetivo.
 
 El interruptor privado `CENTRAL_AUTHORITY_KILL_SWITCH=true` pausa nuevas
 escrituras sin desactivar lectura ni permitir fallback local. El valor publico
@@ -69,3 +70,6 @@ autoridad final.
   central durable que el alta desde Clientes.
 - El proveedor detectado al escanear un gasto se confirma junto al gasto y, si
   existe, su recurrencia en un unico lote atomico.
+- Altas, ediciones, borrados, escaneos, resumenes de proveedor y gastos
+  recurrentes usan el mismo contrato central. Ninguna ocurrencia de gasto fijo
+  conserva un atajo local para cuentas cloud seleccionadas.

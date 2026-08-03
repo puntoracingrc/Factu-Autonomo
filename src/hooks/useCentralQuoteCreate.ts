@@ -3,16 +3,17 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import type {
   CentralQuoteCreateResult,
   CentralQuoteDraft,
 } from "@/lib/central-business-authority/quote-create-canary";
 
 export function useCentralQuoteCreate(): {
-  createQuote: (
-    draft: CentralQuoteDraft,
-  ) => Promise<CentralQuoteCreateResult>;
+  createQuote: (draft: CentralQuoteDraft) => Promise<CentralQuoteCreateResult>;
 } {
   const {
     addDocument,
@@ -20,22 +21,23 @@ export function useCentralQuoteCreate(): {
     getCurrentData,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const createQuote = useCallback(
     async (draft: CentralQuoteDraft) => {
-      const { createQuoteWithCentralCanary } = await import(
-        "@/lib/central-business-authority/quote-create-canary"
-      );
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      const { createQuoteWithCentralCanary } =
+        await import("@/lib/central-business-authority/quote-create-canary");
       return createQuoteWithCentralCanary({
         userId,
         draft,
         dependencies: {
           getCurrentData,
           addDocumentFallback: addDocument,
-          addCentralDocumentDurably:
-            addCentralBusinessNumberedDocumentDurably,
+          addCentralDocumentDurably: addCentralBusinessNumberedDocumentDurably,
           syncEventsBeforeWrite: userId
             ? () => syncCentralBusinessEvents(userId)
             : undefined,
@@ -46,6 +48,7 @@ export function useCentralQuoteCreate(): {
       addCentralBusinessNumberedDocumentDurably,
       addDocument,
       getCurrentData,
+      planGate.mode,
       syncCentralBusinessEvents,
       userId,
     ],

@@ -3,7 +3,10 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import {
   createProductWithCentralCanary,
   type CentralProductCreateResult,
@@ -21,12 +24,15 @@ export function useCentralProductCreate(): {
     getCurrentData,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const createProduct = useCallback(
-    (draft: ProductDraft) =>
-      createProductWithCentralCanary({
+    async (draft: ProductDraft) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return createProductWithCentralCanary({
         userId,
         draft,
         dependencies: {
@@ -37,11 +43,13 @@ export function useCentralProductCreate(): {
             ? () => syncCentralBusinessEvents(userId)
             : undefined,
         },
-      }),
+      });
+    },
     [
       addProduct,
       addProductDurably,
       getCurrentData,
+      planGate.mode,
       syncCentralBusinessEvents,
       userId,
     ],

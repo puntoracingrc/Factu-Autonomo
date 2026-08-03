@@ -18,6 +18,10 @@ import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import { formatMoney, todayISO, unitPriceFromGross } from "@/lib/calculations";
 import {
   documentAmounts,
@@ -112,6 +116,7 @@ export function RectificativaForm({
     syncCentralInvoiceAuthorityEvents,
   } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
+  const centralPlanGate = useCentralAuthorityPlanGate();
   const {
     billingEnabled,
     checkCanCreateDocument,
@@ -447,10 +452,15 @@ export function RectificativaForm({
           payload,
           resolvedStatus: statusOverride,
         });
+      if (centralRectificationEligible && centralPlanGate.mode === "loading") {
+        setSaveAction("idle");
+        setFormError(centralAuthorityPlanLoadingFailure().error);
+        return;
+      }
       const centralPolicy = centralRectificationEligible
         ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
             publicFormCanaryEnabled: centralCanaryEnabled,
-            publicFormCanaryUserId: cloudUser?.id,
+            publicFormCanaryUserId: centralPlanGate.centralUserId,
           })
         : null;
 

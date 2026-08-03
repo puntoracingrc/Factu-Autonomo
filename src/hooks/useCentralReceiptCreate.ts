@@ -3,7 +3,10 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import type { CentralReceiptCreateResult } from "@/lib/central-business-authority/receipt-create-canary";
 
 export function useCentralReceiptCreate(): {
@@ -16,22 +19,23 @@ export function useCentralReceiptCreate(): {
     syncCentralBusinessEvents,
     syncCentralInvoiceAuthorityEvents,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const createReceipt = useCallback(
     async (invoiceId: string) => {
-      const { createReceiptWithCentralCanary } = await import(
-        "@/lib/central-business-authority/receipt-create-canary"
-      );
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      const { createReceiptWithCentralCanary } =
+        await import("@/lib/central-business-authority/receipt-create-canary");
       return createReceiptWithCentralCanary({
         userId,
         invoiceId,
         dependencies: {
           getCurrentData,
           generateReceiptFallback: generateReceiptForInvoice,
-          addCentralDocumentDurably:
-            addCentralBusinessNumberedDocumentDurably,
+          addCentralDocumentDurably: addCentralBusinessNumberedDocumentDurably,
           syncBusinessEventsBeforeWrite: userId
             ? () => syncCentralBusinessEvents(userId)
             : undefined,
@@ -45,6 +49,7 @@ export function useCentralReceiptCreate(): {
       addCentralBusinessNumberedDocumentDurably,
       generateReceiptForInvoice,
       getCurrentData,
+      planGate.mode,
       syncCentralBusinessEvents,
       syncCentralInvoiceAuthorityEvents,
       userId,

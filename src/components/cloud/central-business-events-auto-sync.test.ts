@@ -20,14 +20,9 @@ describe("central business events auto sync wiring", () => {
     expect(component).toContain(
       "isCentralBusinessEventsAutoSyncEnabledForUser",
     );
-    expect(component).toContain(
-      "const enabled = isCentralBusinessEventsAutoSyncEnabledForUser(userId);",
-    );
-    expect(component).toContain(
-      "const userId = cloudUserId ?? sessionFallbackUserId;",
-    );
-    expect(component).toContain("supabase.auth.getSession()");
-    expect(component).toContain("supabase.auth.onAuthStateChange");
+    expect(component).toContain('planGate.mode === "central"');
+    expect(component).toContain("const userId = planGate.centralUserId;");
+    expect(component).toContain("useCentralAuthorityPlanGate");
     expect(component).not.toContain("emailConfirmed");
     expect(component).toContain("syncCentralBusinessEvents");
     const normalSync = appStore.slice(

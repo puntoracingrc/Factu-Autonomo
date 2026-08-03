@@ -3,7 +3,10 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import { loadCentralBusinessDurableQueue } from "@/lib/central-business-authority/durable-queue";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
 import { isCentralSupplierCreateCanaryEnabledForUser } from "@/lib/central-business-authority/supplier-create-canary";
@@ -30,8 +33,8 @@ export function useCentralSupplierMutations(): {
     updateSupplier: updateSupplierFallback,
     updateSupplierDurably,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const commonDependencies = useMemo(
     () => ({
@@ -56,27 +59,36 @@ export function useCentralSupplierMutations(): {
   );
 
   const updateSupplier = useCallback(
-    (supplier: Supplier) =>
-      updateSupplierWithCentralCanary({
+    async (supplier: Supplier) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return updateSupplierWithCentralCanary({
         userId,
         supplier,
         dependencies: commonDependencies,
-      }),
-    [commonDependencies, userId],
+      });
+    },
+    [commonDependencies, planGate.mode, userId],
   );
 
   const deleteSupplier = useCallback(
-    (supplierId: string) =>
-      deleteSupplierWithCentralCanary({
+    async (supplierId: string) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return deleteSupplierWithCentralCanary({
         userId,
         supplierId,
         dependencies: commonDependencies,
-      }),
-    [commonDependencies, userId],
+      });
+    },
+    [commonDependencies, planGate.mode, userId],
   );
 
   const isCentralSupplier = useCallback(
     (supplierId: string) => {
+      if (planGate.mode === "loading") return true;
       if (!userId || !isCentralSupplierCreateCanaryEnabledForUser(userId)) {
         return false;
       }
@@ -90,7 +102,7 @@ export function useCentralSupplierMutations(): {
         return true;
       }
     },
-    [userId],
+    [planGate.mode, userId],
   );
 
   return { updateSupplier, deleteSupplier, isCentralSupplier };

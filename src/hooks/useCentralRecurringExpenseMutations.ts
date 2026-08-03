@@ -3,7 +3,10 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import {
   saveCentralExpenseBundleWithCanary,
   type CentralExpenseBundleCanaryDependencies,
@@ -58,8 +61,8 @@ export function useCentralRecurringExpenseMutations(): {
     setRecurringExpenseEnabled: setRecurringExpenseEnabledFallback,
     syncCentralBusinessEvents,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const syncEventsBeforeWrite = useMemo(
     () => (userId ? () => syncCentralBusinessEvents(userId) : undefined),
@@ -72,21 +75,24 @@ export function useCentralRecurringExpenseMutations(): {
       fallback: () => AppDataDurabilityResult<T>,
       prepareLocal: CentralExpenseBundleCanaryDependencies<T>["prepareLocal"],
     ) =>
-      saveCentralExpenseBundleWithCanary({
-        userId,
-        operationId: id,
-        dependencies: {
-          getCurrentData,
-          syncEventsBeforeWrite,
-          fallback,
-          prepareLocal,
-          commitLocal: (expected, transition) =>
-            commitPreparedAppDataDurably(expected, transition),
-        },
-      }),
+      planGate.mode === "loading"
+        ? Promise.resolve(centralAuthorityPlanLoadingFailure())
+        : saveCentralExpenseBundleWithCanary({
+            userId,
+            operationId: id,
+            dependencies: {
+              getCurrentData,
+              syncEventsBeforeWrite,
+              fallback,
+              prepareLocal,
+              commitLocal: (expected, transition) =>
+                commitPreparedAppDataDurably(expected, transition),
+            },
+          }),
     [
       commitPreparedAppDataDurably,
       getCurrentData,
+      planGate.mode,
       syncEventsBeforeWrite,
       userId,
     ],

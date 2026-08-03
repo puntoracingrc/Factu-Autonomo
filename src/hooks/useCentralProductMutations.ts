@@ -3,7 +3,10 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
 import { loadCentralBusinessDurableQueue } from "@/lib/central-business-authority/durable-queue";
 import {
@@ -30,8 +33,8 @@ export function useCentralProductMutations(): {
     updateProduct: updateProductFallback,
     updateProductDurably,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const commonDependencies = useMemo(
     () => ({
@@ -56,27 +59,36 @@ export function useCentralProductMutations(): {
   );
 
   const updateProduct = useCallback(
-    (product: Product) =>
-      updateProductWithCentralCanary({
+    async (product: Product) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return updateProductWithCentralCanary({
         userId,
         product,
         dependencies: commonDependencies,
-      }),
-    [commonDependencies, userId],
+      });
+    },
+    [commonDependencies, planGate.mode, userId],
   );
 
   const deleteProduct = useCallback(
-    (productId: string) =>
-      deleteProductWithCentralCanary({
+    async (productId: string) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return deleteProductWithCentralCanary({
         userId,
         productId,
         dependencies: commonDependencies,
-      }),
-    [commonDependencies, userId],
+      });
+    },
+    [commonDependencies, planGate.mode, userId],
   );
 
   const isCentralProduct = useCallback(
     (productId: string) => {
+      if (planGate.mode === "loading") return true;
       if (!userId || !isCentralProductCreateCanaryEnabledForUser(userId)) {
         return false;
       }
@@ -90,7 +102,7 @@ export function useCentralProductMutations(): {
         return true;
       }
     },
-    [userId],
+    [planGate.mode, userId],
   );
 
   return { updateProduct, deleteProduct, isCentralProduct };

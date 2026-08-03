@@ -3,7 +3,10 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  centralAuthorityPlanLoadingFailure,
+  useCentralAuthorityPlanGate,
+} from "@/hooks/useCentralAuthorityPlanGate";
 import {
   createExpenseWithCentralCanary,
   type CentralExpenseCreateResult,
@@ -82,8 +85,8 @@ export function useCentralExpenseMutations(): {
     updateExpense: updateExpenseFallback,
     updateExpenseDurably,
   } = useAppStore();
-  const { user } = useCloudSync();
-  const userId = user?.id;
+  const planGate = useCentralAuthorityPlanGate();
+  const userId = planGate.centralUserId;
 
   const syncEventsBeforeWrite = useMemo(
     () => (userId ? () => syncCentralBusinessEvents(userId) : undefined),
@@ -91,8 +94,11 @@ export function useCentralExpenseMutations(): {
   );
 
   const createExpense = useCallback(
-    (expense: ExpenseDraft) =>
-      createExpenseWithCentralCanary({
+    async (expense: ExpenseDraft) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return createExpenseWithCentralCanary({
         userId,
         expense,
         dependencies: {
@@ -101,11 +107,13 @@ export function useCentralExpenseMutations(): {
           addExpenseDurably,
           syncEventsBeforeWrite,
         },
-      }),
+      });
+    },
     [
       addExpense,
       addExpenseDurably,
       getCurrentData,
+      planGate.mode,
       syncEventsBeforeWrite,
       userId,
     ],
@@ -131,28 +139,39 @@ export function useCentralExpenseMutations(): {
   );
 
   const updateExpense = useCallback(
-    (expense: Expense) =>
-      updateExpenseWithCentralCanary({
+    async (expense: Expense) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return updateExpenseWithCentralCanary({
         userId,
         expense,
         dependencies: mutationDependencies,
-      }),
-    [mutationDependencies, userId],
+      });
+    },
+    [mutationDependencies, planGate.mode, userId],
   );
 
   const deleteExpense = useCallback(
-    (expenseId: string) =>
-      deleteExpenseWithCentralCanary({
+    async (expenseId: string) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return deleteExpenseWithCentralCanary({
         userId,
         expenseId,
         dependencies: mutationDependencies,
-      }),
-    [mutationDependencies, userId],
+      });
+    },
+    [mutationDependencies, planGate.mode, userId],
   );
 
   const saveScannedExpenseDurably = useCallback(
-    (expense: DurableExpense, options: DurableExpenseSaveOptions) =>
-      saveCentralExpenseBundleWithCanary({
+    async (expense: DurableExpense, options: DurableExpenseSaveOptions) => {
+      if (planGate.mode === "loading") {
+        return centralAuthorityPlanLoadingFailure();
+      }
+      return saveCentralExpenseBundleWithCanary({
         userId,
         operationId: options.operationId,
         dependencies: {
@@ -174,9 +193,11 @@ export function useCentralExpenseMutations(): {
               now,
             }),
         },
-      }),
+      });
+    },
     [
       getCurrentData,
+      planGate.mode,
       saveScannedExpenseDurablyFallback,
       syncEventsBeforeWrite,
       userId,
@@ -188,8 +209,11 @@ export function useCentralExpenseMutations(): {
       expense: DurableExpense,
       item: RecurringExpenseDraft,
       options: DurableExpenseSaveOptions,
-    ) =>
-      saveCentralExpenseBundleWithCanary({
+    ) => {
+      if (planGate.mode === "loading") {
+        return Promise.resolve(centralAuthorityPlanLoadingFailure());
+      }
+      return saveCentralExpenseBundleWithCanary({
         userId,
         operationId: options.operationId,
         dependencies: {
@@ -218,9 +242,11 @@ export function useCentralExpenseMutations(): {
               referenceDate: now.slice(0, 10),
             }),
         },
-      }),
+      });
+    },
     [
       getCurrentData,
+      planGate.mode,
       saveFixedExpenseWithRecurringTemplateFallback,
       syncEventsBeforeWrite,
       userId,
@@ -229,6 +255,9 @@ export function useCentralExpenseMutations(): {
 
   const saveProviderSummaryExpenses = useCallback(
     (input: ProviderSummaryExpenseSaveInput) => {
+      if (planGate.mode === "loading") {
+        return Promise.resolve(centralAuthorityPlanLoadingFailure());
+      }
       const prepare = ({
         data,
         now,
@@ -272,6 +301,7 @@ export function useCentralExpenseMutations(): {
     [
       commitPreparedAppDataDurably,
       getCurrentData,
+      planGate.mode,
       syncEventsBeforeWrite,
       userId,
     ],

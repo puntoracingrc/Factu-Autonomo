@@ -20,6 +20,7 @@ import {
 } from "@/components/cloud/CloudSyncIndicator";
 import { CentralInvoiceAuthorityEventsAutoSync } from "@/components/cloud/CentralInvoiceAuthorityEventsAutoSync";
 import { CentralBusinessAuthorityEventsAutoSync } from "@/components/cloud/CentralBusinessAuthorityEventsAutoSync";
+import { CentralBusinessAutomaticBootstrap } from "@/components/cloud/CentralBusinessAutomaticBootstrap";
 import { GoogleDriveAutoBackup } from "@/components/cloud/GoogleDriveAutoBackup";
 import { DataAccessEventReporter } from "@/components/security/DataAccessEventReporter";
 import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
@@ -421,6 +422,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Suspense>
       <ReferralRedeemOnLogin />
       <GoogleDriveAutoBackup />
+      <CentralBusinessAutomaticBootstrap />
       <CentralInvoiceAuthorityEventsAutoSync />
       <CentralBusinessAuthorityEventsAutoSync />
       <DataAccessEventReporter />

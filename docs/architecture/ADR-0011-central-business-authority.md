@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 25
+- Version: 26
 - Fecha: 2026-08-03
 
 ## Contexto
@@ -31,9 +31,11 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
    autoritativa seguira siendo una peticion con cursor. Con Realtime suscrito,
    el sondeo de seguridad se ejecuta cada tres minutos con dispersion; si el
    canal se degrada, se usa temporalmente un respaldo de treinta segundos.
-7. La migracion sera aditiva y por canario. No se reactivara
-   `sync_entities`, ni se importaran datos reales, hasta disponer de
-   comparacion y bootstrap verificables.
+7. La migracion sera aditiva y por canario. Gratis permanece local. Una cuenta
+   con plan cloud seleccionada por el rollout bloquea sus acciones de negocio
+   mientras resuelve plan, dispositivo y bootstrap. El cliente recibe primero
+   los eventos centrales y solo incorpora automaticamente un snapshot aditivo
+   o ya identico; cualquier conflicto queda para revision explicita.
 8. Las facturas y rectificativas emitidas siguen bajo ADR-0010. Esta autoridad
    operativa no puede editar, borrar ni renumerar un documento fiscal emitido.
 
@@ -47,6 +49,9 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
 5. Añadir cola offline visible y resolucion explicita de conflictos.
 6. Comparar y hacer bootstrap de la cuenta real; despues retirar la escritura
    de `sync_entities`.
+7. Verificar con cuentas sinteticas el alta cloud, dos dispositivos, todos los
+   tipos operativos y el aislamiento entre propietarios antes de habilitar el
+   comodin general.
 
 Durante esta retirada, aplicar o adoptar una pagina ya verificada del outbox no
 genera otra vez las mismas fichas en `meta.pendingChanges`. El cursor central,
@@ -55,6 +60,15 @@ cambio solo evita duplicar una confirmacion entrante en la cola legacy pausada.
 Las entradas legacy que ya existan se conservan sin alteraciones hasta una
 accion explicita de migracion o restauracion, y cualquier guardado local fuera
 del contrato central mantiene el seguimiento anterior.
+
+Para una cuenta cloud nueva incluida en el rollout, el sincronizador legacy se
+retira desde el primer arranque central, pero su cola local no se borra. La
+preparacion automatica recibe eventos, compara el snapshot operativo y crea
+solo fichas ausentes. Un dispositivo que ya tenga un corte explicito no repite
+el bootstrap. Un fallo de red reintenta; un conflicto o una ficha solo central
+que no pueda recibirse mantiene las acciones bloqueadas y exige revision en
+Cuenta. Las facturas historicas locales quedan fuera de este bootstrap y no se
+reinterpretan como emisiones centrales.
 
 La restauracion explicita de un dispositivo desde las autoridades centrales
 puede retirar su `meta.pendingChanges` legacy sin publicar esas operaciones.
@@ -144,6 +158,12 @@ lineas, precios, costes y snapshots historicos. Las altas automaticas de
 proveedores dentro de gastos manuales, fijos o escaneados solo se centralizan
 dentro del mismo lote atomico que el gasto; nunca se confirma una mitad sin la
 otra.
+
+Todas las escrituras de gastos usan autoridad central para una cuenta cloud
+seleccionada: alta, edicion, borrado, captura escaneada, resumen de proveedor,
+vinculos con documentos y rentabilidad, y creacion, activacion, cambio o
+borrado de recurrencias. Editar una ocurrencia de un gasto fijo tampoco puede
+usar el mutador local. Gratis conserva exactamente esos flujos en local.
 
 Los documentos operativos entran por tipos centrales separados: `quote` para
 presupuestos y `receipt` para recibos. La RPC, las tablas privadas y el cliente
@@ -261,9 +281,10 @@ forma, escritura local durable y una version central superior a todas las
 versiones esperadas. Una descarga parcial o fallida deja la resolucion
 reintentable. Un conflicto de idempotencia no ofrece reparacion automatica.
 
-Una ficha antigua sin version en el ledger sigue local hasta el bootstrap
-explicito. Si la lectura previa termino correctamente, la ausencia de version
-permite ese fallback; si la red impide saberlo, el cambio se bloquea en vez de
+Una ficha antigua sin version en el ledger sigue local fuera del rollout. En
+una cuenta cloud seleccionada, la ausencia de version obliga a terminar el
+bootstrap automatico seguro antes de permitir cambios; no habilita fallback
+local. Si la red impide clasificarla, el cambio se bloquea en vez de
 centralizar o sobrescribir por conjetura. Dos cambios pendientes sobre la misma
 entidad no se encadenan con una version obsoleta.
 
@@ -315,13 +336,16 @@ legacy para la allowlist retirada incluso si la pausa global se levanta, y deja
 de mostrar esa pausa temporal como estado de la cuenta.
 
 La ampliacion general usa una cohorte porcentual determinista por UUID comun a
-datos operativos y facturas. La allowlist explicita sigue teniendo prioridad,
-el porcentaje solo selecciona UUID presentes en la lista de cuentas preparadas
-y permanece en cero hasta aprobar metricas y elegibilidad. El comodin no se usa
-hasta automatizar y verificar el alta central de cuentas nuevas y el corte de
-cuentas antiguas. El interruptor de emergencia pausa nuevas escrituras sin
-detener la descarga del outbox. Reducir carga o perder Realtime nunca convierte
-una copia local en autoridad.
+datos operativos y facturas. La allowlist explicita sigue teniendo prioridad y
+el porcentaje permanece en cero hasta aprobar metricas y elegibilidad. El
+comodin solo se habilita despues de superar una prueba sintetica de alta,
+escritura, recepcion en un segundo dispositivo, gastos completos y aislamiento
+entre dos propietarios. Con el comodin activo, solo las cuentas con plan cloud
+entran en autoridad central; Gratis sigue local. El sincronizador legacy queda
+retirado para la cohorte aunque se active el interruptor de emergencia. Dicho
+interruptor pausa nuevas escrituras sin detener la descarga del outbox ni
+autorizar fallback local. Reducir carga o perder Realtime nunca convierte una
+copia local en autoridad.
 
 ## Rollback
 

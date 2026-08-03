@@ -177,11 +177,7 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
 export default function NuevoGastoPage() {
   const router = useRouter();
   const { user } = useCloudSync();
-  const {
-    data,
-    getCurrentData,
-    updateExpense: updateExpenseFallback,
-  } = useAppStore();
+  const { data, getCurrentData } = useAppStore();
   const {
     createExpense,
     saveFixedExpenseWithRecurringTemplate,
@@ -1759,7 +1755,7 @@ export default function NuevoGastoPage() {
         existingRecurringId &&
         !editingCurrentDurableOperation
       ) {
-        updateExpenseFallback({
+        const result = await updateCentralExpense({
           ...editingExpense,
           ...payload,
           recurringExpenseId: existingRecurringId,
@@ -1767,6 +1763,10 @@ export default function NuevoGastoPage() {
             editingExpense.recurringOccurrenceKey ??
             occurrenceKey(existingRecurringId, expenseDate),
         });
+        if (!result.ok) {
+          setSaveSubmitError(result.error);
+          return;
+        }
       } else {
         fixedSaveInProgressRef.current = true;
         const fixedExpense = editingExpense

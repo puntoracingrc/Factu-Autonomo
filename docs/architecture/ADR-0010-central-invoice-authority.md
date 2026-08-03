@@ -1,7 +1,7 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 3
+- Version: 4
 - Fecha: 2026-08-03
 
 ## Contexto
@@ -55,11 +55,12 @@ dispone todavia de esas tablas ni de una transaccion de emision autoritativa.
     operativa este marcada como lista, que la baseline de produccion este
     reconciliada con Git y que exista copia restaurable con ensayo aislado
     superado. Dentro de `canary`, una cohorte porcentual determinista por UUID
-    puede ampliar gradualmente la allowlist, pero solo dentro de una lista de
-    UUID ya preparados para el corte. El porcentaje empieza en cero, usa la
-    misma asignacion en navegador y servidor y no sustituye los requisitos de
-    preparacion de cada cuenta. El comodin de elegibilidad solo puede activarse
-    cuando altas nuevas y cortes antiguos esten automatizados y verificados.
+    puede ampliar la elegibilidad. El porcentaje empieza en cero y usa la misma
+    asignacion en navegador y servidor. El comodin solo puede activarse tras
+    verificar con cuentas sinteticas el alta central automatica, el segundo
+    dispositivo, el aislamiento por propietario y el fail-closed. La compuerta
+    de plan mantiene Gratis local; Pro y Pro+ no pueden emitir localmente
+    mientras su bootstrap central siga pendiente.
 14. Una vez activada la autoridad central para una serie, un incidente puede
     pausar nuevas emisiones mediante el interruptor de emergencia, pero
     mantiene la lectura de eventos y nunca devuelve esa serie a numeracion

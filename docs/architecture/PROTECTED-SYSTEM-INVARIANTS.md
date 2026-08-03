@@ -235,8 +235,10 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
   operaciones de la entidad y solo las retira después de aplicar y verificar
   una versión autoritativa superior. Los conflictos de idempotencia no se
   resuelven automáticamente.
-- Una ficha antigua sin versión central permanece local hasta su bootstrap
-  explícito. Una red incierta no autoriza a inventar esa clasificación.
+- Una ficha antigua sin versión central permanece local fuera del rollout. En
+  una cuenta con plan cloud seleccionada, las escrituras quedan bloqueadas
+  hasta completar un bootstrap automático aditivo o una revisión explícita.
+  Una red incierta no autoriza a inventar esa clasificación.
 - La cola legacy de un dispositivo solo puede retirarse mediante restauración
   explícita después de volver a verificar sin diferencias los datos operativos,
   vaciar y guardar los eventos de facturas centrales y confirmar que ni el
@@ -245,10 +247,12 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
 - Fusiones y cambios masivos con entidades centrales exigen un comando atómico;
   no pueden ejecutarse como escrituras parciales.
 - El rollout porcentual comparte una cohorte determinista entre navegador y
-  servidor, empieza al cero por defecto y solo selecciona UUID incluidos en la
-  lista de cuentas ya preparadas. El comodin queda prohibido hasta automatizar
-  y verificar altas nuevas y cortes antiguos. Nunca salta los gates de cuenta.
-  El interruptor de emergencia pausa escrituras y conserva lectura por cursor.
+  servidor y empieza al cero por defecto. El comodin solo se habilita tras una
+  aceptación sintética completa de alta, segundo dispositivo, gastos e
+  aislamiento. Solo los planes con nube usan autoridad central; Gratis sigue
+  local. El rollout retira el escritor legacy sin borrar su cola. Nunca salta
+  los gates de cuenta. El interruptor de emergencia pausa escrituras y conserva
+  lectura por cursor sin reactivar el fallback legacy.
 
 Regresiones mínimas: `central-business-authority/activation.test.ts`,
 `central-business-authority/durable-queue.test.ts`,
