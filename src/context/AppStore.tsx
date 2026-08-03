@@ -486,7 +486,11 @@ interface AppStoreValue {
   }) => Promise<DurableFiscalNotificationEmptyHistoryRepairResultV1>;
   syncCentralInvoiceAuthorityEvents: (
     expected: AppData,
-    options?: { limit?: number | null; receivedAt?: string },
+    options?: {
+      limit?: number | null;
+      receivedAt?: string;
+      replayFromStartWhenNoActiveInvoices?: boolean;
+    },
   ) => Promise<AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>>;
   syncCentralBusinessEvents: (
     ownerScope: string,
@@ -1520,7 +1524,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const syncCentralInvoiceAuthorityEvents = useCallback(
     async (
       _expected: AppData,
-      options: { limit?: number | null; receivedAt?: string } = {},
+      options: {
+        limit?: number | null;
+        receivedAt?: string;
+        replayFromStartWhenNoActiveInvoices?: boolean;
+      } = {},
     ): Promise<
       AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>
     > => {
@@ -1564,6 +1572,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           data: baseline,
           limit: options.limit,
           receivedAt: options.receivedAt,
+          replayFromStartWhenNoActiveInvoices:
+            options.replayFromStartWhenNoActiveInvoices,
         });
         return commitDurableAppData(
           baseline,

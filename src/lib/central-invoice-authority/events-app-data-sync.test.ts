@@ -8,6 +8,7 @@ import {
   buildCentralInvoiceAuthorityEventsAppDataTransition,
   pullCentralInvoiceAuthorityEventsForAppData,
   selectCentralInvoiceAuthorityEventsSyncBaseline,
+  shouldReplayCentralInvoiceAuthorityEventsFromStart,
   syncCentralInvoiceAuthorityEventsIntoAppData,
 } from "./events-app-data-sync";
 import type {
@@ -203,6 +204,64 @@ describe("central invoice authority app data sync", () => {
         appliedEvents: 1,
       },
     });
+  });
+
+  it("relee desde el inicio si hay cursor pero no queda ninguna factura activa", async () => {
+    const stale = appData({
+      documents: [],
+      centralInvoiceAuthorityEventsSync: {
+        ...appData().centralInvoiceAuthorityEventsSync!,
+        cursor: cursor1,
+      },
+    });
+    const pullEvents = vi.fn(async () => ({
+      ok: true as const,
+      schema: "CENTRAL_INVOICE_AUTHORITY_EVENTS_CLIENT_V1" as const,
+      events: [event()],
+      nextCursor: cursor1,
+    }));
+
+    const pulled = await pullCentralInvoiceAuthorityEventsForAppData(
+      {
+        data: stale,
+        limit: 50,
+        receivedAt: "2026-07-27T12:01:00.000Z",
+        replayFromStartWhenNoActiveInvoices: true,
+      },
+      { pullEvents },
+    );
+    const transition = buildCentralInvoiceAuthorityEventsAppDataTransition({
+      data: stale,
+      pulled,
+    });
+
+    expect(shouldReplayCentralInvoiceAuthorityEventsFromStart(stale)).toBe(
+      true,
+    );
+    expect(pullEvents).toHaveBeenCalledWith({
+      afterCreatedAt: null,
+      afterEventId: null,
+      limit: 50,
+    });
+    expect(transition.data.documents).toHaveLength(1);
+    expect(transition.data.centralInvoiceAuthorityEventsSync?.cursor).toEqual(
+      cursor1,
+    );
+  });
+
+  it("no resucita facturas retiradas al comprobar un cursor sin lista activa", () => {
+    const retired = appData({
+      documents: [],
+      testDocumentRetirementBatches: [
+        {
+          retiredDocuments: [{ originalIndex: 0, document: document() }],
+        } as NonNullable<AppData["testDocumentRetirementBatches"]>[number],
+      ],
+    });
+
+    expect(shouldReplayCentralInvoiceAuthorityEventsFromStart(retired)).toBe(
+      false,
+    );
   });
 
   it("prepara un valor que AppStore puede reconstruir sobre la base durable vigente", async () => {
