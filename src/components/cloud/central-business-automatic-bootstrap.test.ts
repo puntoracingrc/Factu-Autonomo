@@ -34,6 +34,9 @@ describe("central business automatic bootstrap wiring", () => {
   it("receives invoice history before dependent business records", () => {
     expect(component).toContain("syncCentralBusinessEvents");
     expect(component).toContain("syncCentralInvoiceAuthorityEvents");
+    expect(component).toContain(
+      "replayFromStartWhenNoActiveInvoices: true",
+    );
     expect(component).toContain("MAX_EVENT_PAGES");
     expect(
       component.indexOf("const invoiceSync = await syncAllInvoiceEvents()"),

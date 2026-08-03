@@ -20,6 +20,7 @@ export interface CentralInvoiceAuthorityEventsAppDataPullInput {
   data: AppData;
   limit?: number | null;
   receivedAt?: string;
+  replayFromStartWhenNoActiveInvoices?: boolean;
 }
 
 export interface CentralInvoiceAuthorityEventsAppDataPulledValue {
@@ -44,6 +45,20 @@ function cursorKey(data: AppData): string | null {
   const cursor = data.centralInvoiceAuthorityEventsSync?.cursor;
   if (!cursor) return null;
   return `${cursor.afterCreatedAt}\u0000${cursor.afterEventId}`;
+}
+
+export function shouldReplayCentralInvoiceAuthorityEventsFromStart(
+  data: AppData,
+): boolean {
+  if (!data.centralInvoiceAuthorityEventsSync?.cursor) return false;
+  if (data.documents.some((document) => document.type === "factura")) {
+    return false;
+  }
+  return !data.testDocumentRetirementBatches?.some((batch) =>
+    batch.retiredDocuments.some(
+      ({ document }) => document.type === "factura",
+    ),
+  );
 }
 
 export function selectCentralInvoiceAuthorityEventsSyncBaseline(input: {
@@ -80,11 +95,16 @@ export async function pullCentralInvoiceAuthorityEventsForAppData(
   dependencies: CentralInvoiceAuthorityEventsLocalSyncDependencies = {},
 ): Promise<CentralInvoiceAuthorityEventsAppDataPulledValue> {
   const recordedAt = input.receivedAt ?? new Date().toISOString();
+  const replayFromStart =
+    input.replayFromStartWhenNoActiveInvoices === true &&
+    shouldReplayCentralInvoiceAuthorityEventsFromStart(input.data);
   const localSync = await syncCentralInvoiceAuthorityPulledEventsIntoDocuments(
     {
       documents: input.data.documents,
       profile: input.data.profile,
-      cursor: input.data.centralInvoiceAuthorityEventsSync?.cursor ?? null,
+      cursor: replayFromStart
+        ? null
+        : (input.data.centralInvoiceAuthorityEventsSync?.cursor ?? null),
       limit: input.limit ?? null,
       receivedAt: recordedAt,
     },

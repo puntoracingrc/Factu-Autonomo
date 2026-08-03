@@ -120,7 +120,10 @@ export function CentralBusinessAutomaticBootstrap() {
       for (let page = 0; page < MAX_EVENT_PAGES; page += 1) {
         const result = await syncCentralInvoiceAuthorityEvents(
           getCurrentData(),
-          { limit: INVOICE_EVENT_LIMIT },
+          {
+            limit: INVOICE_EVENT_LIMIT,
+            replayFromStartWhenNoActiveInvoices: true,
+          },
         );
         if (result.status === "indeterminate") return "manual_review";
         if (result.status === "blocked") return "retry";
