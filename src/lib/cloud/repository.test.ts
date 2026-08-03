@@ -76,6 +76,7 @@ function installPullMock(
 ) {
   const ranges: Array<[number, number]> = [];
   const gtValues: string[] = [];
+  const entityTypeSets: string[][] = [];
   const insert = vi.fn();
   const update = vi.fn();
 
@@ -87,6 +88,13 @@ function installPullMock(
           builder.entityType = value;
         }
         builder.filters.push([field, value]);
+        return builder;
+      }),
+      in: vi.fn((field: string, value: string[]) => {
+        if (field === "entity_type") {
+          builder.entityTypes = value;
+          entityTypeSets.push(value);
+        }
         return builder;
       }),
       order: vi.fn(() => builder),
@@ -108,6 +116,7 @@ function installPullMock(
       limitCount: undefined as number | undefined,
       since: undefined as string | undefined,
       entityType: undefined as string | undefined,
+      entityTypes: undefined as string[] | undefined,
       operation: "select" as "select" | "insert" | "update",
       operationValue: undefined as Row | undefined,
       filters: [] as Array<[string, unknown]>,
@@ -159,7 +168,9 @@ function installPullMock(
         const filtered = rows.filter(
           (row) =>
             (!builder.since || row.updated_at > builder.since) &&
-            (!builder.entityType || row.entity_type === builder.entityType),
+            (!builder.entityType || row.entity_type === builder.entityType) &&
+            (!builder.entityTypes ||
+              builder.entityTypes.includes(row.entity_type)),
         );
         const ranged = filtered.slice(from, to + 1);
         resolve({
@@ -175,7 +186,7 @@ function installPullMock(
     return builder;
   });
 
-  return { ranges, gtValues, upsert, insert, update };
+  return { ranges, gtValues, entityTypeSets, upsert, insert, update };
 }
 
 function retirementHistories(): { applied: AppData; rolledBack: AppData } {
@@ -702,7 +713,7 @@ describe("cloud repository", () => {
         updated_at: "2026-06-01T10:00:00.000Z",
       },
     ];
-    installPullMock(rows);
+    const { entityTypeSets } = installPullMock(rows);
 
     const changes = await pullSyncChanges(
       "user-1",
@@ -714,6 +725,14 @@ describe("cloud repository", () => {
       entityType: "recurring_occurrence_exclusion",
       entityId: "rent:2026-05-31",
     });
+    expect(entityTypeSets).toEqual([
+      [
+        "recurring_occurrence_exclusion",
+        "document_retirement_batch",
+        "fiscal_notifications_workspace",
+      ],
+    ]);
+    expect(supabaseMock.from).toHaveBeenCalledTimes(2);
   });
 
   it("recupera siempre lotes de retiro anteriores al watermark", async () => {

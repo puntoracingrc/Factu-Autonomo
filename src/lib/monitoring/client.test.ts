@@ -97,7 +97,9 @@ describe("reportAppRecovery", () => {
         }),
       },
     } as never);
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(Response.json({ ok: true })));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
@@ -216,5 +218,42 @@ describe("reportAppRecovery", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("/api/monitoring/error");
     expect(fetchMock.mock.calls[1][0]).toBe("/api/monitoring/recovery");
     expect(recoveryResult).toBe(true);
+  });
+
+  it("does not repeat a confirmed recovery until a new error is reported", async () => {
+    vi.mocked(getSupabaseClientAsync).mockResolvedValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: {
+            session: {
+              access_token: "access-token",
+              user: { id: "user-deduplicated" },
+            },
+          },
+        }),
+      },
+    } as never);
+    vi.stubGlobal("window", {
+      location: { pathname: "/test", search: "", hash: "" },
+      navigator: { userAgent: "synthetic-agent" },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(Response.json({ ok: true })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      reportAppRecovery("user-deduplicated", "sync_cycle_verified"),
+    ).resolves.toBe(true);
+    await expect(
+      reportAppRecovery("user-deduplicated", "sync_cycle_verified"),
+    ).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await reportAppError({ area: "sync", message: "Synthetic later error" });
+    await expect(
+      reportAppRecovery("user-deduplicated", "sync_cycle_verified"),
+    ).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

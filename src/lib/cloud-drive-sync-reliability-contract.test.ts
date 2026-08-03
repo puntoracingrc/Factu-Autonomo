@@ -19,7 +19,10 @@ describe("cloud and Drive reliability contract", () => {
     );
     expect(context).toContain("await pushToCloud(workingData, true, options)");
     expect(context).toContain("Promise<boolean>");
-    expect(context).toContain("const remoteDocumentCount = await countSyncEntities");
+    expect(context).toContain(
+      "const [remoteEntityCount, remoteDocumentCount] = await Promise.all",
+    );
+    expect(context).toContain("countSyncEntities(user.id)");
     expect(context).toContain('entityType: "document"');
     expect(context).toContain("remoteDocumentCount > workingData.documents.length");
     expect(context).toContain("syncedSurfaceMatchesCloudRepairFingerprint");
@@ -78,6 +81,22 @@ describe("cloud and Drive reliability contract", () => {
     expect(source("src/lib/monitoring/client.ts")).toContain(
       "await Promise.all([...pendingErrorReports])",
     );
+  });
+
+  it("evita trabajo de fondo duplicado sin omitir controles de integridad", () => {
+    const context = source("src/context/CloudSyncContext.tsx");
+    const repository = source("src/lib/cloud/repository.ts");
+    const monitoring = source("src/lib/monitoring/client.ts");
+
+    expect(context.match(/notifyReactivated: false/g)).toHaveLength(2);
+    expect(context.indexOf('if (hasRemoteChanges) return "needs_pull"')).toBeLessThan(
+      context.indexOf("const [remoteEntityCount, remoteDocumentCount]"),
+    );
+    expect(context).toContain("await Promise.all([");
+    expect(repository).toContain("entityTypes: ALWAYS_PULL_ENTITY_TYPES");
+    expect(repository).toContain('query.in("entity_type"');
+    expect(monitoring).toContain("confirmedRecoveryGeneration");
+    expect(monitoring).toContain("errorReportGeneration += 1");
   });
 
   it("repara un dispositivo y restaura JSON sin subir primero datos locales", () => {

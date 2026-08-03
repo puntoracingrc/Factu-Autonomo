@@ -458,14 +458,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!lastSyncedAt && !hasWorkspaceContent(payload)) {
         return hasRemoteChanges ? "needs_pull" : "fresh";
       }
-      const remoteEntityCount = await countSyncEntities(user.id);
-      const remoteDocumentCount = await countSyncEntities(user.id, {
-        entityType: "document",
-      });
+      if (hasRemoteChanges) return "needs_pull";
+
+      const [remoteEntityCount, remoteDocumentCount] = await Promise.all([
+        countSyncEntities(user.id),
+        countSyncEntities(user.id, { entityType: "document" }),
+      ]);
       const needsSnapshotVerification =
         remoteEntityCount > activeLocalSyncEntityCount(payload) ||
         remoteDocumentCount > payload.documents.length;
-      if (hasRemoteChanges) return "needs_pull";
       if (needsSnapshotVerification) {
         const remote = await loadCloudRepairRemoteSnapshot(user.id);
         if (!remote) return "fresh";
@@ -779,7 +780,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const deviceAccess = await registerCurrentCloudDevice();
+      const deviceAccess = await registerCurrentCloudDevice({
+        notifyReactivated: false,
+      });
       if (!authOperationIsCurrent()) return false;
       if (deviceAccess.allowed === false || deviceAccess.error) {
         setSyncStatus(
@@ -806,7 +809,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const rememberSuccessfulDeviceSync = useCallback(() => {
-    void registerCurrentCloudDevice({ markSynced: true }).catch(
+    void registerCurrentCloudDevice({
+      markSynced: true,
+      notifyReactivated: false,
+    }).catch(
       () => undefined,
     );
   }, []);

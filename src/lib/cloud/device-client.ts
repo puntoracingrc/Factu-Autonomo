@@ -72,6 +72,7 @@ async function requestCloudDevices(
 export async function registerCurrentCloudDevice(
   options: {
     markSynced?: boolean;
+    notifyReactivated?: boolean;
   } = {},
 ): Promise<CloudDeviceApiPayload> {
   const headers = await cloudDeviceHeaders();
@@ -91,7 +92,11 @@ export async function registerCurrentCloudDevice(
       markSynced: options.markSynced === true,
     }),
   });
-  if (!result.error && result.allowed !== false) {
+  if (
+    !result.error &&
+    result.allowed !== false &&
+    options.notifyReactivated !== false
+  ) {
     notifyCloudDeviceReactivated();
   }
   return result;

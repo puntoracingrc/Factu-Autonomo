@@ -123,6 +123,30 @@ describe("cloud device client", () => {
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
   });
 
+  it("does not emit a reactivation wakeup for a routine heartbeat", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          plan: "pro_plus",
+          limit: 5,
+          devices: [],
+          allowed: true,
+        }),
+      ),
+    );
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+
+    const result = await registerCurrentCloudDevice({
+      markSynced: true,
+      notifyReactivated: false,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(dispatchEvent).not.toHaveBeenCalled();
+  });
+
   it("replaces a revoked token only after a fresh sign-in", async () => {
     const fetchMock = vi
       .fn()
