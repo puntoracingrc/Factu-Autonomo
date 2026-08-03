@@ -15,6 +15,8 @@ const localHosts = new Set(["127.0.0.1", "localhost", "::1"]);
 let admin: SupabaseClient;
 let signedInUser: SupabaseClient;
 let userId = "";
+const legacySyncDeviceToken =
+  "synthetic-central-cutover-device-token-00000001";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -141,6 +143,9 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     });
     const anonymous = createClient(url, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        headers: { "x-factu-device-token": legacySyncDeviceToken },
+      },
     });
 
     const email = `central-business-${randomUUID()}@example.test`;
@@ -155,15 +160,70 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     }
     userId = created.data.user.id;
 
+    const subscription = await admin.from("user_subscriptions").upsert({
+      user_id: userId,
+      plan: "pro",
+      status: "active",
+      current_period_end: "2099-12-31T23:59:59.000Z",
+    });
+    if (subscription.error) throw subscription.error;
+
+    const tokenHash = await admin.rpc("cloud_device_token_hash", {
+      p_token: legacySyncDeviceToken,
+    });
+    if (tokenHash.error || typeof tokenHash.data !== "string") {
+      throw new Error(tokenHash.error?.message ?? "Could not hash device token.");
+    }
+    const device = await admin.from("user_devices").insert({
+      user_id: userId,
+      token_hash: tokenHash.data,
+      name: "Synthetic central cutover device",
+      kind: "computer",
+      status: "active",
+    });
+    if (device.error) throw device.error;
+
     const login = await anonymous.auth.signInWithPassword({ email, password });
     if (login.error || !login.data.session) {
       throw new Error(login.error?.message ?? "Could not sign in local user.");
+    }
+    const tokenPayload = JSON.parse(
+      Buffer.from(
+        login.data.session.access_token.split(".")[1] ?? "",
+        "base64url",
+      ).toString("utf8"),
+    ) as { session_id?: string };
+    if (!tokenPayload.session_id) {
+      throw new Error("Local session does not expose a session_id claim.");
+    }
+    const sessionHash = await admin.rpc("cloud_device_session_hash", {
+      p_session_id: tokenPayload.session_id,
+    });
+    if (sessionHash.error || typeof sessionHash.data !== "string") {
+      throw new Error(
+        sessionHash.error?.message ?? "Could not hash local session.",
+      );
+    }
+    const claim = await admin.rpc("claim_cloud_device_session", {
+      p_user_id: userId,
+      p_token_hash: tokenHash.data,
+      p_session_hash: sessionHash.data,
+    });
+    if (claim.error || claim.data !== "claimed") {
+      throw new Error(
+        claim.error?.message ?? `Could not claim local session: ${claim.data}`,
+      );
     }
     signedInUser = anonymous;
   });
 
   afterAll(async () => {
     if (!admin || !userId) return;
+    await admin
+      .from("central_authority_cutovers")
+      .delete()
+      .eq("user_id", userId);
+    await admin.from("sync_entities").delete().eq("user_id", userId);
     await admin
       .from("central_business_bootstraps")
       .delete()
@@ -1236,5 +1296,83 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     );
     expect(browserNumberedCreate.data).toBeNull();
     expect(browserNumberedCreate.error).not.toBeNull();
+  });
+
+  it("retires generic legacy sync while preserving auxiliary services", async () => {
+    const genericBeforeCutover = await admin.from("sync_entities").insert({
+      user_id: userId,
+      entity_type: "customer",
+      entity_id: "legacy-customer",
+      payload: { id: "legacy-customer", name: "Legacy customer" },
+    });
+    expect(genericBeforeCutover.error).toBeNull();
+
+    const cutover = await admin.from("central_authority_cutovers").insert({
+      user_id: userId,
+      legacy_sync_state: "active",
+      authority_contract_version: 1,
+      backup_sha256: "a".repeat(64),
+      backup_size_bytes: 1024,
+      verified_entity_count: 1,
+      retired_queue_entry_count: 1,
+      source_revision: "b".repeat(40),
+    });
+    expect(cutover.error).toBeNull();
+
+    const browserGenericWrite = await signedInUser
+      .from("sync_entities")
+      .insert({
+        user_id: userId,
+        entity_type: "customer",
+        entity_id: "blocked-browser-customer",
+        payload: { id: "blocked-browser-customer" },
+      });
+    expect(browserGenericWrite.error?.code).toBe("P4201");
+
+    const serverGenericWrite = await admin.from("sync_entities").insert({
+      user_id: userId,
+      entity_type: "customer",
+      entity_id: "blocked-server-customer",
+      payload: { id: "blocked-server-customer" },
+    });
+    expect(serverGenericWrite.error?.code).toBe("P4201");
+
+    const auxiliaryWrite = await signedInUser.from("sync_entities").insert({
+      user_id: userId,
+      entity_type: "expense_inbox_item",
+      entity_id: "synthetic-inbox-item",
+      payload: { id: "synthetic-inbox-item" },
+    });
+    expect(auxiliaryWrite.error).toBeNull();
+
+    const visible = await signedInUser
+      .from("sync_entities")
+      .select("entity_type,entity_id")
+      .eq("user_id", userId)
+      .order("entity_type");
+    expect(visible.error).toBeNull();
+    expect(visible.data).toEqual([
+      {
+        entity_type: "expense_inbox_item",
+        entity_id: "synthetic-inbox-item",
+      },
+    ]);
+
+    const rollback = await admin
+      .from("central_authority_cutovers")
+      .update({
+        legacy_sync_state: "rolled_back",
+        rolled_back_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+    expect(rollback.error).toBeNull();
+
+    const genericAfterRollback = await admin.from("sync_entities").insert({
+      user_id: userId,
+      entity_type: "customer",
+      entity_id: "restored-server-customer",
+      payload: { id: "restored-server-customer" },
+    });
+    expect(genericAfterRollback.error).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 23
+- Version: 24
 - Fecha: 2026-08-03
 
 ## Contexto
@@ -286,6 +286,23 @@ y retira las fichas duplicadas dentro del mismo lote. Los gastos historicos no
 se reescriben; sus descripciones siguen resolviendo al producto conservado
 mediante los alias.
 
+El corte final de una cuenta se registra por propietario en
+`central_authority_cutovers` solo despues de obtener una copia cifrada,
+comparar el PC autoritativo con central, adoptar central en los demas
+dispositivos y retirar expresamente sus colas locales. La migracion de esquema
+no activa ninguna cuenta por si sola. El registro conserva huella y tamaño de
+la copia, cantidades verificadas, cola retirada y revision de codigo.
+
+Mientras el corte esta activo, `sync_entities` deja de ser una ruta de lectura
+o escritura de negocio para ese propietario. Una policy restrictiva oculta al
+navegador sus filas legacy y un trigger rechaza tambien escrituras privilegiadas
+con `P4201`. Las filas existentes no se borran: quedan como evidencia fria para
+soporte y rollback. Se mantienen unicamente los tipos auxiliares que todavia
+tienen contrato propio: bandeja de gastos, espacio de notificaciones fiscales y
+lotes de retirada documental. El cliente conserva apagado el sincronizador
+legacy para la allowlist retirada incluso si la pausa global se levanta, y deja
+de mostrar esa pausa temporal como estado de la cuenta.
+
 ## Rollback
 
 Antes del corte, desactivar el canario conserva el flujo local actual. Las
@@ -293,6 +310,12 @@ tablas son aditivas y no modifican datos existentes. Una vez una entidad se
 declare central, el rollback operativo pausa nuevas escrituras y mantiene la
 lectura; nunca vuelve a permitir sobrescrituras silenciosas desde una copia
 atrasada.
+
+Tras el corte, el rollback exige pausar primero las escrituras centrales y
+cambiar el registro del propietario a `rolled_back` con fecha de confirmacion.
+Ese cambio desactiva el trigger y la policy restrictiva sin tocar el archivo
+legacy. La allowlist publica retirada se elimina solo despues del readback de
+base de datos y de revisar que ningun dispositivo central siga escribiendo.
 
 ## Contratos relacionados
 

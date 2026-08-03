@@ -97,6 +97,7 @@ import {
   isCloudEnabled,
   isCloudSyncTemporarilyPaused,
   isGoogleAuthEnabled,
+  isLegacyCloudRetiredForUser,
   TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE,
 } from "@/lib/supabase/config";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -162,6 +163,7 @@ function syncedSurfaceMatchesCloudRepairFingerprint(
 interface CloudSyncValue {
   cloudEnabled: boolean;
   cloudSyncPaused: boolean;
+  legacyCloudRetired: boolean;
   authReady: boolean;
   user: User | null;
   emailConfirmed: boolean;
@@ -308,9 +310,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   } = useAppStore();
   const demoMode = useDemoWorkspaceMode();
   const cloudEnabled = isCloudEnabled();
-  const cloudSyncPaused = isCloudSyncTemporarilyPaused();
+  const globalCloudSyncPaused = isCloudSyncTemporarilyPaused();
   const [authReady, setAuthReady] = useState(!cloudEnabled);
   const [user, setUser] = useState<User | null>(null);
+  const legacyCloudRetired = isLegacyCloudRetiredForUser(user?.id);
+  const cloudSyncPaused = globalCloudSyncPaused || legacyCloudRetired;
   const [email, setEmail] = useState("");
   const [online, setOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
@@ -2790,6 +2794,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     () => ({
       cloudEnabled,
       cloudSyncPaused,
+      legacyCloudRetired,
       authReady,
       user,
       emailConfirmed,
@@ -2824,6 +2829,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [
       cloudEnabled,
       cloudSyncPaused,
+      legacyCloudRetired,
       user,
       emailConfirmed,
       requiresEmailConfirmation,
