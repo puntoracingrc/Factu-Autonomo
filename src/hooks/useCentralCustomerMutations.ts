@@ -8,12 +8,6 @@ import {
   resolveCentralBusinessUserId,
   useCentralBusinessResolvedUserId,
 } from "@/hooks/useCentralBusinessUserId";
-import {
-  deleteCustomerWithCentralCanary,
-  updateCustomerWithCentralCanary,
-} from "@/lib/central-business-authority/customer-mutation-canary";
-import { isCentralCustomerCreateCanaryEnabledForUser } from "@/lib/central-business-authority/customer-create-canary";
-import { loadCentralBusinessDurableQueue } from "@/lib/central-business-authority/durable-queue";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
 import type { Customer } from "@/lib/types";
 
@@ -24,7 +18,7 @@ export function useCentralCustomerMutations(): {
   deleteCustomer: (
     customerId: string,
   ) => Promise<CentralBusinessEntityMutationResult<string>>;
-  isCentralCustomer: (customerId: string) => boolean;
+  isCentralCustomer: (customerId: string) => Promise<boolean>;
 } {
   const {
     deleteCustomer: deleteCustomerFallback,
@@ -56,46 +50,77 @@ export function useCentralCustomerMutations(): {
 
   const updateCustomer = useCallback(
     async (customer: Customer) => {
-      const resolvedUserId = await resolveCentralBusinessUserId(userId);
-      return updateCustomerWithCentralCanary({
-        userId: resolvedUserId,
-        customer,
-        dependencies: {
-          ...baseDependencies,
-          syncEventsBeforeWrite: resolvedUserId
-            ? () => syncCentralBusinessEvents(resolvedUserId)
-            : undefined,
-        },
-      });
+      try {
+        const resolvedUserId = await resolveCentralBusinessUserId(userId);
+        const { updateCustomerWithCentralCanary } = await import(
+          "@/lib/central-business-authority/customer-mutation-canary"
+        );
+        return await updateCustomerWithCentralCanary({
+          userId: resolvedUserId,
+          customer,
+          dependencies: {
+            ...baseDependencies,
+            syncEventsBeforeWrite: resolvedUserId
+              ? () => syncCentralBusinessEvents(resolvedUserId)
+              : undefined,
+          },
+        });
+      } catch {
+        return {
+          ok: false as const,
+          error:
+            "No se pudo preparar la actualizacion segura del cliente. No se ha cambiado ninguna ficha. Recarga y vuelve a intentarlo.",
+        };
+      }
     },
     [baseDependencies, syncCentralBusinessEvents, userId],
   );
 
   const deleteCustomer = useCallback(
     async (customerId: string) => {
-      const resolvedUserId = await resolveCentralBusinessUserId(userId);
-      return deleteCustomerWithCentralCanary({
-        userId: resolvedUserId,
-        customerId,
-        dependencies: {
-          ...baseDependencies,
-          syncEventsBeforeWrite: resolvedUserId
-            ? () => syncCentralBusinessEvents(resolvedUserId)
-            : undefined,
-        },
-      });
+      try {
+        const resolvedUserId = await resolveCentralBusinessUserId(userId);
+        const { deleteCustomerWithCentralCanary } = await import(
+          "@/lib/central-business-authority/customer-mutation-canary"
+        );
+        return await deleteCustomerWithCentralCanary({
+          userId: resolvedUserId,
+          customerId,
+          dependencies: {
+            ...baseDependencies,
+            syncEventsBeforeWrite: resolvedUserId
+              ? () => syncCentralBusinessEvents(resolvedUserId)
+              : undefined,
+          },
+        });
+      } catch {
+        return {
+          ok: false as const,
+          error:
+            "No se pudo preparar el borrado seguro del cliente. No se ha cambiado ninguna ficha. Recarga y vuelve a intentarlo.",
+        };
+      }
     },
     [baseDependencies, syncCentralBusinessEvents, userId],
   );
 
   const isCentralCustomer = useCallback(
-    (customerId: string) => {
-      if (!userId || !isCentralCustomerCreateCanaryEnabledForUser(userId)) {
+    async (customerId: string) => {
+      if (!userId) {
         return false;
       }
       try {
+        const [customerCanary, durableQueue] = await Promise.all([
+          import("@/lib/central-business-authority/customer-create-canary"),
+          import("@/lib/central-business-authority/durable-queue"),
+        ]);
+        if (
+          !customerCanary.isCentralCustomerCreateCanaryEnabledForUser(userId)
+        ) {
+          return false;
+        }
         return Boolean(
-          loadCentralBusinessDurableQueue(userId).entityVersions[
+          durableQueue.loadCentralBusinessDurableQueue(userId).entityVersions[
             `customer:${customerId}`
           ],
         );

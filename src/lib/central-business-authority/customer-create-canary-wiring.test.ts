@@ -33,6 +33,24 @@ describe("central customer create canary wiring", () => {
     expect(newCustomerPage).toContain("await createCustomer({");
   });
 
+  it("carga las mutaciones centrales bajo demanda y falla de forma cerrada", () => {
+    expect(hook).toContain(
+      'await import(\n          "@/lib/central-business-authority/customer-create-canary"',
+    );
+    expect(mutationHook).toContain(
+      'await import(\n          "@/lib/central-business-authority/customer-mutation-canary"',
+    );
+    expect(mutationHook).toContain(
+      'import("@/lib/central-business-authority/durable-queue")',
+    );
+    expect(hook).toContain("No se ha cambiado ninguna ficha");
+    expect(mutationHook).toContain("No se ha cambiado ninguna ficha");
+    expect(mutationHook).toMatch(/catch \{\s+return true;\s+\}/u);
+    expect(customersPage).toContain(
+      "await includesCentralCustomer(selectedIds)",
+    );
+  });
+
   it("no depende de la copia completa pausada para resolver usuario central", () => {
     expect(userIdHook).toContain("getSupabaseClientAsync");
     expect(userIdHook).toContain("supabase.auth.getSession()");
