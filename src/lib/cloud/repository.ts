@@ -769,7 +769,11 @@ async function writeRetirementBatchCas(
 
 async function pullRows(
   userId: string,
-  options: { since?: string; entityType?: string } = {},
+  options: {
+    since?: string;
+    entityType?: string;
+    entityTypes?: readonly string[];
+  } = {},
 ): Promise<SyncEntityRow[]> {
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return [];
@@ -786,6 +790,8 @@ async function pullRows(
 
     if (options.entityType) {
       query = query.eq("entity_type", options.entityType);
+    } else if (options.entityTypes?.length) {
+      query = query.in("entity_type", [...options.entityTypes]);
     }
 
     query = query.order("updated_at", { ascending: true }).range(from, to);
@@ -837,13 +843,9 @@ export async function pullSyncChanges(
   // Exclusiones y lotes de retiro son contratos monotónicos. Se descargan
   // siempre, aunque sean anteriores al watermark incremental, para que un
   // escritor obsoleto no los pierda al adelantar su lastSyncedAt.
-  const monotonicRows = (
-    await Promise.all(
-      ALWAYS_PULL_ENTITY_TYPES.map((entityType) =>
-        pullRows(userId, { entityType }),
-      ),
-    )
-  ).flat();
+  const monotonicRows = await pullRows(userId, {
+    entityTypes: ALWAYS_PULL_ENTITY_TYPES,
+  });
   const byEntity = new Map<string, SyncEntityRow>();
   for (const row of [...incremental, ...monotonicRows]) {
     byEntity.set(`${row.entity_type}:${row.entity_id}`, row);

@@ -8,6 +8,8 @@ import type { AppErrorEventInput } from "./error-events";
 import type { AppErrorRecoveryKind } from "./recovery-events";
 
 const pendingErrorReports = new Set<Promise<boolean>>();
+const confirmedRecoveryGeneration = new Map<string, number>();
+let errorReportGeneration = 0;
 
 function getOptionalCloudDeviceToken(): string | null {
   try {
@@ -54,6 +56,7 @@ async function sendAppError(input: AppErrorEventInput): Promise<boolean> {
 }
 
 export function reportAppError(input: AppErrorEventInput): Promise<boolean> {
+  errorReportGeneration += 1;
   const operation = sendAppError(input);
   pendingErrorReports.add(operation);
   void operation.finally(() => {
@@ -66,6 +69,8 @@ export async function reportAppRecovery(
   expectedUserId: string,
   kind: AppErrorRecoveryKind,
 ): Promise<boolean> {
+  const recoveryKey = `${expectedUserId}:${kind}`;
+  const recoveryGeneration = errorReportGeneration;
   try {
     const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
     const supabase = await getSupabaseClientAsync();
@@ -81,6 +86,11 @@ export async function reportAppRecovery(
     }
     const deviceToken = getOptionalCloudDeviceToken();
     if (!deviceToken) return false;
+    if (
+      confirmedRecoveryGeneration.get(recoveryKey) === recoveryGeneration
+    ) {
+      return true;
+    }
 
     await Promise.all([...pendingErrorReports]);
     const { data: refreshedData } = await supabase.auth.getSession();
@@ -107,7 +117,11 @@ export async function reportAppRecovery(
     const body = (await response.json().catch(() => null)) as {
       ok?: unknown;
     } | null;
-    return response.ok && body?.ok === true;
+    const confirmed = response.ok && body?.ok === true;
+    if (confirmed) {
+      confirmedRecoveryGeneration.set(recoveryKey, recoveryGeneration);
+    }
+    return confirmed;
   } catch {
     // La observabilidad nunca altera el resultado de la sincronización.
     return false;
