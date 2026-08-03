@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   GitMerge,
@@ -13,15 +14,12 @@ import {
   X,
 } from "lucide-react";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
-import { CustomerAiAutofill } from "@/components/clients/CustomerAiAutofill";
 import type { CustomerAiAutofillValues } from "@/components/clients/CustomerAiAutofill";
 import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
 import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentActions";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
-import { MasterDeleteConfirmationModal } from "@/components/masters/MasterDeleteConfirmationModal";
-import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button } from "@/components/ui/Button";
 import { PageActionButton } from "@/components/ui/PageActionButton";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -87,6 +85,56 @@ const EMPTY_FORM = {
 };
 
 const CUSTOMER_LIST_BATCH_SIZE = 30;
+
+function CustomerToolLoading({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="min-h-12 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600"
+    >
+      {label}
+    </div>
+  );
+}
+
+const CustomerAiAutofill = dynamic(
+  () =>
+    import("@/components/clients/CustomerAiAutofill").then(
+      (module) => module.CustomerAiAutofill,
+    ),
+  {
+    loading: () => (
+      <CustomerToolLoading label="Preparando relleno desde texto..." />
+    ),
+  },
+);
+
+const GoogleAddressAutocomplete = dynamic(
+  () =>
+    import("@/components/places/GoogleAddressAutocomplete").then(
+      (module) => module.GoogleAddressAutocomplete,
+    ),
+  {
+    loading: () => (
+      <CustomerToolLoading label="Preparando sugerencias de dirección..." />
+    ),
+  },
+);
+
+const MasterDeleteConfirmationModal = dynamic(
+  () =>
+    import("@/components/masters/MasterDeleteConfirmationModal").then(
+      (module) => module.MasterDeleteConfirmationModal,
+    ),
+  {
+    loading: () => (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4">
+        <CustomerToolLoading label="Preparando confirmación segura..." />
+      </div>
+    ),
+  },
+);
 
 function customerWhatsappHref(phone: string): string {
   const trimmed = phone.trim();
@@ -358,9 +406,16 @@ export default function ClientesPage() {
     setMergeSearch("");
   }
 
-  function handleManualMerge() {
+  async function includesCentralCustomer(customerIds: string[]) {
+    const centralStates = await Promise.all(
+      customerIds.map((customerId) => isCentralCustomer(customerId)),
+    );
+    return centralStates.some(Boolean);
+  }
+
+  async function handleManualMerge() {
     if (selectedIds.length < 2 || !keepId) return;
-    if (selectedIds.some(isCentralCustomer)) {
+    if (await includesCentralCustomer(selectedIds)) {
       setPageError(
         "La unificación de clientes centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
       );
@@ -619,13 +674,16 @@ export default function ClientesPage() {
                   variant="secondary"
                   disabled={!selectedKeep}
                   className="mb-0"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!selectedKeep) return;
                     const removeIds = group
                       .filter((customer) => customer.id !== selectedKeep.id)
                       .map((customer) => customer.id);
                     if (
-                      [selectedKeep.id, ...removeIds].some(isCentralCustomer)
+                      await includesCentralCustomer([
+                        selectedKeep.id,
+                        ...removeIds,
+                      ])
                     ) {
                       setPageError(
                         "La unificación de clientes centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
@@ -1155,7 +1213,11 @@ export default function ClientesPage() {
             </span>
           </label>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button fullWidth onClick={handleManualMerge} disabled={!keepId}>
+            <Button
+              fullWidth
+              onClick={() => void handleManualMerge()}
+              disabled={!keepId}
+            >
               <GitMerge className="h-5 w-5" />
               {keepId ? "Unificar en uno" : "Elige qué cliente conservar"}
             </Button>
