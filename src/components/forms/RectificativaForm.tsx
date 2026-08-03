@@ -86,6 +86,7 @@ import {
   preflightCentralInvoiceAuthorityFormSeries,
 } from "@/lib/central-invoice-authority/form-series-preflight";
 import { runCentralInvoiceAuthorityClientOperation } from "@/lib/central-invoice-authority/client-operation-lock";
+import { importCentralInvoiceAuthorityHistoricalOriginalFromBrowser } from "@/lib/central-invoice-authority/historical-import-client";
 
 interface RectificativaFormProps {
   original: Document;
@@ -106,7 +107,9 @@ export function RectificativaForm({
     data,
     addRectificativa,
     addDocumentWithCentralIdentity,
+    getCurrentData,
     registerVerifactuForDocument,
+    syncCentralInvoiceAuthorityEvents,
   } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
   const {
@@ -452,13 +455,52 @@ export function RectificativaForm({
         : null;
 
       if (centralPolicy?.shouldUseCentralAuthority) {
+        let centralOriginal =
+          getCurrentData().documents.find(
+            (document) => document.id === original.id,
+          ) ?? original;
+        if (!resolveCentralInvoiceAuthorityRectificationTarget(centralOriginal)) {
+          const imported =
+            await importCentralInvoiceAuthorityHistoricalOriginalFromBrowser(
+              centralOriginal,
+            );
+          if (!imported.ok) {
+            setSaveAction("idle");
+            setFormError(imported.message);
+            return;
+          }
+          const synchronized = await syncCentralInvoiceAuthorityEvents(
+            getCurrentData(),
+          );
+          if (
+            synchronized.status !== "applied" ||
+            synchronized.value.localSync.conflicts.length > 0
+          ) {
+            setSaveAction("idle");
+            setFormError(
+              "La factura original ya se registro en el servidor, pero este dispositivo no pudo incorporar su identidad central. Sincroniza las facturas antes de emitir la rectificativa.",
+            );
+            return;
+          }
+          centralOriginal =
+            getCurrentData().documents.find(
+              (document) => document.id === original.id,
+            ) ?? centralOriginal;
+        }
+        if (!resolveCentralInvoiceAuthorityRectificationTarget(centralOriginal)) {
+          setSaveAction("idle");
+          setFormError(
+            "La factura original no conserva una identidad central verificable. No se emitio la rectificativa.",
+          );
+          return;
+        }
         const localDocumentId = crypto.randomUUID();
         const issuedAt = new Date().toISOString();
         const centralRequest =
           buildCentralInvoiceAuthorityRectificationFormIssueRequest({
             localDocumentId,
             payload,
-            original,
+            original: centralOriginal,
             profile: historicalProfile,
             issuedAt,
           });
@@ -466,7 +508,7 @@ export function RectificativaForm({
           async () => {
             const seriesPreflight =
               await preflightCentralInvoiceAuthorityFormSeries({
-                data,
+                data: getCurrentData(),
                 profile: historicalProfile,
                 request: centralRequest,
               });

@@ -27,10 +27,14 @@ describe("RectificativaForm central authority canary wiring", () => {
     expect(form).toContain("addDocumentWithCentralIdentity");
     expect(form).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(form).toContain("buildRectificativaPayload");
+    expect(form).toContain(
+      "importCentralInvoiceAuthorityHistoricalOriginalFromBrowser",
+    );
+    expect(form).toContain("syncCentralInvoiceAuthorityEvents");
     expect(form).toContain("CentralInvoiceAuthorityFormPolicyNotice");
   });
 
-  it("muestra preflight visible solo para originales con identidad central coherente", () => {
+  it("muestra preflight y resuelve la identidad central antes de emitir", () => {
     expect(form).toContain("centralRectificationPolicyNoticeEligible");
     expect(form).toContain("resolveCentralInvoiceAuthorityRectificationTarget");
     expect(form).toContain("publicFormCanaryEnabled={centralCanaryEnabled}");

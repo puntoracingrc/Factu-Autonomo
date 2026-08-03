@@ -26,6 +26,7 @@ const routeHandler = createCentralInvoiceAuthorityHistoricalImportRouteHandler({
     if (!identity) return null;
     return {
       userId: identity.user.id,
+      userEmail: identity.user.email ?? null,
       sessionId: identity.sessionId,
     };
   },

@@ -27,6 +27,13 @@ describe("central business events auto sync", () => {
       }),
     ).toBe(false);
     expect(
+      isCentralBusinessEventsAutoSyncEnabledForUser("user-4", {
+        enabled: "false",
+        receiptCreateEnabled: "true",
+        receiptCreateUserIds: "user-4",
+      }),
+    ).toBe(true);
+    expect(
       isCentralBusinessEventsAutoSyncEnabledForUser("real-user-1", {
         enabled: "true",
       }),

@@ -206,8 +206,7 @@ export function shouldUseCentralInvoiceAuthorityRectificationFormCanary(
     input.payload.type === "factura" &&
     input.resolvedStatus !== "borrador" &&
     input.payload.status !== "borrador" &&
-    input.payload.rectification.originalDocumentId === input.original.id &&
-    Boolean(input.original.centralInvoiceAuthority)
+    input.payload.rectification.originalDocumentId === input.original.id
   );
 }
 

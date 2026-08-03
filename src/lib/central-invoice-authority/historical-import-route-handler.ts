@@ -2,9 +2,12 @@ import { createHash } from "node:crypto";
 
 import { CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY } from "./document-form-canary";
 import {
+  evaluateCentralInvoiceAuthorityActivation,
+  type CentralInvoiceAuthorityActivation,
+} from "./activation";
+import {
   CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS,
   CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID,
-  type CentralInvoiceAuthorityHistoricalImportNumber,
 } from "./historical-import-scope";
 import type { CentralInvoiceAuthorityJson } from "./issue-rpc-adapter";
 
@@ -20,7 +23,12 @@ const TARGET_NUMBERS = new Set<string>(
 export interface CentralInvoiceAuthorityHistoricalImportRouteAuth {
   userId: string;
   sessionId: string;
+  userEmail?: string | null;
 }
+
+type CentralInvoiceAuthorityHistoricalImportMode =
+  | "cutover_batch"
+  | "on_demand_original";
 
 export type CentralInvoiceAuthorityHistoricalImportRouteDeviceGateResult =
   | { allowed: true; deviceId: string }
@@ -78,6 +86,10 @@ export interface CentralInvoiceAuthorityHistoricalImportRouteDependencies {
     token: string | null;
     userAgent: string | null;
   }): Promise<CentralInvoiceAuthorityHistoricalImportRouteDeviceGateResult>;
+  evaluateActivation?: (input: {
+    userId: string;
+    userEmail?: string | null;
+  }) => CentralInvoiceAuthorityActivation;
   getRpcClient(): CentralInvoiceAuthorityHistoricalImportRpcClient | null;
 }
 
@@ -94,7 +106,7 @@ export interface CentralInvoiceAuthorityHistoricalImportRouteResponse {
 }
 
 interface ParsedHistoricalInvoiceImport {
-  fullNumber: CentralInvoiceAuthorityHistoricalImportNumber;
+  fullNumber: string;
   sequence: number;
   seriesCode: string;
   fiscalYear: number;
@@ -177,30 +189,35 @@ function normalizeIssuerNif(value: unknown): string | null {
   return normalized ? normalized : null;
 }
 
-function parseNumber(value: unknown): {
-  fullNumber: CentralInvoiceAuthorityHistoricalImportNumber;
+function parseNumber(
+  value: unknown,
+  mode: CentralInvoiceAuthorityHistoricalImportMode,
+): {
+  fullNumber: string;
   sequence: number;
   seriesCode: string;
   fiscalYear: number;
 } | null {
   if (typeof value !== "string") return null;
   const fullNumber = normalizeInvoiceNumber(value);
-  if (!TARGET_NUMBERS.has(fullNumber)) return null;
-  const match = /^(F-(\d{4}))-(\d{1,8})$/.exec(fullNumber);
+  if (mode === "cutover_batch" && !TARGET_NUMBERS.has(fullNumber)) return null;
+  const match = /^([A-Z0-9][A-Z0-9._-]{0,22}-(\d{4}))-(\d{4})$/.exec(
+    fullNumber,
+  );
   if (!match) return null;
   const fiscalYear = Number.parseInt(match[2]!, 10);
   const sequence = Number.parseInt(match[3]!, 10);
   if (
     !Number.isInteger(fiscalYear) ||
-    fiscalYear !== 2026 ||
     !Number.isInteger(sequence) ||
-    sequence < 2959 ||
-    sequence > 2965
+    sequence <= 0 ||
+    (mode === "cutover_batch" &&
+      (fiscalYear !== 2026 || sequence < 2959 || sequence > 2965))
   ) {
     return null;
   }
   return {
-    fullNumber: fullNumber as CentralInvoiceAuthorityHistoricalImportNumber,
+    fullNumber,
     sequence,
     seriesCode: match[1]!,
     fiscalYear,
@@ -246,7 +263,10 @@ function documentForEventPayload(
   return payload;
 }
 
-function parseImportDocument(value: unknown): ParsedHistoricalInvoiceImport {
+function parseImportDocument(
+  value: unknown,
+  mode: CentralInvoiceAuthorityHistoricalImportMode,
+): ParsedHistoricalInvoiceImport {
   if (!isObject(value)) throw new Error("INVALID_DOCUMENT_PAYLOAD");
   if (value.type !== "factura") throw new Error("INVALID_DOCUMENT_TYPE");
   if (value.status === "borrador") throw new Error("DRAFT_DOCUMENT_NOT_ALLOWED");
@@ -264,8 +284,11 @@ function parseImportDocument(value: unknown): ParsedHistoricalInvoiceImport {
     throw new Error("INCOMPLETE_DOCUMENT_PAYLOAD");
   }
 
-  const number = parseNumber(value.number);
+  const number = parseNumber(value.number, mode);
   if (!number) throw new Error("DOCUMENT_NUMBER_NOT_ALLOWED");
+  if (Number.parseInt(value.date.slice(0, 4), 10) !== number.fiscalYear) {
+    throw new Error("DOCUMENT_FISCAL_YEAR_MISMATCH");
+  }
 
   const snapshot = isObject(value.documentSnapshot)
     ? value.documentSnapshot
@@ -302,7 +325,10 @@ function parseImportDocument(value: unknown): ParsedHistoricalInvoiceImport {
   };
 }
 
-function parseBody(raw: string): ParsedHistoricalInvoiceImport[] {
+function parseBody(raw: string): {
+  mode: CentralInvoiceAuthorityHistoricalImportMode;
+  invoices: ParsedHistoricalInvoiceImport[];
+} {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -312,22 +338,41 @@ function parseBody(raw: string): ParsedHistoricalInvoiceImport[] {
   if (!isObject(parsed) || !Array.isArray(parsed.documents)) {
     throw new Error("INVALID_BODY");
   }
-  if (parsed.documents.length !== CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS.length) {
+  const mode: CentralInvoiceAuthorityHistoricalImportMode =
+    parsed.mode === "on_demand_original"
+      ? "on_demand_original"
+      : parsed.mode === undefined || parsed.mode === "cutover_batch"
+        ? "cutover_batch"
+        : (() => {
+            throw new Error("INVALID_IMPORT_MODE");
+          })();
+  const expectedCount =
+    mode === "cutover_batch"
+      ? CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS.length
+      : 1;
+  if (parsed.documents.length !== expectedCount) {
     throw new Error("INVALID_DOCUMENT_COUNT");
   }
 
-  const imports = parsed.documents.map(parseImportDocument);
+  const imports = parsed.documents.map((document) =>
+    parseImportDocument(document, mode),
+  );
   const byNumber = new Map(imports.map((item) => [item.fullNumber, item]));
   if (byNumber.size !== imports.length) {
     throw new Error("DUPLICATE_DOCUMENT_NUMBER");
   }
-  for (const target of CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS) {
-    if (!byNumber.has(target)) throw new Error("MISSING_TARGET_DOCUMENT");
+  if (mode === "cutover_batch") {
+    for (const target of CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS) {
+      if (!byNumber.has(target)) throw new Error("MISSING_TARGET_DOCUMENT");
+    }
+    return {
+      mode,
+      invoices: CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS.map(
+        (target) => byNumber.get(target)!,
+      ),
+    };
   }
-
-  return CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS.map(
-    (target) => byNumber.get(target)!,
-  );
+  return { mode, invoices: imports };
 }
 
 function requestHashPayload(input: {
@@ -380,7 +425,10 @@ function buildRpcArgs(input: {
   };
 }
 
-function parseRpcRow(row: unknown) {
+function parseRpcRow(
+  row: unknown,
+  mode: CentralInvoiceAuthorityHistoricalImportMode,
+) {
   const value = Array.isArray(row) ? row[0] : row;
   if (!isObject(value)) throw new Error("INVALID_RPC_RESULT");
   const result = value as HistoricalImportRpcRow;
@@ -391,13 +439,16 @@ function parseRpcRow(row: unknown) {
   ) {
     throw new Error("INVALID_RPC_RESULT");
   }
-  const number = parseNumber(result.full_number);
+  const number = parseNumber(result.full_number, mode);
   if (!number) throw new Error("INVALID_RPC_RESULT");
   if (
     result.sequence !== number.sequence ||
     typeof result.document_id !== "string" ||
+    !result.document_id.trim() ||
     typeof result.identity_id !== "string" ||
+    !result.identity_id.trim() ||
     typeof result.outbox_event_id !== "string" ||
+    !result.outbox_event_id.trim() ||
     typeof result.document_version !== "number" ||
     !Number.isInteger(result.document_version) ||
     result.document_version <= 0
@@ -406,6 +457,9 @@ function parseRpcRow(row: unknown) {
   }
   return {
     status: result.result_status,
+    documentId: result.document_id,
+    identityId: result.identity_id,
+    outboxEventId: result.outbox_event_id,
     fullNumber: number.fullNumber,
     sequence: number.sequence,
     documentVersion: result.document_version,
@@ -447,12 +501,6 @@ export function createCentralInvoiceAuthorityHistoricalImportRouteHandler(
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
-      if (auth.userId !== CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID) {
-        return json(403, {
-          ok: false,
-          error: { code: "CENTRAL_HISTORICAL_IMPORT_NOT_ALLOWED" },
-        });
-      }
 
       const rateLimit = await dependencies.rateLimit(request, auth.userId);
       if (!rateLimit.allowed) {
@@ -472,18 +520,47 @@ export function createCentralInvoiceAuthorityHistoricalImportRouteHandler(
         });
       }
 
+      let importMode: CentralInvoiceAuthorityHistoricalImportMode;
       let invoices: ParsedHistoricalInvoiceImport[];
       try {
-        invoices = parseBody(await (request.readBody?.() ?? Promise.resolve("")));
+        const parsed = parseBody(
+          await (request.readBody?.() ?? Promise.resolve("")),
+        );
+        importMode = parsed.mode;
+        invoices = parsed.invoices;
       } catch (error) {
         const code =
           error instanceof Error ? error.message : "INVALID_REQUEST_BODY";
         return json(code === "REQUEST_BODY_TOO_LARGE" ? 413 : 400, {
           ok: false,
-          error: {
-            code,
-          },
+          error: { code },
         });
+      }
+
+      if (
+        importMode === "cutover_batch" &&
+        auth.userId !== CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID
+      ) {
+        return json(403, {
+          ok: false,
+          error: { code: "CENTRAL_HISTORICAL_IMPORT_NOT_ALLOWED" },
+        });
+      }
+      if (importMode === "on_demand_original") {
+        const activation = (
+          dependencies.evaluateActivation ??
+          ((input) => evaluateCentralInvoiceAuthorityActivation(input))
+        )({ userId: auth.userId, userEmail: auth.userEmail });
+        if (!activation.fiscalWritesEnabled) {
+          return json(409, {
+            ok: false,
+            error: {
+              code: "CENTRAL_HISTORICAL_IMPORT_AUTHORITY_DISABLED",
+              message:
+                "La autoridad central no admite el registro de esta factura original.",
+            },
+          });
+        }
       }
 
       const rpcClient = dependencies.getRpcClient();
@@ -510,7 +587,7 @@ export function createCentralInvoiceAuthorityHistoricalImportRouteHandler(
               },
             });
           }
-          imported.push(parseRpcRow(data));
+          imported.push(parseRpcRow(data, importMode));
         }
       } catch (error) {
         return json(500, {

@@ -295,7 +295,7 @@ describe("central invoice authority document form canary", () => {
     ).toBeNull();
   });
 
-  it("solo intercepta rectificativas emitidas de una original central", () => {
+  it("intercepta rectificativas emitidas y deja que el formulario centralice la original si hace falta", () => {
     expect(
       shouldUseCentralInvoiceAuthorityRectificationFormCanary({
         original: centralOriginal(),
@@ -316,7 +316,7 @@ describe("central invoice authority document form canary", () => {
         payload: rectificationPayload(),
         resolvedStatus: "enviado",
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       shouldUseCentralInvoiceAuthorityRectificationFormCanary({
         original: centralOriginal(),
