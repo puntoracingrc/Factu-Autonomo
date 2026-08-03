@@ -55,6 +55,11 @@ describe("app startup progressive loading", () => {
   });
 
   it("shows operational list visual cache after session scope is known", () => {
+    const listCacheInitializer = appShellSource.slice(
+      appShellSource.indexOf("const [listVisualCache"),
+      appShellSource.indexOf("const mobileNavRef"),
+    );
+
     expect(appShellSource).toContain("LIST_VISUAL_CACHE_KINDS");
     expect(appShellSource).toContain("readListVisualCacheSnapshots");
     expect(appShellSource).toContain("emptyListVisualCacheSnapshots");
@@ -68,7 +73,10 @@ describe("app startup progressive loading", () => {
     expect(appShellSource).toContain(
       "const [initialDemoMode] = useState(() => isDemoWorkspaceMode())",
     );
-    expect(appShellSource).toContain('readListVisualCacheSnapshots("local")');
+    expect(listCacheInitializer).toContain(
+      ">(() => emptyListVisualCacheSnapshots())",
+    );
+    expect(listCacheInitializer).not.toContain("readListVisualCacheSnapshots");
     expect(appShellSource).toContain(
       'authReady || demoMode || initialDemoMode ? (user?.id ?? "local") : null',
     );
