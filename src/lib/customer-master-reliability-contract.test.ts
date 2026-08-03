@@ -36,10 +36,11 @@ describe("customer master reliability contract", () => {
     const preliminaryValidation = saveHandler.indexOf(
       "const preliminaryEmissionCheck",
     );
-    const customerWrite = saveHandler.indexOf("upsertCustomerForDocument(");
+    const customerWrite = saveHandler.indexOf("upsertDocumentCustomer(");
 
     expect(preliminaryValidation).toBeGreaterThan(-1);
     expect(customerWrite).toBeGreaterThan(preliminaryValidation);
+    expect(saveHandler).toContain("await upsertDocumentCustomer(");
   });
 
   it("busca antes de paginar y usa el mismo filtro robusto al unificar", () => {

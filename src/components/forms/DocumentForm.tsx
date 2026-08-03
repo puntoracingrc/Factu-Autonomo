@@ -38,6 +38,7 @@ import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { useCentralQuoteCreate } from "@/hooks/useCentralQuoteCreate";
+import { useCentralDocumentCustomerUpsert } from "@/hooks/useCentralDocumentCustomerUpsert";
 import {
   formatMoney,
   formatShortDate,
@@ -477,9 +478,9 @@ export function DocumentForm({
     addDocument,
     addDocumentWithCentralIdentity,
     updateDocument,
-    upsertCustomerForDocument,
     registerVerifactuForDocument,
   } = useAppStore();
+  const { upsertDocumentCustomer } = useCentralDocumentCustomerUpsert();
   const { updateProfile } = useCentralProfileMutation();
   const { createQuote } = useCentralQuoteCreate();
   const {
@@ -1686,7 +1687,7 @@ export function DocumentForm({
     let client = clientInputToSnapshot(clientForm);
 
     if (shouldUpsertCustomer) {
-      const customerResult = upsertCustomerForDocument(
+      const customerResult = await upsertDocumentCustomer(
         {
           firstName: clientForm.firstName,
           lastName: clientForm.lastName,

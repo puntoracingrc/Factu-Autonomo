@@ -1,5 +1,7 @@
 "use client";
 
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
+
 export const CENTRAL_EXPENSE_PROFILE_CANARY =
   "CENTRAL_EXPENSE_PROFILE_CANARY_V1";
 
@@ -46,10 +48,12 @@ export function isCentralExpenseCanaryEnabledForUser(
   userId: string | null | undefined,
   environment: CentralExpenseProfileCanaryEnvironment = publicEnvironment,
 ): boolean {
-  return enabledForUser(
-    environment.expenseEnabled,
-    environment.expenseUserIds,
-    userId,
+  return (
+    enabledForUser(
+      environment.expenseEnabled,
+      environment.expenseUserIds,
+      userId,
+    ) || isCentralAuthorityPublicRolloutUser(userId)
   );
 }
 
@@ -57,9 +61,11 @@ export function isCentralProfileCanaryEnabledForUser(
   userId: string | null | undefined,
   environment: CentralExpenseProfileCanaryEnvironment = publicEnvironment,
 ): boolean {
-  return enabledForUser(
-    environment.profileEnabled,
-    environment.profileUserIds,
-    userId,
+  return (
+    enabledForUser(
+      environment.profileEnabled,
+      environment.profileUserIds,
+      userId,
+    ) || isCentralAuthorityPublicRolloutUser(userId)
   );
 }

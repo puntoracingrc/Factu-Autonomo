@@ -6,6 +6,10 @@ import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
+  centralAuthorityRealtimeStateFromStatus,
+  type CentralAuthorityRealtimeState,
+} from "@/lib/central-authority/sync-schedule";
+import {
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_START_DELAY_MS,
@@ -53,6 +57,7 @@ export function CentralBusinessAuthorityEventsAutoSync() {
   const runningRef = useRef(false);
   const pendingWakeRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  const realtimeStateRef = useRef<CentralAuthorityRealtimeState>("disabled");
   const realtimeWakeRef = useRef<() => void>(() => {});
   const latestRef = useRef<LatestState>({
     ready,
@@ -149,7 +154,12 @@ export function CentralBusinessAuthorityEventsAutoSync() {
         const result = await latest.sync(latest.userId, {
           limit: CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
         });
-        schedule(nextCentralBusinessEventsAutoSyncDelay(result));
+        schedule(
+          nextCentralBusinessEventsAutoSyncDelay(result, {
+            realtimeState: realtimeStateRef.current,
+            jitterFraction: Math.random(),
+          }),
+        );
       } catch {
         schedule(CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS);
       } finally {
@@ -208,6 +218,7 @@ export function CentralBusinessAuthorityEventsAutoSync() {
 
     let cancelled = false;
     let channel: CentralBusinessRealtimeChannel | null = null;
+    realtimeStateRef.current = "connecting";
 
     void import("@/lib/supabase/client")
       .then(async ({ getSupabaseClientAsync }) => getSupabaseClientAsync())
@@ -228,14 +239,26 @@ export function CentralBusinessAuthorityEventsAutoSync() {
               realtimeWakeRef.current();
             },
           )
-          .subscribe();
+          .subscribe((status) => {
+            const previous = realtimeStateRef.current;
+            const next = centralAuthorityRealtimeStateFromStatus(status);
+            realtimeStateRef.current = next;
+            if (
+              (next === "degraded" && previous !== "degraded") ||
+              (next === "subscribed" && previous === "degraded")
+            ) {
+              realtimeWakeRef.current();
+            }
+          });
       })
       .catch(() => {
-        // The cursor-based polling loop remains the durable fallback.
+        realtimeStateRef.current = "degraded";
+        realtimeWakeRef.current();
       });
 
     return () => {
       cancelled = true;
+      realtimeStateRef.current = "disabled";
       if (channel) void channel.unsubscribe();
     };
   }, [enabled, ready, realtimeWakeupsEnabled, userId]);

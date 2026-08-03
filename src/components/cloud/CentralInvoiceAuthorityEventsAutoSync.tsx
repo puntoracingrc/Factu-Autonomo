@@ -6,6 +6,10 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import type { AppData } from "@/lib/types";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
+  centralAuthorityRealtimeStateFromStatus,
+  type CentralAuthorityRealtimeState,
+} from "@/lib/central-authority/sync-schedule";
+import {
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT,
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS,
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_START_DELAY_MS,
@@ -44,7 +48,9 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
   const userCanaryAllowed =
     isCentralInvoiceAuthorityEventsCanaryUserAllowed(userId);
   const runningRef = useRef(false);
+  const pendingWakeRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  const realtimeStateRef = useRef<CentralAuthorityRealtimeState>("disabled");
   const realtimeWakeRef = useRef<() => void>(() => {});
   const latestRef = useRef<LatestCentralAuthorityAutoSyncState>({
     data,
@@ -129,15 +135,28 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
             limit: CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT,
           },
         );
-        schedule(nextCentralInvoiceAuthorityEventsAutoSyncDelay(result));
+        schedule(
+          nextCentralInvoiceAuthorityEventsAutoSyncDelay(result, {
+            realtimeState: realtimeStateRef.current,
+            jitterFraction: Math.random(),
+          }),
+        );
       } catch {
         schedule(CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS);
       } finally {
         runningRef.current = false;
+        if (pendingWakeRef.current) {
+          pendingWakeRef.current = false;
+          schedule(0);
+        }
       }
     }
 
     function wake() {
+      if (runningRef.current) {
+        pendingWakeRef.current = true;
+        return;
+      }
       schedule(0);
     }
 
@@ -151,6 +170,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     return () => {
       cancelled = true;
       realtimeWakeRef.current = () => {};
+      pendingWakeRef.current = false;
       clearTimer();
       window.removeEventListener("online", wake);
       window.removeEventListener("focus", wake);
@@ -176,11 +196,15 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
 
     let cancelled = false;
     let channel: CentralInvoiceAuthorityRealtimeChannel | null = null;
+    realtimeStateRef.current = "connecting";
 
     void import("@/lib/supabase/client")
       .then(async ({ getSupabaseClientAsync }) => getSupabaseClientAsync())
-      .then((supabase) => {
+      .then(async (supabase) => {
         if (cancelled || supabase === null) return;
+
+        await supabase.realtime.setAuth();
+        if (cancelled) return;
 
         channel = supabase
           .channel(subscription.channelName)
@@ -196,14 +220,26 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
               realtimeWakeRef.current();
             },
           )
-          .subscribe();
+          .subscribe((status) => {
+            const previous = realtimeStateRef.current;
+            const next = centralAuthorityRealtimeStateFromStatus(status);
+            realtimeStateRef.current = next;
+            if (
+              (next === "degraded" && previous !== "degraded") ||
+              (next === "subscribed" && previous === "degraded")
+            ) {
+              realtimeWakeRef.current();
+            }
+          });
       })
       .catch(() => {
-        // Polling remains the durable fallback when Realtime is unavailable.
+        realtimeStateRef.current = "degraded";
+        realtimeWakeRef.current();
       });
 
     return () => {
       cancelled = true;
+      realtimeStateRef.current = "disabled";
       if (channel) void channel.unsubscribe();
     };
   }, [

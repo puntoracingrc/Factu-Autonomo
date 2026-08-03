@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS,
+  CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_DEGRADED_INTERVAL_MS,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
   CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS,
@@ -146,6 +147,20 @@ describe("central business events auto sync", () => {
         hasMore: false,
       }),
     ).toBe(CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS);
+    expect(
+      nextCentralBusinessEventsAutoSyncDelay(
+        {
+          ok: true,
+          schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
+          pulled: 0,
+          applied: 0,
+          skipped: 0,
+          nextSequence: 100,
+          hasMore: false,
+        },
+        { realtimeState: "degraded", jitterFraction: 0 },
+      ),
+    ).toBe(CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_DEGRADED_INTERVAL_MS);
     expect(
       nextCentralBusinessEventsAutoSyncDelay({
         ok: false,

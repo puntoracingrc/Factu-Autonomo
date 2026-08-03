@@ -206,8 +206,9 @@ Contrato: [ADR-0010](ADR-0010-central-invoice-authority.md).
 - Número, identidad, documento congelado, versión, auditoría y evento de salida
   se confirman en una transacción PostgreSQL protegida por idempotencia,
   bloqueo de serie y unicidad fiscal.
-- Realtime es una señal de actualización, no la fuente de verdad. Polling puede
-  recuperar una señal perdida sin cambiar la autoridad.
+- Realtime es una señal de actualización, no la fuente de verdad. El sondeo
+  adaptativo y disperso puede recuperar una señal perdida sin cambiar la
+  autoridad ni consultar cada pocos segundos cuando el canal esta sano.
 - Una serie activada en modo central nunca vuelve a numeración local. El kill
   switch pausa nuevas emisiones y conserva lectura.
 - Retiros, reparaciones y restauraciones usan ID técnico, versión y huella.
@@ -243,6 +244,11 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
   la cola completa.
 - Fusiones y cambios masivos con entidades centrales exigen un comando atómico;
   no pueden ejecutarse como escrituras parciales.
+- El rollout porcentual comparte una cohorte determinista entre navegador y
+  servidor, empieza al cero por defecto y solo selecciona UUID incluidos en la
+  lista de cuentas ya preparadas. El comodin queda prohibido hasta automatizar
+  y verificar altas nuevas y cortes antiguos. Nunca salta los gates de cuenta.
+  El interruptor de emergencia pausa escrituras y conserva lectura por cursor.
 
 Regresiones mínimas: `central-business-authority/activation.test.ts`,
 `central-business-authority/durable-queue.test.ts`,

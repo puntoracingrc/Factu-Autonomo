@@ -13,6 +13,11 @@ import {
   CENTRAL_INVOICE_AUTHORITY_SHADOW_USER_EMAILS_KEY,
   evaluateCentralInvoiceAuthorityActivation,
 } from "./activation";
+import {
+  CENTRAL_AUTHORITY_KILL_SWITCH_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY,
+} from "@/lib/central-authority/rollout";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const USER_EMAIL = "puntoracingrc@gmail.com";
@@ -271,5 +276,46 @@ describe("central invoice authority activation", () => {
     expect(result.effectiveMode).toBe("off");
     expect(result.fiscalWritesEnabled).toBe(false);
     expect(result.reason).toBe("schema_not_ready");
+  });
+
+  it("selecciona cohortes porcentuales solo despues de pasar los gates fiscales", () => {
+    const result = evaluateCentralInvoiceAuthorityActivation({
+      env: {
+        [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+        [CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY]: "100",
+        [CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY]: "*",
+        [CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY]:
+          CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
+        ...READY_PRIVATE_GATES,
+      },
+      userId: USER_ID,
+    });
+
+    expect(result).toMatchObject({
+      appliesToUser: true,
+      fiscalWritesEnabled: true,
+      reason: "canary_enabled",
+    });
+  });
+
+  it("el interruptor de emergencia mantiene eventos legibles y pausa emision", () => {
+    const result = evaluateCentralInvoiceAuthorityActivation({
+      env: {
+        [CENTRAL_INVOICE_AUTHORITY_MODE_KEY]: "canary",
+        [CENTRAL_INVOICE_AUTHORITY_CANARY_USERS_KEY]: USER_ID,
+        [CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY]:
+          CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION,
+        [CENTRAL_AUTHORITY_KILL_SWITCH_KEY]: "true",
+        ...READY_PRIVATE_GATES,
+      },
+      userId: USER_ID,
+    });
+
+    expect(result).toMatchObject({
+      enabled: true,
+      appliesToUser: true,
+      fiscalWritesEnabled: false,
+      reason: "emergency_stopped",
+    });
   });
 });

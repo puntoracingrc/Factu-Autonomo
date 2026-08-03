@@ -1,3 +1,12 @@
+import {
+  CENTRAL_AUTHORITY_KILL_SWITCH_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY,
+  centralAuthorityRolloutPercent,
+  isCentralAuthorityEmergencyStopped,
+  isCentralAuthorityRolloutSelected,
+} from "@/lib/central-authority/rollout";
+
 assertServerOnlyModule();
 
 export const CENTRAL_INVOICE_AUTHORITY_MODE_KEY =
@@ -33,12 +42,14 @@ export type CentralInvoiceAuthorityActivationReason =
   | "invalid_mode"
   | "shadow_only"
   | "user_not_allowlisted"
+  | "user_not_in_rollout"
   | "schema_not_ready"
   | "operational_sync_not_ready"
   | "baseline_not_reconciled"
   | "restorable_backup_missing"
   | "isolated_restore_drill_missing"
   | "production_approval_missing"
+  | "emergency_stopped"
   | "canary_enabled"
   | "required_enabled";
 
@@ -199,10 +210,18 @@ export function evaluateCentralInvoiceAuthorityActivation(
   }
 
   const normalizedUserEmail = normalizeCanaryEmail(input.userEmail);
+  const rolloutPercent = centralAuthorityRolloutPercent(
+    env[CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY],
+  );
   const canaryAppliesToUser =
     parsedMode === "required" ||
     Boolean(input.userId && canaryUsers(env).has(input.userId.toLowerCase())) ||
-    Boolean(normalizedUserEmail && canaryUserEmails(env).has(normalizedUserEmail));
+    Boolean(normalizedUserEmail && canaryUserEmails(env).has(normalizedUserEmail)) ||
+    isCentralAuthorityRolloutSelected(
+      input.userId,
+      env[CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY],
+      env[CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY],
+    );
   const shadowAppliesToUser =
     parsedMode === "canary" &&
     Boolean(
@@ -223,7 +242,12 @@ export function evaluateCentralInvoiceAuthorityActivation(
   }
 
   if (!canaryAppliesToUser) {
-    return disabled(parsedMode, production, "user_not_allowlisted", false);
+    return disabled(
+      parsedMode,
+      production,
+      rolloutPercent > 0 ? "user_not_in_rollout" : "user_not_allowlisted",
+      false,
+    );
   }
 
   if (
@@ -248,6 +272,18 @@ export function evaluateCentralInvoiceAuthorityActivation(
       "production_approval_missing",
       true,
     );
+  }
+
+  if (isCentralAuthorityEmergencyStopped(env[CENTRAL_AUTHORITY_KILL_SWITCH_KEY])) {
+    return {
+      requestedMode: parsedMode,
+      effectiveMode: parsedMode,
+      enabled: true,
+      fiscalWritesEnabled: false,
+      appliesToUser: true,
+      production,
+      reason: "emergency_stopped",
+    };
   }
 
   return {

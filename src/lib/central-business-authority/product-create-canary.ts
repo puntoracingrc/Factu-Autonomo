@@ -1,6 +1,7 @@
 "use client";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 import {
   normalizeProductCatalogItem,
   purchaseProductKey,
@@ -86,9 +87,10 @@ export function isCentralProductCreateCanaryEnabledForUser(
   environment: CentralProductCreateCanaryEnvironment = publicEnvironment,
 ): boolean {
   return (
-    environment.enabled?.trim().toLowerCase() === "true" &&
-    typeof userId === "string" &&
-    values(environment.userIds).has(userId)
+    (environment.enabled?.trim().toLowerCase() === "true" &&
+      typeof userId === "string" &&
+      values(environment.userIds).has(userId)) ||
+    isCentralAuthorityPublicRolloutUser(userId)
   );
 }
 

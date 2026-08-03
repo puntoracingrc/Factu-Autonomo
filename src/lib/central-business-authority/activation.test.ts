@@ -9,6 +9,11 @@ import {
   CENTRAL_BUSINESS_AUTHORITY_SCHEMA_VERSION_KEY,
   evaluateCentralBusinessAuthorityActivation,
 } from "./activation";
+import {
+  CENTRAL_AUTHORITY_KILL_SWITCH_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY,
+} from "@/lib/central-authority/rollout";
 
 const userEmail = "puntoracingrc@gmail.com";
 
@@ -111,6 +116,38 @@ describe("central business authority activation", () => {
       production: true,
       writesEnabled: true,
       reason: "canary_enabled",
+    });
+  });
+
+  it("permite cohortes porcentuales estables sin retirar la allowlist explicita", () => {
+    expect(
+      evaluateCentralBusinessAuthorityActivation({
+        env: readyEnv({
+          [CENTRAL_BUSINESS_AUTHORITY_CANARY_USER_EMAILS_KEY]: "",
+          [CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY]: "100",
+          [CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY]: "*",
+        }),
+        userId: "00000000-0000-4000-8000-000000000001",
+        userEmail: "otro@example.test",
+      }),
+    ).toMatchObject({
+      appliesToUser: true,
+      writesEnabled: true,
+      reason: "canary_enabled",
+    });
+  });
+
+  it("el interruptor de emergencia conserva lectura y pausa escrituras", () => {
+    expect(
+      evaluateCentralBusinessAuthorityActivation({
+        env: readyEnv({ [CENTRAL_AUTHORITY_KILL_SWITCH_KEY]: "true" }),
+        userEmail,
+      }),
+    ).toMatchObject({
+      enabled: true,
+      appliesToUser: true,
+      writesEnabled: false,
+      reason: "emergency_stopped",
     });
   });
 });

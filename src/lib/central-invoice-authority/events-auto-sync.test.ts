@@ -6,6 +6,7 @@ import { EMPTY_DATA } from "@/lib/types";
 import {
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS,
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS,
+  CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_DEGRADED_INTERVAL_MS,
   CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS,
   CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_CHANNEL_PREFIX,
   CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE,
@@ -320,6 +321,12 @@ describe("central invoice authority events auto sync policy", () => {
     expect(
       nextCentralInvoiceAuthorityEventsAutoSyncDelay(committedResult()),
     ).toBe(CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS);
+    expect(
+      nextCentralInvoiceAuthorityEventsAutoSyncDelay(committedResult(), {
+        realtimeState: "degraded",
+        jitterFraction: 0,
+      }),
+    ).toBe(CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_DEGRADED_INTERVAL_MS);
     expect(
       nextCentralInvoiceAuthorityEventsAutoSyncDelay({
         status: "blocked",

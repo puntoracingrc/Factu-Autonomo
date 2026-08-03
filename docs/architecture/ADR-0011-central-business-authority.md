@@ -1,7 +1,7 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 24
+- Version: 25
 - Fecha: 2026-08-03
 
 ## Contexto
@@ -28,7 +28,9 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
    rutas autenticadas que validen tambien el dispositivo y la sesion.
 6. El outbox sera la fuente ordenada para que los demas dispositivos descarguen
    cambios confirmados. Realtime solo despertara al cliente; la lectura
-   autoritativa seguira siendo una peticion con cursor.
+   autoritativa seguira siendo una peticion con cursor. Con Realtime suscrito,
+   el sondeo de seguridad se ejecuta cada tres minutos con dispersion; si el
+   canal se degrada, se usa temporalmente un respaldo de treinta segundos.
 7. La migracion sera aditiva y por canario. No se reactivara
    `sync_entities`, ni se importaran datos reales, hasta disponer de
    comparacion y bootstrap verificables.
@@ -117,6 +119,12 @@ boton queda ocupado durante el commit para evitar dobles operaciones. El
 preflight tiene un limite corto: si una red degradada lo deja colgado, se trata
 como fallo transitorio y no congela el formulario.
 
+Crear o editar el cliente desde una factura o presupuesto reutiliza exactamente
+esta cola central versionada antes de guardar el documento. Si la ficha
+normalizada no cambia, se conserva su version y no se publica un evento vacio.
+El documento emitido mantiene su snapshot congelado y nunca se reescribe por
+una modificacion posterior del maestro.
+
 Un commit local bloqueado retira el comando antes de cualquier envio. Si el
 estado durable local queda indeterminado, la operacion se conserva para
 revision y nunca se confirma silenciosamente. Una confirmacion de escritura
@@ -133,8 +141,9 @@ La creacion, edicion y borrado manual de proveedores reutilizan ese contrato.
 El borrado central aplica la retirada completa de la ficha maestra en una unica
 transicion local: desvincula gastos y productos, pero conserva sus nombres, NIF,
 lineas, precios, costes y snapshots historicos. Las altas automaticas de
-proveedores dentro de gastos permanecen locales hasta que gasto y proveedor
-puedan confirmarse juntos como una operacion atomica.
+proveedores dentro de gastos manuales, fijos o escaneados solo se centralizan
+dentro del mismo lote atomico que el gasto; nunca se confirma una mitad sin la
+otra.
 
 Los documentos operativos entran por tipos centrales separados: `quote` para
 presupuestos y `receipt` para recibos. La RPC, las tablas privadas y el cliente
@@ -218,11 +227,13 @@ reconciliacion de serie y una mutacion normal comparten el mismo orden de
 bloqueo antes de tocar entidades concretas; ninguna escritura puede cruzar la
 comparacion y el commit del snapshot.
 
-La recepcion de clientes y productos centrales se ejecuta al arrancar la
-sesion, al volver a la pestaña, al recuperar conexion y mediante polling corto
-como respaldo. Cada alta del canario fuerza ademas una lectura justo antes del
-preflight de escritura: un conflicto local bloquea la operacion, mientras una
-caida transitoria de red conserva el modo offline y su cola durable.
+La recepcion de datos centrales se ejecuta al arrancar la sesion, al volver a la
+pestana, al recuperar conexion y al recibir el aviso Realtime. El sondeo
+adaptativo solo recupera avisos perdidos: tres minutos con el canal suscrito,
+treinta segundos mientras este degradado y dispersion entre dispositivos. Cada
+alta del canario fuerza ademas una lectura justo antes del preflight de
+escritura: un conflicto local bloquea la operacion, mientras una caida
+transitoria de red conserva el modo offline y su cola durable.
 
 El navegador valida la forma completa de la ficha recibida, su ID, version y
 hash antes de incorporarla. Nunca pisa una ficha local divergente sin una
@@ -302,6 +313,15 @@ tienen contrato propio: bandeja de gastos, espacio de notificaciones fiscales y
 lotes de retirada documental. El cliente conserva apagado el sincronizador
 legacy para la allowlist retirada incluso si la pausa global se levanta, y deja
 de mostrar esa pausa temporal como estado de la cuenta.
+
+La ampliacion general usa una cohorte porcentual determinista por UUID comun a
+datos operativos y facturas. La allowlist explicita sigue teniendo prioridad,
+el porcentaje solo selecciona UUID presentes en la lista de cuentas preparadas
+y permanece en cero hasta aprobar metricas y elegibilidad. El comodin no se usa
+hasta automatizar y verificar el alta central de cuentas nuevas y el corte de
+cuentas antiguas. El interruptor de emergencia pausa nuevas escrituras sin
+detener la descarga del outbox. Reducir carga o perder Realtime nunca convierte
+una copia local en autoridad.
 
 ## Rollback
 

@@ -1,6 +1,13 @@
 "use client";
 
 import type { CentralBusinessEventsAppDataSyncResult } from "./events-app-data-sync";
+import {
+  CENTRAL_AUTHORITY_DEGRADED_POLL_MS,
+  CENTRAL_AUTHORITY_REALTIME_SAFETY_POLL_MS,
+  centralAuthorityIdlePollDelay,
+  type CentralAuthorityRealtimeState,
+} from "@/lib/central-authority/sync-schedule";
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC =
   "CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_V1";
@@ -11,7 +18,10 @@ export const CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT =
 export const CENTRAL_BUSINESS_EVENTS_REALTIME_CHANNEL_PREFIX =
   "central-business";
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_START_DELAY_MS = 0;
-export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS = 15_000;
+export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS =
+  CENTRAL_AUTHORITY_REALTIME_SAFETY_POLL_MS;
+export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_DEGRADED_INTERVAL_MS =
+  CENTRAL_AUTHORITY_DEGRADED_POLL_MS;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS = 30_000;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS = 60_000;
 export const CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT = 500;
@@ -150,6 +160,7 @@ export function isCentralBusinessEventsAutoSyncEnabledForUser(
   userId: string | null | undefined,
   environment: CentralBusinessEventsAutoSyncEnvironment = publicEnvironment,
 ): boolean {
+  if (isCentralAuthorityPublicRolloutUser(userId)) return true;
   if (
     enabledFlag(environment.enabled) &&
     allowsUser(userId, environment.userIds)
@@ -167,7 +178,8 @@ export function isCentralBusinessEventsRealtimeWakeupsEnabledForUser(
     environment.enabled?.trim().toLowerCase() === "true" &&
     typeof userId === "string" &&
     UUID_PATTERN.test(userId) &&
-    values(environment.userIds).has(userId)
+    (values(environment.userIds).has(userId) ||
+      isCentralAuthorityPublicRolloutUser(userId))
   );
 }
 
@@ -182,9 +194,18 @@ export function centralBusinessEventsRealtimeSubscription(
 
 export function nextCentralBusinessEventsAutoSyncDelay(
   result: CentralBusinessEventsAppDataSyncResult,
+  options: {
+    realtimeState?: CentralAuthorityRealtimeState;
+    jitterFraction?: number;
+  } = {},
 ): number {
   if (result.ok) {
-    return result.hasMore ? 0 : CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_INTERVAL_MS;
+    return result.hasMore
+      ? 0
+      : centralAuthorityIdlePollDelay(
+          options.realtimeState ?? "subscribed",
+          options.jitterFraction,
+        );
   }
   return result.retryable
     ? CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_RETRY_MS

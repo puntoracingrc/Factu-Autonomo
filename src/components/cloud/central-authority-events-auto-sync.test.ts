@@ -53,9 +53,12 @@ describe("central authority events automatic sync shell", () => {
     expect(component).toContain('void import("@/lib/supabase/client")');
     expect(component).toContain('"postgres_changes"');
     expect(component).toContain('event: "INSERT"');
+    expect(component).toContain("await supabase.realtime.setAuth()");
+    expect(component).toContain("centralAuthorityRealtimeStateFromStatus");
     expect(component).toContain("subscription.filter");
     expect(component).toContain("userCanaryAllowed");
     expect(component).toContain("realtimeWakeRef.current()");
+    expect(component).toContain("pendingWakeRef.current = true");
     expect(component).not.toContain('from "@/lib/supabase/client"');
   });
 });
