@@ -54,9 +54,15 @@ describe("product expenses/providers polish wiring", () => {
     expect(productsPage).toContain("moveSelectedProducts");
     expect(catalogHook).toContain("applyProductCatalogBatchWithCentralCanary");
     expect(catalogHook).toContain("commitPreparedAppDataDurably");
-    expect(store).toContain("renameProductFamilyInAppData(");
+    expect(store).not.toContain("renameProductFamilyInAppData(");
+    expect(store).not.toContain("mergeProductRecordsInAppData(");
+    expect(store).toContain(
+      'await import(\n        "@/lib/product-catalog-structure"',
+    );
     expect(store).toContain("applyProductCatalogStructureOperation(");
     expect(store).toContain("if (result.ok) setAppData(result.data)");
+    expect(catalogHook).toContain("fallback: applyProductCatalogStructure");
+    expect(productsPage).toContain("setFamilyNotice(saved.error)");
   });
 
   it("conecta edicion de gastos desde el listado y el formulario", () => {

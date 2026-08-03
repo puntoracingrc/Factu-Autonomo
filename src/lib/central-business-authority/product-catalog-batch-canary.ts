@@ -62,7 +62,7 @@ export interface CentralProductCatalogBatchDependencies {
   getCurrentData(): AppData;
   fallback(
     operation: ProductCatalogStructureOperation,
-  ): ProductCatalogStructureResult;
+  ): ProductCatalogStructureResult | Promise<ProductCatalogStructureResult>;
   commitLocal(
     expected: AppData,
     transition: AppDataTransition<ProductCatalogSuccess>,
@@ -226,10 +226,18 @@ export async function applyProductCatalogBatchWithCentralCanary(input: {
       dependencies.environment,
     )
   ) {
-    const result = dependencies.fallback(input.operation);
-    return result.ok
-      ? { ok: true, result, delivery: "local" }
-      : { ok: false, error: result.error };
+    try {
+      const result = await dependencies.fallback(input.operation);
+      return result.ok
+        ? { ok: true, result, delivery: "local" }
+        : { ok: false, error: result.error };
+    } catch {
+      return {
+        ok: false,
+        error:
+          "No se pudo cargar la herramienta de organización del catálogo. No se ha guardado ningún cambio; recarga la aplicación antes de reintentarlo.",
+      };
+    }
   }
 
   const ownerScope = input.userId as string;

@@ -199,15 +199,9 @@ import {
   normalizeProductCatalogItem,
   purchaseProductKey,
 } from "@/lib/purchase-products";
-import {
-  renameProductFamilyInAppData,
-  type ProductFamilyRenameResult,
-} from "@/lib/product-family-markups";
-import {
-  applyProductCatalogStructureOperation,
-  mergeProductRecordsInAppData,
-  type ProductCatalogStructureOperation,
-  type ProductCatalogStructureResult,
+import type {
+  ProductCatalogStructureOperation,
+  ProductCatalogStructureResult,
 } from "@/lib/product-catalog-structure";
 import {
   deleteCustomerMasterFromData,
@@ -609,19 +603,14 @@ interface AppStoreValue {
     expected: AppData,
   ) => AppDataDurabilityResult<Product>;
   updateProduct: (product: Product) => void;
-  renameProductFamily: (
-    sourceFamily: string,
-    targetFamily: string,
-  ) => ProductFamilyRenameResult;
   applyProductCatalogStructure: (
     operation: ProductCatalogStructureOperation,
-  ) => ProductCatalogStructureResult;
+  ) => Promise<ProductCatalogStructureResult>;
   deleteProduct: (id: string) => void;
   deleteProductDurably: (
     id: string,
     expected: AppData,
   ) => AppDataDurabilityResult<string>;
-  mergeProducts: (keepId: string, removeIds: string[]) => void;
   addRecurringExpense: (
     item: RecurringExpenseDraft,
     expected: AppData,
@@ -3052,23 +3041,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [commitDurableAppData],
   );
 
-  const renameProductFamily = useCallback(
-    (sourceFamily: string, targetFamily: string): ProductFamilyRenameResult => {
-      const result = renameProductFamilyInAppData(
-        dataRef.current,
-        sourceFamily,
-        targetFamily,
-      );
-      if (result.ok) setAppData(result.data);
-      return result;
-    },
-    [setAppData],
-  );
-
   const applyProductCatalogStructure = useCallback(
-    (
+    async (
       operation: ProductCatalogStructureOperation,
-    ): ProductCatalogStructureResult => {
+    ): Promise<ProductCatalogStructureResult> => {
+      const { applyProductCatalogStructureOperation } = await import(
+        "@/lib/product-catalog-structure",
+      );
       const result = applyProductCatalogStructureOperation(
         dataRef.current,
         operation,
@@ -3104,16 +3083,6 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         };
       }),
     [commitDurableAppData],
-  );
-
-  const mergeProducts = useCallback(
-    (keepId: string, removeIds: string[]) => {
-      setAppData((prev) => {
-        const result = mergeProductRecordsInAppData(prev, keepId, removeIds);
-        return result.ok ? result.data : prev;
-      });
-    },
-    [setAppData],
   );
 
   const addRecurringExpense = useCallback(
@@ -3874,11 +3843,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addProductDurably,
       updateProductDurably,
       updateProduct,
-      renameProductFamily,
       applyProductCatalogStructure,
       deleteProduct,
       deleteProductDurably,
-      mergeProducts,
       addRecurringExpense,
       setRecurringExpenseEnabled,
       applyRecurringExpenseChange,
@@ -3970,11 +3937,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addProductDurably,
       updateProductDurably,
       updateProduct,
-      renameProductFamily,
       applyProductCatalogStructure,
       deleteProduct,
       deleteProductDurably,
-      mergeProducts,
       addRecurringExpense,
       setRecurringExpenseEnabled,
       applyRecurringExpenseChange,
