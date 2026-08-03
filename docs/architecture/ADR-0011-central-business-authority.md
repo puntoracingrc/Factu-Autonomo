@@ -1,8 +1,8 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 21
-- Fecha: 2026-07-29
+- Version: 22
+- Fecha: 2026-08-03
 
 ## Contexto
 
@@ -45,6 +45,14 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
 5. Añadir cola offline visible y resolucion explicita de conflictos.
 6. Comparar y hacer bootstrap de la cuenta real; despues retirar la escritura
    de `sync_entities`.
+
+Durante esta retirada, aplicar o adoptar una pagina ya verificada del outbox no
+genera otra vez las mismas fichas en `meta.pendingChanges`. El cursor central,
+la cola central durable y el readback de AppData siguen siendo obligatorios; el
+cambio solo evita duplicar una confirmacion entrante en la cola legacy pausada.
+Las entradas legacy que ya existan se conservan sin alteraciones hasta una
+accion explicita de migracion o restauracion, y cualquier guardado local fuera
+del contrato central mantiene el seguimiento anterior.
 
 La ruta de mutacion de la fase 2 permanece apagada por defecto. Para escribir
 exige esquema, gate operativo, aprobacion de produccion y allowlist explicita.

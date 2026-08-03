@@ -194,6 +194,58 @@ describe("refreshDurableExpectedAfterAsync", () => {
 });
 
 describe("commitAppDataDurably", () => {
+  it("aplica estado central sin ampliar ni vaciar la cola legacy existente", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+    const pendingChanges = [
+      {
+        entityType: "document" as const,
+        entityId: "invoice-local-only",
+        deleted: false,
+        payload: { id: "invoice-local-only" },
+        updatedAt: "2026-07-12T08:30:00.000Z",
+      },
+    ];
+    const previous: AppData = {
+      ...appData(),
+      meta: {
+        lastModified: "2026-07-12T08:00:00.000Z",
+        pendingChanges,
+      },
+    };
+
+    const result = commitAppDataDurably({
+      expected: previous,
+      trackLegacyChanges: false,
+      getCurrent: () => previous,
+      build: (current) => ({
+        data: {
+          ...current,
+          customers: [
+            ...current.customers,
+            {
+              id: "customer-central",
+              customerType: "company",
+              firstName: "Cliente central",
+              lastName: "",
+              name: "Cliente central",
+              createdAt: NOW,
+              updatedAt: NOW,
+            },
+          ],
+        },
+        value: "central_applied",
+      }),
+      persist: () => ({ status: "applied" }),
+    });
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.data.customers).toHaveLength(1);
+    expect(result.data.meta?.pendingChanges).toEqual(pendingChanges);
+    expect(result.data.meta?.pendingChanges).toBe(pendingChanges);
+  });
+
   it("persiste el candidato resuelto antes de devolverlo como aplicado", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(NOW));

@@ -48,7 +48,6 @@ for (const required of [
   "selectCentralInvoiceAuthorityEventsSyncBaseline",
   "runCentralInvoiceAuthorityClientOperation",
   "factu:central-invoice-authority:client-operation:v1",
-  "commitDurableAppData(baseline, (previous) =>",
   "no automatic polling",
 ]) {
   assert.match(
@@ -84,6 +83,8 @@ const bridgeEnd = appStore.indexOf(
 assert.ok(bridgeStart > -1, "AppStore bridge callback must exist");
 assert.ok(bridgeEnd > bridgeStart, "AppStore bridge callback must precede value");
 const bridge = appStore.slice(bridgeStart, bridgeEnd);
+assert.match(bridge, /commitDurableAppData\(\s*baseline,/);
+assert.match(bridge, /trackLegacyChanges:\s*false/);
 assert.doesNotMatch(bridge, /setAppData\s*\(/);
 assert.doesNotMatch(bridge, /useEffect/);
 assert.doesNotMatch(bridge, /setInterval/);

@@ -996,12 +996,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     <T,>(
       expected: AppData,
       build: (previous: AppData) => { data: AppData; value: T },
+      options: { trackLegacyChanges?: boolean } = {},
     ): AppDataDurabilityResult<T> => {
       if (writeBlockRef.current) return blockedDurableResult();
       const result = commitAppDataDurablyWithStorageRecovery({
         expected,
         storageBaseline: durableStorageBaselineRef.current,
         lastKnownStorageBaseline: lastKnownDurableDataRef.current,
+        trackLegacyChanges: options.trackLegacyChanges,
         getCurrent: () => dataRef.current,
         build,
         persist: (candidate, storageExpected) =>
@@ -1555,11 +1557,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           limit: options.limit,
           receivedAt: options.receivedAt,
         });
-        return commitDurableAppData(baseline, (previous) =>
-          buildCentralInvoiceAuthorityEventsAppDataTransition({
-            data: previous,
-            pulled,
-          }),
+        return commitDurableAppData(
+          baseline,
+          (previous) =>
+            buildCentralInvoiceAuthorityEventsAppDataTransition({
+              data: previous,
+              pulled,
+            }),
+          { trackLegacyChanges: false },
         );
       });
     },
@@ -1613,7 +1618,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         { ownerScope, limit: options.limit },
         {
           getCurrentData: () => baseline,
-          commit: (expected, build) => commitDurableAppData(expected, build),
+          commit: (expected, build) =>
+            commitDurableAppData(expected, build, {
+              trackLegacyChanges: false,
+            }),
         },
       );
     },
@@ -1764,7 +1772,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         {
           getCurrentData: () => baseline,
           commit: (expected, build) =>
-            commitDurableAppData(expected, build),
+            commitDurableAppData(expected, build, {
+              trackLegacyChanges: false,
+            }),
         },
       );
     },
@@ -1804,13 +1814,17 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       profile: BusinessProfile,
       expected: AppData,
     ): AppDataDurabilityResult<BusinessProfile> =>
-      commitDurableAppData(expected, (previous) => {
-        const normalized = normalizeProfileForAppStore(profile);
-        return {
-          data: { ...previous, profile: normalized },
-          value: normalized,
-        };
-      }),
+      commitDurableAppData(
+        expected,
+        (previous) => {
+          const normalized = normalizeProfileForAppStore(profile);
+          return {
+            data: { ...previous, profile: normalized },
+            value: normalized,
+          };
+        },
+        { trackLegacyChanges: false },
+      ),
     [commitDurableAppData],
   );
 
@@ -1824,17 +1838,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         await import(
           "@/lib/central-business-authority/numbered-document-local-commit"
         );
-      return commitDurableAppData(expected, (previous) => {
-        const transition = buildCentralBusinessNumberedDocumentLocalCommit(
-          previous,
-          entityType,
-          confirmation,
-        );
-        return {
-          data: transition.data,
-          value: transition.value,
-        };
-      });
+      return commitDurableAppData(
+        expected,
+        (previous) => {
+          const transition = buildCentralBusinessNumberedDocumentLocalCommit(
+            previous,
+            entityType,
+            confirmation,
+          );
+          return {
+            data: transition.data,
+            value: transition.value,
+          };
+        },
+        { trackLegacyChanges: false },
+      );
     },
     [commitDurableAppData],
   );
