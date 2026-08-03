@@ -12,6 +12,10 @@ const hook = readFileSync(
   "utf8",
 );
 const store = readFileSync("src/context/AppStore.tsx", "utf8");
+const catalogEngine = readFileSync(
+  "src/lib/product-catalog-structure.ts",
+  "utf8",
+);
 
 describe("central product catalog batch wiring", () => {
   it("enruta toda la organización de familias por el lote central", () => {
@@ -45,7 +49,11 @@ describe("central product catalog batch wiring", () => {
     expect(page).not.toContain(
       "La fusión de productos centrales se habilitará",
     );
-    expect(store).toContain("mergeProductRecordsInAppData");
+    expect(catalogEngine).toContain("mergeProductRecordsInAppData");
+    expect(store).not.toContain("mergeProductRecordsInAppData");
+    expect(store).toContain(
+      'await import(\n        "@/lib/product-catalog-structure"',
+    );
   });
 
   it("sincroniza eventos antes de preparar el lote", () => {

@@ -3,8 +3,8 @@ import {
   normalizeProductFamilyMarkupPercent,
   normalizeProductFamilyMarkupSettings,
   productFamilyMarkupPercent,
-  renameProductFamilyInAppData,
 } from "./product-family-markups";
+import { renameProductFamilyInAppData } from "./product-catalog-structure";
 import { EMPTY_DATA, type AppData, type Expense, type Product } from "./types";
 
 function product(overrides: Partial<Product>): Product {

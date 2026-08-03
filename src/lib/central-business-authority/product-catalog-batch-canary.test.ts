@@ -204,6 +204,28 @@ describe("central product catalog batch canary", () => {
     expect(deps.commitLocal).not.toHaveBeenCalled();
   });
 
+  it("bloquea sin escribir si no puede cargar el fallback local", async () => {
+    const deps = dependencies({
+      fallback: vi.fn(async () => {
+        throw new Error("CHUNK_LOAD_FAILED");
+      }),
+    });
+
+    const result = await applyProductCatalogBatchWithCentralCanary({
+      userId: "persianas-user",
+      operation: mergeFamilies,
+      dependencies: deps,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "No se pudo cargar la herramienta de organización del catálogo. No se ha guardado ningún cambio; recarga la aplicación antes de reintentarlo.",
+    });
+    expect(deps.fetchStatus).not.toHaveBeenCalled();
+    expect(deps.commitLocal).not.toHaveBeenCalled();
+  });
+
   it("confirma productos y perfil en el servidor antes del guardado local", async () => {
     const order: string[] = [];
     const deps = dependencies({

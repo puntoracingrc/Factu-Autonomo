@@ -1,11 +1,6 @@
 import { roundMoney } from "./calculations";
 import type { ProductFamilyMarkupSettings } from "./types";
 
-export {
-  renameProductFamilyInAppData,
-  type ProductFamilyRenameResult,
-} from "./product-catalog-structure";
-
 export const MAX_PRODUCT_FAMILY_MARKUP_PERCENT = 300;
 
 function cleanFamily(value: unknown): string {
