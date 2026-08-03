@@ -8,6 +8,10 @@ function source(relativePath: string) {
 const appStore = source("../../context/AppStore.tsx");
 const hook = source("../../hooks/useCentralCustomerCreate.ts");
 const mutationHook = source("../../hooks/useCentralCustomerMutations.ts");
+const documentHook = source(
+  "../../hooks/useCentralDocumentCustomerUpsert.ts",
+);
+const documentForm = source("../../components/forms/DocumentForm.tsx");
 const userIdHook = source("../../hooks/useCentralBusinessUserId.ts");
 const customersPage = source("../../app/clientes/page.tsx");
 const newCustomerPage = source("../../app/clientes/nuevo/page.tsx");
@@ -19,6 +23,15 @@ describe("central customer create canary wiring", () => {
     expect(appStore).toContain("commitDurableAppData(expected, (previous) =>");
     expect(appStore).toContain("identity.id");
     expect(appStore).toContain("identity.now");
+  });
+
+  it("usa la misma cola central al crear o editar el cliente desde un documento", () => {
+    expect(documentHook).toContain(
+      "upsertCustomerForDocumentWithCentralCanary",
+    );
+    expect(documentHook).toContain("createCustomer");
+    expect(documentHook).toContain("updateCustomer");
+    expect(documentForm).toContain("await upsertDocumentCustomer(");
   });
 
   it("conecta altas, edicion y borrado mediante autoridad central gradual", () => {

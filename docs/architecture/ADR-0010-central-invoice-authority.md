@@ -1,7 +1,7 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 2
+- Version: 3
 - Fecha: 2026-08-03
 
 ## Contexto
@@ -41,7 +41,9 @@ dispone todavia de esas tablas ni de una transaccion de emision autoritativa.
 9. Los retiros y reparaciones identifican documentos por ID tecnico, version y
    huella. Compartir numero nunca autoriza a retirar otro documento.
 10. Realtime solo comunica que existe una version nueva. El cliente vuelve a
-    leer el estado canonico; polling permanece como respaldo.
+    leer el estado canonico. Con el canal suscrito, el sondeo queda como red de
+    seguridad cada tres minutos y se dispersa entre dispositivos; si el canal
+    falla, baja temporalmente a treinta segundos hasta recuperarlo.
 11. Restaurar una copia local antigua no puede sobrescribir documentos ni
     secuencias cuya autoridad ya sea central.
 12. Los limites Pro y Pro+ se validan en servidor mediante el dispositivo y la
@@ -52,9 +54,16 @@ dispone todavia de esas tablas ni de una transaccion de emision autoritativa.
     Los modos con escrituras fiscales exigen ademas que la sincronizacion
     operativa este marcada como lista, que la baseline de produccion este
     reconciliada con Git y que exista copia restaurable con ensayo aislado
-    superado.
+    superado. Dentro de `canary`, una cohorte porcentual determinista por UUID
+    puede ampliar gradualmente la allowlist, pero solo dentro de una lista de
+    UUID ya preparados para el corte. El porcentaje empieza en cero, usa la
+    misma asignacion en navegador y servidor y no sustituye los requisitos de
+    preparacion de cada cuenta. El comodin de elegibilidad solo puede activarse
+    cuando altas nuevas y cortes antiguos esten automatizados y verificados.
 14. Una vez activada la autoridad central para una serie, un incidente puede
-    pausar nuevas emisiones, pero nunca devolver esa serie a numeracion local.
+    pausar nuevas emisiones mediante el interruptor de emergencia, pero
+    mantiene la lectura de eventos y nunca devuelve esa serie a numeracion
+    local.
 15. PITR es recomendable, no obligatorio. La puerta operativa exige una copia
     recuperable y una restauracion ensayada, sin imponer un proveedor o
     tecnologia concretos.
@@ -80,7 +89,8 @@ hasta una decision explicita de migracion.
 ## Rollback
 
 - Antes del canario, desactivar el flag conserva el flujo vigente.
-- Realtime puede desactivarse sin cambiar la autoridad; polling sigue leyendo.
+- Realtime puede desactivarse sin cambiar la autoridad; el sondeo degradado
+  sigue leyendo por cursor.
 - Despues de activar una serie, el kill switch pausa emisiones y mantiene
   lectura. No se permite fallback local.
 - Las primeras migraciones son aditivas. El rollback operativo desactiva rutas

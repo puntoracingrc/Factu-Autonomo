@@ -4,6 +4,7 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { DocumentKind } from "@/lib/types";
 
@@ -199,6 +200,21 @@ export function isCentralInvoiceAuthorityFormCanaryEnabledForUser(
     publicFormCanaryEnabled?: boolean;
   } = {},
 ): boolean {
+  if (
+    isCentralAuthorityPublicRolloutUser(input.userId, {
+      rolloutPercent:
+        input.env?.NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_PERCENT ??
+        process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_PERCENT,
+      killSwitch:
+        input.env?.NEXT_PUBLIC_CENTRAL_AUTHORITY_KILL_SWITCH ??
+        process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_KILL_SWITCH,
+      eligibleUserIds:
+        input.env?.NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USER_IDS ??
+        process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USER_IDS,
+    })
+  ) {
+    return true;
+  }
   const enabled =
     input.publicFormCanaryEnabled ??
     isCentralInvoiceAuthorityFormCanaryEnabled(input.env);

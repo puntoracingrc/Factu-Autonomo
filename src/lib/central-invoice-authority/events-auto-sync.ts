@@ -3,6 +3,13 @@
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "./events-app-data-sync";
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import type { CentralInvoiceAuthorityEventsSyncLastResultV1 } from "@/lib/types";
+import {
+  CENTRAL_AUTHORITY_DEGRADED_POLL_MS,
+  CENTRAL_AUTHORITY_REALTIME_SAFETY_POLL_MS,
+  centralAuthorityIdlePollDelay,
+  type CentralAuthorityRealtimeState,
+} from "@/lib/central-authority/sync-schedule";
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 
 const UUID_V4_LIKE_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -30,7 +37,10 @@ export const CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_CHANNEL_PREFIX =
 
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT = 50;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_START_DELAY_MS = 3_000;
-export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS = 60_000;
+export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS =
+  CENTRAL_AUTHORITY_REALTIME_SAFETY_POLL_MS;
+export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_DEGRADED_INTERVAL_MS =
+  CENTRAL_AUTHORITY_DEGRADED_POLL_MS;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS = 30_000;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS = 60_000;
 export const CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_NOT_READY_RETRY_MS = 5_000;
@@ -129,6 +139,7 @@ export function isCentralInvoiceAuthorityEventsCanaryUserAllowed(
   value: string | undefined =
     process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_EVENTS_CANARY_USERS,
 ): boolean {
+  if (isCentralAuthorityPublicRolloutUser(userId)) return true;
   const raw = value?.trim();
   if (!raw) return true;
   if (!userId || !UUID_V4_LIKE_PATTERN.test(userId)) return false;
@@ -223,6 +234,10 @@ export function centralInvoiceAuthorityEventsRealtimeWakeupsSubscription(
 
 export function nextCentralInvoiceAuthorityEventsAutoSyncDelay(
   result: AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>,
+  options: {
+    realtimeState?: CentralAuthorityRealtimeState;
+    jitterFraction?: number;
+  } = {},
 ): number | null {
   if (result.status === "blocked" || result.status === "indeterminate") {
     return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS;
@@ -233,5 +248,8 @@ export function nextCentralInvoiceAuthorityEventsAutoSyncDelay(
     return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS;
   }
   if (!sync.ok) return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS;
-  return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_INTERVAL_MS;
+  return centralAuthorityIdlePollDelay(
+    options.realtimeState ?? "subscribed",
+    options.jitterFraction,
+  );
 }

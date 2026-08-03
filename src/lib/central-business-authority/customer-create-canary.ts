@@ -1,6 +1,7 @@
 "use client";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 import { createCustomerInCollection } from "@/lib/customers";
 import type { AppData, Customer } from "@/lib/types";
 
@@ -118,7 +119,8 @@ export function isCentralCustomerCreateCanaryEnabledForUser(
       userId,
       environment.autoSyncEnabled,
       environment.autoSyncUserIds,
-    )
+    ) ||
+    isCentralAuthorityPublicRolloutUser(userId)
   );
 }
 

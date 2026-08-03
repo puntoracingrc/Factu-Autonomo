@@ -1,3 +1,12 @@
+import {
+  CENTRAL_AUTHORITY_KILL_SWITCH_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY,
+  CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY,
+  centralAuthorityRolloutPercent,
+  isCentralAuthorityEmergencyStopped,
+  isCentralAuthorityRolloutSelected,
+} from "@/lib/central-authority/rollout";
+
 assertServerOnlyModule();
 
 export const CENTRAL_BUSINESS_AUTHORITY_MODE_KEY =
@@ -26,9 +35,11 @@ export type CentralBusinessAuthorityActivationReason =
   | "invalid_mode"
   | "shadow_only"
   | "user_not_allowlisted"
+  | "user_not_in_rollout"
   | "schema_not_ready"
   | "mutations_not_ready"
   | "production_approval_missing"
+  | "emergency_stopped"
   | "canary_enabled"
   | "required_enabled";
 
@@ -127,17 +138,31 @@ export function evaluateCentralBusinessAuthorityActivation(
 
   const normalizedUserId = input.userId?.trim().toLowerCase() ?? "";
   const normalizedEmail = input.userEmail?.trim().toLowerCase() ?? "";
-  const appliesToUser =
-    mode === "required" ||
+  const rolloutPercent = centralAuthorityRolloutPercent(
+    env[CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY],
+  );
+  const explicitlyAllowed =
     values(env[CENTRAL_BUSINESS_AUTHORITY_CANARY_USERS_KEY]).has(
       normalizedUserId,
     ) ||
     values(env[CENTRAL_BUSINESS_AUTHORITY_CANARY_USER_EMAILS_KEY]).has(
       normalizedEmail,
     );
+  const appliesToUser =
+    mode === "required" ||
+    explicitlyAllowed ||
+    isCentralAuthorityRolloutSelected(
+      normalizedUserId,
+      env[CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY],
+      env[CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS_KEY],
+    );
 
   if (!appliesToUser) {
-    return disabled(mode, production, "user_not_allowlisted");
+    return disabled(
+      mode,
+      production,
+      rolloutPercent > 0 ? "user_not_in_rollout" : "user_not_allowlisted",
+    );
   }
   if (
     env[CENTRAL_BUSINESS_AUTHORITY_SCHEMA_VERSION_KEY] !==
@@ -153,6 +178,18 @@ export function evaluateCentralBusinessAuthorityActivation(
     env[CENTRAL_BUSINESS_AUTHORITY_PRODUCTION_APPROVED_KEY] !== "true"
   ) {
     return disabled(mode, production, "production_approval_missing", true);
+  }
+
+  if (isCentralAuthorityEmergencyStopped(env[CENTRAL_AUTHORITY_KILL_SWITCH_KEY])) {
+    return {
+      requestedMode: mode,
+      effectiveMode: mode,
+      enabled: true,
+      writesEnabled: false,
+      appliesToUser: true,
+      production,
+      reason: "emergency_stopped",
+    };
   }
 
   return {

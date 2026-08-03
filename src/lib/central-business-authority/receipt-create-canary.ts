@@ -1,6 +1,7 @@
 "use client";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import { resolveCentralInvoiceAuthorityRectificationTarget } from "@/lib/central-invoice-authority/document-form-canary";
 import {
@@ -104,7 +105,11 @@ function isCohortUser(
   userId: string | null | undefined,
   environment: CentralReceiptCreateCanaryEnvironment,
 ): userId is string {
-  return typeof userId === "string" && values(environment.userIds).has(userId);
+  return (
+    typeof userId === "string" &&
+    (values(environment.userIds).has(userId) ||
+      isCentralAuthorityPublicRolloutUser(userId))
+  );
 }
 
 export function isCentralReceiptCreateCanaryEnabledForUser(
@@ -112,8 +117,9 @@ export function isCentralReceiptCreateCanaryEnabledForUser(
   environment: CentralReceiptCreateCanaryEnvironment = publicEnvironment,
 ): boolean {
   return (
-    environment.enabled?.trim().toLowerCase() === "true" &&
-    isCohortUser(userId, environment)
+    (environment.enabled?.trim().toLowerCase() === "true" &&
+      isCohortUser(userId, environment)) ||
+    isCentralAuthorityPublicRolloutUser(userId)
   );
 }
 

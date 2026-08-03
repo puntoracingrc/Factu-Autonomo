@@ -49,6 +49,8 @@ describe("central expense and profile UI wiring", () => {
     expect(hook).toContain("prepareCentralScannedExpenseBundle");
     expect(hook).toContain("prepareCentralFixedExpenseBundle");
     expect(page).toContain("await saveScannedExpenseDurably(durableExpense");
+    expect(page).toContain("ensureSupplierForExpense(durableExpected.suppliers");
+    expect(page).toContain("supplier: resolved.create");
     expect(page).toContain("await saveFixedExpenseWithRecurringTemplate(");
     expect(page).toContain("centralResult.localFailure");
     expect(store).toContain("now: options.now ?? new Date().toISOString()");

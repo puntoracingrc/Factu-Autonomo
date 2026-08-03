@@ -78,5 +78,7 @@ describe("central business events auto sync wiring", () => {
     );
     expect(component).toContain("realtimeWakeRef.current()");
     expect(component).toContain("pendingWakeRef.current = true");
+    expect(component).toContain("centralAuthorityRealtimeStateFromStatus");
+    expect(component).toContain("jitterFraction: Math.random()");
   });
 });

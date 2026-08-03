@@ -1,6 +1,7 @@
 "use client";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
+import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 import { editableQuoteWithLocalStatus } from "@/lib/document-integrity/quote-status";
 import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import type { AppData, Document } from "@/lib/types";
@@ -96,8 +97,9 @@ export function isCentralQuoteCreateCanaryEnabledForUser(
   environment: CentralQuoteCreateCanaryEnvironment = publicEnvironment,
 ): boolean {
   return (
-    environment.enabled?.trim().toLowerCase() === "true" &&
-    isCentralQuoteCreateCanaryCohortUser(userId, environment)
+    (environment.enabled?.trim().toLowerCase() === "true" &&
+      isCentralQuoteCreateCanaryCohortUser(userId, environment)) ||
+    isCentralAuthorityPublicRolloutUser(userId)
   );
 }
 
@@ -107,7 +109,8 @@ function isCentralQuoteCreateCanaryCohortUser(
 ): userId is string {
   return (
     typeof userId === "string" &&
-    values(environment.userIds).has(userId)
+    (values(environment.userIds).has(userId) ||
+      isCentralAuthorityPublicRolloutUser(userId))
   );
 }
 
