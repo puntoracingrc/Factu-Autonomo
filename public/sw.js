@@ -1,5 +1,6 @@
-const STATIC_CACHE = "factu-pwa-static-v4";
+const STATIC_CACHE = "factu-pwa-static-v5";
 const CACHE_PREFIX = "factu-pwa-";
+const MAX_NEXT_STATIC_ENTRIES = 160;
 const PRECACHE_URLS = [
   "/manifest.json",
   "/favicon-16.png",
@@ -28,17 +29,43 @@ function isCacheableStaticRequest(request) {
   return PRECACHE_URLS.includes(url.pathname);
 }
 
+async function trimNextStaticEntries(cache) {
+  const requests = await cache.keys();
+  const nextStaticRequests = requests.filter((request) =>
+    new URL(request.url).pathname.startsWith("/_next/static/"),
+  );
+  const excess = nextStaticRequests.length - MAX_NEXT_STATIC_ENTRIES;
+  if (excess <= 0) return;
+
+  await Promise.all(
+    nextStaticRequests.slice(0, excess).map((request) => cache.delete(request)),
+  );
+}
+
+async function rememberStaticResponse(request, response) {
+  const cache = await caches.open(STATIC_CACHE);
+  await cache.put(request, response);
+  if (new URL(request.url).pathname.startsWith("/_next/static/")) {
+    await trimNextStaticEntries(cache);
+  }
+}
+
 async function cacheFirst(request) {
   const cachedResponse = await caches.match(request);
-  if (cachedResponse) return cachedResponse;
-
-  const networkResponse = await fetch(request);
-  if (networkResponse.ok && networkResponse.type !== "opaque") {
-    const cache = await caches.open(STATIC_CACHE);
-    await cache.put(request, networkResponse.clone());
+  if (cachedResponse) {
+    return { response: cachedResponse, cacheWrite: Promise.resolve() };
   }
 
-  return networkResponse;
+  const networkResponse = await fetch(request);
+  let cacheWrite = Promise.resolve();
+  if (networkResponse.ok && networkResponse.type !== "opaque") {
+    cacheWrite = rememberStaticResponse(
+      request,
+      networkResponse.clone(),
+    ).catch(() => undefined);
+  }
+
+  return { response: networkResponse, cacheWrite };
 }
 
 self.addEventListener("install", (event) => {
@@ -72,5 +99,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (!isCacheableStaticRequest(event.request)) return;
-  event.respondWith(cacheFirst(event.request));
+  const result = cacheFirst(event.request);
+  event.respondWith(result.then(({ response }) => response));
+  event.waitUntil(result.then(({ cacheWrite }) => cacheWrite));
 });

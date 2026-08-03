@@ -50,6 +50,9 @@ import {
 } from "@/components/layout/app-navigation";
 import {
   APP_NAVIGATION_PREFETCH_DELAY_MS,
+  APP_NAVIGATION_WARMUP_INITIAL_DELAY_MS,
+  APP_NAVIGATION_WARMUP_STEP_DELAY_MS,
+  getAppNavigationWarmupHrefs,
   getNavigationConnectionInfo,
   shouldPrefetchAppNavigationHref,
 } from "@/components/layout/app-navigation-prefetch";
@@ -92,6 +95,17 @@ function scheduleVisualCacheRefresh(callback: () => void): () => void {
   }
 
   const handle = window.setTimeout(callback, 50);
+  return () => window.clearTimeout(handle);
+}
+
+function scheduleNavigationWarmup(callback: () => void): () => void {
+  const idleWindow = window as IdleCapableWindow;
+  if (idleWindow.requestIdleCallback) {
+    const handle = idleWindow.requestIdleCallback(callback, { timeout: 2_000 });
+    return () => idleWindow.cancelIdleCallback?.(handle);
+  }
+
+  const handle = window.setTimeout(callback, 250);
   return () => window.clearTimeout(handle);
 }
 
@@ -305,6 +319,51 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ready,
     resolvedTheme,
   ]);
+
+  useEffect(() => {
+    if (!ready || !authReady || writeBlock) return;
+
+    const connection = getNavigationConnectionInfo(navigator);
+    const hrefs = getAppNavigationWarmupHrefs(pathname, connection).filter(
+      (href) => !prefetchedNavigationHrefsRef.current.has(href),
+    );
+    if (hrefs.length === 0) return;
+
+    let cancelled = false;
+    let timer: number | null = null;
+    let cancelIdle: (() => void) | null = null;
+
+    function warmNextRoute() {
+      if (cancelled) return;
+      const href = hrefs.shift();
+      if (!href) return;
+
+      prefetchedNavigationHrefsRef.current.add(href);
+      router.prefetch(href);
+      if (hrefs.length > 0) {
+        timer = window.setTimeout(
+          scheduleNextRoute,
+          APP_NAVIGATION_WARMUP_STEP_DELAY_MS,
+        );
+      }
+    }
+
+    function scheduleNextRoute() {
+      if (cancelled) return;
+      cancelIdle = scheduleNavigationWarmup(warmNextRoute);
+    }
+
+    timer = window.setTimeout(
+      scheduleNextRoute,
+      APP_NAVIGATION_WARMUP_INITIAL_DELAY_MS,
+    );
+
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+      cancelIdle?.();
+    };
+  }, [authReady, pathname, ready, router, writeBlock]);
 
   useEffect(
     () => () => {

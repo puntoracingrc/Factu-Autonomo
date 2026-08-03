@@ -1456,11 +1456,18 @@ describe("MVP usability polish", () => {
     expect(installCardSource).not.toContain("object-cover");
     expect(serviceWorkerSource).toContain('register("/sw.js")');
     expect(serviceWorkerSource).toContain('document.readyState === "complete"');
-    expect(pwaWorkerSource).toContain("factu-pwa-static-v4");
+    expect(pwaWorkerSource).toContain("factu-pwa-static-v5");
     expect(pwaWorkerSource).toContain('"/_next/static/"');
     expect(pwaWorkerSource).toContain('"/api/"');
     expect(pwaWorkerSource).toContain("return false");
     expect(pwaWorkerSource).toContain("cache.addAll(PRECACHE_URLS)");
-    expect(pwaWorkerSource).toContain("event.respondWith(cacheFirst");
+    expect(pwaWorkerSource).toContain(
+      'const STATIC_CACHE = "factu-pwa-static-v5"',
+    );
+    expect(pwaWorkerSource).toContain("MAX_NEXT_STATIC_ENTRIES");
+    expect(pwaWorkerSource).toContain("trimNextStaticEntries");
+    expect(pwaWorkerSource).toContain(
+      "event.respondWith(result.then(({ response }) => response))",
+    );
   });
 });
