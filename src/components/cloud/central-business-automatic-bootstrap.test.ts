@@ -31,10 +31,15 @@ describe("central business automatic bootstrap wiring", () => {
     expect(component).not.toContain("setExternalWriteBlock");
   });
 
-  it("receives business and invoice history before allowing work", () => {
+  it("receives invoice history before dependent business records", () => {
     expect(component).toContain("syncCentralBusinessEvents");
     expect(component).toContain("syncCentralInvoiceAuthorityEvents");
     expect(component).toContain("MAX_EVENT_PAGES");
+    expect(
+      component.indexOf("const invoiceSync = await syncAllInvoiceEvents()"),
+    ).toBeLessThan(
+      component.indexOf("const businessSync = await syncAllBusinessEvents()"),
+    );
     expect(component).not.toContain("adoptCentralBusinessEventsFromServer");
     expect(component).not.toContain(
       "retireLegacyPendingChangesAfterCentralAdoption",
