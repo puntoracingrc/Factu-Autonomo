@@ -296,4 +296,35 @@ describe("documentWithCurrentCustomerContact", () => {
 
     expect(mismatch).toBe(true);
   });
+
+  it("reutiliza el índice de clientes sin barrer de nuevo toda la colección", () => {
+    const indexedCustomers = [
+      ...customers,
+      ...Array.from({ length: 100 }, (_, index): Customer => ({
+        id: `other-${index}`,
+        firstName: `Otro ${index}`,
+        lastName: "Cliente",
+        name: `Otro ${index} Cliente`,
+        email: `other-${index}@example.com`,
+        createdAt: "",
+        updatedAt: "",
+      })),
+    ];
+
+    documentWithCurrentCustomerContact(doc, indexedCustomers);
+    for (const method of ["map", "find", "some", "forEach"] as const) {
+      Object.defineProperty(indexedCustomers, method, {
+        value: () => {
+          throw new Error("customer scan");
+        },
+      });
+    }
+
+    expect(
+      documentWithCurrentCustomerContact(doc, indexedCustomers).client.email,
+    ).toBe("jordi@example.com");
+    expect(findLinkedCustomerForDocument(doc, indexedCustomers)?.id).toBe(
+      "customer-1",
+    );
+  });
 });

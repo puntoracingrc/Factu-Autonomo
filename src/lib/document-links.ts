@@ -4,11 +4,10 @@ import {
   expenseAllocatedAmountForWorkIds,
   explicitExpenseWorkAllocations,
 } from "./expense-work-allocations";
+import { expensesLinkedToWorkDocumentIds } from "./expense-work-index";
 import { expenseFiscalAmounts } from "./expenses";
 import { hasLegacyImportProtectionClaim } from "./document-integrity/legacy-import-attestation";
-import { findInvoiceCreatedFromQuote } from "./quote-to-invoice";
 import { isRectificativa } from "./rectificativas";
-import { findReceiptForInvoice } from "./receipts";
 import type { Document, DocumentType, Expense } from "./types";
 
 export type DocumentLinkRelation = "quote_invoice" | "invoice_receipt";
@@ -59,6 +58,91 @@ const TYPE_PATHS: Record<DocumentType, string> = {
   recibo: "recibos",
 };
 
+interface DocumentLinkIndex {
+  invoiceById: Map<string, Document>;
+  quoteById: Map<string, Document>;
+  invoiceByQuoteId: Map<string, Document>;
+  receiptsById: Map<string, IndexedDocument[]>;
+  receiptsByInvoiceId: Map<string, IndexedDocument[]>;
+}
+
+interface IndexedDocument {
+  document: Document;
+  position: number;
+}
+
+const documentLinkIndexCache = new WeakMap<Document[], DocumentLinkIndex>();
+
+function isReceiptLike(document: Document): boolean {
+  return (
+    document.type === "recibo" ||
+    document.documentSnapshot?.documentType === "recibo"
+  );
+}
+
+function pushIndexedDocument(
+  index: Map<string, IndexedDocument[]>,
+  key: string | undefined,
+  entry: IndexedDocument,
+) {
+  if (!key) return;
+  const documents = index.get(key) ?? [];
+  documents.push(entry);
+  index.set(key, documents);
+}
+
+function buildDocumentLinkIndex(documents: Document[]): DocumentLinkIndex {
+  const invoiceById = new Map<string, Document>();
+  const quoteById = new Map<string, Document>();
+  const invoiceByQuoteId = new Map<string, Document>();
+  const receiptsById = new Map<string, IndexedDocument[]>();
+  const receiptsByInvoiceId = new Map<string, IndexedDocument[]>();
+
+  documents.forEach((document, position) => {
+    if (document.type === "factura" && !invoiceById.has(document.id)) {
+      invoiceById.set(document.id, document);
+    }
+    if (document.type === "presupuesto" && !quoteById.has(document.id)) {
+      quoteById.set(document.id, document);
+    }
+    if (
+      document.type === "factura" &&
+      document.sourceQuoteDocumentId &&
+      !invoiceByQuoteId.has(document.sourceQuoteDocumentId)
+    ) {
+      invoiceByQuoteId.set(document.sourceQuoteDocumentId, document);
+    }
+    if (!isReceiptLike(document)) return;
+
+    const entry = { document, position };
+    pushIndexedDocument(receiptsById, document.id, entry);
+    const invoiceIds = new Set([
+      document.sourceDocumentId,
+      document.documentSnapshot?.sourceDocumentId,
+    ]);
+    for (const invoiceId of invoiceIds) {
+      pushIndexedDocument(receiptsByInvoiceId, invoiceId, entry);
+    }
+  });
+
+  return {
+    invoiceById,
+    quoteById,
+    invoiceByQuoteId,
+    receiptsById,
+    receiptsByInvoiceId,
+  };
+}
+
+function getDocumentLinkIndex(documents: Document[]): DocumentLinkIndex {
+  const cached = documentLinkIndexCache.get(documents);
+  if (cached) return cached;
+
+  const index = buildDocumentLinkIndex(documents);
+  documentLinkIndexCache.set(documents, index);
+  return index;
+}
+
 export function encodeDocumentIdForPath(id: string): string {
   return encodeURIComponent(encodeURIComponent(id));
 }
@@ -81,33 +165,37 @@ export function documentShortNumber(document: Pick<Document, "type" | "number" |
 }
 
 function findRectificationForInvoice(
-  documents: Document[],
+  index: DocumentLinkIndex,
   invoice: Document | undefined,
 ): Document | undefined {
   if (!invoice?.rectifiedById) return undefined;
-  return documents.find(
-    (document) =>
-      document.id === invoice.rectifiedById && document.type === "factura",
-  );
+  return index.invoiceById.get(invoice.rectifiedById);
 }
 
 function findOriginalForRectification(
-  documents: Document[],
+  index: DocumentLinkIndex,
   rectification: Document,
 ): Document | undefined {
   const originalId = rectification.rectification?.originalDocumentId;
   if (!originalId) return undefined;
-  return documents.find(
-    (document) => document.id === originalId && document.type === "factura",
-  );
+  return index.invoiceById.get(originalId);
 }
 
 function linkedReceiptForInvoice(
-  documents: Document[],
+  index: DocumentLinkIndex,
   invoice: Document | undefined,
 ): Document | undefined {
   if (!invoice) return undefined;
-  return findReceiptForInvoice(documents, invoice.id, invoice.receiptDocumentId);
+  const candidates = new Map<number, Document>();
+  for (const entry of index.receiptsByInvoiceId.get(invoice.id) ?? []) {
+    candidates.set(entry.position, entry.document);
+  }
+  if (invoice.receiptDocumentId) {
+    for (const entry of index.receiptsById.get(invoice.receiptDocumentId) ?? []) {
+      candidates.set(entry.position, entry.document);
+    }
+  }
+  return candidates.size === 1 ? [...candidates.values()][0] : undefined;
 }
 
 function pushDocumentChainItem(
@@ -137,6 +225,7 @@ export function getDocumentChainItems(
   expenses: Expense[] = [],
   expenseAllocations: Record<string, number> = {},
 ): DocumentChainItem[] {
+  const index = getDocumentLinkIndex(documents);
   let invoice: Document | undefined;
   let rectification: Document | undefined;
   let quote: Document | undefined;
@@ -145,41 +234,41 @@ export function getDocumentChainItems(
   if (document.type === "factura") {
     if (isRectificativa(document)) {
       rectification = document;
-      invoice = findOriginalForRectification(documents, document);
+      invoice = findOriginalForRectification(index, document);
       quote =
-        findQuoteLinkedToInvoice(documents, document) ??
-        (invoice ? findQuoteLinkedToInvoice(documents, invoice) : undefined);
+        findQuoteLinkedToInvoiceWithIndex(index, document) ??
+        (invoice ? findQuoteLinkedToInvoiceWithIndex(index, invoice) : undefined);
     } else {
       invoice = document;
-      rectification = findRectificationForInvoice(documents, document);
-      quote = findQuoteLinkedToInvoice(documents, document);
+      rectification = findRectificationForInvoice(index, document);
+      quote = findQuoteLinkedToInvoiceWithIndex(index, document);
     }
 
     receipt =
-      linkedReceiptForInvoice(documents, rectification) ??
-      linkedReceiptForInvoice(documents, invoice);
+      linkedReceiptForInvoice(index, rectification) ??
+      linkedReceiptForInvoice(index, invoice);
   } else if (document.type === "presupuesto") {
     quote = document;
-    invoice = findInvoiceCreatedFromQuote(documents, document.id);
-    rectification = findRectificationForInvoice(documents, invoice);
+    invoice = index.invoiceByQuoteId.get(document.id);
+    rectification = findRectificationForInvoice(index, invoice);
     receipt =
-      linkedReceiptForInvoice(documents, rectification) ??
-      linkedReceiptForInvoice(documents, invoice);
+      linkedReceiptForInvoice(index, rectification) ??
+      linkedReceiptForInvoice(index, invoice);
   } else {
     receipt = document;
-    const linkedInvoice = findInvoiceLinkedToReceipt(documents, document);
+    const linkedInvoice = findInvoiceLinkedToReceiptWithIndex(index, document);
     if (linkedInvoice && isRectificativa(linkedInvoice)) {
       rectification = linkedInvoice;
-      invoice = findOriginalForRectification(documents, linkedInvoice);
+      invoice = findOriginalForRectification(index, linkedInvoice);
     } else {
       invoice = linkedInvoice;
-      rectification = findRectificationForInvoice(documents, linkedInvoice);
+      rectification = findRectificationForInvoice(index, linkedInvoice);
     }
     quote =
       (rectification
-        ? findQuoteLinkedToInvoice(documents, rectification)
+        ? findQuoteLinkedToInvoiceWithIndex(index, rectification)
         : undefined) ??
-      (invoice ? findQuoteLinkedToInvoice(documents, invoice) : undefined);
+      (invoice ? findQuoteLinkedToInvoiceWithIndex(index, invoice) : undefined);
   }
 
   const items: DocumentChainItem[] = [];
@@ -203,7 +292,10 @@ export function getDocumentChainItems(
   const workDocumentIds = new Set(
     [invoice, rectification, quote].map((item) => item?.id).filter(Boolean),
   );
-  const linkedExpenses = expenses.filter(
+  const linkedExpenses = expensesLinkedToWorkDocumentIds(
+    expenses,
+    workDocumentIds as Set<string>,
+  ).filter(
     (expense) => {
       const fiscal = expenseFiscalAmounts(expense);
       return (
@@ -356,31 +448,45 @@ export function findQuoteLinkedToInvoice(
   documents: Document[],
   invoice: Document,
 ): Document | undefined {
-  if (invoice.type !== "factura" || !invoice.sourceQuoteDocumentId) return undefined;
-  return documents.find(
-    (document) =>
-      document.id === invoice.sourceQuoteDocumentId &&
-      document.type === "presupuesto",
+  return findQuoteLinkedToInvoiceWithIndex(
+    getDocumentLinkIndex(documents),
+    invoice,
   );
+}
+
+function findQuoteLinkedToInvoiceWithIndex(
+  index: DocumentLinkIndex,
+  invoice: Document,
+): Document | undefined {
+  if (invoice.type !== "factura" || !invoice.sourceQuoteDocumentId) return undefined;
+  return index.quoteById.get(invoice.sourceQuoteDocumentId);
 }
 
 export function findInvoiceLinkedToReceipt(
   documents: Document[],
   receipt: Document,
 ): Document | undefined {
-  if (receipt.type !== "recibo" || !receipt.sourceDocumentId) return undefined;
-  return documents.find(
-    (document) =>
-      document.id === receipt.sourceDocumentId && document.type === "factura",
+  return findInvoiceLinkedToReceiptWithIndex(
+    getDocumentLinkIndex(documents),
+    receipt,
   );
+}
+
+function findInvoiceLinkedToReceiptWithIndex(
+  index: DocumentLinkIndex,
+  receipt: Document,
+): Document | undefined {
+  if (receipt.type !== "recibo" || !receipt.sourceDocumentId) return undefined;
+  return index.invoiceById.get(receipt.sourceDocumentId);
 }
 
 export function getDocumentLinkBadges(
   document: Document,
   documents: Document[],
 ): DocumentLinkBadge[] {
+  const index = getDocumentLinkIndex(documents);
   if (document.type === "presupuesto") {
-    const invoice = findInvoiceCreatedFromQuote(documents, document.id);
+    const invoice = index.invoiceByQuoteId.get(document.id);
     return invoice
       ? [
           {
@@ -394,7 +500,7 @@ export function getDocumentLinkBadges(
   }
 
   if (document.type === "recibo") {
-    const invoice = findInvoiceLinkedToReceipt(documents, document);
+    const invoice = findInvoiceLinkedToReceiptWithIndex(index, document);
     return invoice
       ? [
           {
@@ -408,7 +514,7 @@ export function getDocumentLinkBadges(
   }
 
   const badges: DocumentLinkBadge[] = [];
-  const quote = findQuoteLinkedToInvoice(documents, document);
+  const quote = findQuoteLinkedToInvoiceWithIndex(index, document);
   if (quote) {
     badges.push({
       id: `quote-${quote.id}`,
@@ -424,11 +530,7 @@ export function getDocumentLinkBadges(
     });
   }
 
-  const receipt = findReceiptForInvoice(
-    documents,
-    document.id,
-    document.receiptDocumentId,
-  );
+  const receipt = linkedReceiptForInvoice(index, document);
   if (receipt) {
     badges.push({
       id: `receipt-${receipt.id}`,
