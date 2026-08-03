@@ -236,6 +236,11 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
   resuelven automáticamente.
 - Una ficha antigua sin versión central permanece local hasta su bootstrap
   explícito. Una red incierta no autoriza a inventar esa clasificación.
+- La cola legacy de un dispositivo solo puede retirarse mediante restauración
+  explícita después de volver a verificar sin diferencias los datos operativos,
+  vaciar y guardar los eventos de facturas centrales y confirmar que ni el
+  recuento ni el contenido de los pendientes cambiaron. Cualquier fallo conserva
+  la cola completa.
 - Fusiones y cambios masivos con entidades centrales exigen un comando atómico;
   no pueden ejecutarse como escrituras parciales.
 

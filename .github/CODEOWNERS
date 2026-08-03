@@ -68,6 +68,7 @@
 /src/lib/central-business-authority/**                 @puntoracingrc
 /src/app/api/central-business-authority/**             @puntoracingrc
 /src/components/cloud/CentralBusinessAuthority*       @puntoracingrc
+/src/components/cloud/CentralBusinessBootstrapCard*   @puntoracingrc
 /supabase/migrations/*central_business*               @puntoracingrc
 
 # Paid Affiliate attribution, Stripe rewards and private reward ledger.
