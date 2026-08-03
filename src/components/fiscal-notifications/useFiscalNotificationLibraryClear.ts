@@ -26,23 +26,25 @@ export function useFiscalNotificationLibraryClear(input: {
     setOpen(false);
   }
 
-  function confirm(): void {
+  async function confirm(): Promise<void> {
     if (!open || busy || input.documentCount === 0) return;
     setBusy(true);
     setError(null);
-    const result = deleteAllFiscalNotificationDocuments({
+    const result = await deleteAllFiscalNotificationDocuments({
       expected: getCurrentData(),
       ownerScope: input.ownerScope,
       deletedAt: new Date().toISOString(),
-    });
+    }).catch(() => null);
     setBusy(false);
-    if (result.status === "applied") {
+    if (result?.status === "applied") {
       setOpen(false);
       input.onCleared?.();
       return;
     }
     setError(
-      result.status === "indeterminate"
+      result === null
+        ? "No se ha podido cargar la operación de borrado. No se ha eliminado ninguna ficha; recarga e inténtalo de nuevo."
+        : result.status === "indeterminate"
         ? "No se puede confirmar si el borrado quedó guardado. Recarga antes de volver a intentarlo."
         : result.status === "NOT_FOUND"
           ? "La biblioteca ya está vacía."

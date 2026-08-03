@@ -64,6 +64,43 @@ describe("AppStore fiscal notifications monitoring", () => {
     expect(source).not.toContain('reason: "UNSYNCED_WORKSPACE"');
   });
 
+  it("carga los comandos fiscales infrecuentes solo cuando se ejecutan", () => {
+    const importPreamble = source.slice(0, source.indexOf("interface AppStoreValue"));
+    const compactSource = source.replace(/\s+/g, "");
+    const commandModules = [
+      "persisted-command.v1",
+      "structured-review-save-command.v1",
+      "drive-original-archive-command.v1",
+      "document-deletion-command.v1",
+      "delete-all-documents-command.v1",
+      "empty-history-repair.v1",
+    ];
+
+    expect(importPreamble).not.toContain(
+      "runFiscalNotificationCommandAgainstLatestPersistedV1",
+    );
+    expect(importPreamble).not.toContain(
+      "runSaveFiscalNotificationStructuredReviewCommandV1",
+    );
+    expect(importPreamble).not.toContain(
+      "runFiscalNotificationDriveArchiveCommandV1",
+    );
+    expect(importPreamble).not.toContain(
+      "runDeleteFiscalNotificationDocumentCommandV1",
+    );
+    expect(importPreamble).not.toContain(
+      "runDeleteAllFiscalNotificationDocumentsCommandV1",
+    );
+    expect(importPreamble).not.toContain(
+      "runRepairFiscalNotificationEmptyHistoryCommandV1",
+    );
+    for (const moduleName of commandModules) {
+      expect(compactSource).toContain(
+        `import("@/lib/fiscal-notifications/${moduleName}")`,
+      );
+    }
+  });
+
   it("inmoviliza la base durable si una escritura queda indeterminada", () => {
     const saveCommand = source.slice(
       source.indexOf("const saveFiscalNotificationStructuredReview"),

@@ -57,18 +57,19 @@ function blocked(): DurableFiscalNotificationStructuredReviewSaveResultV1 {
 }
 
 describe("batch review save v1", () => {
-  it("guarda todo el lote en orden usando el estado durable más reciente", () => {
+  it("guarda todo el lote en orden usando el estado durable más reciente", async () => {
     const currentStates = [data(1), data(2), data(3)];
     const getCurrentData = vi
       .fn<() => AppData>()
       .mockReturnValueOnce(currentStates[0]!)
       .mockReturnValueOnce(currentStates[1]!)
       .mockReturnValueOnce(currentStates[2]!);
-    const save = vi.fn((input: { expected: AppData; reviewId: string }) =>
-      applied(input.expected, [`document:${input.reviewId}`]),
+    const save = vi.fn(
+      async (input: { expected: AppData; reviewId: string }) =>
+        applied(input.expected, [`document:${input.reviewId}`]),
     );
 
-    const result = runFiscalNotificationBatchReviewSaveV1({
+    const result = await runFiscalNotificationBatchReviewSaveV1({
       ownerScope: "owner:test",
       items: [item(1), item(2), item(3)],
       getCurrentData,
@@ -90,7 +91,7 @@ describe("batch review save v1", () => {
     );
   });
 
-  it("se detiene en el primer fallo y deja intactos el fallido y los posteriores", () => {
+  it("se detiene en el primer fallo y deja intactos el fallido y los posteriores", async () => {
     const save = vi
       .fn()
       .mockImplementationOnce((input) =>
@@ -98,7 +99,7 @@ describe("batch review save v1", () => {
       )
       .mockReturnValueOnce(blocked());
 
-    const result = runFiscalNotificationBatchReviewSaveV1({
+    const result = await runFiscalNotificationBatchReviewSaveV1({
       ownerScope: "owner:test",
       items: [item(1), item(2), item(3)],
       getCurrentData: () => data(1),
@@ -119,8 +120,8 @@ describe("batch review save v1", () => {
     ]);
   });
 
-  it("acepta guardados con advertencias y conserva todos los ids de un PDF multiacto", () => {
-    const result = runFiscalNotificationBatchReviewSaveV1({
+  it("acepta guardados con advertencias y conserva todos los ids de un PDF multiacto", async () => {
+    const result = await runFiscalNotificationBatchReviewSaveV1({
       ownerScope: "owner:test",
       items: [item(1)],
       getCurrentData: () => data(1),
