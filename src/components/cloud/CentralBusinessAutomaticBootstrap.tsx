@@ -185,6 +185,13 @@ export function CentralBusinessAutomaticBootstrap() {
           ) === snapshotSignature,
       });
 
+      // The committed snapshot and its durable version checkpoint are the
+      // authoritative verification. Pulling the resulting event is follow-up
+      // reconciliation and must not keep a new account's first write blocked.
+      markCentralBusinessAutomaticBootstrapVerified({
+        ownerScope: ownerScope!,
+      });
+
       const confirmationSync = await syncAllBusinessEvents();
       if (confirmationSync !== "ok") return confirmationSync;
       const verifiedSnapshot =
@@ -203,10 +210,6 @@ export function CentralBusinessAutomaticBootstrap() {
       if (verifiedDisposition !== "verified") {
         return "retry";
       }
-
-      markCentralBusinessAutomaticBootstrapVerified({
-        ownerScope: ownerScope!,
-      });
       return "verified";
     }
 

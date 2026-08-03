@@ -31,6 +31,24 @@ describe("central business automatic bootstrap wiring", () => {
     expect(component).not.toContain("setExternalWriteBlock");
   });
 
+  it("unblocks the first write after the committed snapshot checkpoint", () => {
+    const checkpoint = component.indexOf(
+      "await recordCentralBusinessBootstrapCheckpoint",
+    );
+    const verified = component.indexOf(
+      "markCentralBusinessAutomaticBootstrapVerified({",
+      checkpoint,
+    );
+    const confirmation = component.indexOf(
+      "const confirmationSync = await syncAllBusinessEvents()",
+      checkpoint,
+    );
+
+    expect(checkpoint).toBeGreaterThan(-1);
+    expect(verified).toBeGreaterThan(checkpoint);
+    expect(confirmation).toBeGreaterThan(verified);
+  });
+
   it("receives invoice history before dependent business records", () => {
     expect(component).toContain("syncCentralBusinessEvents");
     expect(component).toContain("syncCentralInvoiceAuthorityEvents");
