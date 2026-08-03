@@ -150,6 +150,13 @@ const centralNonfiscalDocumentNumberingMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const centralAuthorityLegacySyncCutoverMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260803144514_central_authority_legacy_sync_cutover.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -194,6 +201,7 @@ const serviceOnlyTables = [
 const browserSyncTables = ["user_backups", "sync_entities"];
 const browserReadOnlyTables = ["user_subscriptions", "user_usage"];
 const browserRealtimeWakeupTables = ["central_invoice_event_wakeups"];
+const centralAuthorityCutoverTables = ["central_authority_cutovers"];
 const serviceReadOnlyTables = [
   "central_invoice_series_reconciliations",
   "central_business_document_series_reconciliations",
@@ -221,6 +229,7 @@ const classifiedTables = new Set([
   ...browserSyncTables,
   ...browserReadOnlyTables,
   ...browserRealtimeWakeupTables,
+  ...centralAuthorityCutoverTables,
   ...serviceReadOnlyTables,
   ...serverDocumentTables,
   ...rateLimitTables,
@@ -255,6 +264,26 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     );
 
     expect(unclassified).toEqual([]);
+  });
+
+  it("keeps central cutovers owner-readable and server-managed", () => {
+    for (const table of centralAuthorityCutoverTables) {
+      expect(centralAuthorityLegacySyncCutoverMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(centralAuthorityLegacySyncCutoverMigrationSource).toContain(
+        `revoke all on table public.${table}\n  from public, anon, authenticated`,
+      );
+      expect(centralAuthorityLegacySyncCutoverMigrationSource).toContain(
+        `grant select on table public.${table} to authenticated`,
+      );
+      expect(centralAuthorityLegacySyncCutoverMigrationSource).toContain(
+        `grant all on table public.${table} to service_role`,
+      );
+    }
+    expect(centralAuthorityLegacySyncCutoverMigrationSource).toMatch(
+      /create policy central_authority_cutovers_owner_select_v1[\s\S]*?for select[\s\S]*?to authenticated[\s\S]*?auth\.uid\(\)\) = user_id/i,
+    );
   });
 
   it("keeps expense learning storage in a separately denied private schema", () => {

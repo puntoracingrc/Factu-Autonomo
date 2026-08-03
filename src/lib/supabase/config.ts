@@ -11,6 +11,32 @@ export function isCloudSyncTemporarilyPaused(): boolean {
   return process.env.NEXT_PUBLIC_CLOUD_SYNC_TEMPORARILY_PAUSED !== "false";
 }
 
+export interface LegacyCloudRetirementEnvironment {
+  userIds?: string;
+}
+
+const legacyCloudRetirementEnvironment: LegacyCloudRetirementEnvironment = {
+  userIds:
+    process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_LEGACY_SYNC_RETIRED_USER_IDS,
+};
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isLegacyCloudRetiredForUser(
+  userId: string | null | undefined,
+  environment: LegacyCloudRetirementEnvironment = legacyCloudRetirementEnvironment,
+): boolean {
+  const normalizedUserId = userId?.trim().toLowerCase();
+  if (!normalizedUserId || !UUID_PATTERN.test(normalizedUserId)) return false;
+
+  return (environment.userIds ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => UUID_PATTERN.test(entry))
+    .includes(normalizedUserId);
+}
+
 export function isGoogleAuthEnabled(): boolean {
   return process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
 }

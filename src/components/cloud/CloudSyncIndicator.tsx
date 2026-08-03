@@ -213,6 +213,7 @@ export function CloudSyncPendingBanner() {
   const {
     cloudEnabled,
     cloudSyncPaused,
+    legacyCloudRetired,
     user,
     pendingChangeCount,
     syncStatus,
@@ -223,6 +224,7 @@ export function CloudSyncPendingBanner() {
   if (!cloudEnabled || !cloudAvailable || !user) {
     return null;
   }
+  if (legacyCloudRetired) return null;
   if (cloudSyncPaused) {
     return (
       <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
