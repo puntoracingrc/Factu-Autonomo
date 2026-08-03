@@ -363,4 +363,81 @@ describe("document links", () => {
       expenseAmount: 40,
     });
   });
+
+  it("conserva la ambigüedad factura-recibo al resolver desde el índice", () => {
+    const invoice = document({
+      id: "invoice-1",
+      type: "factura",
+      receiptDocumentId: "receipt-explicit",
+    });
+    const explicitReceipt = document({
+      id: "receipt-explicit",
+      type: "recibo",
+    });
+    const sourceReceipt = document({
+      id: "receipt-source",
+      type: "recibo",
+      sourceDocumentId: invoice.id,
+    });
+
+    const chain = getDocumentChainItems(invoice, [
+      invoice,
+      explicitReceipt,
+      sourceReceipt,
+    ]);
+
+    expect(chain.some((item) => item.role === "recibo")).toBe(false);
+  });
+
+  it("reutiliza los índices sin volver a barrer las colecciones completas", () => {
+    const quote = document({ id: "quote-1", type: "presupuesto" });
+    const invoice = document({
+      id: "invoice-1",
+      type: "factura",
+      sourceQuoteDocumentId: quote.id,
+    });
+    const receipt = document({
+      id: "receipt-1",
+      type: "recibo",
+      sourceDocumentId: invoice.id,
+    });
+    const documents = [quote, invoice, receipt];
+    const expenses: Expense[] = [
+      {
+        id: "expense-1",
+        date: "2026-06-30",
+        supplierName: "Proveedor",
+        description: "Material",
+        amount: 50,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Tarjeta",
+        workDocumentId: invoice.id,
+        createdAt: "2026-06-30T08:00:00.000Z",
+      },
+    ];
+
+    getDocumentChainItems(invoice, documents, expenses);
+    Object.defineProperty(documents, "find", {
+      value: () => {
+        throw new Error("document scan");
+      },
+    });
+    Object.defineProperty(documents, "filter", {
+      value: () => {
+        throw new Error("document scan");
+      },
+    });
+    Object.defineProperty(expenses, "filter", {
+      value: () => {
+        throw new Error("expense scan");
+      },
+    });
+
+    expect(
+      getDocumentChainItems(invoice, documents, expenses).map(
+        (item) => item.role,
+      ),
+    ).toEqual(["factura", "presupuesto", "recibo", "gastos"]);
+  });
 });

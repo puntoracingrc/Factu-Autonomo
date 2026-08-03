@@ -1,6 +1,5 @@
 import {
   clientMatchesCustomer,
-  findCustomerByIdOrMergedId,
   getCustomerDisplayName,
   isValidCustomerEmail,
   migrateCustomer,
@@ -18,11 +17,105 @@ function normalizeLabel(value?: string): string {
     .trim();
 }
 
+interface DocumentCustomerLookup {
+  byReferenceId: Map<string, Customer>;
+  byNif: Map<string, Customer[]>;
+  byLabel: Map<string, Customer[]>;
+  order: Map<Customer, number>;
+}
+
+const documentCustomerLookupCache = new WeakMap<
+  Customer[],
+  DocumentCustomerLookup
+>();
+
+function pushCustomerLookup(
+  lookup: Map<string, Customer[]>,
+  key: string,
+  customer: Customer,
+) {
+  if (!key) return;
+  const matches = lookup.get(key) ?? [];
+  matches.push(customer);
+  lookup.set(key, matches);
+}
+
+function getDocumentCustomerLookup(
+  customers: Customer[],
+): DocumentCustomerLookup {
+  const cached = documentCustomerLookupCache.get(customers);
+  if (cached) return cached;
+
+  const byReferenceId = new Map<string, Customer>();
+  const byNif = new Map<string, Customer[]>();
+  const byLabel = new Map<string, Customer[]>();
+  const order = new Map<Customer, number>();
+
+  customers.forEach((rawCustomer, index) => {
+    const customer = migrateCustomer(rawCustomer);
+    order.set(customer, index);
+    for (const referenceId of [
+      customer.id,
+      ...(customer.mergedCustomerIds ?? []),
+    ]) {
+      if (!byReferenceId.has(referenceId)) {
+        byReferenceId.set(referenceId, customer);
+      }
+    }
+    pushCustomerLookup(byNif, normalizeCustomerNif(customer.nif), customer);
+    pushCustomerLookup(
+      byLabel,
+      normalizeLabel(getCustomerDisplayName(customer)),
+      customer,
+    );
+  });
+
+  const lookup = { byReferenceId, byNif, byLabel, order };
+  documentCustomerLookupCache.set(customers, lookup);
+  return lookup;
+}
+
+function matchingCustomersForDocument(
+  doc: Document,
+  lookup: DocumentCustomerLookup,
+): Customer[] {
+  const candidates = new Set<Customer>();
+  const nif = normalizeCustomerNif(doc.client.nif);
+  for (const customer of lookup.byNif.get(nif) ?? []) {
+    candidates.add(customer);
+  }
+
+  const labels = new Set([
+    normalizeLabel(doc.client.name),
+    normalizeLabel(doc.client.firstName),
+    normalizeLabel(
+      [doc.client.firstName, doc.client.lastName].filter(Boolean).join(" "),
+    ),
+  ]);
+  for (const label of labels) {
+    if (!label) continue;
+    for (const customer of lookup.byLabel.get(label) ?? []) {
+      candidates.add(customer);
+    }
+  }
+
+  return [...candidates]
+    .sort(
+      (left, right) =>
+        (lookup.order.get(left) ?? 0) - (lookup.order.get(right) ?? 0),
+    )
+    .filter((customer) => contactIdentityMatchesCustomer(doc, customer));
+}
+
 export function findLinkedCustomerForDocument(
   doc: Pick<Document, "customerId">,
   customers: Customer[],
 ): Customer | null {
-  return findCustomerByIdOrMergedId(customers, doc.customerId) ?? null;
+  if (!doc.customerId) return null;
+  return (
+    getDocumentCustomerLookup(customers).byReferenceId.get(doc.customerId) ??
+    null
+  );
 }
 
 export function documentHasLinkedCustomerNameMismatch(
@@ -100,16 +193,13 @@ function contactIdentityMatchesCustomer(
 }
 
 function uniqueMatchingContact(
-  doc: Document,
   customers: Customer[],
   field: "email" | "phone",
 ): string | undefined {
   const contacts = new Map<string, string>();
 
   customers.forEach((customer) => {
-    if (!contactIdentityMatchesCustomer(doc, customer)) return;
-
-    const value = migrateCustomer(customer)[field]?.trim();
+    const value = customer[field]?.trim();
     if (!value) return;
 
     const normalized =
@@ -130,23 +220,27 @@ export function documentWithCurrentCustomerContact(
   doc: Document,
   customers: Customer[],
 ): Document {
-  const linkedCustomer = findLinkedCustomerForDocument(doc, customers);
-  const migrated = linkedCustomer ? migrateCustomer(linkedCustomer) : null;
-  const hasMatchingCustomer = customers.some((customer) =>
-    contactIdentityMatchesCustomer(doc, customer),
-  );
-  if (!migrated && !hasMatchingCustomer) return doc;
+  if (hasUsableEmail(doc.client.email) && hasUsablePhone(doc.client.phone)) {
+    return doc;
+  }
+
+  const lookup = getDocumentCustomerLookup(customers);
+  const migrated = doc.customerId
+    ? lookup.byReferenceId.get(doc.customerId) ?? null
+    : null;
+  const matchingCustomers = matchingCustomersForDocument(doc, lookup);
+  if (!migrated && matchingCustomers.length === 0) return doc;
 
   const email = hasUsableEmail(doc.client.email)
     ? doc.client.email
     : hasUsableEmail(migrated?.email)
       ? migrated?.email
-      : uniqueMatchingContact(doc, customers, "email");
+      : uniqueMatchingContact(matchingCustomers, "email");
   const phone = hasUsablePhone(doc.client.phone)
     ? doc.client.phone
     : hasUsablePhone(migrated?.phone)
       ? migrated?.phone
-      : uniqueMatchingContact(doc, customers, "phone");
+      : uniqueMatchingContact(matchingCustomers, "phone");
 
   if (email === doc.client.email && phone === doc.client.phone) {
     return doc;

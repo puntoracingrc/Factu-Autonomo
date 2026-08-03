@@ -85,7 +85,6 @@ import {
   getExpenseCostAllocationsByWork,
   type ExpenseCostAllocationsByExpenseId,
 } from "@/lib/rentabilidad-real/expense-linking";
-import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import { isAcceptedQuote } from "@/lib/quotes";
 import { isQuoteExpired } from "@/lib/quote-validity";
 import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
@@ -286,6 +285,15 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     [data.documents, data.profile],
   );
   const allDocuments = documentListBase.byType[type];
+  const convertedQuoteIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const invoice of documentListBase.byType.factura) {
+      if (invoice.sourceQuoteDocumentId) {
+        ids.add(invoice.sourceQuoteDocumentId);
+      }
+    }
+    return ids;
+  }, [documentListBase]);
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const years = documentListBase.yearsByType[type];
   const invoiceIntegrityInspection = useMemo(
@@ -317,14 +325,14 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       matchesDocumentStatusFilter(
         document,
         statusFilter,
-        data.documents,
+        convertedQuoteIds,
         fiscalBlockedDocumentIds,
       ),
     );
     return filterDocumentsByQuery(statusDocuments, search, { vatExempt });
   }, [
     allDocuments,
-    data.documents,
+    convertedQuoteIds,
     fiscalBlockedDocumentIds,
     period,
     search,
@@ -1065,7 +1073,9 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                 : null;
             const linkedInvoice =
               type === "presupuesto"
-                ? findInvoiceCreatedFromQuote(data.documents, doc.id)
+                ? canonicalDocumentChain.find(
+                    (item) => item.role === "factura",
+                  )?.document
                 : undefined;
             const contactDoc = documentWithCurrentCustomerContact(
               doc,
@@ -1448,7 +1458,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
 function matchesDocumentStatusFilter(
   document: Document,
   filter: DocumentStatusFilter,
-  allDocuments: Document[],
+  convertedQuoteIds: ReadonlySet<string>,
   fiscalBlockedDocumentIds: ReadonlySet<string>,
 ): boolean {
   if (filter === "all") return true;
@@ -1462,7 +1472,7 @@ function matchesDocumentStatusFilter(
   if (filter === "expired")
     return isQuoteExpired(document) || document.status === "vencido";
   if (filter === "converted") {
-    return Boolean(findInvoiceCreatedFromQuote(allDocuments, document.id));
+    return convertedQuoteIds.has(document.id);
   }
   if (filter === "collected") return isCollectedDocument(document);
   if (filter === "pending") return isPendingInvoicePayment(document);
@@ -1479,7 +1489,7 @@ function matchesDocumentStatusFilter(
       document.status === "enviado" &&
       !isAcceptedQuote(document) &&
       !isQuoteExpired(document) &&
-      !findInvoiceCreatedFromQuote(allDocuments, document.id)
+      !convertedQuoteIds.has(document.id)
     );
   }
   if (filter === "issued") {

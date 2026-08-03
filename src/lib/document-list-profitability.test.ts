@@ -39,6 +39,42 @@ describe("calculateInvoiceListProfitability", () => {
     });
   });
 
+  it("reutiliza el índice de vínculos entre cálculos de la misma colección", () => {
+    const linked: Expense = {
+      id: "linked",
+      date: "2026-07-11",
+      supplierName: "Proveedor",
+      description: "Material",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Tarjeta",
+      workDocumentId: "invoice-1",
+      createdAt: "2026-07-11T08:00:00.000Z",
+    };
+    const expenses = [
+      linked,
+      { ...linked, id: "other", workDocumentId: "invoice-2" },
+    ];
+
+    summarizeAllocatedWorkExpenses({
+      expenses,
+      workDocumentIds: ["invoice-1"],
+    });
+    Object.defineProperty(expenses, "map", {
+      value: () => {
+        throw new Error("full expense scan");
+      },
+    });
+
+    expect(
+      summarizeAllocatedWorkExpenses({
+        expenses,
+        workDocumentIds: ["invoice-1"],
+      }),
+    ).toMatchObject({ count: 1 });
+  });
+
   it("calcula beneficio real y reserva de impuestos con costes vinculados", () => {
     expect(
       calculateInvoiceListProfitability({

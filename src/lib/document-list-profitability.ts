@@ -3,6 +3,7 @@ import {
   expenseAllocatedAmountForWorkIds,
   explicitExpenseWorkAllocations,
 } from "./expense-work-allocations";
+import { expensesLinkedToWorkDocumentIds } from "./expense-work-index";
 import { expenseFiscalAmounts, type WorkDocumentExpenseSummary } from "./expenses";
 import type { Expense } from "./types";
 
@@ -31,7 +32,7 @@ export function summarizeAllocatedWorkExpenses(input: {
   allocations?: Record<string, number>;
 }): WorkDocumentExpenseSummary | undefined {
   const ids = new Set(input.workDocumentIds);
-  const linkedExpenses = input.expenses
+  const linkedExpenses = expensesLinkedToWorkDocumentIds(input.expenses, ids)
     .map((expense) => {
       const fiscal = expenseFiscalAmounts(expense);
       const allocatedAmount = expenseAllocatedAmountForWorkIds(
