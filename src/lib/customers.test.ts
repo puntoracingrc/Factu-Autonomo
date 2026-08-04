@@ -853,6 +853,39 @@ describe("customer collection writes", () => {
       expect(second.customers).toHaveLength(sample.length + 1);
     }
   });
+
+  it("conserva el cliente del presupuesto al facturar a un cliente nuevo", () => {
+    const originalCustomer = structuredClone(sample[1]);
+    const result = upsertCustomerForDocumentInCollection(
+      sample,
+      {
+        firstName: "Luis",
+        lastName: "Fernández",
+        nif: "99999999Z",
+        email: "luis.factura@example.test",
+      },
+      null,
+      "billing-customer-new",
+      "2026-08-04T10:00:00.000Z",
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.customerId).toBe("billing-customer-new");
+    expect(result.customers.find((customer) => customer.id === "2")).toEqual(
+      originalCustomer,
+    );
+    expect(
+      result.customers.find(
+        (customer) => customer.id === "billing-customer-new",
+      ),
+    ).toMatchObject({
+      firstName: "Luis",
+      lastName: "Fernández",
+      nif: "99999999Z",
+    });
+  });
 });
 
 describe("customerToClient", () => {
