@@ -536,7 +536,10 @@ interface AppStoreValue {
   addDocumentWithCentralIdentity: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
     identity: CentralInvoiceAuthorityFormIssueIdentity,
-    options?: { localDocumentId?: string },
+    options?: {
+      localDocumentId?: string;
+      requireExistingDraft?: boolean;
+    },
   ) => Document;
   issueDocument: (id: string) => Promise<Document>;
   markDocumentSent: (id: string) => Document | null;
@@ -1966,7 +1969,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (
       doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
       identity: CentralInvoiceAuthorityFormIssueIdentity,
-      options: { localDocumentId?: string } = {},
+      options: {
+        localDocumentId?: string;
+        requireExistingDraft?: boolean;
+      } = {},
     ): Document => {
       if (doc.type !== "factura" || doc.status === "borrador") {
         throw new Error(
@@ -2074,22 +2080,46 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           };
         }
 
+        const existingDraft = options.localDocumentId
+          ? findUniqueDocumentById(prev.documents, options.localDocumentId)
+          : null;
+        if (options.requireExistingDraft && !existingDraft) {
+          throw new Error(
+            "El borrador local cambio antes de confirmar la identidad central.",
+          );
+        }
+        if (
+          existingDraft &&
+          (existingDraft.type !== "factura" ||
+            existingDraft.status !== "borrador" ||
+            existingDraft.rectification ||
+            existingDraft.centralInvoiceAuthority)
+        ) {
+          throw new Error(
+            "La identidad central solo puede completar un borrador local sin identidad fiscal.",
+          );
+        }
+
         const createdDraft: Document = {
           ...doc,
           status: "borrador",
           id: options.localDocumentId ?? newId(),
           number: identity.fullNumber,
           centralInvoiceAuthority,
-          createdAt: now,
+          createdAt: existingDraft?.createdAt ?? now,
           updatedAt: now,
         };
         const created = saveEditableDocument(
-          createdDraft,
+          existingDraft ?? createdDraft,
           { ...createdDraft, status: doc.status },
           prev.profile,
           now,
         );
-        const nextDocuments = [...prev.documents, created];
+        const nextDocuments = existingDraft
+          ? prev.documents.map((item) =>
+              item.id === existingDraft.id ? created : item,
+            )
+          : [...prev.documents, created];
         return {
           data: {
             ...prev,

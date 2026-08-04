@@ -34,7 +34,10 @@ export type CentralInvoiceAuthorityDocumentFormPayload = Omit<
 
 export interface CentralInvoiceAuthorityDocumentFormCanaryInput {
   type: DocumentType;
-  existing?: Pick<Document, "id"> | null;
+  existing?: Pick<
+    Document,
+    "id" | "type" | "status" | "rectification" | "centralInvoiceAuthority"
+  > | null;
   payload: CentralInvoiceAuthorityDocumentFormPayload;
   resolvedStatus: Document["status"];
 }
@@ -150,9 +153,16 @@ export function deriveCentralInvoiceAuthorityRectificationSeries(input: {
 export function shouldUseCentralInvoiceAuthorityDocumentFormCanary(
   input: CentralInvoiceAuthorityDocumentFormCanaryInput,
 ): boolean {
+  const existingDraftEligible =
+    !input.existing ||
+    (input.existing.type === "factura" &&
+      input.existing.status === "borrador" &&
+      !input.existing.rectification &&
+      !input.existing.centralInvoiceAuthority);
+
   return (
     input.type === "factura" &&
-    !input.existing &&
+    existingDraftEligible &&
     input.resolvedStatus !== "borrador" &&
     !input.payload.rectification
   );

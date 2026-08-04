@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 const form = readFileSync("src/components/forms/DocumentForm.tsx", "utf8");
 
 function creationBranch(): string {
-  const start = form.indexOf("if (existing) {");
-  const end = form.indexOf("saved = attachIssuerSnapshot", start);
+  const start = form.indexOf("const centralDocumentEligible");
+  const end = form.indexOf("recordDocumentCreated();", start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return form.slice(start, end);
@@ -31,12 +31,13 @@ describe("DocumentForm central authority canary wiring", () => {
 
   it("muestra un preflight visible sin cambiar la rama de guardado", () => {
     expect(form).toContain("centralFormPolicyNoticeEligible");
-    expect(form).toContain("type === \"factura\" && !existing");
+    expect(form).toContain('existing.status === "borrador"');
+    expect(form).toContain("!existing.centralInvoiceAuthority");
     expect(form).toContain("publicFormCanaryEnabled={centralCanaryEnabled}");
     expect(form).toContain("documentLabel=\"factura\"");
   });
 
-  it("solo intercepta la creacion nueva cuando la politica central lo permite", () => {
+  it("intercepta altas y borradores locales cuando la politica central lo permite", () => {
     const branch = creationBranch();
 
     expect(branch).toContain("centralCanaryEnabled");
@@ -54,13 +55,16 @@ describe("DocumentForm central authority canary wiring", () => {
     expect(branch).toContain("runCentralInvoiceAuthorityClientOperation");
     expect(branch).toContain("addDocumentWithCentralIdentity");
     expect(branch).toContain("localDocumentId");
+    expect(branch).toContain("requireExistingDraft: Boolean(existing)");
     expect(branch).toContain("saved = addDocument(payload)");
   });
 
   it("falla cerrado si la autoridad central rechaza antes de escribir localmente", () => {
     const branch = creationBranch();
     const rejectionIndex = branch.indexOf("if (!centralResult.ok)");
-    const centralStoreIndex = branch.indexOf("addDocumentWithCentralIdentity");
+    const centralStoreIndex = branch.indexOf(
+      "addDocumentWithCentralIdentity",
+    );
     const localStoreIndex = branch.indexOf("saved = addDocument(payload)");
 
     expect(rejectionIndex).toBeGreaterThanOrEqual(0);
@@ -86,9 +90,7 @@ describe("DocumentForm central authority canary wiring", () => {
     const issueIndex = branch.indexOf(
       "issueCentralInvoiceAuthorityFromBrowser",
     );
-    const centralStoreIndex = branch.indexOf(
-      "addDocumentWithCentralIdentity",
-    );
+    const centralStoreIndex = branch.indexOf("addDocumentWithCentralIdentity");
 
     expect(preflightIndex).toBeGreaterThanOrEqual(0);
     expect(issueIndex).toBeGreaterThan(preflightIndex);

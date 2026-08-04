@@ -1192,7 +1192,10 @@ export function DocumentForm({
         : "Emitir factura"
       : `Guardar ${label}`;
   const centralFormPolicyNoticeEligible =
-    type === "factura" && !existing && !isRectificationDraft;
+    type === "factura" &&
+    !isRectificationDraft &&
+    (!existing ||
+      (existing.status === "borrador" && !existing.centralInvoiceAuthority));
   const downloadButtonLabel =
     type === "factura" && isDraftStatus
       ? isRectificationDraft
@@ -1756,8 +1759,82 @@ export function DocumentForm({
       }
     }
 
+    const centralDocumentEligible =
+      shouldUseCentralInvoiceAuthorityDocumentFormCanary({
+        type,
+        existing,
+        payload,
+        resolvedStatus,
+      });
+    if (centralDocumentEligible && centralPlanGate.mode === "loading") {
+      setSaveAction("idle");
+      setFormError(centralAuthorityPlanLoadingFailure().error);
+      return;
+    }
+    const centralPolicy = centralDocumentEligible
+      ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+          publicFormCanaryEnabled: centralCanaryEnabled,
+          publicFormCanaryUserId: centralPlanGate.centralUserId,
+        })
+      : null;
+
     let saved: Document;
-    if (existing) {
+    if (centralPolicy?.shouldUseCentralAuthority) {
+      const localDocumentId = existing?.id ?? crypto.randomUUID();
+      const issuedAt = new Date().toISOString();
+      const centralRequest =
+        buildCentralInvoiceAuthorityDocumentFormIssueRequest({
+          localDocumentId,
+          payload,
+          profile: effectiveDocumentProfile,
+          issuedAt,
+        });
+      const centralSave = await runCentralInvoiceAuthorityClientOperation(
+        async () => {
+          const seriesPreflight =
+            await preflightCentralInvoiceAuthorityFormSeries({
+              data,
+              profile: effectiveDocumentProfile,
+              request: centralRequest,
+            });
+          if (!seriesPreflight.ok) return seriesPreflight;
+
+          const centralResult =
+            await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
+
+          if (!centralResult.ok) return centralResult;
+          try {
+            return {
+              ok: true as const,
+              document: addDocumentWithCentralIdentity(
+                payload,
+                centralResult.identity,
+                {
+                  localDocumentId,
+                  requireExistingDraft: Boolean(existing),
+                },
+              ),
+            };
+          } catch {
+            return {
+              ok: false as const,
+              status: 409,
+              code: "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
+              message:
+                "La factura ya quedo emitida en el servidor, pero este navegador no pudo guardarla. No repitas la emision: sincroniza los eventos centrales para recuperarla.",
+            };
+          }
+        },
+      );
+
+      if (!centralSave.ok) {
+        setSaveAction("idle");
+        setFormError(centralSave.message);
+        return;
+      }
+
+      saved = centralSave.document;
+    } else if (existing) {
       saved = {
         ...existing,
         ...payload,
@@ -1785,84 +1862,10 @@ export function DocumentForm({
         return;
       }
       saved = quoteSave.document;
-      recordDocumentCreated();
     } else {
-      const centralDocumentEligible =
-        shouldUseCentralInvoiceAuthorityDocumentFormCanary({
-          type,
-          existing,
-          payload,
-          resolvedStatus,
-        });
-      if (centralDocumentEligible && centralPlanGate.mode === "loading") {
-        setSaveAction("idle");
-        setFormError(centralAuthorityPlanLoadingFailure().error);
-        return;
-      }
-      const centralPolicy = centralDocumentEligible
-        ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
-            publicFormCanaryEnabled: centralCanaryEnabled,
-            publicFormCanaryUserId: centralPlanGate.centralUserId,
-          })
-        : null;
-
-      if (centralPolicy?.shouldUseCentralAuthority) {
-        const localDocumentId = crypto.randomUUID();
-        const issuedAt = new Date().toISOString();
-        const centralRequest =
-          buildCentralInvoiceAuthorityDocumentFormIssueRequest({
-            localDocumentId,
-            payload,
-            profile: effectiveDocumentProfile,
-            issuedAt,
-          });
-        const centralSave = await runCentralInvoiceAuthorityClientOperation(
-          async () => {
-            const seriesPreflight =
-              await preflightCentralInvoiceAuthorityFormSeries({
-                data,
-                profile: effectiveDocumentProfile,
-                request: centralRequest,
-              });
-            if (!seriesPreflight.ok) return seriesPreflight;
-
-            const centralResult =
-              await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
-
-            if (!centralResult.ok) return centralResult;
-            try {
-              return {
-                ok: true as const,
-                document: addDocumentWithCentralIdentity(
-                  payload,
-                  centralResult.identity,
-                  { localDocumentId },
-                ),
-              };
-            } catch {
-              return {
-                ok: false as const,
-                status: 409,
-                code: "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
-                message:
-                  "La factura ya quedo emitida en el servidor, pero este navegador no pudo guardarla. No repitas la emision: sincroniza los eventos centrales para recuperarla.",
-              };
-            }
-          },
-        );
-
-        if (!centralSave.ok) {
-          setSaveAction("idle");
-          setFormError(centralSave.message);
-          return;
-        }
-
-        saved = centralSave.document;
-      } else {
-        saved = addDocument(payload);
-      }
-      recordDocumentCreated();
+      saved = addDocument(payload);
     }
+    if (!existing) recordDocumentCreated();
 
     saved = attachIssuerSnapshot(saved, effectiveDocumentProfile);
 
