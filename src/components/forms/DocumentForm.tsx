@@ -15,7 +15,9 @@ import {
   PackagePlus,
   PackageSearch,
   Plus,
+  RotateCcw,
   Trash2,
+  UserRoundPlus,
 } from "lucide-react";
 import {
   ClientPicker,
@@ -550,6 +552,23 @@ export function DocumentForm({
   const saving = saveAction !== "idle";
   const label = TYPE_LABELS[type];
   const article = TYPE_ARTICLES[type];
+  const sourceQuote = useMemo(
+    () =>
+      existing?.sourceQuoteDocumentId
+        ? data.documents.find(
+            (document) =>
+              document.id === existing.sourceQuoteDocumentId &&
+              document.type === "presupuesto",
+          )
+        : undefined,
+    [data.documents, existing?.sourceQuoteDocumentId],
+  );
+  const isInvoiceDraftFromQuote =
+    type === "factura" &&
+    existing?.status === "borrador" &&
+    Boolean(existing.sourceQuoteDocumentId);
+  const [invoiceCustomerReassignment, setInvoiceCustomerReassignment] =
+    useState(false);
   const isRectificationDraft =
     Boolean(existing?.rectification) && existing?.status === "borrador";
   const rectificationProfileResolution = useMemo(
@@ -577,9 +596,17 @@ export function DocumentForm({
     null,
   );
   const initialCustomerApplied = useRef(false);
+  const customerSelectionExplicitlyChanged = useRef(false);
 
   useEffect(() => {
-    if (!existing || !ready) return;
+    if (
+      !existing ||
+      !ready ||
+      invoiceCustomerReassignment ||
+      customerSelectionExplicitlyChanged.current
+    ) {
+      return;
+    }
     if (existing.customerId) {
       const byId = data.customers.find(
         (customer) => customer.id === existing.customerId,
@@ -591,7 +618,7 @@ export function DocumentForm({
     }
     const match = findCustomerByClient(data.customers, existing.client);
     if (match) setSelectedCustomerId(match.id);
-  }, [existing, ready, data.customers]);
+  }, [existing, invoiceCustomerReassignment, ready, data.customers]);
 
   useEffect(() => {
     if (
@@ -631,7 +658,9 @@ export function DocumentForm({
   );
   const activeCustomerId =
     selectedCustomerId ??
-    (clientForm.firstName.trim() ? existing?.customerId : undefined);
+    (clientForm.firstName.trim() && !invoiceCustomerReassignment
+      ? existing?.customerId
+      : undefined);
   const vatExempt = isVatExempt(effectiveDocumentProfile);
   const defaultIva = vatExempt
     ? 0
@@ -1544,8 +1573,43 @@ export function DocumentForm({
 
   function handleSelectCustomer(customer: Customer) {
     setFormError(null);
+    customerSelectionExplicitlyChanged.current = true;
     setSelectedCustomerId(customer.id);
     setClientForm(customerToFormValues(customer));
+  }
+
+  function handleClearCustomerSelection() {
+    customerSelectionExplicitlyChanged.current = true;
+    setSelectedCustomerId(null);
+  }
+
+  function handleInvoiceCustomerReassignment() {
+    setFormError(null);
+    customerSelectionExplicitlyChanged.current = true;
+    setInvoiceCustomerReassignment(true);
+    setSelectedCustomerId(null);
+    setClientForm({ ...EMPTY_CLIENT });
+  }
+
+  function handleRestoreSourceQuoteCustomer() {
+    const sourceClient = sourceQuote?.client ?? existing?.client;
+    if (!sourceClient) return;
+
+    const sourceCustomer = sourceQuote?.customerId
+      ? data.customers.find(
+          (customer) => customer.id === sourceQuote.customerId,
+        )
+      : findCustomerByClient(data.customers, sourceClient);
+
+    setFormError(null);
+    customerSelectionExplicitlyChanged.current = true;
+    setInvoiceCustomerReassignment(false);
+    setSelectedCustomerId(sourceCustomer?.id ?? null);
+    setClientForm(
+      sourceCustomer
+        ? customerToFormValues(sourceCustomer)
+        : clientToFormValues(sourceClient),
+    );
   }
 
   function handleClientFieldChange<K extends keyof ClientFormValues>(
@@ -1937,11 +2001,41 @@ export function DocumentForm({
         <h2 className="mb-4 text-lg font-bold text-slate-900">
           Datos del cliente
         </h2>
+        {isInvoiceDraftFromQuote && (
+          <div className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-slate-600">
+              {invoiceCustomerReassignment
+                ? "El cliente anterior se conservará. Selecciona otro cliente o completa una ficha nueva."
+                : `Esta factura nació del presupuesto ${existing.sourceQuoteNumber ?? "de origen"}. Los cambios en la ficha seleccionada también actualizarán ese cliente.`}
+            </p>
+            {invoiceCustomerReassignment ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleRestoreSourceQuoteCustomer}
+                className="w-full shrink-0 whitespace-normal text-center sm:w-auto"
+              >
+                <RotateCcw className="h-5 w-5" />
+                Volver al cliente del presupuesto
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleInvoiceCustomerReassignment}
+                className="w-full shrink-0 whitespace-normal text-center sm:w-auto"
+              >
+                <UserRoundPlus className="h-5 w-5" />
+                Facturar a otro cliente
+              </Button>
+            )}
+          </div>
+        )}
         <ClientPicker
           values={clientForm}
           selectedCustomerId={selectedCustomerId}
           onSelectCustomer={handleSelectCustomer}
-          onClearSelection={() => setSelectedCustomerId(null)}
+          onClearSelection={handleClearCustomerSelection}
           onChange={handleClientFieldChange}
           requireInvoiceFields={requiresInvoiceClientFields}
         />
