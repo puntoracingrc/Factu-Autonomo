@@ -52,8 +52,16 @@ function hasUsableDocumentIntegrity(doc: Document): boolean {
   return isDocumentUsableForFinancialCalculations(doc);
 }
 
+function isCancellationRectification(doc: Document): boolean {
+  return (
+    (doc.documentSnapshot?.rectification ?? doc.rectification)?.type ===
+    "anulacion"
+  );
+}
+
 export function canMarkAsCollected(doc: Document): boolean {
   if (doc.type !== "factura" && doc.type !== "recibo") return false;
+  if (isCancellationRectification(doc)) return false;
   if (hasAppIssuedRecoveryProtectionClaim(doc)) return false;
   if (!hasUsableDocumentIntegrity(doc)) return false;
   if (doc.status === "anulada" || doc.rectifiedById) return false;
@@ -67,6 +75,7 @@ export function canMarkAsCollected(doc: Document): boolean {
 
 export function canUnmarkAsCollected(doc: Document): boolean {
   if (doc.type !== "factura" && doc.type !== "recibo") return false;
+  if (isCancellationRectification(doc)) return false;
   if (hasAppIssuedRecoveryProtectionClaim(doc)) return false;
   if (!hasUsableDocumentIntegrity(doc)) return false;
   if (doc.status === "anulada" || doc.rectifiedById) return false;

@@ -119,7 +119,7 @@ describe("document relationship presentation", () => {
       selectDocumentRelationshipPresentationItems(items, rectification).map(
         (item) => item.role,
       ),
-    ).toEqual(["factura", "presupuesto", "recibo", "gastos"]);
+    ).toEqual(["presupuesto", "factura", "recibo", "gastos"]);
   });
 
   it("muestra desde un presupuesto factura, rectificativa, recibo y gastos", () => {

@@ -80,6 +80,7 @@ import {
   calculateInvoiceListProfitability,
   summarizeAllocatedWorkExpenses,
 } from "@/lib/document-list-profitability";
+import { cancellationListPresentationForDocument } from "@/lib/rectification-list-presentation";
 import { getDocumentChainItems } from "@/lib/document-links";
 import {
   getExpenseCostAllocationsByWork,
@@ -1028,8 +1029,14 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
               workExpenseSummary && workExpenseSummary.count > 0
                 ? amounts.subtotal - workExpenseSummary.cost
                 : undefined;
+            const cancellationPresentation =
+              type === "factura"
+                ? cancellationListPresentationForDocument(doc, data.documents)
+                : null;
             const invoiceProfitability =
-              type === "factura" && doc.status !== "borrador"
+              type === "factura" &&
+              doc.status !== "borrador" &&
+              !cancellationPresentation
                 ? calculateInvoiceListProfitability({
                     salesBase: amounts.subtotal,
                     salesIva: amounts.iva,
@@ -1257,6 +1264,18 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                         </span>
                       </div>
                     )}
+                    {cancellationPresentation && (
+                      <div className="mt-2 grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950 sm:max-w-xl sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+                        <span className="font-black">
+                          Impacto en cobros:{" "}
+                          {formatMoney(cancellationPresentation.cashImpact)}
+                        </span>
+                        <span className="leading-5 text-emerald-800">
+                          <strong>{cancellationPresentation.title}.</strong>{" "}
+                          {cancellationPresentation.description}
+                        </span>
+                      </div>
+                    )}
                     {statusHint &&
                       !(type === "factura" && isCollectedDocument(doc)) && (
                         <p className="mt-1 text-xs text-slate-500">
@@ -1268,7 +1287,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                         Rectifica: {doc.rectification.originalNumber}
                       </p>
                     )}
-                    {doc.rectifiedById && (
+                    {doc.rectifiedById && !cancellationPresentation && (
                       <p className="text-xs text-slate-400">
                         La original queda sin efecto en los cálculos mientras
                         exista la rectificativa.
