@@ -29,6 +29,7 @@ import type {
 import type {
   CentralInvoiceAuthorityCollectionUpdateIdentity,
 } from "@/lib/central-invoice-authority/collection-client";
+import type { CentralInvoiceAuthorityRelationshipIdentity } from "@/lib/central-invoice-authority/relationship-client";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
 import type { CentralBusinessDrainResult } from "@/lib/central-business-authority/durable-queue";
@@ -387,6 +388,40 @@ function applyConfirmedCentralCollectionState(
   };
 }
 
+function centralRelationshipIdempotencyKey(doc: Document): string {
+  const version = doc.centralInvoiceAuthority?.documentVersion ?? 0;
+  return [
+    "central-relationship",
+    centralCollectionIdempotencyPart(doc.id),
+    String(version),
+    "unlink-quote",
+  ].join(":");
+}
+
+function applyConfirmedCentralQuoteUnlink(
+  current: Document,
+  identity: CentralInvoiceAuthorityRelationshipIdentity,
+  receivedAt: string,
+): Document {
+  return {
+    ...current,
+    sourceQuoteDocumentId: undefined,
+    sourceQuoteNumber: undefined,
+    updatedAt: receivedAt,
+    centralInvoiceAuthority: {
+      ...current.centralInvoiceAuthority!,
+      serverDocumentId: identity.serverDocumentId,
+      identityId: identity.identityId,
+      outboxEventId: identity.outboxEventId,
+      eventType: "invoice_relationship_updated",
+      fullNumber: identity.fullNumber,
+      sequence: identity.sequence,
+      documentVersion: identity.documentVersion,
+      receivedAt,
+    },
+  };
+}
+
 function reportFiscalNotificationStructuredReviewSaveFailure(
   result: DurableFiscalNotificationStructuredReviewSaveResultV1,
 ): void {
@@ -556,6 +591,7 @@ interface AppStoreValue {
     customerId: string,
   ) => Document | null;
   updateDocumentLink: (update: DocumentLinkUpdate) => void;
+  unlinkDocumentQuote: (invoiceId: string) => Promise<boolean>;
   markAsCollected: (id: string) => Promise<boolean>;
   unmarkAsCollected: (id: string) => Promise<boolean>;
   generateReceiptForInvoice: (
@@ -2256,6 +2292,119 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const unlinkDocumentQuote = useCallback(
+    async (invoiceId: string): Promise<boolean> => {
+      if (
+        durableStorageBaselineRef.current.status === "indeterminate" ||
+        writeBlockRef.current
+      ) {
+        return false;
+      }
+
+      const previous = dataRef.current;
+      const invoice = findUniqueDocumentById(previous.documents, invoiceId);
+      if (
+        !invoice ||
+        invoice.type !== "factura" ||
+        invoice.rectification ||
+        (!invoice.sourceQuoteDocumentId && !invoice.sourceQuoteNumber)
+      ) {
+        return false;
+      }
+
+      const link = invoice.centralInvoiceAuthority;
+      if (!link) {
+        const nextDocuments = applyDocumentLinkUpdate(previous.documents, {
+          relation: "quote_invoice",
+          invoiceId,
+          quoteId: null,
+        });
+        const resolved = setAppData({ ...previous, documents: nextDocuments });
+        return resolved !== previous;
+      }
+
+      try {
+        const { unlinkCentralInvoiceQuoteFromBrowser } = await import(
+          "@/lib/central-invoice-authority/relationship-client"
+        );
+        const result = await unlinkCentralInvoiceQuoteFromBrowser({
+          idempotencyKey: centralRelationshipIdempotencyKey(invoice),
+          documentRef: {
+            serverDocumentId: link.serverDocumentId,
+            identityId: link.identityId,
+            expectedVersion: link.documentVersion,
+          },
+        });
+        if (!result.ok) {
+          void reportAppError({
+            severity: "warning",
+            area: "central_invoice_authority",
+            code: "relationship_unlink_failed",
+            message:
+              "No se pudo confirmar en servidor central la desvinculacion del presupuesto.",
+            metadata: {
+              status: result.status,
+              code: result.code,
+              causeCode: result.causeCode,
+              causeMessage: result.causeMessage,
+            },
+          });
+          return false;
+        }
+
+        const receivedAt = new Date().toISOString();
+        let applied = false;
+        setAppData(
+          (currentData) => {
+            const current = findUniqueDocumentById(
+              currentData.documents,
+              invoiceId,
+            );
+            const currentLink = current?.centralInvoiceAuthority;
+            if (
+              !current ||
+              !currentLink ||
+              currentLink.serverDocumentId !== result.identity.serverDocumentId
+            ) {
+              return currentData;
+            }
+            if (currentLink.documentVersion > result.identity.documentVersion) {
+              applied =
+                !current.sourceQuoteDocumentId && !current.sourceQuoteNumber;
+              return currentData;
+            }
+
+            applied = true;
+            const confirmed = applyConfirmedCentralQuoteUnlink(
+              current,
+              result.identity,
+              receivedAt,
+            );
+            return {
+              ...currentData,
+              meta: { ...currentData.meta, lastModified: receivedAt },
+              documents: currentData.documents.map((candidate) =>
+                candidate.id === invoiceId ? confirmed : candidate,
+              ),
+            };
+          },
+          { skipDirty: true, confirmedCentralState: true },
+        );
+        return applied;
+      } catch {
+        void reportAppError({
+          severity: "warning",
+          area: "central_invoice_authority",
+          code: "relationship_unlink_unexpected_error",
+          message:
+            "No se pudo preparar la desvinculacion central del presupuesto.",
+        });
+        return false;
+      }
+    },
+    [setAppData],
+  );
+
   const issueDocument = useCallback(
     async (id: string): Promise<Document> => {
       let issued: Document | null = null;
@@ -3914,6 +4063,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocument,
       repairDocumentCustomer,
       updateDocumentLink,
+      unlinkDocumentQuote,
       markAsCollected,
       unmarkAsCollected,
       generateReceiptForInvoice,
@@ -4009,6 +4159,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocument,
       repairDocumentCustomer,
       updateDocumentLink,
+      unlinkDocumentQuote,
       markAsCollected,
       unmarkAsCollected,
       generateReceiptForInvoice,

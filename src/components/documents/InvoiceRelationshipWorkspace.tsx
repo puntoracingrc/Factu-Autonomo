@@ -11,6 +11,7 @@ import {
   Link2,
   ReceiptText,
   Search,
+  Unlink,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -112,7 +113,7 @@ export function InvoiceRelationshipWorkspace({
     allocations: ExpenseCostAllocationsByExpenseId,
   ) => void;
 }) {
-  const { data, updateDocumentLink } = useAppStore();
+  const { data, updateDocumentLink, unlinkDocumentQuote } = useAppStore();
   const { updateExpense } = useCentralExpenseMutations();
   const vatExempt = isVatExempt(data.profile);
   const [activeTab, setActiveTab] = useState<RelationshipTab>("gastos");
@@ -133,6 +134,7 @@ export function InvoiceRelationshipWorkspace({
   );
   const [showClosedExpenses, setShowClosedExpenses] = useState(false);
   const [savingExpenseId, setSavingExpenseId] = useState<string | null>(null);
+  const [unlinkingQuote, setUnlinkingQuote] = useState(false);
   const savingExpenseIdRef = useRef<string | null>(null);
 
   const canonicalChainItems = useMemo(
@@ -234,6 +236,31 @@ export function InvoiceRelationshipWorkspace({
       quoteId,
     });
     showFactuToast("Presupuesto vinculado.");
+  }
+
+  async function unlinkQuote() {
+    if (!linkedQuote || unlinkingQuote) return;
+    const confirmed = window.confirm(
+      `Se separara la relacion visible entre ${documentShortNumber(linkedQuote)} y ${documentShortNumber(doc)}.\n\nEl presupuesto y la factura seguiran intactos. No cambia el PDF, el numero, el QR, los importes ni ninguna rectificativa.`,
+    );
+    if (!confirmed) return;
+
+    setUnlinkingQuote(true);
+    try {
+      const unlinked = await unlinkDocumentQuote(doc.id);
+      if (!unlinked) {
+        window.alert(
+          "No se pudo confirmar la desvinculacion en el servidor central. No se ha cambiado la relacion local.",
+        );
+        return;
+      }
+      setQuoteId("");
+      showFactuToast(
+        "Vinculo eliminado. La factura y el presupuesto siguen intactos.",
+      );
+    } finally {
+      setUnlinkingQuote(false);
+    }
   }
 
   async function saveExpenseUpdate(expense: Expense): Promise<boolean> {
@@ -471,11 +498,22 @@ export function InvoiceRelationshipWorkspace({
           {!quoteLinkEditable ? (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
               {linkedQuote ? (
-                <>
-                  El presupuesto de origen es una relación histórica y no se
-                  puede cambiar ni desvincular. Puedes abrirlo desde la cadena
-                  superior.
-                </>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    Esta factura conserva el presupuesto de origen. Puedes
+                    separarlos sin modificar ninguno de los dos documentos.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    className="min-h-11 shrink-0 rounded-lg px-4 text-sm"
+                    onClick={() => void unlinkQuote()}
+                    disabled={unlinkingQuote}
+                  >
+                    <Unlink className="h-4 w-4" />
+                    {unlinkingQuote ? "Desvinculando..." : "Desvincular presupuesto"}
+                  </Button>
+                </div>
               ) : (
                 <>
                   Una factura emitida no admite añadir manualmente un

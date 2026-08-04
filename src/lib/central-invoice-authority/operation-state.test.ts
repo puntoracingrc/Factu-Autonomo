@@ -150,6 +150,20 @@ describe("central invoice authority operation state", () => {
     expect(state.requiresReview).toBe(false);
   });
 
+  it("mantiene como emitida central una factura cuyo ultimo evento fue una relacion", () => {
+    const state = getCentralInvoiceAuthorityOperationState(
+      withCentralAuthority(issuedInvoice(), {
+        eventType: "invoice_relationship_updated",
+        outboxEventId: "event-relationship-1",
+        documentVersion: 2,
+      }),
+    );
+
+    expect(state.kind).toBe("server_issued");
+    expect(state.badgeLabel).toBe("Servidor central");
+    expect(state.requiresReview).toBe(false);
+  });
+
   it("pide revision si la identidad central no coincide con el documento", () => {
     const state = getCentralInvoiceAuthorityOperationState(
       withCentralAuthority(issuedInvoice(), {

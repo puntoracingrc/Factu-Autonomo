@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Link2, Search, X } from "lucide-react";
+import { Check, Link2, Search, Unlink, X } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/context/AppStore";
@@ -33,11 +33,14 @@ export function DocumentLinkManagerButton({
   expanded = false,
   onToggle,
 }: DocumentLinkManagerButtonProps) {
-  const { data, updateDocumentLink } = useAppStore();
+  const { data, updateDocumentLink, unlinkDocumentQuote } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
   const [open, setOpen] = useState(false);
   const [quoteId, setQuoteId] = useState("");
   const [invoiceForQuoteId, setInvoiceForQuoteId] = useState("");
+  const [unlinkingInvoiceId, setUnlinkingInvoiceId] = useState<string | null>(
+    null,
+  );
   const modalTitleId = useId();
   const modalDescriptionId = useId();
 
@@ -96,6 +99,41 @@ export function DocumentLinkManagerButton({
     });
     setInvoiceForQuoteId(nextInvoiceId);
     showFactuToast("Factura vinculada.");
+  }
+
+  async function unlinkQuoteFromInvoice(
+    invoice: Document,
+    quote: Document | undefined,
+  ) {
+    if (unlinkingInvoiceId) return;
+    const relation = quote
+      ? `${documentShortNumber(quote)} y ${documentShortNumber(invoice)}`
+      : documentShortNumber(invoice);
+    if (
+      !window.confirm(
+        `Se separara la relacion visible entre ${relation}.\n\nLos documentos seguiran intactos. No cambia el PDF, el numero, el QR, los importes ni ninguna rectificativa.`,
+      )
+    ) {
+      return;
+    }
+
+    setUnlinkingInvoiceId(invoice.id);
+    try {
+      const unlinked = await unlinkDocumentQuote(invoice.id);
+      if (!unlinked) {
+        window.alert(
+          "No se pudo confirmar la desvinculacion en el servidor central. No se ha cambiado la relacion local.",
+        );
+        return;
+      }
+      setQuoteId("");
+      setInvoiceForQuoteId("");
+      showFactuToast(
+        "Vinculo eliminado. La factura y el presupuesto siguen intactos.",
+      );
+    } finally {
+      setUnlinkingInvoiceId(null);
+    }
   }
 
   const title = `Vínculos de ${documentShortNumber(doc)}`;
@@ -157,7 +195,13 @@ export function DocumentLinkManagerButton({
                   title="Presupuesto de origen"
                   linkedDocument={linkedQuote}
                   emptyText="Esta factura no conserva un presupuesto de origen."
-                  explanation="Si la factura nació de un presupuesto, este vínculo es histórico y no se modifica manualmente."
+                  explanation="Puedes separar la relación operativa sin modificar la factura ni el presupuesto."
+                  onUnlink={
+                    linkedQuote
+                      ? () => void unlinkQuoteFromInvoice(doc, linkedQuote)
+                      : undefined
+                  }
+                  unlinking={unlinkingInvoiceId === doc.id}
                 />
               ) : (
                 <DocumentLinkSection
@@ -185,7 +229,11 @@ export function DocumentLinkManagerButton({
                 title="Factura generada"
                 linkedDocument={linkedInvoiceFromQuote}
                 emptyText=""
-                explanation="Esta factura nació del presupuesto. La relación es histórica y no se puede cambiar ni desvincular."
+                explanation="Puedes separar la relación operativa sin modificar la factura ni el presupuesto."
+                onUnlink={() =>
+                  void unlinkQuoteFromInvoice(linkedInvoiceFromQuote, doc)
+                }
+                unlinking={unlinkingInvoiceId === linkedInvoiceFromQuote.id}
               />
             ) : (
               <DocumentLinkSection
@@ -219,11 +267,15 @@ function CanonicalDocumentLink({
   linkedDocument,
   emptyText,
   explanation,
+  onUnlink,
+  unlinking = false,
 }: {
   title: string;
   linkedDocument?: Document;
   emptyText: string;
   explanation: string;
+  onUnlink?: () => void;
+  unlinking?: boolean;
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -242,6 +294,17 @@ function CanonicalDocumentLink({
       <p className="mt-2 text-xs text-slate-500">
         {explanation}
       </p>
+      {linkedDocument && onUnlink ? (
+        <button
+          type="button"
+          onClick={onUnlink}
+          disabled={unlinking}
+          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Unlink className="h-4 w-4" />
+          {unlinking ? "Desvinculando..." : "Desvincular"}
+        </button>
+      ) : null}
     </section>
   );
 }
