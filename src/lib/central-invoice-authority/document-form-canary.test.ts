@@ -120,7 +120,7 @@ function rectificationPayload(
 }
 
 describe("central invoice authority document form canary", () => {
-  it("se limita a facturas nuevas emitidas sin rectificacion", () => {
+  it("incluye facturas nuevas y borradores locales emitidos sin rectificacion", () => {
     expect(
       shouldUseCentralInvoiceAuthorityDocumentFormCanary({
         type: "factura",
@@ -148,7 +148,39 @@ describe("central invoice authority document form canary", () => {
     expect(
       shouldUseCentralInvoiceAuthorityDocumentFormCanary({
         type: "factura",
-        existing: { id: "existing" } as Pick<Document, "id">,
+        existing: centralOriginal({
+          id: "existing-draft",
+          number: "BORRADOR",
+          status: "borrador",
+          centralInvoiceAuthority: undefined,
+        }),
+        payload: payload(),
+        resolvedStatus: "enviado",
+      }),
+    ).toBe(true);
+    expect(
+      shouldUseCentralInvoiceAuthorityDocumentFormCanary({
+        type: "factura",
+        existing: centralOriginal(),
+        payload: payload(),
+        resolvedStatus: "enviado",
+      }),
+    ).toBe(false);
+    expect(
+      shouldUseCentralInvoiceAuthorityDocumentFormCanary({
+        type: "factura",
+        existing: centralOriginal({ centralInvoiceAuthority: undefined }),
+        payload: payload(),
+        resolvedStatus: "enviado",
+      }),
+    ).toBe(false);
+    expect(
+      shouldUseCentralInvoiceAuthorityDocumentFormCanary({
+        type: "factura",
+        existing: centralOriginal({
+          number: "BORRADOR",
+          status: "borrador",
+        }),
         payload: payload(),
         resolvedStatus: "enviado",
       }),

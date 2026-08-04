@@ -50,6 +50,20 @@ describe("central invoice authority form store bridge", () => {
     );
   });
 
+  it("sustituye el borrador local existente sin duplicarlo tras la confirmacion central", () => {
+    const bridge = functionSource(
+      "addDocumentWithCentralIdentity",
+      "updateDocument",
+    );
+
+    expect(bridge).toContain("options.requireExistingDraft");
+    expect(bridge).toContain("existingDraft ?? createdDraft");
+    expect(bridge).toContain("const nextDocuments = existingDraft");
+    expect(bridge).toContain("? prev.documents.map");
+    expect(bridge).toContain("item.id === existingDraft.id ? created : item");
+    expect(bridge).toContain(": [...prev.documents, created]");
+  });
+
   it("materializa rectificativas centrales con el flujo canonico y actualiza la original", () => {
     const bridge = functionSource(
       "addDocumentWithCentralIdentity",
