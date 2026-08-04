@@ -9,8 +9,8 @@ const INVOICE_ROLES: DocumentChainItem["role"][] = [
 ];
 
 const RECTIFICATION_ROLES: DocumentChainItem["role"][] = [
-  "factura",
   "presupuesto",
+  "factura",
   "recibo",
   "gastos",
 ];

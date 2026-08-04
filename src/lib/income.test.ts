@@ -226,6 +226,29 @@ function attestedHistoricalCancellationPair(customerId: string): Document[] {
 }
 
 describe("income helpers", () => {
+  it("no ofrece un estado de cobro para una rectificativa de anulacion", () => {
+    const cancellation = invoice("enviado", -121, {
+      id: "rectification-cancellation",
+      number: "FR-2026-0001",
+      rectification: {
+        originalDocumentId: "invoice-original",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-09",
+        reason: "Anulacion total",
+        type: "anulacion",
+      },
+    });
+
+    expect(canMarkAsCollected(cancellation)).toBe(false);
+    expect(canUnmarkAsCollected({ ...cancellation, status: "pagado" })).toBe(
+      false,
+    );
+    expect(canToggleCollectionStatus(cancellation)).toBe(false);
+    expect(isCollectedDocument({ ...cancellation, status: "pagado" })).toBe(
+      false,
+    );
+  });
+
   it.each([
     ["aplicada", { status: "applied", repairId: "repair-1" }],
     ["malformada", null],
