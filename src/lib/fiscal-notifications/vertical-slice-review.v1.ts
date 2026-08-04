@@ -1169,6 +1169,55 @@ function projectSeizure(
       }),
     ),
   );
+  output.seizureFacts.debtAnnexRows?.forEach((item, index) => {
+    if (item.concept) {
+      fields.push(
+        field({
+          fieldId: `seizure-annex-row:${index + 1}:concept`,
+          semantic: "DETAIL",
+          canonicalType: "FACT_OR_GROUND",
+          label: "Motivo",
+          displayValue: item.concept.printedValue,
+          normalizedValue: item.concept.printedValue,
+          sourcePageNumbers: item.concept.pageNumbers,
+          sourceLabel: item.concept.sourceLabel,
+          confidence: 1,
+        }),
+      );
+    }
+    if (item.period) {
+      fields.push(
+        field({
+          fieldId: `seizure-annex-row:${index + 1}:period`,
+          semantic: "REFERENCE",
+          canonicalType: "TAX_PERIOD",
+          label: "Periodo fiscal",
+          displayValue: item.period.printedValue,
+          normalizedValue: item.period.printedValue,
+          sourcePageNumbers: item.period.pageNumbers,
+          sourceLabel: "Periodo fiscal",
+          confidence: 1,
+        }),
+      );
+    }
+    fields.push(
+      field({
+        fieldId: `seizure-annex-row:${index + 1}:pending`,
+        semantic: "MONEY",
+        canonicalType: "TOTAL_PENDING",
+        label: SEIZURE_MONEY_LABEL.TOTAL_PENDING,
+        displayValue: formatCents(
+          item.outstandingAmount.amountCents,
+          item.outstandingAmount.sign,
+        ),
+        amountCents: item.outstandingAmount.amountCents,
+        currency: "EUR",
+        sourcePageNumbers: [item.outstandingAmount.sourcePage],
+        sourceLabel: SEIZURE_MONEY_LABEL.TOTAL_PENDING,
+        confidence: 1,
+      }),
+    );
+  });
   addTextFact(
     fields,
     "SEIZURE_INSTRUCTIONS",
@@ -1210,7 +1259,7 @@ function commonFields(
           : normalized,
         normalizedValue: normalized,
         sourcePageNumbers: [item.sourcePage],
-        sourceLabel: REFERENCE_LABEL[item.referenceType],
+        sourceLabel: item.sourceLabel ?? REFERENCE_LABEL[item.referenceType],
         confidence: item.confidence,
       }),
     );
@@ -1854,6 +1903,9 @@ function isControlledFieldLabel(value: string): boolean {
       "Total",
       "Fecha del documento",
       "Clave de liquidación",
+      "Concepto de la deuda",
+      "Periodo de la deuda",
+      "Deuda pendiente",
       "Modelo",
       "Ejercicio",
       "Período",
@@ -2629,6 +2681,17 @@ function assertRealCorpusSerializableFieldPrivacyV3(
       normalized,
     )?.[1];
     if (!ordinal || display !== `Cuenta o depósito ${ordinal}`) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus-v3:SEIZURE_DEBT_CONCEPT:\d+$/u.test(fieldId)) {
+    if (
+      normalized !== display ||
+      display.length > 80 ||
+      !/^[\p{L}\p{N}][\p{L}\p{N}\s./()%-]{0,79}$/u.test(display) ||
+      PII_LIKE_REFERENCE.test(display.replace(/[\s./()%-]+/gu, ""))
+    ) {
       throw invalidReview();
     }
     return true;

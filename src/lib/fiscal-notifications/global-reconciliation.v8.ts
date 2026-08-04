@@ -197,7 +197,7 @@ const PHRASES: Readonly<
   }),
   ENFORCES: Object.freeze({
     phrase:
-      "Esta diligencia continúa el cobro de la deuda identificada en la providencia anterior.",
+      "Esta diligencia de embargo continúa el procedimiento iniciado por la providencia de apremio anterior.",
     caution:
       "El límite del embargo no acredita cuánto se obtuvo ni crea una deuda adicional.",
   }),

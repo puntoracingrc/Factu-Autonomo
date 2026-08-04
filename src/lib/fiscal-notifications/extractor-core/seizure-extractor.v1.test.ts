@@ -184,6 +184,70 @@ describe("common seizure extractor v1", () => {
     expect(output.retainedSourceContent).toBe("NONE");
   });
 
+  it("extracts the annex liquidation row as a strong liquidation key without inventing transfer", () => {
+    const output = extractSeizureV1({
+      document: document(
+        page(
+          "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+          "Número de diligencia: EMB-SYN-ANNEX-001",
+          "Fecha del embargo: 04/03/2026",
+          "DEUDAS DEL EXPEDIENTE EJECUTIVO",
+          "CONCEPTO | PER/EJER | Nº LIQUIDACIÓN | IMP. PENDIENTE",
+          "IVA AUTOLIQUIDACIÓN | 3T-2025 | A9999900010001001 | 621,20 EUR",
+          "Importe pendiente total: 621,20 EUR",
+          "Importe a embargar: 621,20 EUR",
+          "IBAN ES0012345678901234567890",
+        ),
+      ),
+      segments: [segment("DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS")],
+    });
+
+    expect(output.references).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          referenceType: "LIQUIDATION_KEY",
+          normalizedValue: "A9999900010001001",
+          sourcePage: 1,
+          sourceLabel: "Nº LIQUIDACIÓN",
+        }),
+      ]),
+    );
+    expect(output.seizureFacts.debtAnnexRows).toEqual([
+      expect.objectContaining({
+        concept: expect.objectContaining({
+          printedValue: "IVA AUTOLIQUIDACIÓN",
+        }),
+        period: expect.objectContaining({ printedValue: "3T-2025" }),
+        liquidationKey: expect.objectContaining({
+          printedValue: "A9999900010001001",
+          sourceLabel: "Nº LIQUIDACIÓN",
+        }),
+        outstandingAmount: expect.objectContaining({
+          amountCents: 62_120,
+          sourcePage: 1,
+        }),
+      }),
+    ]);
+    expect(output.monetaryComponents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          componentType: "TOTAL_PENDING",
+          amountCents: 62_120,
+        }),
+        expect.objectContaining({
+          componentType: "SEIZED_AMOUNT",
+          amountCents: 62_120,
+        }),
+      ]),
+    );
+    expect(output.monetaryComponents).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ componentType: "TOTAL_PAID" }),
+      ]),
+    );
+    expect(JSON.stringify(output)).not.toContain("ES0012345678901234567890");
+  });
+
   it("does not convert a relative response period or principal prose into scalar facts", () => {
     const output = extractSeizureV1({
       document: document(page(

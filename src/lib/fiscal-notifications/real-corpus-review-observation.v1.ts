@@ -163,7 +163,7 @@ export function canonicalRealCorpusMoneyType(
   if (/OFFSET_APPLIED|COMPENSATED|CREDIT_APPLIED/u.test(fieldCode)) {
     return "COMPENSATED_AMOUNT";
   }
-  if (/REMAINING|RESIDUAL|TOTAL_PENDING/u.test(fieldCode)) {
+  if (/REMAINING|RESIDUAL|TOTAL_PENDING|PENDING_DEBT/u.test(fieldCode)) {
     return "TOTAL_PENDING";
   }
   if (/REFUND.*(?:CREDIT|RECOGNIZED)|CREDIT_TOTAL/u.test(fieldCode)) {

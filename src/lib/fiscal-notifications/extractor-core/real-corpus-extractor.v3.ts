@@ -3,6 +3,9 @@ import {
   assertNotAborted,
   type BoundedDocumentInput,
 } from "../input-contract";
+import {
+  normalizeOfficialReference,
+} from "../official-reference-normalization.v1";
 import type {
   RealCorpusEvidenceV2,
   RealCorpusFieldV2,
@@ -129,7 +132,9 @@ interface DocumentIndexV3 {
 }
 
 interface BankSeizureDebtRowV3 {
-  readonly debtKey: Readonly<{ value: string; pageNumber: number }>;
+  readonly concept: Readonly<{ value: string; pageNumber: number }> | null;
+  readonly period: Readonly<{ value: string; pageNumber: number }> | null;
+  readonly liquidationKey: Readonly<{ value: string; pageNumber: number }>;
   readonly pendingDebt: Readonly<{ value: string; pageNumber: number }>;
 }
 
@@ -435,8 +440,7 @@ function isLiquidationNumberHeader(value: string): boolean {
     normalized === "NOLIQUIDACION" ||
     normalized === "NUMLIQUIDACION" ||
     normalized === "NUMEROLIQUIDACION" ||
-    normalized === "CLAVEDELIQUIDACION" ||
-    normalized === "CLAVEDEDEUDA"
+    normalized === "CLAVEDELIQUIDACION"
   );
 }
 
@@ -455,17 +459,50 @@ function bankSeizureDebtRow(
   for (let position = 0; position < index.lines.length - 1; position += 1) {
     const header = index.lines[position]!;
     const headers = tableCells(header);
-    const debtColumn = headers.findIndex(isLiquidationNumberHeader);
+    const liquidationColumn = headers.findIndex(isLiquidationNumberHeader);
     const pendingColumn = headers.findIndex(isPendingAmountHeader);
-    if (debtColumn < 0 || pendingColumn < 0) continue;
+    if (liquidationColumn < 0 || pendingColumn < 0) continue;
     const row = index.lines[position + 1]!;
     if (row.pageNumber !== header.pageNumber) continue;
     const cells = tableCells(row);
-    const debtKey = safeReference(cells[debtColumn] ?? "");
+    const liquidationKey = normalizeOfficialReference(
+      headers[liquidationColumn] ?? "Nº LIQUIDACIÓN",
+      cells[liquidationColumn] ?? "",
+    );
     const pendingDebt = parseMoney(cells[pendingColumn] ?? "");
-    if (!debtKey || pendingDebt === null || pendingDebt < 0) continue;
+    if (
+      !liquidationKey ||
+      liquidationKey.canonicalType !== "LIQUIDATION_KEY" ||
+      pendingDebt === null ||
+      pendingDebt < 0
+    ) continue;
+    const conceptColumn = headers.findIndex(
+      (cell) => normalize(cell).replace(/[^A-Z0-9]/gu, "") === "CONCEPTO",
+    );
+    const periodColumn = headers.findIndex((cell) =>
+      ["PEREJER", "PERIODO", "PERIODOEJERCICIO"].includes(
+        normalize(cell).replace(/[^A-Z0-9]/gu, ""),
+      ),
+    );
     return Object.freeze({
-      debtKey: Object.freeze({ value: debtKey, pageNumber: row.pageNumber }),
+      concept:
+        conceptColumn >= 0 && cells[conceptColumn]
+          ? Object.freeze({
+              value: cells[conceptColumn]!,
+              pageNumber: row.pageNumber,
+            })
+          : null,
+      period:
+        periodColumn >= 0 && cells[periodColumn]
+          ? Object.freeze({
+              value: cells[periodColumn]!,
+              pageNumber: row.pageNumber,
+            })
+          : null,
+      liquidationKey: Object.freeze({
+        value: cells[liquidationColumn]!.trim(),
+        pageNumber: row.pageNumber,
+      }),
       pendingDebt: Object.freeze({
         value: cells[pendingColumn]!,
         pageNumber: row.pageNumber,
@@ -1300,7 +1337,27 @@ function bankSeizure(
     dateField("SEIZURE_DATE", "Fecha de la diligencia", seizureDate),
     ...(debtRow
       ? [
-          referenceField("DEBT_KEY", "Número de liquidación", debtRow.debtKey),
+          referenceField(
+            "LIQUIDATION_KEY",
+            "Clave de liquidación",
+            debtRow.liquidationKey,
+          ),
+          debtRow.concept
+            ? textField(
+                "SEIZURE_DEBT_CONCEPT",
+                "Concepto de la deuda",
+                debtRow.concept.value,
+                debtRow.concept.pageNumber,
+              )
+            : null,
+          debtRow.period
+            ? textField(
+                "SEIZURE_DEBT_PERIOD",
+                "Periodo de la deuda",
+                debtRow.period.value,
+                debtRow.period.pageNumber,
+              )
+            : null,
           moneyField("PENDING_DEBT", "Deuda pendiente", debtRow.pendingDebt),
         ]
       : []),
