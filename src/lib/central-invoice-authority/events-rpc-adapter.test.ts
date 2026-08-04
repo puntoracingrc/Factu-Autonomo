@@ -108,6 +108,42 @@ describe("central invoice authority events RPC adapter", () => {
     ).rejects.toBeInstanceOf(CentralInvoiceAuthorityEventsRpcAdapterError);
   });
 
+  it("normaliza eventos operativos de relaciones", async () => {
+    const client: CentralInvoiceAuthorityEventsRpcClient = {
+      async rpc() {
+        return {
+          error: null,
+          data: [
+            {
+              event_id: "00000000-0000-4000-8000-000000000030",
+              document_id: "00000000-0000-4000-8000-000000000021",
+              identity_id: "00000000-0000-4000-8000-000000000022",
+              event_type: "invoice_relationship_updated",
+              created_at: "2026-08-04T15:00:00.000Z",
+              full_number: "F-2026-0001",
+              sequence: 1,
+              document_version: 2,
+              document_payload: {
+                document: { number: "F-2026-0001" },
+              },
+              emitted_hash: "sha256:materialized",
+              safe_summary: { quoteLink: "unlinked" },
+            },
+          ],
+        };
+      },
+    };
+
+    await expect(
+      listCentralInvoiceAuthorityEventsThroughRpc(client, input),
+    ).resolves.toMatchObject([
+      {
+        eventType: "invoice_relationship_updated",
+        documentVersion: 2,
+      },
+    ]);
+  });
+
   it("rechaza entradas sin usuario o dispositivo", () => {
     expect(() =>
       buildCentralInvoiceAuthorityEventsRpcArgs({

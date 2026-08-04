@@ -339,6 +339,124 @@ describe("central invoice authority local event apply", () => {
     });
   });
 
+  it("resuelve la factura original por numero fiscal si otro dispositivo usa otro id local", () => {
+    const originalOnDevice = document({
+      id: "phone-local-original",
+      number: "F-2026-2969",
+    });
+    const originalOnIssuer = document({
+      id: "pc-local-original",
+      number: "F-2026-2969",
+    });
+    const rectification = rectificationDocument(
+      {
+        id: "rectification-from-pc",
+        number: "FR-2026-0002",
+        rectification: {
+          originalDocumentId: originalOnIssuer.id,
+          originalNumber: originalOnIssuer.number,
+          originalDate: originalOnIssuer.date,
+          reason: "Anulacion sintetica",
+          type: "anulacion",
+        },
+      },
+      originalOnIssuer,
+    );
+
+    const result = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+      documents: [originalOnDevice],
+      profile,
+      events: [
+        event(
+          {
+            eventId: "event-rect-cross-device",
+            documentId: "server-rectification-2",
+            identityId: "identity-rect-2",
+            eventType: "rectification_issued",
+            fullNumber: "FR-2026-0002",
+            sequence: 2,
+            documentVersion: 1,
+          },
+          rectification,
+        ),
+      ],
+      receivedAt: "2026-08-04T15:00:00.000Z",
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.applied).toHaveLength(1);
+    expect(
+      result.documents.find((item) => item.id === "rectification-from-pc")
+        ?.rectification?.originalDocumentId,
+    ).toBe("phone-local-original");
+    expect(
+      result.documents.find((item) => item.id === "phone-local-original"),
+    ).toMatchObject({
+      status: "anulada",
+      rectifiedById: "rectification-from-pc",
+    });
+  });
+
+  it("desvincula el presupuesto sin tocar cobro ni evidencia fiscal", () => {
+    const local = document({
+      sourceQuoteDocumentId: "quote-1",
+      sourceQuoteNumber: "P-2026-6406",
+      paymentStatus: "paid",
+      status: "pagado",
+      paidAt: "2026-08-04T12:00:00.000Z",
+      documentSnapshot: { number: "F-2026-0001" } as unknown as Document["documentSnapshot"],
+      pdfSnapshot: { number: "F-2026-0001" } as unknown as Document["pdfSnapshot"],
+      centralInvoiceAuthority: {
+        schemaVersion: 1,
+        source: "central_invoice_authority",
+        serverDocumentId: "server-document-1",
+        identityId: "identity-1",
+        outboxEventId: "event-1",
+        eventType: "invoice_issued",
+        fullNumber: "F-2026-0001",
+        sequence: 1,
+        documentVersion: 1,
+        receivedAt: "2026-08-04T12:00:00.000Z",
+      },
+    });
+    const unlinked = document({
+      sourceQuoteDocumentId: undefined,
+      sourceQuoteNumber: undefined,
+      updatedAt: "2026-08-04T15:10:00.000Z",
+    });
+
+    const result = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+      documents: [local],
+      profile,
+      events: [
+        event(
+          {
+            eventId: "event-unlink-1",
+            eventType: "invoice_relationship_updated",
+            documentVersion: 2,
+          },
+          unlinked,
+        ),
+      ],
+      receivedAt: "2026-08-04T15:10:01.000Z",
+    });
+
+    expect(result.applied[0]?.action).toBe("relationship_updated");
+    expect(result.documents[0]).toMatchObject({
+      status: "pagado",
+      paymentStatus: "paid",
+      paidAt: "2026-08-04T12:00:00.000Z",
+      centralInvoiceAuthority: {
+        eventType: "invoice_relationship_updated",
+        documentVersion: 2,
+      },
+    });
+    expect(result.documents[0]?.sourceQuoteDocumentId).toBeUndefined();
+    expect(result.documents[0]?.sourceQuoteNumber).toBeUndefined();
+    expect(result.documents[0]?.documentSnapshot).toBe(local.documentSnapshot);
+    expect(result.documents[0]?.pdfSnapshot).toBe(local.pdfSnapshot);
+  });
+
   it("bloquea una rectificativa central si falta su factura original", () => {
     const rectification = rectificationDocument();
 

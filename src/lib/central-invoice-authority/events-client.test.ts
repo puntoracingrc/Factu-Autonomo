@@ -133,6 +133,39 @@ describe("central invoice authority events client", () => {
     });
   });
 
+  it("acepta eventos operativos de relaciones", async () => {
+    const result = await pullCentralInvoiceAuthorityEventsFromBrowser(
+      {},
+      {
+        fetchImpl: vi.fn(async () =>
+          jsonResponse(200, {
+            ok: true,
+            schema: "CENTRAL_INVOICE_AUTHORITY_EVENTS_ROUTE_V1",
+            events: [
+              eventPayload({
+                eventType: "invoice_relationship_updated",
+                documentVersion: 2,
+              }),
+            ],
+            nextCursor: null,
+          }),
+        ),
+        getAccessToken: async () => "access-token",
+        getDeviceToken: () => "device-token",
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      events: [
+        {
+          eventType: "invoice_relationship_updated",
+          documentVersion: 2,
+        },
+      ],
+    });
+  });
+
   it("rechaza payloads exitosos sin eventos completos", async () => {
     const result = await pullCentralInvoiceAuthorityEventsFromBrowser(
       {},

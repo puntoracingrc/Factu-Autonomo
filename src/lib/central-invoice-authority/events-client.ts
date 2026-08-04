@@ -21,7 +21,8 @@ export type CentralInvoiceAuthorityPulledBrowserEventType =
   | "invoice_issued"
   | "rectification_issued"
   | "document_repaired"
-  | "invoice_collection_updated";
+  | "invoice_collection_updated"
+  | "invoice_relationship_updated";
 
 export interface CentralInvoiceAuthorityPulledBrowserEvent {
   schema: "CENTRAL_INVOICE_AUTHORITY_EVENTS_RPC_ADAPTER_V1";
@@ -111,7 +112,8 @@ function eventType(
     value === "invoice_issued" ||
     value === "rectification_issued" ||
     value === "document_repaired" ||
-    value === "invoice_collection_updated"
+    value === "invoice_collection_updated" ||
+    value === "invoice_relationship_updated"
   ) {
     return value;
   }

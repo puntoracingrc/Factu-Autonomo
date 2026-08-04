@@ -16,7 +16,8 @@ export const CENTRAL_INVOICE_AUTHORITY_EVENTS_LOCAL_APPLY =
 export type CentralInvoiceAuthorityEventsLocalApplyAction =
   | "inserted"
   | "metadata_attached"
-  | "collection_updated";
+  | "collection_updated"
+  | "relationship_updated";
 
 export type CentralInvoiceAuthorityEventsLocalSkipCode =
   | "unsupported_event_type"
@@ -89,7 +90,8 @@ function kindForEvent(
 ): Extract<DocumentKind, "factura" | "factura_rectificativa"> | null {
   if (
     event.eventType === "invoice_issued" ||
-    event.eventType === "invoice_collection_updated"
+    event.eventType === "invoice_collection_updated" ||
+    event.eventType === "invoice_relationship_updated"
   ) {
     return "factura";
   }
@@ -192,6 +194,12 @@ function isCollectionUpdateEvent(
   return event.eventType === "invoice_collection_updated";
 }
 
+function isRelationshipUpdateEvent(
+  event: CentralInvoiceAuthorityPulledBrowserEvent,
+): boolean {
+  return event.eventType === "invoice_relationship_updated";
+}
+
 function isSupportedCollectionStatus(
   doc: Document,
 ): doc is Document & {
@@ -234,6 +242,43 @@ function applyCollectionStatusFromEvent(
       status: incoming.status,
       paymentStatus: incoming.paymentStatus,
       paidAt: incoming.paidAt,
+      updatedAt: incoming.updatedAt,
+    },
+    event,
+    receivedAt,
+  );
+}
+
+function applyRelationshipFromEvent(
+  existing: Document,
+  event: CentralInvoiceAuthorityPulledBrowserEvent,
+  receivedAt: string,
+): Document | null {
+  const incoming = documentFromEventPayload(event);
+  if (
+    !incoming ||
+    incoming.type !== "factura" ||
+    incoming.rectification ||
+    normalizeNumber(incoming.number) !== normalizeNumber(event.fullNumber)
+  ) {
+    return null;
+  }
+
+  const relationship =
+    incoming.sourceQuoteDocumentId && incoming.sourceQuoteNumber
+      ? {
+          sourceQuoteDocumentId: incoming.sourceQuoteDocumentId,
+          sourceQuoteNumber: incoming.sourceQuoteNumber,
+        }
+      : {
+          sourceQuoteDocumentId: undefined,
+          sourceQuoteNumber: undefined,
+        };
+
+  return attachCentralMetadata(
+    {
+      ...existing,
+      ...relationship,
       updatedAt: incoming.updatedAt,
     },
     event,
@@ -338,6 +383,38 @@ function rectificationRelationConflict(
   return null;
 }
 
+function resolveRectificationOriginalReference(
+  documents: Document[],
+  incoming: Document,
+): Document {
+  const rectification = incoming.rectification;
+  if (!rectification) return incoming;
+  if (
+    documents.some(
+      (document) => document.id === rectification.originalDocumentId,
+    )
+  ) {
+    return incoming;
+  }
+
+  const originalsByFiscalNumber = documents.filter(
+    (document) =>
+      document.type === "factura" &&
+      !document.rectification &&
+      normalizeNumber(document.number) ===
+        normalizeNumber(rectification.originalNumber),
+  );
+  if (originalsByFiscalNumber.length !== 1) return incoming;
+
+  return {
+    ...incoming,
+    rectification: {
+      ...rectification,
+      originalDocumentId: originalsByFiscalNumber[0]!.id,
+    },
+  };
+}
+
 export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
   input: CentralInvoiceAuthorityEventsLocalApplyInput,
 ): CentralInvoiceAuthorityEventsLocalApplyResult {
@@ -398,7 +475,9 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
 
       const nextDocument = isCollectionUpdateEvent(event)
         ? applyCollectionStatusFromEvent(existing, event, receivedAt)
-        : attachCentralMetadata(documents[centralIndex]!, event, receivedAt);
+        : isRelationshipUpdateEvent(event)
+          ? applyRelationshipFromEvent(existing, event, receivedAt)
+          : attachCentralMetadata(documents[centralIndex]!, event, receivedAt);
 
       if (!nextDocument) {
         skipped.push({
@@ -423,12 +502,17 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
         fullNumber: event.fullNumber,
         action: isCollectionUpdateEvent(event)
           ? "collection_updated"
-          : "metadata_attached",
+          : isRelationshipUpdateEvent(event)
+            ? "relationship_updated"
+            : "metadata_attached",
       });
       continue;
     }
 
-    const incoming = documentFromEventPayload(event);
+    const incomingPayload = documentFromEventPayload(event);
+    const incoming = incomingPayload
+      ? resolveRectificationOriginalReference(documents, incomingPayload)
+      : null;
     if (
       !incoming ||
       kindForDocument(incoming) !== eventKind ||

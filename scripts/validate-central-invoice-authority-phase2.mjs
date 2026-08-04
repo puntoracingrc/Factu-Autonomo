@@ -125,6 +125,8 @@ const allowedCollectionStatusEventsV2Migration =
   "20260802155754_central_invoice_collection_device_version_relaxation.sql";
 const allowedCollectionStatusEventsV3Migration =
   "20260802160000_central_invoice_collection_rpc_column_qualification.sql";
+const allowedQuoteUnlinkEventsMigration =
+  "20260804155708_central_invoice_quote_unlink_events.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -139,6 +141,7 @@ const allowedCentralMigrations = new Set([
   allowedCollectionStatusEventsMigration,
   allowedCollectionStatusEventsV2Migration,
   allowedCollectionStatusEventsV3Migration,
+  allowedQuoteUnlinkEventsMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -229,6 +232,43 @@ if (centralMigrations.includes(allowedMaterializedSnapshotMigration)) {
   );
   assert.doesNotMatch(localMaterializedSnapshot, /\buser_backups\b/i);
   assert.doesNotMatch(localMaterializedSnapshot, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedQuoteUnlinkEventsMigration)) {
+  const quoteUnlinkEvents = read(
+    `supabase/migrations/${allowedQuoteUnlinkEventsMigration}`,
+  );
+  assert.match(
+    quoteUnlinkEvents,
+    /CENTRAL_INVOICE_AUTHORITY_QUOTE_UNLINK_EVENTS_V1/,
+  );
+  assert.match(
+    quoteUnlinkEvents,
+    /create\s+or\s+replace\s+function\s+public\.unlink_central_invoice_quote_v1/i,
+  );
+  assert.match(quoteUnlinkEvents, /security\s+definer/i);
+  assert.match(quoteUnlinkEvents, /set\s+search_path\s+=\s+''/i);
+  assert.match(quoteUnlinkEvents, /service_role/);
+  assert.match(
+    quoteUnlinkEvents,
+    /create\s+trigger\s+central_invoice_rectification_original_state_v1/i,
+  );
+  assert.match(quoteUnlinkEvents, /invoice_relationship_updated/);
+  assert.match(quoteUnlinkEvents, /cross-device-original-v1/);
+  assert.doesNotMatch(
+    quoteUnlinkEvents,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    quoteUnlinkEvents,
+    /\bupdate\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    quoteUnlinkEvents,
+    /\binsert\s+into\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(quoteUnlinkEvents, /\buser_backups\b/i);
+  assert.doesNotMatch(quoteUnlinkEvents, /\bsync_entities\b/i);
 }
 
 if (centralMigrations.includes(allowedSeriesReconciliationMigration)) {
