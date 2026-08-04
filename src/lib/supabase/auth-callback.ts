@@ -62,12 +62,6 @@ export async function completeSupabaseAuthCallback(input: {
     if (result.error || !result.data.session) return failClosed();
   } else if (tokenHash && type) {
     callbackCredential = true;
-    const current = await dependencies.getSession();
-    if (current.error) return failClosed();
-    if (current.data.session) {
-      await clearLocalSession(dependencies);
-      localSessionCleared = true;
-    }
     const otpType =
       type === "signup" || type === "email" || type === "recovery"
         ? type
@@ -87,14 +81,6 @@ export async function completeSupabaseAuthCallback(input: {
     isRecovery = isRecovery || hashParams.get("type") === "recovery";
     if (accessToken && refreshToken) {
       callbackCredential = true;
-      if (!localSessionCleared) {
-        const current = await dependencies.getSession();
-        if (current.error) return failClosed();
-        if (current.data.session) {
-          await clearLocalSession(dependencies);
-          localSessionCleared = true;
-        }
-      }
       const result = await dependencies.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,

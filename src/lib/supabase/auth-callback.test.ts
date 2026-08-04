@@ -42,7 +42,7 @@ function dependencies(input: {
 }
 
 describe("auth callback account switching", () => {
-  it("clears the previous local session before accepting an email token", async () => {
+  it("replaces the previous local session with a valid email token", async () => {
     const setup = dependencies({ initialSession: { user: "previous" } });
 
     await expect(
@@ -52,13 +52,8 @@ describe("auth callback account switching", () => {
         dependencies: setup.value,
       }),
     ).resolves.toBe("confirmed");
-    expect(setup.calls).toEqual([
-      "getSession",
-      "signOutLocal",
-      "verifyOtp",
-      "getSession",
-    ]);
-    expect(setup.value.signOutLocal).toHaveBeenCalledOnce();
+    expect(setup.calls).toEqual(["verifyOtp", "getSession"]);
+    expect(setup.value.signOutLocal).not.toHaveBeenCalled();
   });
 
   it("does not preserve the previous user when the new token is invalid", async () => {
@@ -74,11 +69,7 @@ describe("auth callback account switching", () => {
         dependencies: setup.value,
       }),
     ).resolves.toBe("pending");
-    expect(setup.calls).toEqual([
-      "getSession",
-      "signOutLocal",
-      "verifyOtp",
-    ]);
+    expect(setup.calls).toEqual(["verifyOtp", "signOutLocal"]);
   });
 
   it("clears a stale user when a PKCE code cannot be exchanged", async () => {
@@ -110,6 +101,20 @@ describe("auth callback account switching", () => {
         dependencies: setup.value,
       }),
     ).resolves.toBe("confirmed");
+    expect(setup.value.signOutLocal).not.toHaveBeenCalled();
+  });
+
+  it("accepts hash credentials without revoking the new session", async () => {
+    const setup = dependencies({ initialSession: { user: "previous" } });
+
+    await expect(
+      completeSupabaseAuthCallback({
+        search: "",
+        hash: "#access_token=access&refresh_token=refresh&type=recovery",
+        dependencies: setup.value,
+      }),
+    ).resolves.toBe("recovery");
+    expect(setup.calls).toEqual(["setSession", "getSession"]);
     expect(setup.value.signOutLocal).not.toHaveBeenCalled();
   });
 });
