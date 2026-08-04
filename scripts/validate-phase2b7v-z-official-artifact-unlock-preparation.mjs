@@ -152,6 +152,10 @@ const unrelatedLaterPhasePatterns = [
   /^src\/lib\/local-data-safety\//,
     /^src\/components\/local-data-safety\//,
   /^docs\/phase2d/,
+  /^scripts\/phase2e10-storage-resilience-acceptance\.test\.ts$/,
+  /^scripts\/validate-phase2e/,
+  /^src\/lib\/local-storage-resilience\//,
+  /^docs\/phase2e/,
   /^supabase\/migrations\/\d{14}_phase2c20_document_sync_local_schema\.sql$/,
   /^supabase\/rollbacks\/\d{14}_phase2c20_document_sync_local_schema\.down\.sql$/,
 ];
