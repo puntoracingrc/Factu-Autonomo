@@ -127,6 +127,8 @@ const allowedCollectionStatusEventsV3Migration =
   "20260802160000_central_invoice_collection_rpc_column_qualification.sql";
 const allowedQuoteUnlinkEventsMigration =
   "20260804155708_central_invoice_quote_unlink_events.sql";
+const allowedVoidedQuoteUnlinkMigration =
+  "20260804165537_allow_voided_invoice_quote_unlink.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -142,6 +144,7 @@ const allowedCentralMigrations = new Set([
   allowedCollectionStatusEventsV2Migration,
   allowedCollectionStatusEventsV3Migration,
   allowedQuoteUnlinkEventsMigration,
+  allowedVoidedQuoteUnlinkMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -269,6 +272,35 @@ if (centralMigrations.includes(allowedQuoteUnlinkEventsMigration)) {
   );
   assert.doesNotMatch(quoteUnlinkEvents, /\buser_backups\b/i);
   assert.doesNotMatch(quoteUnlinkEvents, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedVoidedQuoteUnlinkMigration)) {
+  const voidedQuoteUnlink = read(
+    `supabase/migrations/${allowedVoidedQuoteUnlinkMigration}`,
+  );
+  assert.match(
+    voidedQuoteUnlink,
+    /CENTRAL_INVOICE_AUTHORITY_ALLOW_VOIDED_QUOTE_UNLINK_V1/,
+  );
+  assert.match(
+    voidedQuoteUnlink,
+    /lifecycle_status\s+not\s+in\s+\('issued',\s*'rectified',\s*'voided'\)/i,
+  );
+  assert.match(voidedQuoteUnlink, /security\s+definer/i);
+  assert.match(voidedQuoteUnlink, /set\s+search_path\s+=\s+''/i);
+  assert.match(voidedQuoteUnlink, /service_role/);
+  assert.doesNotMatch(
+    voidedQuoteUnlink,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    voidedQuoteUnlink,
+    /\bupdate\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    voidedQuoteUnlink,
+    /\binsert\s+into\s+public\.(?!central_invoice_)/i,
+  );
 }
 
 if (centralMigrations.includes(allowedSeriesReconciliationMigration)) {
