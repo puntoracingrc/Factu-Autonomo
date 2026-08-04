@@ -266,13 +266,17 @@ describe("MVP usability polish", () => {
       new URL("../app/auth/callback/page.tsx", import.meta.url),
       "utf8",
     );
+    const authCallbackHelperSource = readFileSync(
+      new URL("./supabase/auth-callback.ts", import.meta.url),
+      "utf8",
+    );
 
     expect(cloudAccountSource).toContain("He olvidado mi contraseña");
     expect(cloudAccountSource).toContain("Enviar enlace de recuperación");
     expect(cloudAccountSource).toContain("Crear contraseña nueva");
     expect(cloudContextSource).toContain("resetPasswordForEmail");
     expect(cloudContextSource).toContain("updateUser({ password");
-    expect(authCallbackSource).toContain('"recovery"');
+    expect(authCallbackHelperSource).toContain('"recovery"');
     expect(authCallbackSource).toContain("auth=${result}");
   });
 
