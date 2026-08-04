@@ -2,55 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  completeSupabaseAuthCallback,
+  type AuthCallbackResult,
+} from "@/lib/supabase/auth-callback";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
-
-type AuthCallbackResult = "confirmed" | "pending" | "recovery" | "error";
 
 async function completeAuthCallback(): Promise<AuthCallbackResult> {
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return "error";
-
-  const query = new URLSearchParams(window.location.search);
-  const code = query.get("code");
-  const tokenHash = query.get("token_hash");
-  const type = query.get("type");
-  let isRecovery = type === "recovery";
-
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return "pending";
-  } else if (tokenHash && type) {
-    const otpType =
-      type === "signup" || type === "email" || type === "recovery"
-        ? type
-        : "email";
-    const { error } = await supabase.auth.verifyOtp({
-      type: otpType,
-      token_hash: tokenHash,
-    });
-    if (error) return "pending";
-  }
-
-  const hash = window.location.hash.startsWith("#")
-    ? window.location.hash.slice(1)
-    : window.location.hash;
-  if (hash) {
-    const hashParams = new URLSearchParams(hash);
-    const accessToken = hashParams.get("access_token");
-    const refreshToken = hashParams.get("refresh_token");
-    isRecovery = isRecovery || hashParams.get("type") === "recovery";
-    if (accessToken && refreshToken) {
-      const { error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      if (error) return "pending";
-    }
-  }
-
-  const { data } = await supabase.auth.getSession();
-  if (data.session && isRecovery) return "recovery";
-  return data.session ? "confirmed" : "pending";
+  return completeSupabaseAuthCallback({
+    search: window.location.search,
+    hash: window.location.hash,
+    dependencies: {
+      getSession: () => supabase.auth.getSession(),
+      signOutLocal: () => supabase.auth.signOut({ scope: "local" }),
+      exchangeCodeForSession: (code) =>
+        supabase.auth.exchangeCodeForSession(code),
+      verifyOtp: (input) => supabase.auth.verifyOtp(input),
+      setSession: (input) => supabase.auth.setSession(input),
+    },
+  });
 }
 
 export default function AuthCallbackPage() {
