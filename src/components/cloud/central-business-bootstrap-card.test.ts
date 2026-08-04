@@ -54,6 +54,20 @@ describe("central business bootstrap account card", () => {
     expect(component).toContain(
       "recordCentralBusinessBootstrapCheckpoint",
     );
+    expect(component).toContain(
+      "markCentralBusinessAutomaticBootstrapVerified",
+    );
+  });
+
+  it("permite enlazar una copia identica sin escribir en el servidor", () => {
+    expect(component).toContain("canLinkIdenticalCopy");
+    expect(component).toContain("preview.summary.create === 0");
+    expect(component).toContain("handleLinkIdenticalCopy");
+    expect(component).toContain("recordVerifiedBrowserSnapshot");
+    expect(component).toContain("Enlazar este dispositivo");
+    expect(component).toContain(
+      "No se ha escrito ni reemplazado ningún dato central.",
+    );
   });
 
   it("permite adoptar la copia central en el dispositivo sin escribir servidor", () => {

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { markCentralBusinessAutomaticBootstrapVerified } from "@/lib/central-business-authority/automatic-bootstrap-state";
 import {
   buildCentralBusinessBootstrapBrowserSnapshot,
   centralBusinessBootstrapSnapshotSignature,
@@ -172,6 +173,28 @@ export function CentralBusinessBootstrapCard() {
   const canConfirmBootstrap = Boolean(
     preview?.canCommit && preview.summary.create > 0,
   );
+  const canLinkIdenticalCopy = Boolean(
+    preview?.canCommit && preview.summary.create === 0,
+  );
+
+  async function recordVerifiedBrowserSnapshot(
+    entities: CentralBusinessBootstrapBrowserEntity[],
+    verifiedPreview: CentralBusinessBootstrapBrowserPreview,
+    signature: string,
+  ) {
+    await recordCentralBusinessBootstrapCheckpoint({
+      ownerScope: activeOwnerScope,
+      entities,
+      preview: verifiedPreview,
+      verifyCurrentSnapshot: () =>
+        centralBusinessBootstrapSnapshotSignature(
+          buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData()),
+        ) === signature,
+    });
+    markCentralBusinessAutomaticBootstrapVerified({
+      ownerScope: activeOwnerScope,
+    });
+  }
 
   async function syncAllCentralEvents(): Promise<Notice | null> {
     for (let page = 0; page < 100; page += 1) {
@@ -431,6 +454,11 @@ export function CentralBusinessBootstrapCard() {
         }
         discardedLegacyChanges = retired.value.discarded;
       }
+      await recordVerifiedBrowserSnapshot(
+        restoredEntities,
+        verified.preview,
+        centralBusinessBootstrapSnapshotSignature(restoredEntities),
+      );
       setNotice({
         tone: "success",
         message:
@@ -497,15 +525,7 @@ export function CentralBusinessBootstrapCard() {
         return;
       }
 
-      await recordCentralBusinessBootstrapCheckpoint({
-        ownerScope: activeOwnerScope,
-        entities: snapshot,
-        preview,
-        verifyCurrentSnapshot: () =>
-          centralBusinessBootstrapSnapshotSignature(
-            buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData()),
-          ) === snapshotSignature,
-      });
+      await recordVerifiedBrowserSnapshot(snapshot, preview, snapshotSignature);
       const syncNotice = await syncAllCentralEvents();
       if (syncNotice) {
         setNotice({
@@ -527,6 +547,56 @@ export function CentralBusinessBootstrapCard() {
           error instanceof Error
             ? error.message
             : "No se pudo confirmar la migración central.",
+      });
+    } finally {
+      setCommitting(false);
+    }
+  }
+
+  async function handleLinkIdenticalCopy() {
+    if (
+      !preview ||
+      !snapshot ||
+      !snapshotSignature ||
+      !confirmed ||
+      !preview.canCommit ||
+      preview.summary.create !== 0
+    ) {
+      return;
+    }
+    setCommitting(true);
+    setNotice(null);
+    try {
+      const currentEntities = buildCentralBusinessBootstrapBrowserSnapshot(
+        getCurrentData(),
+      );
+      if (
+        centralBusinessBootstrapSnapshotSignature(currentEntities) !==
+        snapshotSignature
+      ) {
+        resetPreview();
+        setNotice({
+          tone: "warning",
+          message:
+            "Los datos de este dispositivo cambiaron después de comparar. Prepara una vista previa nueva.",
+        });
+        return;
+      }
+
+      await recordVerifiedBrowserSnapshot(snapshot, preview, snapshotSignature);
+      setNotice({
+        tone: "success",
+        message:
+          "La copia de este dispositivo coincide con el servidor central y ha quedado enlazada. No se ha escrito ni reemplazado ningún dato central.",
+      });
+      resetPreview();
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo enlazar este dispositivo con la copia central.",
       });
     } finally {
       setCommitting(false);
@@ -643,7 +713,7 @@ export function CentralBusinessBootstrapCard() {
             </div>
           ) : null}
 
-          {canConfirmBootstrap ? (
+          {canConfirmBootstrap || canLinkIdenticalCopy ? (
             <label className="flex items-start gap-3 rounded-lg border border-indigo-100 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
               <input
                 type="checkbox"
@@ -653,9 +723,9 @@ export function CentralBusinessBootstrapCard() {
                 className="mt-1 h-4 w-4 shrink-0 accent-indigo-700"
               />
               <span>
-                He revisado la comparación. Autorizo crear únicamente las
-                fichas ausentes; las coincidentes no se reescriben y cualquier
-                diferencia abortará todo el lote.
+                {canLinkIdenticalCopy
+                  ? "He revisado la comparación. Confirmo que esta copia coincide con el servidor y autorizo enlazar este dispositivo sin escribir ni reemplazar datos centrales."
+                  : "He revisado la comparación. Autorizo crear únicamente las fichas ausentes; las coincidentes no se reescriben y cualquier diferencia abortará todo el lote."}
               </span>
             </label>
           ) : null}
@@ -721,6 +791,18 @@ export function CentralBusinessBootstrapCard() {
             {committing
               ? "Confirmando con el servidor…"
               : "Confirmar migración central"}
+          </Button>
+        ) : null}
+        {canLinkIdenticalCopy ? (
+          <Button
+            onClick={() => void handleLinkIdenticalCopy()}
+            disabled={!confirmed || preparing || committing || restoring}
+            aria-busy={committing}
+          >
+            <Database className="h-4 w-4" />
+            {committing
+              ? "Enlazando dispositivo…"
+              : "Enlazar este dispositivo"}
           </Button>
         ) : null}
         {canAdoptServerCopy ? (
