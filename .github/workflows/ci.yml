@@ -144,6 +144,9 @@ jobs:
           PHASE1_ACCEPTANCE_STRIPE_WEBHOOK_SECRET: whsec_test
         run: npm run test:phase1-acceptance
 
+      - name: Run global synthetic central regression
+        run: npm run test:central-global-synthetic
+
       - name: Stop local services
         if: always()
         run: |
