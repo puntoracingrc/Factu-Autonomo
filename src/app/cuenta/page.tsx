@@ -31,7 +31,6 @@ import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
 import { AppIssuedDocumentRecoveryCard } from "@/components/settings/AppIssuedDocumentRecoveryCard";
 import { ImportedLegacyDocumentRepairCard } from "@/components/settings/ImportedLegacyDocumentRepairCard";
-import { TestDocumentRetirementCard } from "@/components/settings/TestDocumentRetirementCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
@@ -144,7 +143,8 @@ export default function CuentaPage() {
             <div>
               <h3 className="font-bold text-slate-900">Afiliados</h3>
               <p className="mt-1 text-sm text-slate-600">
-                Comparte tu enlace y consulta las ventajas conseguidas por tus invitaciones.
+                Comparte tu enlace y consulta las ventajas conseguidas por tus
+                invitaciones.
               </p>
             </div>
           </div>
@@ -201,9 +201,6 @@ export default function CuentaPage() {
         </div>
         <div id="reparacion-repartos-gastos" className="scroll-mt-24">
           <ExpenseWorkAllocationRepairCard />
-        </div>
-        <div id="mantenimiento-documentos-prueba" className="scroll-mt-24">
-          <TestDocumentRetirementCard />
         </div>
         <div id="recuperacion-documentos-factu" className="scroll-mt-24">
           <AppIssuedDocumentRecoveryCard />

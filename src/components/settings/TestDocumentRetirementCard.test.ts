@@ -12,15 +12,12 @@ const accountSource = readFileSync(
 );
 
 describe("TestDocumentRetirementCard wiring", () => {
-  it("queda integrada en Cuenta → Copias como mantenimiento explícito", () => {
-    expect(accountSource).toContain(
+  it("queda fuera de Cuenta mientras no tenga un comando central atómico", () => {
+    expect(accountSource).not.toContain(
       'import { TestDocumentRetirementCard } from "@/components/settings/TestDocumentRetirementCard"',
     );
-    expect(accountSource).toContain('id="mantenimiento-documentos-prueba"');
-    expect(accountSource).toContain("<TestDocumentRetirementCard />");
-    expect(accountSource.indexOf("<TestDocumentRetirementCard />")).toBeLessThan(
-      accountSource.indexOf("<AppIssuedDocumentRecoveryCard />"),
-    );
+    expect(accountSource).not.toContain('id="mantenimiento-documentos-prueba"');
+    expect(accountSource).not.toContain("<TestDocumentRetirementCard />");
   });
 
   it("exige cuenta autenticada, nube vigente, cero pendientes y fuera de demo", () => {
@@ -51,12 +48,14 @@ describe("TestDocumentRetirementCard wiring", () => {
     expect(cardSource).toContain("ambiguousDocumentCandidates(");
     expect(cardSource).toContain("handlePrepareRetirementForDocument");
     expect(cardSource).toContain("Preparar este documento");
-    expect(cardSource).toContain('ID {document.id}');
+    expect(cardSource).toContain("ID {document.id}");
     expect(cardSource).toContain("resolution.duplicateNumbers.length > 0");
     expect(cardSource).toContain("blockerDetail(blocker, data)");
     expect(cardSource).toContain("Lo referencia el gasto");
     expect(cardSource).toContain("Lo referencia el recordatorio");
-    expect(cardSource).not.toContain("testDocumentRetirementConfirmationPhrase(");
+    expect(cardSource).not.toContain(
+      "testDocumentRetirementConfirmationPhrase(",
+    );
     expect(cardSource).not.toContain("retirementPhrase");
     expect(cardSource).toContain("retiredDocuments.map(");
     expect(cardSource).toContain("Factu no los clasifica");
@@ -112,18 +111,16 @@ describe("TestDocumentRetirementCard wiring", () => {
   });
 
   it("crea la copia previa dentro de la acción durable y sincroniza solo tras éxito", () => {
-    expect(cardSource).toContain(
-      "runTestDocumentRetirementWithSafetyCopy({",
-    );
+    expect(cardSource).toContain("runTestDocumentRetirementWithSafetyCopy({");
     expect(cardSource).toContain("getCurrent: getCurrentData");
     expect(cardSource).toContain('purpose: "pre_test_retirement"');
     expect(cardSource).toContain("apply: applyTestDocumentRetirement");
     expect(cardSource).toContain('result.status === "indeterminate"');
     expect(cardSource).toContain('result.status === "blocked"');
     expect(cardSource).toContain("void syncNow(result.data);");
-    expect(cardSource.indexOf("setFeedback({\n        tone: \"success\"")).toBeLessThan(
-      cardSource.lastIndexOf("void syncNow(result.data);"),
-    );
+    expect(
+      cardSource.indexOf('setFeedback({\n        tone: "success"'),
+    ).toBeLessThan(cardSource.lastIndexOf("void syncNow(result.data);"));
     expect(cardSource).not.toContain("replaceData");
     expect(cardSource).not.toContain("filter((document) => !");
   });
@@ -134,18 +131,12 @@ describe("TestDocumentRetirementCard wiring", () => {
     );
     expect(cardSource).toContain("batch.events.at(-1)");
     expect(cardSource).toContain("latestEvent.backup.filename");
-    expect(cardSource).toContain(
-      "buildTestDocumentRetirementRollbackPreview(",
-    );
-    expect(cardSource).toContain(
-      "testDocumentRetirementRollbackPhrase(",
-    );
+    expect(cardSource).toContain("buildTestDocumentRetirementRollbackPreview(");
+    expect(cardSource).toContain("testDocumentRetirementRollbackPhrase(");
     expect(cardSource).toContain(
       "runTestDocumentRetirementRollbackWithSafetyCopy({",
     );
-    expect(cardSource).toContain(
-      "rollback: rollbackTestDocumentRetirement",
-    );
+    expect(cardSource).toContain("rollback: rollbackTestDocumentRetirement");
     expect(cardSource).toContain("Preparar copia y restaurar este lote");
     expect(cardSource).toContain(
       "La auditoría y la reserva de numeración permanecerán",

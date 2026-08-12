@@ -115,9 +115,7 @@ import {
   issueCentralInvoiceAuthorityFromBrowser,
   resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
 } from "@/lib/central-invoice-authority/form-canary-client";
-import {
-  preflightCentralInvoiceAuthorityFormSeries,
-} from "@/lib/central-invoice-authority/form-series-preflight";
+import { preflightCentralInvoiceAuthorityFormSeries } from "@/lib/central-invoice-authority/form-series-preflight";
 import { runCentralInvoiceAuthorityClientOperation } from "@/lib/central-invoice-authority/client-operation-lock";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import {
@@ -496,13 +494,7 @@ export function DocumentForm({
     isPro,
     recordDocumentCreated,
   } = useBilling();
-  const {
-    cloudEnabled,
-    cloudSyncPaused,
-    user: cloudUser,
-    syncIssue: cloudSyncIssue,
-    syncNow,
-  } = useCloudSync();
+  const { cloudEnabled, user: cloudUser, syncNow } = useCloudSync();
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const centralCanaryEnabled = isCentralInvoiceAuthorityFormCanaryEnabled();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -1734,14 +1726,8 @@ export function DocumentForm({
       resolvedStatus !== "borrador" &&
       (type === "factura" || type === "recibo") &&
       cloudEnabled &&
-      !cloudSyncPaused &&
       Boolean(cloudUser);
     if (requiresFreshCloudBeforeEmission) {
-      if (cloudSyncIssue) {
-        setSaveAction("idle");
-        setFormError(cloudSyncIssue.userMessage);
-        return;
-      }
       const synced = await syncNow();
       if (!synced) {
         setSaveAction("idle");

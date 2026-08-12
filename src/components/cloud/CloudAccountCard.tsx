@@ -6,8 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import {
   Cloud,
-  CircleAlert,
-  Download,
   Eye,
   EyeOff,
   KeyRound,
@@ -16,7 +14,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
-import { CloudRepairPreviewModal } from "@/components/cloud/CloudRepairPreviewModal";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
@@ -40,23 +37,11 @@ import {
   storePendingReferralCode,
 } from "@/lib/referrals/storage";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
-import { DOCUMENT_FISCAL_IDENTITY_CONFLICT_SYNC_ISSUE_CODE } from "@/lib/cloud/sync-errors";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
 import {
   describeTurnstileClientError,
   describeTurnstileSiteKeyIssue,
 } from "@/lib/turnstile-errors";
-import type { CloudRepairConfirmation } from "@/lib/cloud/device-repair-preview";
-
-const STATUS_LABELS = {
-  disabled: "Sincronización no disponible",
-  offline: "Sin conexión — en cola",
-  idle: "Listo",
-  pending: "Pendiente de subir",
-  syncing: "Sincronizando…",
-  synced: "Sincronizado",
-  error: "Error — reintentando",
-} as const;
 
 type AuthMode = "signin" | "signup" | "reset";
 const TURNSTILE_SITE_KEY =
@@ -95,8 +80,6 @@ export function CloudAccountCard({
 } = {}) {
   const {
     cloudEnabled,
-    cloudSyncPaused,
-    legacyCloudRetired,
     user,
     requiresEmailConfirmation,
     email,
@@ -110,19 +93,8 @@ export function CloudAccountCard({
     signOut,
     signOutAndClearDevice,
     syncNow,
-    forceDownloadFromCloud,
-    exportBackup,
-    localDataHandoffStatus,
-    saveLocalDataToAccount,
-    keepLocalDataOnDevice,
     syncStatus,
     syncMessage,
-    syncIssue,
-    cloudRepairPreview,
-    pendingUpload,
-    pendingChangeCount,
-    prepareCloudRepairPreview,
-    cancelCloudRepairPreview,
   } = useCloudSync();
   const { data } = useAppStore();
   const { billingEnabled, limits } = useBilling();
@@ -141,12 +113,7 @@ export function CloudAccountCard({
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState("");
   const [legalAccepted, setLegalAccepted] = useState(false);
-  const hasDocumentFiscalIdentityConflict =
-    syncIssue?.code === DOCUMENT_FISCAL_IDENTITY_CONFLICT_SYNC_ISSUE_CODE;
-  function cloudSyncStatusLabel() {
-    return syncIssue ? "Revisión necesaria" : STATUS_LABELS[syncStatus];
-  }
-  const canShowSyncActions = limits.cloudSync && !syncIssue;
+  const canShowSyncActions = limits.cloudSync;
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -363,30 +330,6 @@ export function CloudAccountCard({
     }
   }
 
-  async function handlePrepareCloudRepair() {
-    setBusy(true);
-    await prepareCloudRepairPreview();
-    setBusy(false);
-  }
-
-  async function handleConfirmCloudRepair(
-    confirmation: CloudRepairConfirmation,
-  ) {
-    setBusy(true);
-    await forceDownloadFromCloud(confirmation);
-    setBusy(false);
-  }
-
-  async function handleSaveLocalDataToAccount() {
-    setBusy(true);
-    await saveLocalDataToAccount();
-    setBusy(false);
-  }
-
-  function handleKeepLocalDataOnDevice() {
-    keepLocalDataOnDevice();
-  }
-
   async function handleSecureSignOut() {
     const confirmed = confirm(
       "Se comprobará primero que la nube está al día. Después se cerrará la sesión y se borrarán de este navegador los datos de Factu y los ajustes locales de Rentabilidad Real. ¿Continuar?",
@@ -523,75 +466,10 @@ export function CloudAccountCard({
               </Button>
             </div>
           ) : null}
-          {cloudSyncPaused &&
-          !legacyCloudRetired &&
-          limits.cloudSync &&
-          !requiresEmailConfirmation ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
-              La copia completa entre dispositivos está pausada temporalmente.
-              Puedes trabajar y emitir. Las acciones que indiquen
-              &quot;Servidor central&quot; se confirman y sincronizan allí; las
-              demás quedan en local hasta reactivar la copia completa.
-            </p>
-          ) : null}
-          {legacyCloudRetired &&
-          limits.cloudSync &&
-          !requiresEmailConfirmation ? (
+          {limits.cloudSync && !requiresEmailConfirmation ? (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-950">
-              Servidor central activo. La copia antigua de este usuario está
-              retirada.
+              Servidor central activo. La copia antigua está retirada.
             </p>
-          ) : null}
-          {!requiresEmailConfirmation &&
-          limits.cloudSync &&
-          !cloudSyncPaused &&
-          !syncIssue &&
-          localDataHandoffStatus !== "none" ? (
-            <div className="space-y-3 rounded-xl border border-sky-200 bg-white p-4">
-              <div>
-                <p className="text-sm font-black text-slate-900">
-                  {localDataHandoffStatus === "kept_local"
-                    ? "Datos locales sin subir"
-                    : "Datos locales encontrados"}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {localDataHandoffStatus === "kept_local"
-                    ? "Has elegido seguir usando estos datos solo en este navegador. Puedes guardarlos en tu cuenta más adelante."
-                    : "Antes de sincronizar, elige qué hacemos con lo que ya creaste en este navegador."}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  onClick={() => void handleSaveLocalDataToAccount()}
-                  disabled={
-                    busy ||
-                    requiresEmailConfirmation ||
-                    localDataHandoffStatus === "syncing"
-                  }
-                >
-                  {localDataHandoffStatus === "syncing"
-                    ? "Guardando…"
-                    : "Guardar estos datos en mi cuenta"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => void exportBackup()}
-                  disabled={busy}
-                >
-                  <Download className="h-4 w-4" />
-                  Descargar copia antes de continuar
-                </Button>
-                {localDataHandoffStatus === "pending" ? (
-                  <Button
-                    variant="ghost"
-                    onClick={handleKeepLocalDataOnDevice}
-                    disabled={busy}
-                  >
-                    Seguir solo en este navegador
-                  </Button>
-                ) : null}
-              </div>
-            </div>
           ) : null}
           {!limits.cloudSync && !requiresEmailConfirmation ? (
             <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm leading-6 text-blue-950">
@@ -603,60 +481,14 @@ export function CloudAccountCard({
           {limits.cloudSync ? (
             <p className="text-sm text-slate-500">
               Estado:{" "}
-              {legacyCloudRetired
-                ? "Servidor central activo"
-                : cloudSyncPaused
-                  ? "Pausada temporalmente"
-                  : cloudSyncStatusLabel()}
-              {!legacyCloudRetired && syncMessage ? ` — ${syncMessage}` : ""}
+              {syncStatus === "syncing"
+                ? "Comprobando…"
+                : "Servidor central activo"}
+              {syncStatus === "error" && syncMessage ? ` — ${syncMessage}` : ""}
             </p>
           ) : null}
-          {limits.cloudSync && !cloudSyncPaused && syncIssue ? (
-            <div className="flex items-start gap-2 border-y border-red-200 bg-red-50 px-3 py-3 text-sm text-red-950">
-              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>
-                Los reintentos automáticos están en pausa. Los datos de este
-                dispositivo y de la nube siguen intactos hasta que elijas una
-                recuperación segura.
-              </p>
-            </div>
-          ) : null}
-          {limits.cloudSync &&
-            !syncIssue &&
-            !legacyCloudRetired &&
-            pendingUpload &&
-            syncStatus !== "syncing" && (
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {cloudSyncPaused ? (
-                  <>
-                    {pendingChangeCount > 0
-                      ? `${pendingChangeCount} cambio(s) guardado(s) en este dispositivo.`
-                      : "Hay cambios guardados en este dispositivo."}{" "}
-                    Se subirán cuando reactivemos la nube.
-                  </>
-                ) : syncStatus === "offline" ? (
-                  <>
-                    {pendingChangeCount > 0
-                      ? `${pendingChangeCount} cambio(s) en cola.`
-                      : "Hay cambios guardados en este dispositivo."}{" "}
-                    Se subirán al recuperar internet.
-                  </>
-                ) : pendingChangeCount > 0 ? (
-                  <>
-                    {pendingChangeCount} cambio(s) pendiente(s) de subir (solo
-                    lo modificado). Se suben solos en unos segundos o pulsa
-                    Sincronizar ahora.
-                  </>
-                ) : (
-                  <>
-                    Quedan cambios locales por confirmar en la nube. Pulsa
-                    Sincronizar ahora.
-                  </>
-                )}
-              </p>
-            )}
           <div className="flex flex-wrap gap-3">
-            {canShowSyncActions && !cloudSyncPaused ? (
+            {canShowSyncActions ? (
               <Button
                 variant="secondary"
                 onClick={() => void syncNow()}
@@ -676,56 +508,12 @@ export function CloudAccountCard({
             <Button
               variant="danger"
               onClick={() => void handleSecureSignOut()}
-              disabled={busy || cloudSyncPaused || Boolean(syncIssue)}
-              title={
-                legacyCloudRetired
-                  ? "La retirada segura de este dispositivo se realiza desde Migración central"
-                  : cloudSyncPaused
-                  ? "La sincronización está pausada temporalmente"
-                  : syncIssue
-                    ? "Resuelve primero el conflicto sin borrar datos locales"
-                    : undefined
-              }
+              disabled={busy}
             >
               <LogOut className="h-4 w-4" />
               Cerrar y borrar este dispositivo
             </Button>
           </div>
-          {limits.cloudSync && !cloudSyncPaused ? (
-            <details
-              open={syncIssue ? true : undefined}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600"
-            >
-              <summary className="cursor-pointer font-semibold text-slate-700">
-                Problemas de sincronización
-              </summary>
-              <div className="mt-3 space-y-3">
-                <p>
-                  {syncIssue
-                    ? hasDocumentFiscalIdentityConflict
-                      ? syncIssue.userMessage
-                      : `${syncIssue.userMessage} Ahora solo está disponible conservar la copia de la nube. Antes verás fechas, cantidades y cualquier reducción; Factu revalidará ambas versiones y solicitará una copia cifrada local antes de reemplazar.`
-                    : "Si este dispositivo no muestra los datos que sí aparecen en otro, compara primero ambas versiones. Las fechas orientan, pero las cantidades y reducciones deben revisarse antes de conservar la nube."}
-                </p>
-                {hasDocumentFiscalIdentityConflict ? (
-                  <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-950">
-                    Corrige la numeración en este dispositivo y vuelve a
-                    sincronizar. La nube no aceptará otra factura emitida con el
-                    mismo número fiscal.
-                  </p>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    onClick={() => void handlePrepareCloudRepair()}
-                    disabled={busy || requiresEmailConfirmation}
-                  >
-                    <Download className="h-4 w-4" />
-                    Comparar antes de reparar
-                  </Button>
-                )}
-              </div>
-            </details>
-          ) : null}
         </div>
       ) : (
         <div className="space-y-3">
@@ -734,8 +522,8 @@ export function CloudAccountCard({
               <>
                 Hemos encontrado datos en este navegador. Crear cuenta o iniciar
                 sesión <strong>no los borra</strong>. Si tu plan incluye nube,
-                te preguntaremos si quieres guardarlos en tu cuenta o seguir
-                solo en este navegador.
+                Factu te guiará para incorporarlos sin sobrescribir la copia
+                central.
               </>
             ) : (
               <>
@@ -1040,14 +828,6 @@ export function CloudAccountCard({
       {authNotice ? (
         <p className="text-sm font-medium text-emerald-700">{authNotice}</p>
       ) : null}
-      <CloudRepairPreviewModal
-        preview={cloudRepairPreview}
-        busy={busy}
-        onClose={cancelCloudRepairPreview}
-        onConfirm={(confirmation) =>
-          void handleConfirmCloudRepair(confirmation)
-        }
-      />
     </Card>
   );
 }

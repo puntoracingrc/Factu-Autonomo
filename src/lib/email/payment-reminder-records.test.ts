@@ -51,7 +51,10 @@ const profile = {
 };
 
 function lookupWithRows(
-  rows: Record<string, { entityId: string; payload: unknown; deleted: boolean }>,
+  rows: Record<
+    string,
+    { entityId: string; payload: unknown; deleted: boolean }
+  >,
   calls: string[] = [],
 ): PaymentReminderEntityLookup {
   return async (userId, entityType, entityId) => {
@@ -68,12 +71,12 @@ describe("payment reminder records", () => {
     vi.resetAllMocks();
   });
 
-  it("consulta sync_entities acotando por usuario, tipo e identificador", async () => {
+  it("consulta la autoridad fiscal acotando por usuario e identificador", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
-        entity_id: "invoice-1",
-        payload: pendingInvoice,
-        deleted: false,
+        local_document_id: "invoice-1",
+        current_payload: { document: pendingInvoice },
+        lifecycle_status: "issued",
       },
       error: null,
     });
@@ -94,11 +97,10 @@ describe("payment reminder records", () => {
     );
 
     expect(result).toMatchObject({ ok: true });
-    expect(from).toHaveBeenCalledWith("sync_entities");
+    expect(from).toHaveBeenCalledWith("central_invoice_documents");
     expect(builder.eq.mock.calls).toEqual([
       ["user_id", "owner-user"],
-      ["entity_type", "document"],
-      ["entity_id", "invoice-1"],
+      ["local_document_id", "invoice-1"],
     ]);
   });
 
@@ -225,11 +227,7 @@ describe("payment reminder records", () => {
       },
     });
     await expect(
-      resolvePaymentReminderRecords(
-        "owner-user",
-        "invoice-1",
-        deletedLookup,
-      ),
+      resolvePaymentReminderRecords("owner-user", "invoice-1", deletedLookup),
     ).resolves.toEqual({ ok: false, reason: "not_found" });
 
     const invalidDocumentLookup = lookupWithRows({

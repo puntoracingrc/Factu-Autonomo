@@ -56,8 +56,8 @@ describe("product expenses/providers polish wiring", () => {
     expect(catalogHook).toContain("commitPreparedAppDataDurably");
     expect(store).not.toContain("renameProductFamilyInAppData(");
     expect(store).not.toContain("mergeProductRecordsInAppData(");
-    expect(store).toContain(
-      'await import(\n        "@/lib/product-catalog-structure"',
+    expect(store).toMatch(
+      /await import\(\s*"@\/lib\/product-catalog-structure"\s*\)/,
     );
     expect(store).toContain("applyProductCatalogStructureOperation(");
     expect(store).toContain("if (result.ok) setAppData(result.data)");

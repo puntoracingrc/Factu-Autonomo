@@ -422,7 +422,7 @@ describe("sync por cambios", () => {
     expect(serializations).toBe(2);
   });
 
-  it("conserva en cola el proveedor y el gasto añadidos en dos transiciones", () => {
+  it("no recrea la cola generica al añadir proveedor y gasto", () => {
     const supplier = {
       id: "supplier-batch",
       name: "Proveedor del lote",
@@ -451,11 +451,7 @@ describe("sync por cambios", () => {
       ],
     });
 
-    expect(
-      afterExpense.meta?.pendingChanges
-        ?.map((change) => `${change.entityType}:${change.entityId}`)
-        .sort(),
-    ).toEqual(["expense:expense-batch", "supplier:supplier-batch"]);
+    expect(afterExpense.meta?.pendingChanges).toBeUndefined();
   });
 
   it("encola juntos el gasto fijo escaneado y su regla recurrente", () => {

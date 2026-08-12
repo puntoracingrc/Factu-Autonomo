@@ -37,8 +37,8 @@ describe("expense inbox reliability contract", () => {
     expect(route).toContain("providerHostname: error.providerHostname");
     expect(route).not.toContain("download_url");
     expect(server).toContain("findExistingAttachment(input.userId, hash)");
-    expect(server).toContain("const id = randomUUID()");
-    expect(server).toContain("entity_id: id");
+    expect(server).toContain('.from("expense_inbox_items")');
+    expect(server).not.toContain("sync_entities");
     expect(server).toContain("claimInboxItemRetry");
     expect(server).toContain('.eq("status", "error")');
     expect(server).toContain("shouldRetryExpenseInboxItem");
@@ -75,13 +75,11 @@ describe("expense inbox reliability contract", () => {
     expect(server).toContain("retryExpenseInboxItem");
     expect(server).toContain("attachmentHash(downloaded.buffer)");
     expect(server).toContain("providerAttachmentId");
-    expect(server).toContain("isMissingRetryMetadataError");
-    expect(server).toContain("includeRetryMetadata");
-    expect(server).toContain("canRetry: status === \"error\"");
-    expect(server).toContain("findExistingAttachmentInSyncEntities");
-    expect(server).toContain("claimInboxItemRetryInSyncEntities");
-    expect(server).toContain("finishInboxItemRetryInSyncEntities");
-    expect(server).toContain("getExpenseInboxItemRecordFromSyncEntities");
+    expect(server).toContain('canRetry: row.status === "error"');
+    expect(server).toContain(
+      "source_email_id: input.attachment.providerEmailId",
+    );
+    expect(server).not.toContain("InSyncEntities");
     expect(card).toContain("Reintentar análisis");
     expect(card).toContain("Comprar {scanPackLabel()}");
     expect(card).toContain('usageMode === "empty"');
@@ -112,7 +110,7 @@ describe("expense inbox reliability contract", () => {
     expect(card).toContain("items.map((item)");
     expect(card).not.toContain("items.slice(0, 5)");
     expect(form).toContain('updateActiveInboxItemStatus("ignored")');
-    expect(form).toContain('sourceInboxItemId: activeInboxItemId ?? undefined');
+    expect(form).toContain("sourceInboxItemId: activeInboxItemId ?? undefined");
     expect(form).toContain("expenseAlreadySavedFromInbox");
     expect(types).toContain("sourceInboxItemId?: string");
   });
@@ -157,7 +155,7 @@ describe("expense inbox reliability contract", () => {
     expect(adr).toContain("cdn.resend.app");
     expect(adr).toContain("HTTP 500");
     expect(adr).toContain("attachment_hash");
-    expect(adr).toContain("reintento con `sync_entities`");
+    expect(adr).toContain("expense_inbox_items");
     expect(codeowners).toContain(
       "/docs/architecture/ADR-0004-expense-inbox-email-reliability.md",
     );

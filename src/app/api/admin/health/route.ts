@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { fetchRateLimitAbuse, type RawAbuseSummary } from "@/lib/admin/abuse-server";
-import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
-  buildAdminHealthSnapshot,
-  isMissingAdminHealthRpc,
-} from "@/lib/admin/health";
+  fetchRateLimitAbuse,
+  type RawAbuseSummary,
+} from "@/lib/admin/abuse-server";
+import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
+import { buildAdminHealthSnapshot } from "@/lib/admin/health";
 import { currentMonthKey } from "@/lib/billing/usage";
 import {
   checkRateLimit,
@@ -47,7 +47,10 @@ function errorText(error: DatabaseErrorLike): string {
     .toLowerCase();
 }
 
-function errorMentionsColumn(error: DatabaseErrorLike, column: string): boolean {
+function errorMentionsColumn(
+  error: DatabaseErrorLike,
+  column: string,
+): boolean {
   return errorText(error).includes(column.toLowerCase());
 }
 
@@ -55,16 +58,8 @@ function isMissingTable(error: DatabaseErrorLike, table: string): boolean {
   return (
     error.code === "42P01" ||
     error.code === "PGRST205" ||
-    errorText(error).includes(table.toLowerCase()) &&
-      /schema cache|does not exist|not find/i.test(error.message ?? "")
-  );
-}
-
-function isHealthSchemaFallbackError(error: DatabaseErrorLike): boolean {
-  return (
-    isMissingAdminHealthRpc(error) ||
-    errorMentionsColumn(error, "customer_ai_autofills_created") ||
-    isMissingTable(error, "app_error_events")
+    (errorText(error).includes(table.toLowerCase()) &&
+      /schema cache|does not exist|not find/i.test(error.message ?? ""))
   );
 }
 
@@ -108,7 +103,12 @@ async function fetchUsageFallback(
 
   let rows = (withCustomerAi.data ?? []) as Array<Record<string, unknown>>;
   if (withCustomerAi.error) {
-    if (!errorMentionsColumn(withCustomerAi.error, "customer_ai_autofills_created")) {
+    if (
+      !errorMentionsColumn(
+        withCustomerAi.error,
+        "customer_ai_autofills_created",
+      )
+    ) {
       return emptyUsage;
     }
     const retry = await admin
@@ -149,15 +149,20 @@ async function fetchErrorsFallback(admin: AdminClient) {
 async function buildFallbackRawHealth(admin: AdminClient) {
   const now = new Date();
   const monthKey = currentMonthKey();
-  const [usersResult, syncResult, usage, errors] = await Promise.all([
-    admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    admin
-      .from("sync_entities")
-      .select("user_id,entity_type,deleted,updated_at", { count: "exact" })
-      .limit(10000),
-    fetchUsageFallback(admin, monthKey),
-    fetchErrorsFallback(admin),
-  ]);
+  const [usersResult, businessResult, invoicesResult, usage, errors] =
+    await Promise.all([
+      admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      admin
+        .from("central_business_entities")
+        .select("user_id,entity_type,deleted,updated_at", { count: "exact" })
+        .limit(10000),
+      admin
+        .from("central_invoice_documents")
+        .select("user_id,kind,lifecycle_status,updated_at", { count: "exact" })
+        .limit(10000),
+      fetchUsageFallback(admin, monthKey),
+      fetchErrorsFallback(admin),
+    ]);
 
   const users = usersResult.data?.users ?? [];
   const usersTotal =
@@ -166,8 +171,24 @@ async function buildFallbackRawHealth(admin: AdminClient) {
     typeof usersResult.data.total === "number"
       ? usersResult.data.total
       : users.length;
-  const syncRows = (syncResult.data ?? []) as FallbackSyncRow[];
-  const syncCount = syncResult.count ?? syncRows.length;
+  const businessRows = (businessResult.data ?? []) as FallbackSyncRow[];
+  const invoiceRows = (
+    (invoicesResult.data ?? []) as Array<{
+      user_id: string | null;
+      kind: string | null;
+      lifecycle_status: string | null;
+      updated_at: string | null;
+    }>
+  ).map<FallbackSyncRow>((row) => ({
+    user_id: row.user_id,
+    entity_type: "document",
+    deleted: ["voided", "retired"].includes(row.lifecycle_status ?? ""),
+    updated_at: row.updated_at,
+  }));
+  const syncRows = [...businessRows, ...invoiceRows];
+  const syncCount =
+    (businessResult.count ?? businessRows.length) +
+    (invoicesResult.count ?? invoiceRows.length);
   const nowMs = now.getTime();
   const dayMs = 24 * 60 * 60 * 1000;
   const weekMs = 7 * dayMs;
@@ -185,7 +206,9 @@ async function buildFallbackRawHealth(admin: AdminClient) {
     return value > 0 && nowMs - value <= weekMs;
   }).length;
 
-  const usersById = new Map(users.map((user) => [user.id, user.email ?? "Sin email"]));
+  const usersById = new Map(
+    users.map((user) => [user.id, user.email ?? "Sin email"]),
+  );
   const entityTypes = new Map<string, { rows: number; deletedRows: number }>();
   const topUsers = new Map<
     string,
@@ -223,32 +246,41 @@ async function buildFallbackRawHealth(admin: AdminClient) {
       if (row.user_id) syncUsers7d.add(row.user_id);
     }
 
-    const typeStats = entityTypes.get(entityType) ?? { rows: 0, deletedRows: 0 };
+    const typeStats = entityTypes.get(entityType) ?? {
+      rows: 0,
+      deletedRows: 0,
+    };
     typeStats.rows += 1;
     if (deleted) typeStats.deletedRows += 1;
     entityTypes.set(entityType, typeStats);
 
     const userId = row.user_id ?? "sin-usuario";
-    const stats =
-      topUsers.get(userId) ??
-      {
-        userId,
-        email: usersById.get(userId) ?? "Sin email",
-        rowCount: 0,
-        deletedRows: 0,
-        latestSyncAt: null,
-        documentRows: 0,
-        customerRows: 0,
-        expenseRows: 0,
-        productRows: 0,
-      };
+    const stats = topUsers.get(userId) ?? {
+      userId,
+      email: usersById.get(userId) ?? "Sin email",
+      rowCount: 0,
+      deletedRows: 0,
+      latestSyncAt: null,
+      documentRows: 0,
+      customerRows: 0,
+      expenseRows: 0,
+      productRows: 0,
+    };
     stats.rowCount += 1;
     if (deleted) stats.deletedRows += 1;
-    if (updatedAtMs > toTime(stats.latestSyncAt)) stats.latestSyncAt = row.updated_at;
+    if (updatedAtMs > toTime(stats.latestSyncAt))
+      stats.latestSyncAt = row.updated_at;
     if (
-      ["documents", "document", "invoice", "invoices", "quote", "quotes", "receipt", "receipts"].includes(
-        entityType,
-      )
+      [
+        "documents",
+        "document",
+        "invoice",
+        "invoices",
+        "quote",
+        "quotes",
+        "receipt",
+        "receipts",
+      ].includes(entityType)
     ) {
       stats.documentRows += 1;
     }
@@ -256,7 +288,9 @@ async function buildFallbackRawHealth(admin: AdminClient) {
       stats.customerRows += 1;
     }
     if (
-      ["expenses", "expense", "fixedExpenses", "fixed_expenses"].includes(entityType)
+      ["expenses", "expense", "fixedExpenses", "fixed_expenses"].includes(
+        entityType,
+      )
     ) {
       stats.expenseRows += 1;
     }
@@ -318,7 +352,8 @@ async function buildFallbackRawHealth(admin: AdminClient) {
     sync: {
       rows: syncCount,
       deletedRows,
-      cloudUsers: new Set(syncRows.map((row) => row.user_id).filter(Boolean)).size,
+      cloudUsers: new Set(syncRows.map((row) => row.user_id).filter(Boolean))
+        .size,
       updated24h,
       updated7d,
       activeUsers24h: syncUsers24h.size,
@@ -364,22 +399,13 @@ export async function GET(request: Request) {
     );
   }
 
-  const abuse = await fetchRateLimitAbuse(admin);
-  const { data, error } = await admin.rpc("admin_health_snapshot");
-  if (error) {
-    if (isHealthSchemaFallbackError(error)) {
-      const fallback = await buildFallbackRawHealth(admin);
-      return NextResponse.json({
-        health: buildAdminHealthSnapshot(mergeRawHealthWithAbuse(fallback, abuse)),
-        monitoringAvailable: true,
-        degraded: true,
-      });
-    }
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const [abuse, health] = await Promise.all([
+    fetchRateLimitAbuse(admin),
+    buildFallbackRawHealth(admin),
+  ]);
 
   return NextResponse.json({
-    health: buildAdminHealthSnapshot(mergeRawHealthWithAbuse(data, abuse)),
+    health: buildAdminHealthSnapshot(mergeRawHealthWithAbuse(health, abuse)),
     monitoringAvailable: true,
   });
 }

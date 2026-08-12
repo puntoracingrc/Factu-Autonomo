@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
-  ADMIN_RESTORE_ENTITY_TYPES,
   appDataFromSyncRows,
   normalizeRestorePointData,
   normalizeRestorePointSummary,
@@ -41,8 +40,23 @@ interface RestorePointBody {
 
 const SYNC_PAGE_SIZE = 500;
 const RESTORE_POINT_LIMIT = 20;
+const CENTRAL_BUSINESS_RESTORE_TYPES = [
+  "customer",
+  "supplier",
+  "product",
+  "expense",
+  "recurring_expense",
+  "user_reminder",
+  "quote",
+  "receipt",
+  "profile",
+] as const;
 
-function cleanText(value: unknown, fallback: string, maxLength: number): string {
+function cleanText(
+  value: unknown,
+  fallback: string,
+  maxLength: number,
+): string {
   if (typeof value !== "string") return fallback;
   const normalized = value.trim().replace(/\s+/g, " ");
   return normalized ? normalized.slice(0, maxLength) : fallback;
@@ -120,36 +134,81 @@ async function fetchSyncRows(
 ): Promise<{ rows: AdminSyncEntityRow[]; error?: string }> {
   const rows: AdminSyncEntityRow[] = [];
 
-  for (const entityType of ADMIN_RESTORE_ENTITY_TYPES) {
-    let afterEntityId: string | null = null;
-
+  for (const sourceType of CENTRAL_BUSINESS_RESTORE_TYPES) {
+    let businessCursor: string | null = null;
     for (;;) {
       let query = admin
-        .from("sync_entities")
-        .select("entity_type,entity_id,payload,deleted,updated_at")
+        .from("central_business_entities")
+        .select("entity_type,entity_id,current_payload,deleted,updated_at")
         .eq("user_id", userId)
-        .eq("entity_type", entityType)
+        .eq("entity_type", sourceType)
         .order("entity_id", { ascending: true });
-      if (afterEntityId) {
-        query = query.gt("entity_id", afterEntityId);
-      }
+      if (businessCursor) query = query.gt("entity_id", businessCursor);
 
       const { data, error } = await query.limit(SYNC_PAGE_SIZE);
       if (error) return { rows, error: error.message };
-
-      const pageRows = (data ?? []) as AdminSyncEntityRow[];
-      rows.push(...pageRows);
-      if (pageRows.length < SYNC_PAGE_SIZE) break;
-
-      const nextCursor = pageRows.at(-1)?.entity_id;
-      if (!nextCursor || (afterEntityId && nextCursor <= afterEntityId)) {
-        return {
-          rows,
-          error: "No se pudo paginar la copia de forma estable.",
-        };
+      const page = (data ?? []) as Array<{
+        entity_type: string;
+        entity_id: string;
+        current_payload: unknown;
+        deleted: boolean;
+        updated_at: string;
+      }>;
+      rows.push(
+        ...page.map((row) => ({
+          entity_type: ["quote", "receipt"].includes(row.entity_type)
+            ? "document"
+            : row.entity_type,
+          entity_id: row.entity_id,
+          payload: row.current_payload,
+          deleted: row.deleted,
+          updated_at: row.updated_at,
+        })),
+      );
+      if (page.length < SYNC_PAGE_SIZE) break;
+      const nextCursor = page.at(-1)?.entity_id;
+      if (!nextCursor || (businessCursor && nextCursor <= businessCursor)) {
+        return { rows, error: "No se pudo paginar el negocio central." };
       }
-      afterEntityId = nextCursor;
+      businessCursor = nextCursor;
     }
+  }
+
+  let invoiceCursor: string | null = null;
+  for (;;) {
+    let query = admin
+      .from("central_invoice_documents")
+      .select("local_document_id,current_payload,lifecycle_status,updated_at")
+      .eq("user_id", userId)
+      .order("local_document_id", { ascending: true });
+    if (invoiceCursor) query = query.gt("local_document_id", invoiceCursor);
+
+    const { data, error } = await query.limit(SYNC_PAGE_SIZE);
+    if (error) return { rows, error: error.message };
+    const page = (data ?? []) as Array<{
+      local_document_id: string;
+      current_payload: unknown;
+      lifecycle_status: string;
+      updated_at: string;
+    }>;
+    rows.push(
+      ...page.map((row) => {
+        const envelope = row.current_payload as { document?: unknown } | null;
+        return {
+          entity_type: "document",
+          entity_id: row.local_document_id,
+          payload: envelope?.document ?? row.current_payload,
+          deleted: row.lifecycle_status === "retired",
+          updated_at: row.updated_at,
+        };
+      }),
+    );
+    if (page.length < SYNC_PAGE_SIZE) break;
+    const nextCursor = page.at(-1)?.local_document_id;
+    if (!nextCursor || (invoiceCursor && nextCursor <= invoiceCursor)) {
+      return { rows, error: "No se pudo paginar la autoridad fiscal." };
+    }
+    invoiceCursor = nextCursor;
   }
 
   return { rows };
@@ -199,9 +258,7 @@ async function fetchRestorePointData(
   if (!data) return { error: "Copia no encontrada" };
 
   return {
-    restorePoint: normalizeRestorePointSummary(
-      data as Record<string, unknown>,
-    ),
+    restorePoint: normalizeRestorePointSummary(data as Record<string, unknown>),
     data: normalizeRestorePointData((data as Record<string, unknown>).data),
   };
 }
@@ -236,9 +293,7 @@ async function createRestorePoint(
   if (error) return { error: error.message };
 
   return {
-    restorePoint: normalizeRestorePointSummary(
-      data as Record<string, unknown>,
-    ),
+    restorePoint: normalizeRestorePointSummary(data as Record<string, unknown>),
     snapshotData: current.data,
   };
 }

@@ -33,13 +33,9 @@ Usa este documento como hoja de ruta. Marca cada ítem al completarlo.
 
 ## Fase 1 — Tú: Supabase
 
-En [supabase.com](https://supabase.com) → SQL Editor, **en orden**:
-
-1. [ ] `supabase/schema.sql`
-2. [ ] `supabase/billing.sql`
-3. [ ] `supabase/billing-scans.sql` y `supabase/billing-scan-credits.sql` (si aún no están)
-4. [ ] `supabase/referrals.sql` (programa invita a un amigo)
-5. [ ] `supabase/verifactu.sql`
+Enlaza el proyecto y ejecuta `supabase db push` para aplicar las migraciones
+versionadas completas. `supabase/schema.sql` se conserva únicamente como
+fixture histórico de pruebas y no debe usarse para una instalación actual.
 
 Copia URL + anon key + service role key.
 

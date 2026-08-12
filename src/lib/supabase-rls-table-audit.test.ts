@@ -121,14 +121,13 @@ const centralInvoiceAuthorityRealtimeWakeupsMigrationSource = readFileSync(
   ),
   "utf8",
 );
-const centralInvoiceAuthoritySeriesReconciliationMigrationSource =
-  readFileSync(
-    new URL(
-      "../../supabase/migrations/20260728213000_central_invoice_authority_series_reconciliation.sql",
-      import.meta.url,
-    ),
-    "utf8",
-  );
+const centralInvoiceAuthoritySeriesReconciliationMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260728213000_central_invoice_authority_series_reconciliation.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const centralBusinessAuthorityFoundationMigrationSource = readFileSync(
   new URL(
     "../../supabase/migrations/20260729142156_central_business_authority_foundation.sql",
@@ -199,6 +198,7 @@ const serviceOnlyTables = [
 ];
 
 const browserSyncTables = ["user_backups", "sync_entities"];
+const browserWorkspaceTables = ["workspace_auxiliary_entities"];
 const browserReadOnlyTables = ["user_subscriptions", "user_usage"];
 const browserRealtimeWakeupTables = ["central_invoice_event_wakeups"];
 const centralAuthorityCutoverTables = ["central_authority_cutovers"];
@@ -227,6 +227,7 @@ const privateExpenseLearningTables = [
 const classifiedTables = new Set([
   ...serviceOnlyTables,
   ...browserSyncTables,
+  ...browserWorkspaceTables,
   ...browserReadOnlyTables,
   ...browserRealtimeWakeupTables,
   ...centralAuthorityCutoverTables,
@@ -419,8 +420,7 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   });
 
   it("keeps P4A retention owner-only and promotion write-disabled", () => {
-    const table =
-      "expense_learning_private.closed_week_supported_metrics";
+    const table = "expense_learning_private.closed_week_supported_metrics";
     expect(expenseLearningRetentionMigrationSource).toContain(
       `create policy expense_learning_closed_metrics_owner_select_v1\n  on ${table}\n  for select to expense_learning_storage_owner using (true)`,
     );
@@ -451,10 +451,8 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   });
 
   it("keeps P4B promotion private, immutable, and unreadable by API roles", () => {
-    const marker =
-      "expense_learning_private.closed_week_promotion_batches";
-    const metrics =
-      "expense_learning_private.closed_week_supported_metrics";
+    const marker = "expense_learning_private.closed_week_promotion_batches";
+    const metrics = "expense_learning_private.closed_week_supported_metrics";
 
     expect(expenseLearningPromotionMigrationSource).toContain(
       `create table ${marker}`,
@@ -525,22 +523,22 @@ describe("Supabase table-by-table RLS audit hardening", () => {
             ? affiliateRewardMigrationSource
             : table === "central_business_bootstraps"
               ? centralBusinessBootstrapMigrationSource
-            : table === "central_business_document_series"
-              ? centralNonfiscalDocumentNumberingMigrationSource
-            : table.startsWith("central_business_")
-              ? centralBusinessAuthorityFoundationMigrationSource
-            : table.startsWith("central_invoice_")
-              ? centralInvoiceAuthorityLedgerSchemaMigrationSource
-              : table.startsWith("promo_")
-                ? promotionMigrationSource
-                : table.startsWith("partner_")
-                  ? partnerProgramMigrationSource
-                  : table === "admin_mfa_recovery_challenges"
-                    ? adminMfaRecoveryMigrationSource
-                    : table === "tax_product_events" ||
-                        table === "tax_product_weekly_reports"
-                      ? taxProductInsightsMigrationSource
-                      : migrationSource;
+              : table === "central_business_document_series"
+                ? centralNonfiscalDocumentNumberingMigrationSource
+                : table.startsWith("central_business_")
+                  ? centralBusinessAuthorityFoundationMigrationSource
+                  : table.startsWith("central_invoice_")
+                    ? centralInvoiceAuthorityLedgerSchemaMigrationSource
+                    : table.startsWith("promo_")
+                      ? promotionMigrationSource
+                      : table.startsWith("partner_")
+                        ? partnerProgramMigrationSource
+                        : table === "admin_mfa_recovery_challenges"
+                          ? adminMfaRecoveryMigrationSource
+                          : table === "tax_product_events" ||
+                              table === "tax_product_weekly_reports"
+                            ? taxProductInsightsMigrationSource
+                            : migrationSource;
       expect(source).toContain(
         `revoke all on table public.${table} from public, anon, authenticated`,
       );
@@ -558,12 +556,14 @@ describe("Supabase table-by-table RLS audit hardening", () => {
 
   it("keeps immutable series reconciliation evidence service-read-only", () => {
     const table = "central_invoice_series_reconciliations";
-    expect(centralInvoiceAuthoritySeriesReconciliationMigrationSource).toContain(
+    expect(
+      centralInvoiceAuthoritySeriesReconciliationMigrationSource,
+    ).toContain(
       `revoke all on table public.${table}\n  from public, anon, authenticated, service_role`,
     );
-    expect(centralInvoiceAuthoritySeriesReconciliationMigrationSource).toContain(
-      `grant select on table public.${table}\n  to service_role`,
-    );
+    expect(
+      centralInvoiceAuthoritySeriesReconciliationMigrationSource,
+    ).toContain(`grant select on table public.${table}\n  to service_role`);
     expect(
       centralInvoiceAuthoritySeriesReconciliationMigrationSource,
     ).not.toMatch(
@@ -572,15 +572,16 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         "iu",
       ),
     );
-    expect(centralInvoiceAuthoritySeriesReconciliationMigrationSource).not.toMatch(
+    expect(
+      centralInvoiceAuthoritySeriesReconciliationMigrationSource,
+    ).not.toMatch(
       new RegExp(
         `grant\\s+[^;]*public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
         "iu",
       ),
     );
 
-    const businessTable =
-      "central_business_document_series_reconciliations";
+    const businessTable = "central_business_document_series_reconciliations";
     expect(centralNonfiscalDocumentNumberingMigrationSource).toContain(
       `revoke all on table public.${businessTable}\n  from public, anon, authenticated`,
     );

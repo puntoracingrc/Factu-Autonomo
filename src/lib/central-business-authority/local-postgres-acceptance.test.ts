@@ -15,8 +15,7 @@ const localHosts = new Set(["127.0.0.1", "localhost", "::1"]);
 let admin: SupabaseClient;
 let signedInUser: SupabaseClient;
 let userId = "";
-const legacySyncDeviceToken =
-  "synthetic-central-cutover-device-token-00000001";
+const legacySyncDeviceToken = "synthetic-central-cutover-device-token-00000001";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -172,7 +171,9 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       p_token: legacySyncDeviceToken,
     });
     if (tokenHash.error || typeof tokenHash.data !== "string") {
-      throw new Error(tokenHash.error?.message ?? "Could not hash device token.");
+      throw new Error(
+        tokenHash.error?.message ?? "Could not hash device token.",
+      );
     }
     const device = await admin.from("user_devices").insert({
       user_id: userId,
@@ -223,7 +224,6 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       .from("central_authority_cutovers")
       .delete()
       .eq("user_id", userId);
-    await admin.from("sync_entities").delete().eq("user_id", userId);
     await admin
       .from("central_business_bootstraps")
       .delete()
@@ -526,10 +526,12 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
         (first: { sequence: number }, second: { sequence: number }) =>
           first.sequence - second.sequence,
       );
-    expect(committedRows.map((row: { full_number: string }) => row.full_number))
-      .toEqual(["P-2026-0005", "P-2026-0006"]);
-    expect(committedRows.map((row: { sequence: number }) => row.sequence))
-      .toEqual([5, 6]);
+    expect(
+      committedRows.map((row: { full_number: string }) => row.full_number),
+    ).toEqual(["P-2026-0005", "P-2026-0006"]);
+    expect(
+      committedRows.map((row: { sequence: number }) => row.sequence),
+    ).toEqual([5, 6]);
 
     for (const row of committedRows as Array<{
       content_hash: string;
@@ -1298,81 +1300,32 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
     expect(browserNumberedCreate.error).not.toBeNull();
   });
 
-  it("retires generic legacy sync while preserving auxiliary services", async () => {
-    const genericBeforeCutover = await admin.from("sync_entities").insert({
-      user_id: userId,
-      entity_type: "customer",
-      entity_id: "legacy-customer",
-      payload: { id: "legacy-customer", name: "Legacy customer" },
-    });
-    expect(genericBeforeCutover.error).toBeNull();
+  it("keeps the retired generic stores as service-read-only archives", async () => {
+    const browserArchiveRead = await signedInUser
+      .from("legacy_sync_entities_archive")
+      .select("entity_type,entity_id")
+      .eq("user_id", userId);
+    expect(browserArchiveRead.data).toBeNull();
+    expect(browserArchiveRead.error).not.toBeNull();
 
-    const cutover = await admin.from("central_authority_cutovers").insert({
-      user_id: userId,
-      legacy_sync_state: "active",
-      authority_contract_version: 1,
-      backup_sha256: "a".repeat(64),
-      backup_size_bytes: 1024,
-      verified_entity_count: 1,
-      retired_queue_entry_count: 1,
-      source_revision: "b".repeat(40),
-    });
-    expect(cutover.error).toBeNull();
-
-    const browserGenericWrite = await signedInUser
-      .from("sync_entities")
+    const serverArchiveWrite = await admin
+      .from("legacy_sync_entities_archive")
       .insert({
         user_id: userId,
         entity_type: "customer",
-        entity_id: "blocked-browser-customer",
-        payload: { id: "blocked-browser-customer" },
+        entity_id: "blocked-server-customer",
+        payload: { id: "blocked-server-customer" },
       });
-    expect(browserGenericWrite.error?.code).toBe("P4201");
+    expect(serverArchiveWrite.data).toBeNull();
+    expect(serverArchiveWrite.error).not.toBeNull();
 
-    const serverGenericWrite = await admin.from("sync_entities").insert({
-      user_id: userId,
-      entity_type: "customer",
-      entity_id: "blocked-server-customer",
-      payload: { id: "blocked-server-customer" },
-    });
-    expect(serverGenericWrite.error?.code).toBe("P4201");
-
-    const auxiliaryWrite = await signedInUser.from("sync_entities").insert({
-      user_id: userId,
-      entity_type: "expense_inbox_item",
-      entity_id: "synthetic-inbox-item",
-      payload: { id: "synthetic-inbox-item" },
-    });
-    expect(auxiliaryWrite.error).toBeNull();
-
-    const visible = await signedInUser
-      .from("sync_entities")
-      .select("entity_type,entity_id")
-      .eq("user_id", userId)
-      .order("entity_type");
-    expect(visible.error).toBeNull();
-    expect(visible.data).toEqual([
-      {
-        entity_type: "expense_inbox_item",
-        entity_id: "synthetic-inbox-item",
-      },
-    ]);
-
-    const rollback = await admin
-      .from("central_authority_cutovers")
-      .update({
-        legacy_sync_state: "rolled_back",
-        rolled_back_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId);
-    expect(rollback.error).toBeNull();
-
-    const genericAfterRollback = await admin.from("sync_entities").insert({
-      user_id: userId,
-      entity_type: "customer",
-      entity_id: "restored-server-customer",
-      payload: { id: "restored-server-customer" },
-    });
-    expect(genericAfterRollback.error).toBeNull();
+    const serverBackupWrite = await admin
+      .from("legacy_user_backups_archive")
+      .insert({
+        user_id: userId,
+        data: { shouldNotBeWritten: true },
+      });
+    expect(serverBackupWrite.data).toBeNull();
+    expect(serverBackupWrite.error).not.toBeNull();
   });
 });

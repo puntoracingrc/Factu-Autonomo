@@ -146,12 +146,8 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
   permanente y restaura el archivo si falla el cambio local.
 
 Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
-`sync-operation.test.ts`, `auth-operation-guard.test.ts`,
-`device-repair.test.ts`, `device-repair-preview.test.ts`,
-`CloudRepairPreviewModal.test.tsx`, `sync-errors.test.ts`, `sync-queue.test.ts`,
-`sync-review-storage.test.ts`, `sync-review-operation-guard.test.ts`,
-`persisted-snapshot-adoption.test.ts`,
-`repository.test.ts`,
+`app-data-durability.test.ts`, `sync-errors.test.ts`, `sync-queue.test.ts`,
+`legacy-sync-retirement.test.ts`,
 `devices.test.ts`, `device-token.test.ts`, `device-policy-contract.test.ts`,
 `google-drive/operation.test.ts`, `google-drive/backup.test.ts` y
 `google-drive/fiscal-notification-original-delete.v1.test.ts`,
@@ -253,6 +249,9 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
   local. El rollout retira el escritor legacy sin borrar su cola. Nunca salta
   los gates de cuenta. El interruptor de emergencia pausa escrituras y conserva
   lectura por cursor sin reactivar el fallback legacy.
+- El motor genérico del navegador está retirado globalmente. Sus tablas son
+  archivos fríos sin acceso autenticado; bajar el rollout no puede reactivarlo.
+  Los auxiliares que aún necesitan nube deben tener tabla y contrato propios.
 
 Regresiones mínimas: `central-business-authority/activation.test.ts`,
 `central-business-authority/durable-queue.test.ts`,

@@ -15,8 +15,7 @@ interface ReminderEntityRow {
 }
 
 export type PaymentReminderEntityLookupResult =
-  | { ok: true; row: ReminderEntityRow | null }
-  | { ok: false };
+  { ok: true; row: ReminderEntityRow | null } | { ok: false };
 
 export type PaymentReminderEntityLookup = (
   userId: string,
@@ -29,10 +28,7 @@ export type ResolvePaymentReminderRecordsResult =
   | {
       ok: false;
       reason:
-        | "unavailable"
-        | "not_found"
-        | "invalid_document"
-        | "invalid_profile";
+        "unavailable" | "not_found" | "invalid_document" | "invalid_profile";
     };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -132,7 +128,10 @@ function isLinePayload(value: unknown): boolean {
   );
 }
 
-function isDocumentPayload(value: unknown, documentId: string): value is Document {
+function isDocumentPayload(
+  value: unknown,
+  documentId: string,
+): value is Document {
   if (!isRecord(value) || !payloadFits(value, MAX_DOCUMENT_PAYLOAD_BYTES)) {
     return false;
   }
@@ -198,9 +197,7 @@ function isDocumentPayload(value: unknown, documentId: string): value is Documen
 
 function isNumberingFormat(value: unknown): boolean {
   return (
-    isRecord(value) &&
-    isString(value.template) &&
-    isFiniteNumber(value.padding)
+    isRecord(value) && isString(value.template) && isFiniteNumber(value.padding)
   );
 }
 
@@ -213,12 +210,7 @@ function isNumberingPayload(value: unknown): boolean {
   ) {
     return false;
   }
-  const kinds = [
-    "factura",
-    "factura_rectificativa",
-    "presupuesto",
-    "recibo",
-  ];
+  const kinds = ["factura", "factura_rectificativa", "presupuesto", "recibo"];
   const lastSequence = value.lastSequence;
   const formats = value.formats;
   return kinds.every(
@@ -266,8 +258,7 @@ function isBusinessProfilePayload(value: unknown): value is BusinessProfile {
 
   if (
     (value.vatExempt !== undefined && typeof value.vatExempt !== "boolean") ||
-    (value.irpfPercent !== undefined &&
-      !isFiniteNumber(value.irpfPercent)) ||
+    (value.irpfPercent !== undefined && !isFiniteNumber(value.irpfPercent)) ||
     (value.quoteValidityDays !== undefined &&
       !isFiniteNumber(value.quoteValidityDays))
   ) {
@@ -327,11 +318,49 @@ export const lookupPaymentReminderEntity: PaymentReminderEntityLookup = async (
   const admin = getSupabaseAdmin();
   if (!admin) return { ok: false };
 
+  if (entityType === "document") {
+    const { data, error } = await admin
+      .from("central_invoice_documents")
+      .select("local_document_id,current_payload,lifecycle_status")
+      .eq("user_id", userId)
+      .eq("local_document_id", entityId)
+      .maybeSingle();
+
+    if (error) return { ok: false };
+    if (!data) return { ok: true, row: null };
+
+    const row = data as {
+      local_document_id?: unknown;
+      current_payload?: unknown;
+      lifecycle_status?: unknown;
+    };
+    if (
+      typeof row.local_document_id !== "string" ||
+      typeof row.lifecycle_status !== "string"
+    ) {
+      return { ok: false };
+    }
+    const envelope = isRecord(row.current_payload) ? row.current_payload : null;
+    const payload =
+      envelope && "document" in envelope
+        ? envelope.document
+        : row.current_payload;
+
+    return {
+      ok: true,
+      row: {
+        entityId: row.local_document_id,
+        payload,
+        deleted: row.lifecycle_status !== "issued",
+      },
+    };
+  }
+
   const { data, error } = await admin
-    .from("sync_entities")
-    .select("entity_id,payload,deleted")
+    .from("central_business_entities")
+    .select("entity_id,current_payload,deleted")
     .eq("user_id", userId)
-    .eq("entity_type", entityType)
+    .eq("entity_type", "profile")
     .eq("entity_id", entityId)
     .maybeSingle();
 
@@ -340,13 +369,10 @@ export const lookupPaymentReminderEntity: PaymentReminderEntityLookup = async (
 
   const row = data as {
     entity_id?: unknown;
-    payload?: unknown;
+    current_payload?: unknown;
     deleted?: unknown;
   };
-  if (
-    typeof row.entity_id !== "string" ||
-    typeof row.deleted !== "boolean"
-  ) {
+  if (typeof row.entity_id !== "string" || typeof row.deleted !== "boolean") {
     return { ok: false };
   }
 
@@ -354,7 +380,7 @@ export const lookupPaymentReminderEntity: PaymentReminderEntityLookup = async (
     ok: true,
     row: {
       entityId: row.entity_id,
-      payload: row.payload,
+      payload: row.current_payload,
       deleted: row.deleted,
     },
   };
@@ -404,8 +430,7 @@ export function normalizePaymentReminderRecipient(email: string): string {
 
 export function paymentReminderRecipientRateLimitSubject(
   email: string,
-  secret =
-    process.env.SERVER_RATE_LIMIT_SALT?.trim() ||
+  secret = process.env.SERVER_RATE_LIMIT_SALT?.trim() ||
     process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
     process.env.RESEND_API_KEY?.trim(),
 ): string | null {

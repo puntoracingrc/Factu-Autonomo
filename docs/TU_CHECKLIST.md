@@ -10,15 +10,9 @@ El código de monetización, sincronización fiscal con Stripe y recibos por ema
 - [ ] **Productos Stripe:**
   - Pro mensual **5,99 €** y anual **49 €** (recurrentes).
   - Pack escaneos **1,99 €** (pago único, 10 escaneos).
-- [ ] **Proyecto Supabase en producción** — ejecutar en el SQL Editor, en orden:
-  - `supabase/schema.sql`
-  - `supabase/billing.sql`
-  - `supabase/billing-scans.sql`
-  - `supabase/billing-scan-credits.sql`
-  - `supabase/billing-ai-units.sql`
-  - `supabase/billing-profile.sql`
-  - `supabase db push` con todas las migraciones, incluida
-    `20260713001000_stripe_webhook_idempotency.sql`
+- [ ] **Proyecto Supabase en producción** — enlazar y ejecutar
+      `supabase db push` con todas las migraciones, incluida
+      `20260713001000_stripe_webhook_idempotency.sql`
   - revisar que `legacy_review_required` no contenga eventos ambiguos antes de
     dar por cerrado el corte; contrastar primero Stripe y el saldo, porque el
     efecto anterior puede haberse aplicado aunque no conste el cierre

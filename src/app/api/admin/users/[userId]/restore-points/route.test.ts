@@ -3,10 +3,6 @@ import { GET, POST } from "./route";
 import { isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import {
-  ADMIN_RESTORE_ENTITY_TYPES,
-  type AdminSyncEntityRow,
-} from "@/lib/admin/user-restore";
 import { EMPTY_DATA } from "@/lib/types";
 
 vi.mock("@/lib/admin/access", () => ({
@@ -105,7 +101,7 @@ describe("admin user restore points route", () => {
     expect(from).not.toHaveBeenCalled();
   });
 
-  it("permite crear una copia a una sesion admin sin mutar sync_entities", async () => {
+  it("permite crear una copia a una sesion admin sin mutar central", async () => {
     const syncBuilder = asyncBuilder({ data: [], error: null });
     const restorePointBuilder = asyncBuilder({
       data: {
@@ -121,7 +117,9 @@ describe("admin user restore points route", () => {
       error: null,
     });
     const from = vi.fn((table: string) =>
-      table === "sync_entities" ? syncBuilder : restorePointBuilder,
+      ["central_business_entities", "central_invoice_documents"].includes(table)
+        ? syncBuilder
+        : restorePointBuilder,
     );
     vi.mocked(getSupabaseAdmin).mockReturnValue({
       auth: {
@@ -201,7 +199,9 @@ describe("admin user restore points route", () => {
       error: null,
     }));
     const from = vi.fn((table: string) =>
-      table === "sync_entities" ? syncBuilder : restorePointBuilder,
+      ["central_business_entities", "central_invoice_documents"].includes(table)
+        ? syncBuilder
+        : restorePointBuilder,
     );
     vi.mocked(getSupabaseAdmin).mockReturnValue({
       auth: {
@@ -227,9 +227,7 @@ describe("admin user restore points route", () => {
       diff: { totalChanges: expect.any(Number) },
     });
     expect(getUserById).toHaveBeenCalledWith("user-1");
-    expect(syncBuilder.order).toHaveBeenCalledTimes(
-      ADMIN_RESTORE_ENTITY_TYPES.length,
-    );
+    expect(syncBuilder.order).toHaveBeenCalledTimes(10);
     expect(syncBuilder.order).toHaveBeenCalledWith("entity_id", {
       ascending: true,
     });
@@ -239,27 +237,30 @@ describe("admin user restore points route", () => {
   });
 
   it("pagina 501 filas con cursor inmutable aunque cambie updated_at", async () => {
-    const customerRows: AdminSyncEntityRow[] = Array.from(
-      { length: 501 },
-      (_, index) => {
-        const sequence = String(index + 1).padStart(4, "0");
-        const id = `customer-${sequence}`;
-        return {
-          entity_type: "customer",
-          entity_id: id,
-          payload: {
-            id,
-            firstName: `Cliente ${sequence}`,
-            lastName: "",
-            name: `Cliente ${sequence}`,
-            createdAt: "2026-07-01T10:00:00.000Z",
-            updatedAt: "2026-07-01T10:00:00.000Z",
-          },
-          deleted: false,
-          updated_at: "2026-07-01T10:00:00.000Z",
-        };
-      },
-    );
+    const customerRows: Array<{
+      entity_type: string;
+      entity_id: string;
+      current_payload: unknown;
+      deleted: boolean;
+      updated_at: string;
+    }> = Array.from({ length: 501 }, (_, index) => {
+      const sequence = String(index + 1).padStart(4, "0");
+      const id = `customer-${sequence}`;
+      return {
+        entity_type: "customer",
+        entity_id: id,
+        current_payload: {
+          id,
+          firstName: `Cliente ${sequence}`,
+          lastName: "",
+          name: `Cliente ${sequence}`,
+          createdAt: "2026-07-01T10:00:00.000Z",
+          updatedAt: "2026-07-01T10:00:00.000Z",
+        },
+        deleted: false,
+        updated_at: "2026-07-01T10:00:00.000Z",
+      };
+    });
     let selectedEntityType = "";
     let afterEntityId: string | null = null;
     const syncBuilder = {
@@ -293,7 +294,9 @@ describe("admin user restore points route", () => {
     };
     const restorePointsBuilder = asyncBuilder({ data: [], error: null });
     const from = vi.fn((table: string) =>
-      table === "sync_entities" ? syncBuilder : restorePointsBuilder,
+      ["central_business_entities", "central_invoice_documents"].includes(table)
+        ? syncBuilder
+        : restorePointsBuilder,
     );
     vi.mocked(getSupabaseAdmin).mockReturnValue({
       auth: {
@@ -318,12 +321,7 @@ describe("admin user restore points route", () => {
       totalRows: 501,
     });
     expect(syncBuilder.gt).toHaveBeenCalledTimes(1);
-    expect(syncBuilder.gt).toHaveBeenCalledWith(
-      "entity_id",
-      "customer-0500",
-    );
-    expect(syncBuilder.limit).toHaveBeenCalledTimes(
-      ADMIN_RESTORE_ENTITY_TYPES.length + 1,
-    );
+    expect(syncBuilder.gt).toHaveBeenCalledWith("entity_id", "customer-0500");
+    expect(syncBuilder.limit).toHaveBeenCalledTimes(11);
   });
 });

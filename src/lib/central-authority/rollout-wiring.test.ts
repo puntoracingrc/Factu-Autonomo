@@ -12,9 +12,7 @@ describe("central authority rollout wiring", () => {
     expect(environment).toContain(
       "NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_PERCENT=0",
     );
-    expect(environment).toContain(
-      "CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS=",
-    );
+    expect(environment).toContain("CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USERS=");
     expect(environment).toContain(
       "NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USER_IDS=",
     );
@@ -61,6 +59,7 @@ describe("central authority rollout wiring", () => {
       "../../components/cloud/CentralBusinessAutomaticBootstrap.tsx",
     );
     const legacyRetirement = source("../supabase/config.ts");
+    const cloudContext = source("../../context/CloudSyncContext.tsx");
 
     expect(planGate).toContain("limits.cloudSync");
     expect(planGate).toContain("hasVerifiedCentralBusinessAutomaticBootstrap");
@@ -68,8 +67,7 @@ describe("central authority rollout wiring", () => {
       "previewCentralBusinessBootstrapFromBrowser",
     );
     expect(automaticBootstrap).toContain("automaticBootstrapDisposition");
-    expect(legacyRetirement).toContain(
-      "isCentralAuthorityRolloutSelected",
-    );
+    expect(legacyRetirement).not.toContain("isCentralAuthorityRolloutSelected");
+    expect(cloudContext).toContain("const legacyCloudRetired = Boolean(user)");
   });
 });

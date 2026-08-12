@@ -76,29 +76,84 @@ describe("GET /api/admin/health", () => {
             },
           ]);
         }
-
+        if (table === "central_business_entities") {
+          return {
+            select: vi.fn(() => ({
+              limit: vi.fn(async () => ({
+                data: [
+                  {
+                    user_id: "user-1",
+                    entity_type: "customer",
+                    deleted: false,
+                    updated_at: "2026-07-09T06:03:00.000Z",
+                  },
+                  {
+                    user_id: "user-1",
+                    entity_type: "expense",
+                    deleted: false,
+                    updated_at: "2026-07-09T06:03:00.000Z",
+                  },
+                ],
+                count: 2,
+                error: null,
+              })),
+            })),
+          };
+        }
+        if (table === "central_invoice_documents") {
+          return {
+            select: vi.fn(() => ({
+              limit: vi.fn(async () => ({
+                data: [
+                  {
+                    user_id: "user-1",
+                    kind: "invoice",
+                    lifecycle_status: "issued",
+                    updated_at: "2026-07-09T06:03:00.000Z",
+                  },
+                ],
+                count: 1,
+                error: null,
+              })),
+            })),
+          };
+        }
+        if (table === "user_usage") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(async () => ({ data: [], error: null })),
+            })),
+          };
+        }
+        if (table === "app_error_events") {
+          return {
+            select: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(async () => ({ data: [], error: null })),
+              })),
+            })),
+          };
+        }
         return rateLimitBucketFromMock();
       }),
-      rpc: vi.fn(async () => ({
-        data: {
-          generatedAt: "2026-07-09T08:00:00.000Z",
-          database: { bytes: 280_000_000, limitBytes: 8_589_934_592 },
-          users: { total: 6, active7d: 3, active30d: 4, new7d: 1 },
-          sync: {
-            rows: 5_342,
-            deletedRows: 109,
-            cloudUsers: 2,
-            updated24h: 38,
-            updated7d: 420,
-            activeUsers24h: 1,
-            activeUsers7d: 2,
-            latestSyncAt: "2026-07-09T06:03:00.000Z",
-          },
-          usage: { monthKey: "2026-07", documentsCreated: 10 },
-          errors: { last24h: 0, last7d: 1 },
+      auth: {
+        admin: {
+          listUsers: vi.fn(async () => ({
+            data: {
+              users: [
+                {
+                  id: "user-1",
+                  email: "cliente@example.com",
+                  created_at: "2026-07-01T08:00:00.000Z",
+                  last_sign_in_at: "2026-07-09T08:00:00.000Z",
+                },
+              ],
+              total: 1,
+            },
+            error: null,
+          })),
         },
-        error: null,
-      })),
+      },
     } as never);
 
     const response = await GET(request());
@@ -106,12 +161,14 @@ describe("GET /api/admin/health", () => {
 
     expect(response.status).toBe(200);
     expect(body.health.level).toBe("ok");
-    expect(body.health.summary.syncRows).toBe(5342);
+    expect(body.health.summary.syncRows).toBe(3);
     expect(body.health.abuse.totalRequests).toBe(20);
-    expect(body.health.abuse.namespaces[0].namespace).toBe("security_csp_report");
+    expect(body.health.abuse.namespaces[0].namespace).toBe(
+      "security_csp_report",
+    );
   });
 
-  it("usa lectura alternativa si falta una pieza del esquema", async () => {
+  it("tolera columnas de uso opcionales ausentes", async () => {
     const from = vi.fn((table: string) => {
       if (table === "server_rate_limit_buckets") {
         return rateLimitBucketFromMock([
@@ -123,7 +180,7 @@ describe("GET /api/admin/health", () => {
         ]);
       }
 
-      if (table === "sync_entities") {
+      if (table === "central_business_entities") {
         return {
           select: vi.fn(() => ({
             limit: vi.fn(async () => ({
@@ -138,6 +195,14 @@ describe("GET /api/admin/health", () => {
               count: 1,
               error: null,
             })),
+          })),
+        };
+      }
+
+      if (table === "central_invoice_documents") {
+        return {
+          select: vi.fn(() => ({
+            limit: vi.fn(async () => ({ data: [], count: 0, error: null })),
           })),
         };
       }
@@ -190,13 +255,6 @@ describe("GET /api/admin/health", () => {
     });
 
     vi.mocked(getSupabaseAdmin).mockReturnValue({
-      rpc: vi.fn(async () => ({
-        data: null,
-        error: {
-          code: "42703",
-          message: "column uu.customer_ai_autofills_created does not exist",
-        },
-      })),
       from,
       auth: {
         admin: {
@@ -223,7 +281,6 @@ describe("GET /api/admin/health", () => {
 
     expect(response.status).toBe(200);
     expect(body.monitoringAvailable).toBe(true);
-    expect(body.degraded).toBe(true);
     expect(body.health.summary.syncRows).toBe(1);
     expect(body.health.abuse.level).toBe("action");
     expect(body.health.topUsers[0].email).toBe("cliente@example.com");

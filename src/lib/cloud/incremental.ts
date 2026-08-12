@@ -16,7 +16,9 @@ import { applyRecurringOccurrenceExclusionToData } from "../recurring-expenses";
 import { withDocumentRelationshipIntegritySignals } from "../document-integrity/relationships";
 
 export function trackDataDiff(prev: AppData, next: AppData): AppData {
-  const incoming = diffAppData(prev, next);
+  const incoming = diffAppData(prev, next).filter(
+    (change) => change.entityType === "fiscal_notifications_workspace",
+  );
   if (incoming.length === 0) {
     return next;
   }

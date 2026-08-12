@@ -3,20 +3,30 @@
 ## 1. Supabase
 
 1. Crea proyecto en [supabase.com](https://supabase.com).
-2. SQL Editor → ejecuta en orden:
-   - `supabase/schema.sql`
-   - `supabase/billing.sql`
-   - `supabase/billing-scans.sql`
-   - `supabase/billing-scan-credits.sql`
-   - `supabase/billing-ai-units.sql`
-   - `supabase/billing-profile.sql`
-   - las migraciones versionadas de `supabase/migrations/` mediante
-     `supabase db push`; no despliegues el webhook sin
-     `20260713001000_stripe_webhook_idempotency.sql`, que añade leases y la
-     concesión atómica de packs.
+2. Enlaza el proyecto y aplica exclusivamente las migraciones versionadas de
+   `supabase/migrations/` mediante `supabase db push`; no ejecutes
+   `supabase/schema.sql`, que es un fixture histórico de aceptación. No
+   despliegues el webhook sin
+   `20260713001000_stripe_webhook_idempotency.sql`, que añade leases y la
+   concesión atómica de packs.
    - La migración debe entrar **antes** que el código. Durante ese corte el
      webhook anterior falla cerrado y Stripe reintenta; no inviertas el orden.
 3. Copia URL, anon key y **service role key** (solo servidor).
+
+### Corte de la sincronización genérica
+
+Este corte es deliberadamente bifásico para no dejar una versión de la web sin
+su almacenamiento esperado:
+
+1. Aplica `20260812170000_retire_legacy_sync_entities.sql`. Prepara y rellena
+   los almacenes dedicados, pero mantiene operativas las tablas antiguas.
+2. Despliega y verifica la versión que ya usa autoridad central.
+3. Aplica `20260812173000_finalize_legacy_sync_retirement.sql`. Renombra las
+   tablas antiguas, revoca sus escrituras y conserva solo lectura de archivo
+   para `service_role`.
+
+No apliques el tercer paso mientras el dominio de producción siga sirviendo la
+versión anterior.
 
 ## 2. Stripe
 
@@ -29,7 +39,7 @@
 5. Developers → Webhooks → endpoint:
    - URL: `https://TU-DOMINIO/api/webhooks/stripe`
    - Eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.updated`
-5. Copia el **webhook signing secret**.
+6. Copia el **webhook signing secret**.
 
 Las sesiones nuevas de packs llevan el contrato persistente
 `scan_pack_atomic_v1`. Una sesión anterior sin esa marca o un evento que ya

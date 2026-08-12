@@ -1,8 +1,8 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 26
-- Fecha: 2026-08-03
+- Version: 27
+- Fecha: 2026-08-12
 
 ## Contexto
 
@@ -38,6 +38,18 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
    o ya identico; cualquier conflicto queda para revision explicita.
 8. Las facturas y rectificativas emitidas siguen bajo ADR-0010. Esta autoridad
    operativa no puede editar, borrar ni renumerar un documento fiscal emitido.
+9. El escritor y lector genéricos del navegador quedan retirados para todas las
+   cuentas autenticadas. El porcentaje de rollout puede pausar o limitar la
+   autoridad central, pero nunca reactiva la ruta anterior.
+10. Notificaciones fiscales usa `workspace_auxiliary_entities` con CAS y RLS
+    por propietario. El buzón de gastos usa sus tablas dedicadas de servidor.
+    Ninguna de las dos funciones vuelve a `sync_entities` como fallback.
+11. `sync_entities` y `user_backups` se renombran como archivos fríos sin
+    acceso del navegador. Solo `service_role` conserva lectura para auditoría;
+    no se permiten nuevas escrituras ni restauraciones automáticas desde ellos.
+12. `meta.pendingChanges` deja de transportar negocio genérico. Solo conserva
+    compatibilidad local para un pendiente auxiliar fiscal o para descartar de
+    forma consciente una cola antigua durante una adopción central verificada.
 
 ## Fases
 
@@ -325,15 +337,13 @@ dispositivos y retirar expresamente sus colas locales. La migracion de esquema
 no activa ninguna cuenta por si sola. El registro conserva huella y tamaño de
 la copia, cantidades verificadas, cola retirada y revision de codigo.
 
-Mientras el corte esta activo, `sync_entities` deja de ser una ruta de lectura
-o escritura de negocio para ese propietario. Una policy restrictiva oculta al
-navegador sus filas legacy y un trigger rechaza tambien escrituras privilegiadas
-con `P4201`. Las filas existentes no se borran: quedan como evidencia fria para
-soporte y rollback. Se mantienen unicamente los tipos auxiliares que todavia
-tienen contrato propio: bandeja de gastos, espacio de notificaciones fiscales y
-lotes de retirada documental. El cliente conserva apagado el sincronizador
-legacy para la allowlist retirada incluso si la pausa global se levanta, y deja
-de mostrar esa pausa temporal como estado de la cuenta.
+Tras completar el corte general, `sync_entities` y `user_backups` dejan de ser
+rutas de runtime para cualquier propietario. Sus filas no se borran: se renombran
+como archivos fríos, se revocan los grants del navegador y solo `service_role`
+puede leerlas con fines de auditoría. Bandeja de gastos y espacio de
+notificaciones fiscales se copian antes a tablas dedicadas. Los lotes locales
+de retirada documental dejan de exponerse hasta disponer de un comando central
+atómico que preserve su historial y rollback.
 
 La ampliacion general usa una cohorte porcentual determinista por UUID comun a
 datos operativos y facturas. La allowlist explicita sigue teniendo prioridad y
@@ -349,11 +359,10 @@ copia local en autoridad.
 
 ## Rollback
 
-Antes del corte, desactivar el canario conserva el flujo local actual. Las
-tablas son aditivas y no modifican datos existentes. Una vez una entidad se
-declare central, el rollback operativo pausa nuevas escrituras y mantiene la
-lectura; nunca vuelve a permitir sobrescrituras silenciosas desde una copia
-atrasada.
+Desactivar el canario o el rollout pausa nuevas escrituras centrales y mantiene
+la lectura. No reactiva el motor genérico retirado ni convierte una copia local
+en autoridad. Las tablas archivadas son evidencia fría, no un mecanismo de
+rollback operativo.
 
 Tras el corte, el rollback exige pausar primero las escrituras centrales y
 cambiar el registro del propietario a `rolled_back` con fecha de confirmacion.
