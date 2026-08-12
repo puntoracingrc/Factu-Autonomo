@@ -44,7 +44,6 @@ import {
   rebuildCloudSnapshot,
   trackDataDiff,
 } from "./incremental";
-import { buildCloudUploadChanges } from "./sync-queue";
 import {
   hasPendingCollectionOverride,
   isCollectedDocument,
@@ -1013,19 +1012,6 @@ describe("sync por cambios", () => {
       ],
     });
 
-    const outgoingFromB = buildCloudUploadChanges(reconciledB);
-    const staleOutgoingTemplate = outgoingFromB.find(
-      (change) => change.entityType === "recurring_expense",
-    )?.payload as RecurringExpense;
-    expect(staleOutgoingTemplate.occurrenceExclusions).toHaveLength(1);
-    expect(
-      outgoingFromB.some(
-        (change) =>
-          change.entityType === "recurring_occurrence_exclusion" &&
-          change.entityId === "recurring-two-devices:2026-01-31",
-      ),
-    ).toBe(true);
-
     // Reproduce el LWW real: B pisa el payload de plantilla de A, pero la fila
     // estable de exclusión sobrevive por tener otra clave de entidad.
     const serverRows = new Map<string, SyncChange>();
@@ -1360,7 +1346,7 @@ describe("sync del expediente fiscal estructurado", () => {
         pendingChanges: pending,
       },
     };
-    const outgoing = buildCloudUploadChanges(queued);
+    const outgoing = queued.meta?.pendingChanges ?? [];
     expect(outgoing).toHaveLength(1);
     expect(
       markChangesSynced(queued, outgoing, "2026-07-14T09:04:00.000Z").meta
@@ -1454,13 +1440,6 @@ describe("sync del expediente fiscal estructurado", () => {
     ).filter(
       (change) => change.entityType === "fiscal_notifications_workspace",
     );
-    const invalid: SyncChange = {
-      entityType: "fiscal_notifications_workspace",
-      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
-      deleted: false,
-      payload: { ownerScope: FISCAL_OWNER, rawPdfText: "private" },
-      updatedAt: "2026-07-14T09:02:00.000Z",
-    };
     const legacyFirst: SyncChange = {
       entityType: "fiscal_notifications_workspace",
       entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
@@ -1492,25 +1471,6 @@ describe("sync del expediente fiscal estructurado", () => {
       )?.workspace,
     ).toMatchObject({ schemaVersion: 2, revision: 1 });
     expect(trackedFiscal?.payload).not.toMatchObject({ schemaVersion: 1 });
-    const uploadChanges = buildCloudUploadChanges({
-      ...tracked,
-      meta: {
-        ...tracked.meta!,
-        pendingChanges: [...(tracked.meta?.pendingChanges ?? []), invalid],
-      },
-    }).filter(
-      (change) => change.entityType === "fiscal_notifications_workspace",
-    );
-    expect(uploadChanges).toHaveLength(1);
-    expect(uploadChanges[0]?.entityId).toBe(
-      FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
-    );
-    expect(
-      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
-        uploadChanges[0]?.payload,
-        FISCAL_OWNER,
-      )?.workspace.revision,
-    ).toBe(1);
     expect(second).toHaveLength(1);
     expect(first[0]?.entityId).toBe(
       FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,

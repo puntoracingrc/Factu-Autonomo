@@ -7,6 +7,8 @@
 ## Retirado
 
 - `src/lib/cloud/repository.ts` y sus pruebas: lector, escritor y merge genérico.
+- `src/lib/cloud/sync.ts` y `sync-queue.ts`: selección local/nube, reconstrucción
+  completa de snapshots y la marca local de subida pendiente, ya sin consumidores.
 - Escrituras nuevas de negocio en `meta.pendingChanges`.
 - Fallback del buzón de gastos a `sync_entities`.
 - Lecturas administrativas y recordatorios desde el almacén genérico.
