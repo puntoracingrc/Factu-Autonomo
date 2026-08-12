@@ -22,8 +22,8 @@ describe("stale cloud snapshot write block", () => {
   it("exposes a global write block from AppStore", () => {
     expect(appStoreSource).toContain("export interface AppWriteBlock");
     expect(appStoreSource).toContain("initialCloudSyncWriteBlock");
-    expect(appStoreSource).toContain("isCloudEnabled()");
-    expect(appStoreSource).toContain("isCloudSyncTemporarilyPaused()");
+    expect(appStoreSource).toContain("return null");
+    expect(appStoreSource).not.toContain("isCloudSyncTemporarilyPaused");
     expect(appStoreSource).toContain("writeBlock: AppWriteBlock | null");
     expect(appStoreSource).toContain("setExternalWriteBlock");
     expect(appStoreSource).toContain("clearExternalWriteBlock");
@@ -40,33 +40,23 @@ describe("stale cloud snapshot write block", () => {
     expect(appStoreSource).toContain(
       "if (writeBlockRef.current) return blockedDurableResult()",
     );
-    expect(appStoreSource).toContain(
-      "if (writeBlockRef.current) return false",
-    );
+    expect(appStoreSource).toContain("if (writeBlockRef.current) return false");
     expect(appStoreSource).toContain(
       "writeBlockRef.current\n                ? blockedSaveResult()",
     );
   });
 
-  it("lets cloud sync place stale devices in read-only mode", () => {
-    expect(cloudSyncSource).toContain("setExternalWriteBlock({");
-    expect(cloudSyncSource).toContain('source: "cloud_sync_preflight"');
-    expect(cloudSyncSource).toContain('source: "cloud_sync_review"');
-    expect(cloudSyncSource).toContain('recoveryHref: "/cuenta"');
-    expect(cloudSyncSource).toContain("clearExternalWriteBlock");
-    expect(cloudSyncSource).toContain(
-      "no se pueden crear, editar ni borrar datos de negocio",
-    );
+  it("delegates central conflicts to typed authority results", () => {
+    expect(cloudSyncSource).toContain("syncCentralBusinessEvents");
+    expect(cloudSyncSource).toContain("syncCentralInvoiceAuthorityEvents");
+    expect(cloudSyncSource).toContain("syncFiscalNotificationsWorkspace");
+    expect(cloudSyncSource).not.toContain("setExternalWriteBlock({");
   });
 
-  it("checks cloud freshness before writes can reach upload", () => {
-    expect(cloudSyncSource).toContain("hasRemoteSyncChangesAfter");
-    expect(cloudSyncSource).toContain("remoteDocumentCount > payload.documents.length");
-    expect(cloudSyncSource).toContain("checkCloudWriteFreshness");
-    expect(cloudSyncSource).toContain("enforceFreshCloudBeforeWrites");
-    expect(cloudSyncSource).toContain(
-      "if (!(await enforceFreshCloudBeforeWrites(payload))) return false",
-    );
+  it("checks central authorities before fiscal emission", () => {
+    expect(cloudSyncSource).toContain("registerCurrentCloudDevice");
+    expect(cloudSyncSource).toContain("syncCentralBusinessEvents");
+    expect(cloudSyncSource).toContain("syncCentralInvoiceAuthorityEvents");
   });
 
   it("shows a global read-only banner and leaves repair routes usable", () => {

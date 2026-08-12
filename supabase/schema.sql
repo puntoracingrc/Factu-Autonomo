@@ -1,4 +1,7 @@
--- Ejecuta esto en el SQL Editor de tu proyecto Supabase (gratis en supabase.com)
+-- LEGACY_PHASE1_FIXTURE_ONLY
+-- Este archivo se conserva para la aceptación destructiva histórica de Fase 1.
+-- No lo ejecutes para instalar Factu: usa `supabase db push`, que aplica las
+-- migraciones versionadas y retira estas tablas al final del recorrido.
 
 -- Copia completa antigua (compatibilidad / migración)
 create table if not exists public.user_backups (

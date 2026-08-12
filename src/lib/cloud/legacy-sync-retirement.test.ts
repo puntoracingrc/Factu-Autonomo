@@ -1,10 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  isLegacyCloudExplicitlyRetiredForUser,
-  isLegacyCloudRetiredForUser,
-} from "@/lib/supabase/config";
+import { isLegacyCloudExplicitlyRetiredForUser } from "@/lib/supabase/config";
 
 const ROOT = process.cwd();
 const ownerId = "11111111-1111-4111-8111-111111111111";
@@ -33,39 +30,44 @@ describe("legacy cloud retirement", () => {
     ).toBe(false);
   });
 
-  it("retires the legacy writer for a selected central rollout owner", () => {
-    expect(
-      isLegacyCloudRetiredForUser(ownerId, {
-        rolloutPercent: "100",
-        rolloutEligibleUserIds: "*",
-      }),
-    ).toBe(true);
-    expect(
-      isLegacyCloudRetiredForUser(ownerId, {
-        rolloutPercent: "0",
-        rolloutEligibleUserIds: "*",
-      }),
-    ).toBe(false);
-  });
-
-  it("keeps the legacy synchronizer paused for a retired owner", () => {
+  it("removes the generic browser synchronizer", () => {
     const context = source("src/context/CloudSyncContext.tsx");
-    expect(context).toContain(
-      "const cloudSyncPaused = globalCloudSyncPaused || legacyCloudRetired;",
-    );
-    expect(context).toContain("legacyCloudRetired: boolean");
+    const appStore = source("src/context/AppStore.tsx");
+    expect(context).not.toContain("pushSyncChanges");
+    expect(context).not.toContain("pullSyncChanges");
+    expect(context).not.toContain("user_backups");
+    expect(context).toContain("const legacyCloudRetired = Boolean(user)");
+    expect(context).toContain("canUseCloudForUser(user.id)");
+    expect(context).toContain("pendingUpload: pendingChangeCount > 0");
+    expect(context).toContain("void syncNow()");
+    expect(appStore).not.toContain("isCloudSyncTemporarilyPaused");
   });
 
-  it("removes the temporary pause warning after the explicit cutover", () => {
-    const indicator = source("src/components/cloud/CloudSyncIndicator.tsx");
-    const account = source("src/components/cloud/CloudAccountCard.tsx");
-    const env = source(".env.example");
-
-    expect(indicator).toContain("if (legacyCloudRetired) return null;");
-    expect(account).toContain("Servidor central activo");
-    expect(account).toContain("!legacyCloudRetired");
-    expect(env).toContain(
-      "NEXT_PUBLIC_CENTRAL_AUTHORITY_LEGACY_SYNC_RETIRED_USER_IDS=",
+  it("archives the old tables without browser access", () => {
+    const preparation = source(
+      "supabase/migrations/20260812170000_retire_legacy_sync_entities.sql",
+    );
+    const finalization = source(
+      "supabase/migrations/20260812173000_finalize_legacy_sync_retirement.sql",
+    );
+    expect(preparation).toContain(
+      "workspace_auxiliary_entities_owner_type_uidx",
+    );
+    expect(preparation).toContain("workspace_auxiliary_entities");
+    expect(preparation).not.toContain(
+      "alter table public.sync_entities rename to legacy_sync_entities_archive",
+    );
+    expect(finalization).toContain(
+      "alter table public.sync_entities rename to legacy_sync_entities_archive",
+    );
+    expect(finalization).toContain(
+      "alter table public.user_backups rename to legacy_user_backups_archive",
+    );
+    expect(finalization).toMatch(
+      /revoke all on table public\.legacy_sync_entities_archive\s+from public, anon, authenticated, service_role/,
+    );
+    expect(finalization).toContain(
+      "LEGACY_SYNC_RETIREMENT_PREPARATION_REQUIRED",
     );
   });
 });

@@ -16,7 +16,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   CloudSyncHeaderIndicator,
   CloudSyncNavBadge,
-  CloudSyncPendingBanner,
 } from "@/components/cloud/CloudSyncIndicator";
 import { CentralInvoiceAuthorityEventsAutoSync } from "@/components/cloud/CentralInvoiceAuthorityEventsAutoSync";
 import { CentralBusinessAuthorityEventsAutoSync } from "@/components/cloud/CentralBusinessAuthorityEventsAutoSync";
@@ -656,7 +655,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="border-t border-slate-100 px-4 py-1.5">
             {writeBlock ? null : <QuickToolsLauncher compact />}
           </div>
-          <CloudSyncPendingBanner />
         </header>
 
         <header className="app-topbar sticky top-0 z-20 hidden border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur lg:block">
@@ -718,7 +716,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             <CloudSyncHeaderIndicator />
           </div>
-          <CloudSyncPendingBanner />
         </header>
 
         <DemoModeBanner />

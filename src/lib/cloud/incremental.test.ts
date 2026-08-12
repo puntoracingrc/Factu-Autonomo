@@ -104,16 +104,16 @@ describe("incremental sync state", () => {
     expect(restored.meta?.pendingChanges).toBeUndefined();
   });
 
-  it("conecta bootstrap inicial y descarga completa con la base cloud sin marcador", () => {
+  it("retira el bootstrap de fotografía genérica del contexto", () => {
     const source = readFileSync(
       new URL("../../context/CloudSyncContext.tsx", import.meta.url),
       "utf8",
     );
 
-    expect(source.match(/rebuildCloudSnapshot\(remoteChanges\)/g)).toHaveLength(
-      2,
-    );
-    expect(source).not.toContain("mergeRemoteOntoLocal(\n          EMPTY_DATA");
+    expect(source).not.toContain("rebuildCloudSnapshot(remoteChanges)");
+    expect(source).not.toContain("pullSyncChanges");
+    expect(source).toContain("syncCentralBusinessEvents");
+    expect(source).toContain("syncCentralInvoiceAuthorityEvents");
   });
 
   it("marca los datos como sincronizados cuando no hay cola", () => {

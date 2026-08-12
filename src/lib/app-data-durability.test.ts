@@ -273,14 +273,8 @@ describe("commitAppDataDurably", () => {
       },
       persist: (candidate) => {
         events.push("persist");
-        expect(candidate.meta?.pendingChanges).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              entityType: "recurring_expense",
-              entityId: "recurring-1",
-            }),
-          ]),
-        );
+        expect(candidate.recurringExpenses).toHaveLength(1);
+        expect(candidate.meta?.pendingChanges).toBeUndefined();
         return { status: "applied" };
       },
     });
@@ -1318,22 +1312,7 @@ describe("prepareFixedExpenseBundle", () => {
         (entry) => entry.id === command.ids.recurringExpenseId,
       ),
     ).toHaveLength(1);
-    expect(reloaded.meta?.pendingChanges).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          entityType: "supplier",
-          entityId: command.ids.supplierId,
-        }),
-        expect.objectContaining({
-          entityType: "expense",
-          entityId: command.ids.expenseId,
-        }),
-        expect.objectContaining({
-          entityType: "recurring_expense",
-          entityId: command.ids.recurringExpenseId,
-        }),
-      ]),
-    );
+    expect(reloaded.meta?.pendingChanges).toBeUndefined();
   });
 
   it("reconoce el replay de un resumen completado aunque conserve su ID previo", () => {

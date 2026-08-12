@@ -30,8 +30,8 @@ describe("central business conflict recovery account wiring", () => {
   it("queda visible en Cuenta y descarga eventos antes de finalizar", () => {
     expect(accountPage).toContain("<CentralBusinessConflictRecoveryCard />");
     expect(appStore).toContain("pullCentralBusinessEvents");
-    expect(appStore).toContain(
-      'import(\n          "@/lib/central-business-authority/conflict-recovery"',
+    expect(appStore).toMatch(
+      /import\(\s*"@\/lib\/central-business-authority\/conflict-recovery"\s*\)/,
     );
   });
 });

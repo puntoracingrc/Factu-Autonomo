@@ -26,9 +26,7 @@ import type {
   CentralInvoiceAuthorityFormIssueIdentity,
   CentralInvoiceAuthorityFormJson,
 } from "@/lib/central-invoice-authority/form-canary-client";
-import type {
-  CentralInvoiceAuthorityCollectionUpdateIdentity,
-} from "@/lib/central-invoice-authority/collection-client";
+import type { CentralInvoiceAuthorityCollectionUpdateIdentity } from "@/lib/central-invoice-authority/collection-client";
 import type { CentralInvoiceAuthorityRelationshipIdentity } from "@/lib/central-invoice-authority/relationship-client";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
 import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
@@ -103,7 +101,11 @@ import {
   canConvertQuoteToInvoice,
   findInvoiceCreatedFromQuote,
 } from "@/lib/quote-to-invoice";
-import { trackDataDiff } from "@/lib/cloud/incremental";
+import {
+  markChangesSynced,
+  mergeRemoteOntoLocal,
+  trackDataDiff,
+} from "@/lib/cloud/incremental";
 import { unmarkInvoiceCollection } from "@/lib/receipts";
 import {
   runReceiptGenerationCommand,
@@ -131,11 +133,6 @@ import {
   type DurableStorageBaseline,
   type FixedExpenseBundleValue,
 } from "@/lib/app-data-durability";
-import {
-  commitCloudSnapshotDurably,
-  type CloudSnapshotReplacementValue,
-} from "@/lib/cloud/device-repair";
-import { adoptPersistedSnapshotIfCurrent } from "@/lib/cloud/persisted-snapshot-adoption";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import {
   createUserReminderWithIdentity,
@@ -245,10 +242,6 @@ import type { DurableFiscalNotificationDocumentDeletionResultV1 } from "@/lib/fi
 import type { DurableDeleteAllFiscalNotificationDocumentsResultV1 } from "@/lib/fiscal-notifications/delete-all-documents-command.v1";
 import type { DurableFiscalNotificationEmptyHistoryRepairResultV1 } from "@/lib/fiscal-notifications/empty-history-repair.v1";
 import { reportAppError } from "@/lib/monitoring/client";
-import {
-  isCloudEnabled,
-  isCloudSyncTemporarilyPaused,
-} from "@/lib/supabase/config";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -264,18 +257,8 @@ export interface AppWriteBlock {
   recoveryLabel: string;
 }
 
-const CLOUD_SYNC_PREFLIGHT_WRITE_BLOCK: AppWriteBlock = {
-  source: "cloud_sync_preflight",
-  message:
-    "Comprobando que este dispositivo está al día con la nube antes de permitir cambios…",
-  recoveryHref: "/cuenta",
-  recoveryLabel: "Abrir Cuenta",
-};
-
 function initialCloudSyncWriteBlock(): AppWriteBlock | null {
-  return isCloudEnabled() && !isCloudSyncTemporarilyPaused()
-    ? CLOUD_SYNC_PREFLIGHT_WRITE_BLOCK
-    : null;
+  return null;
 }
 
 type RecurringExpenseChangeBlockedReason = Extract<
@@ -323,7 +306,9 @@ function centralCollectionIdempotencyKey(doc: Document): string {
   ].join(":");
 }
 
-function centralCollectionPayload(doc: Document): CentralInvoiceAuthorityFormJson {
+function centralCollectionPayload(
+  doc: Document,
+): CentralInvoiceAuthorityFormJson {
   return JSON.parse(
     JSON.stringify({
       schema: CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY_SCHEMA,
@@ -340,7 +325,11 @@ function isCentralInvoiceCollectionSyncCandidate(
   status: "enviado" | "pagado" | "vencido";
   paymentStatus: "pending" | "paid" | "overdue";
 } {
-  if (!doc?.centralInvoiceAuthority || doc.type !== "factura" || doc.rectification) {
+  if (
+    !doc?.centralInvoiceAuthority ||
+    doc.type !== "factura" ||
+    doc.rectification
+  ) {
     return false;
   }
   return (
@@ -448,14 +437,6 @@ interface AppStoreValue {
   setExternalWriteBlock: (block: AppWriteBlock) => void;
   clearExternalWriteBlock: (source: AppWriteBlock["source"]) => void;
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
-  replaceCloudSnapshotDurably: (
-    data: AppData,
-    expected: AppData,
-  ) => AppDataDurabilityResult<CloudSnapshotReplacementValue>;
-  adoptPersistedCloudSnapshot: (
-    data: AppData,
-    expectedCurrent: AppData,
-  ) => boolean;
   getCurrentData: () => AppData;
   replaceDataIfCurrent: (data: AppData, expected: AppData) => boolean;
   restoreBackupData: (
@@ -526,11 +507,19 @@ interface AppStoreValue {
       receivedAt?: string;
       replayFromStartWhenNoActiveInvoices?: boolean;
     },
-  ) => Promise<AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>>;
+  ) => Promise<
+    AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>
+  >;
   syncCentralBusinessEvents: (
     ownerScope: string,
     options?: { limit?: number },
   ) => Promise<CentralBusinessEventsAppDataSyncResult>;
+  syncFiscalNotificationsWorkspace: (
+    ownerScope: string,
+  ) => Promise<
+    | { ok: true; pushed: number; pulled: number; applied: number }
+    | { ok: false; message: string }
+  >;
   reconcileCentralBusinessEvents: (
     ownerScope: string,
     options?: { limit?: number; maxPages?: number },
@@ -783,10 +772,9 @@ function normalizeProfileForAppStore(
     taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
       profile.taxModelDiagnostic,
     ),
-    fiscalAdvisoryModelPreferences:
-      normalizeFiscalAdvisoryModelPreferencesV1(
-        profile.fiscalAdvisoryModelPreferences,
-      ),
+    fiscalAdvisoryModelPreferences: normalizeFiscalAdvisoryModelPreferencesV1(
+      profile.fiscalAdvisoryModelPreferences,
+    ),
   };
 }
 
@@ -973,9 +961,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [writeBlock, setWriteBlock] = useState<AppWriteBlock | null>(
     initialWriteBlock.current,
   );
-  const writeBlockRef = useRef<AppWriteBlock | null>(
-    initialWriteBlock.current,
-  );
+  const writeBlockRef = useRef<AppWriteBlock | null>(initialWriteBlock.current);
   const [ready, setReady] = useState(false);
   const skipNextSave = useRef(true);
   const durablyPersistedDataRef = useRef<AppData | null>(null);
@@ -1190,56 +1176,6 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const getCurrentData = useCallback(() => dataRef.current, []);
 
-  const adoptPersistedCloudSnapshot = useCallback(
-    (candidate: AppData, expectedCurrent: AppData): boolean =>
-      adoptPersistedSnapshotIfCurrent({
-        candidate,
-        expectedCurrent,
-        getCurrent: () => dataRef.current,
-        currentMatchesDurableBaseline: () =>
-          durableStorageBaselineRef.current.status === "known" &&
-          durableStorageBaselineRef.current.data === expectedCurrent,
-        persistedMatches: (expected) =>
-          inspectPersistedData(expected).status === "applied",
-        publishMemoryOnly: (next) => {
-          durableStorageBaselineRef.current = { status: "known", data: next };
-          lastKnownDurableDataRef.current = next;
-          durablyPersistedDataRef.current = next;
-          dataRef.current = next;
-          setData(next);
-        },
-      }),
-    [],
-  );
-
-  const replaceCloudSnapshotDurably = useCallback(
-    (replacement: AppData, expected: AppData) => {
-      const result = commitCloudSnapshotDurably({
-        expected,
-        replacement,
-        storageBaseline: durableStorageBaselineRef.current,
-        getCurrent: () => dataRef.current,
-        persist: (candidate, storageExpected) =>
-          saveData(candidate, { expected: storageExpected }),
-      });
-      if (result.status === "indeterminate") {
-        durableStorageBaselineRef.current = result;
-      }
-      if (result.status !== "applied") return result;
-
-      durableStorageBaselineRef.current = {
-        status: "known",
-        data: result.data,
-      };
-      lastKnownDurableDataRef.current = result.data;
-      durablyPersistedDataRef.current = result.data;
-      dataRef.current = result.data;
-      setData(result.data);
-      return result;
-    },
-    [],
-  );
-
   const replaceDataIfCurrent = useCallback(
     (next: AppData, expected: AppData): boolean => {
       if (durableStorageBaselineRef.current.status === "indeterminate") {
@@ -1351,9 +1287,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }): Promise<DurableFiscalNotificationStructuredReviewSaveResultV1> => {
       const [persistedCommand, saveCommand] = await Promise.all([
         import("@/lib/fiscal-notifications/persisted-command.v1"),
-        import(
-          "@/lib/fiscal-notifications/structured-review-save-command.v1"
-        ),
+        import("@/lib/fiscal-notifications/structured-review-save-command.v1"),
       ]);
       const result =
         persistedCommand.runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
@@ -1419,9 +1353,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       receipt: FiscalNotificationOriginalArchiveReceiptV1;
       archivedAt: string;
     }): Promise<DurableFiscalNotificationDriveArchiveResultV1> => {
-      const { runFiscalNotificationDriveArchiveCommandV1 } = await import(
-        "@/lib/fiscal-notifications/drive-original-archive-command.v1"
-      );
+      const { runFiscalNotificationDriveArchiveCommandV1 } =
+        await import("@/lib/fiscal-notifications/drive-original-archive-command.v1");
       return runFiscalNotificationDriveArchiveCommandV1({
         ...input,
         commit: commitDurableAppData,
@@ -1439,9 +1372,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }): Promise<DurableFiscalNotificationDocumentDeletionResultV1> => {
       const [persistedCommand, deleteCommand] = await Promise.all([
         import("@/lib/fiscal-notifications/persisted-command.v1"),
-        import(
-          "@/lib/fiscal-notifications/document-deletion-command.v1"
-        ),
+        import("@/lib/fiscal-notifications/document-deletion-command.v1"),
       ]);
       const result =
         persistedCommand.runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationDocumentDeletionResultV1>(
@@ -1495,9 +1426,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }): Promise<DurableDeleteAllFiscalNotificationDocumentsResultV1> => {
       const [persistedCommand, deleteAllCommand] = await Promise.all([
         import("@/lib/fiscal-notifications/persisted-command.v1"),
-        import(
-          "@/lib/fiscal-notifications/delete-all-documents-command.v1"
-        ),
+        import("@/lib/fiscal-notifications/delete-all-documents-command.v1"),
       ]);
       const result =
         persistedCommand.runFiscalNotificationCommandAgainstLatestPersistedV1<DurableDeleteAllFiscalNotificationDocumentsResultV1>(
@@ -1518,11 +1447,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 ? { status: "indeterminate", reason }
                 : { status: "blocked", reason },
             run: (expected, commit) =>
-              deleteAllCommand.runDeleteAllFiscalNotificationDocumentsCommandV1({
-                ...input,
-                expected,
-                commit,
-              }),
+              deleteAllCommand.runDeleteAllFiscalNotificationDocumentsCommandV1(
+                {
+                  ...input,
+                  expected,
+                  commit,
+                },
+              ),
           },
         );
       if (result.status === "indeterminate") {
@@ -1549,9 +1480,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ownerScope: string;
       confirmedAt: string;
     }): Promise<DurableFiscalNotificationEmptyHistoryRepairResultV1> => {
-      const { runRepairFiscalNotificationEmptyHistoryCommandV1 } = await import(
-        "@/lib/fiscal-notifications/empty-history-repair.v1"
-      );
+      const { runRepairFiscalNotificationEmptyHistoryCommandV1 } =
+        await import("@/lib/fiscal-notifications/empty-history-repair.v1");
       return runRepairFiscalNotificationEmptyHistoryCommandV1({
         ...input,
         commit: commitDurableAppData,
@@ -1575,12 +1505,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         buildCentralInvoiceAuthorityEventsAppDataTransition,
         pullCentralInvoiceAuthorityEventsForAppData,
         selectCentralInvoiceAuthorityEventsSyncBaseline,
-      } = await import(
-        "@/lib/central-invoice-authority/events-app-data-sync"
-      );
-      const { runCentralInvoiceAuthorityClientOperation } = await import(
-        "@/lib/central-invoice-authority/client-operation-lock"
-      );
+      } = await import("@/lib/central-invoice-authority/events-app-data-sync");
+      const { runCentralInvoiceAuthorityClientOperation } =
+        await import("@/lib/central-invoice-authority/client-operation-lock");
 
       return runCentralInvoiceAuthorityClientOperation(async () => {
         const memory = dataRef.current;
@@ -1637,9 +1564,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         selectCentralBusinessServerAdoptionBaseline,
         selectCentralBusinessEventsSyncBaseline,
         syncCentralBusinessEventsIntoAppData,
-      } = await import(
-        "@/lib/central-business-authority/events-app-data-sync"
-      );
+      } = await import("@/lib/central-business-authority/events-app-data-sync");
       const memory = dataRef.current;
       const baselineInput = {
         memory,
@@ -1708,9 +1633,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           }),
         );
       } catch {
-        const pulled = await pullCentralBusinessEvents(ownerScope, options).catch(
-          () => null,
-        );
+        const pulled = await pullCentralBusinessEvents(
+          ownerScope,
+          options,
+        ).catch(() => null);
         return {
           ok: false,
           schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
@@ -1744,21 +1670,80 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [pullCentralBusinessEvents],
   );
 
+  const syncFiscalNotificationsWorkspace = useCallback(
+    async (
+      ownerScope: string,
+    ): Promise<
+      | { ok: true; pushed: number; pulled: number; applied: number }
+      | { ok: false; message: string }
+    > => {
+      const expected = dataRef.current;
+      const pending = (expected.meta?.pendingChanges ?? []).filter(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      );
+      try {
+        const {
+          pullFiscalNotificationsWorkspaceChanges,
+          pushFiscalNotificationsWorkspaceChanges,
+        } =
+          await import("@/lib/fiscal-notifications/workspace-cloud-repository");
+        const syncedAt =
+          pending.length > 0
+            ? await pushFiscalNotificationsWorkspaceChanges(ownerScope, pending)
+            : new Date().toISOString();
+        const remote =
+          await pullFiscalNotificationsWorkspaceChanges(ownerScope);
+        const result = commitDurableAppData(
+          expected,
+          (previous) => {
+            const afterPush =
+              pending.length > 0
+                ? markChangesSynced(previous, pending, syncedAt)
+                : previous;
+            const merged = mergeRemoteOntoLocal(afterPush, remote);
+            return {
+              data: merged.data,
+              value: {
+                pushed: pending.length,
+                pulled: remote.length,
+                applied: merged.applied,
+              },
+            };
+          },
+          { trackLegacyChanges: false },
+        );
+        if (result.status !== "applied") {
+          return {
+            ok: false,
+            message: "El expediente fiscal cambio durante la sincronizacion.",
+          };
+        }
+        return { ok: true, ...result.value };
+      } catch (error) {
+        return {
+          ok: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "No se pudo sincronizar el expediente fiscal.",
+        };
+      }
+    },
+    [commitDurableAppData],
+  );
+
   const reconcileCentralBusinessEvents = useCallback(
     async (
       ownerScope: string,
       options: { limit?: number; maxPages?: number } = {},
     ): Promise<CentralBusinessEventReconciliationResult> => {
-      const { reconcileCentralBusinessEventHistory } = await import(
-        "@/lib/central-business-authority/event-reconciliation"
-      );
+      const { reconcileCentralBusinessEventHistory } =
+        await import("@/lib/central-business-authority/event-reconciliation");
       const {
         loadCentralBusinessDurableQueue,
         rewindCentralBusinessEventCursorForReconciliation,
         withCentralBusinessQueueLock,
-      } = await import(
-        "@/lib/central-business-authority/durable-queue"
-      );
+      } = await import("@/lib/central-business-authority/durable-queue");
 
       return reconcileCentralBusinessEventHistory(
         { maxPages: options.maxPages },
@@ -1789,9 +1774,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const {
         adoptCentralBusinessEventsFromServerIntoAppData,
         selectCentralBusinessServerAdoptionBaseline,
-      } = await import(
-        "@/lib/central-business-authority/events-app-data-sync"
-      );
+      } = await import("@/lib/central-business-authority/events-app-data-sync");
       const memory = dataRef.current;
       const baseline = selectCentralBusinessServerAdoptionBaseline({
         memory,
@@ -1846,9 +1829,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     ): Promise<
       AppDataDurabilityResult<CentralAdoptionLegacyQueueRetirementValue>
     > => {
-      const { buildCentralAdoptionLegacyQueueRetirement } = await import(
-        "@/lib/central-business-authority/legacy-queue-retirement"
-      );
+      const { buildCentralAdoptionLegacyQueueRetirement } =
+        await import("@/lib/central-business-authority/legacy-queue-retirement");
       return commitDurableAppData(
         expected,
         (previous) =>
@@ -1870,9 +1852,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       entityId: string;
     }): Promise<CentralBusinessConflictRecoveryResult> => {
       const { resolveCentralBusinessConflictKeepingServer: resolve } =
-        await import(
-          "@/lib/central-business-authority/conflict-recovery"
-        );
+        await import("@/lib/central-business-authority/conflict-recovery");
       return resolve(input, {
         syncServerEvents: () =>
           pullCentralBusinessEvents(input.ownerScope, { limit: 100 }),
@@ -1917,9 +1897,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       confirmation: CentralBusinessNumberedDocumentCreateBrowserResult,
     ): Promise<AppDataDurabilityResult<Document>> => {
       const { buildCentralBusinessNumberedDocumentLocalCommit } =
-        await import(
-          "@/lib/central-business-authority/numbered-document-local-commit"
-        );
+        await import("@/lib/central-business-authority/numbered-document-local-commit");
       return commitDurableAppData(
         expected,
         (previous) => {
@@ -2324,9 +2302,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const { unlinkCentralInvoiceQuoteFromBrowser } = await import(
-          "@/lib/central-invoice-authority/relationship-client"
-        );
+        const { unlinkCentralInvoiceQuoteFromBrowser } =
+          await import("@/lib/central-invoice-authority/relationship-client");
         const result = await unlinkCentralInvoiceQuoteFromBrowser({
           idempotencyKey: centralRelationshipIdempotencyKey(invoice),
           documentRef: {
@@ -2498,9 +2475,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const localDocumentId = doc.id;
 
       try {
-        const { updateCentralInvoiceCollectionFromBrowser } = await import(
-          "@/lib/central-invoice-authority/collection-client"
-        );
+        const { updateCentralInvoiceCollectionFromBrowser } =
+          await import("@/lib/central-invoice-authority/collection-client");
         const result = await updateCentralInvoiceCollectionFromBrowser({
           idempotencyKey: centralCollectionIdempotencyKey(doc),
           documentRef: {
@@ -2542,14 +2518,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             if (
               !current ||
               !currentLink ||
-              currentLink.serverDocumentId !==
-                result.identity.serverDocumentId
+              currentLink.serverDocumentId !== result.identity.serverDocumentId
             ) {
               return prev;
             }
-            if (
-              currentLink.documentVersion > result.identity.documentVersion
-            ) {
+            if (currentLink.documentVersion > result.identity.documentVersion) {
               applied = true;
               return prev;
             }
@@ -2728,9 +2701,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       const resolved = setAppData(next);
       if (resolved === previous) return false;
-      return central
-        ? syncCentralInvoiceCollectionStatus(updated)
-        : true;
+      return central ? syncCentralInvoiceCollectionStatus(updated) : true;
     },
     [setAppData, syncCentralInvoiceCollectionStatus],
   );
@@ -3110,10 +3081,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateExpenseDurably = useCallback(
-    (
-      expense: Expense,
-      expected: AppData,
-    ): AppDataDurabilityResult<Expense> =>
+    (expense: Expense, expected: AppData): AppDataDurabilityResult<Expense> =>
       commitDurableAppData(expected, (previous) => {
         const matches = previous.expenses.filter(
           (entry) => entry.id === expense.id,
@@ -3285,9 +3253,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     async (
       operation: ProductCatalogStructureOperation,
     ): Promise<ProductCatalogStructureResult> => {
-      const { applyProductCatalogStructureOperation } = await import(
-        "@/lib/product-catalog-structure",
-      );
+      const { applyProductCatalogStructureOperation } =
+        await import("@/lib/product-catalog-structure");
       const result = applyProductCatalogStructureOperation(
         dataRef.current,
         operation,
@@ -4030,8 +3997,6 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       setExternalWriteBlock,
       clearExternalWriteBlock,
       replaceData,
-      replaceCloudSnapshotDurably,
-      adoptPersistedCloudSnapshot,
       getCurrentData,
       replaceDataIfCurrent,
       restoreBackupData,
@@ -4047,6 +4012,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
+      syncFiscalNotificationsWorkspace,
       reconcileCentralBusinessEvents,
       adoptCentralBusinessEventsFromServer,
       retireLegacyPendingChangesAfterCentralAdoption,
@@ -4126,8 +4092,6 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       setExternalWriteBlock,
       clearExternalWriteBlock,
       replaceData,
-      replaceCloudSnapshotDurably,
-      adoptPersistedCloudSnapshot,
       getCurrentData,
       replaceDataIfCurrent,
       restoreBackupData,
@@ -4143,6 +4107,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       repairFiscalNotificationEmptyHistory,
       syncCentralInvoiceAuthorityEvents,
       syncCentralBusinessEvents,
+      syncFiscalNotificationsWorkspace,
       reconcileCentralBusinessEvents,
       adoptCentralBusinessEventsFromServer,
       retireLegacyPendingChangesAfterCentralAdoption,

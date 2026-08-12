@@ -114,15 +114,9 @@ describe("cloud device policy contract", () => {
     );
     expect(
       cloudSyncIndicator.match(/useCloudIndicatorAvailability\(\)/g),
-    ).toHaveLength(4);
+    ).toHaveLength(3);
     expect(cloudSyncIndicator).toContain(
-      "!cloudEnabled || !cloudAvailable || !user",
-    );
-    expect(cloudSyncIndicator).toContain(
-      "if (!cloudEnabled || !cloudAvailable || !user)",
-    );
-    expect(cloudSyncIndicator).toContain(
-      "if (pendingChangeCount === 0) return null",
+      "if (!cloudEnabled || !cloudAvailable || !user) return false",
     );
   });
 });

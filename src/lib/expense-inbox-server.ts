@@ -89,10 +89,6 @@ export interface ExpenseInboxOriginalDownload {
   readonly sourceSha256: string;
 }
 
-const ALIAS_ENTITY_TYPE = "expense_inbox_alias";
-const ALIAS_HISTORY_ENTITY_TYPE = "expense_inbox_alias_history";
-const ITEM_ENTITY_TYPE = "expense_inbox_item";
-const PRIMARY_ALIAS_ENTITY_ID = "primary";
 const DELIVERY_STATUS_CACHE_MS = 5 * 60 * 1000;
 
 let cachedDeliveryStatus:
@@ -183,8 +179,8 @@ function profileEmail(payload: unknown): string {
 async function profilePayloadForUser(userId: string): Promise<unknown> {
   const admin = ensureAdmin();
   const { data, error } = await admin
-    .from("sync_entities")
-    .select("payload")
+    .from("central_business_entities")
+    .select("current_payload")
     .eq("user_id", userId)
     .eq("entity_type", "profile")
     .eq("entity_id", "profile")
@@ -192,7 +188,7 @@ async function profilePayloadForUser(userId: string): Promise<unknown> {
     .maybeSingle();
 
   if (error) throw error;
-  return (data as { payload?: unknown } | null)?.payload;
+  return (data as { current_payload?: unknown } | null)?.current_payload;
 }
 
 async function aliasBaseForUser(userId: string): Promise<string> {
@@ -242,8 +238,7 @@ async function sendExpenseInboxCompanyCopy(input: {
       ok: false,
       status: delivery.status,
       providerCode: delivery.event,
-      failureKind:
-        delivery.state === "failed" ? "known" : "ambiguous",
+      failureKind: delivery.state === "failed" ? "known" : "ambiguous",
       retryable: delivery.retryable,
       error: "Resend todavía no ha confirmado la entrega de la copia.",
     });
@@ -269,42 +264,6 @@ function mapItem(row: ExpenseInboxItemRow): ExpenseInboxItem {
   };
 }
 
-function isMissingInboxTableError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const source = error as { code?: string; message?: string };
-  const message = source.message?.toLowerCase() ?? "";
-  return (
-    source.code === "42P01" ||
-    message.includes("expense_inbox_aliases") ||
-    message.includes("expense_inbox_items")
-  );
-}
-
-function isMissingRetryMetadataError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const source = error as { code?: string; message?: string; details?: string };
-  const text = [source.message, source.details]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return (
-    source.code === "42703" ||
-    source.code === "PGRST204" ||
-    text.includes("source_email_id") ||
-    text.includes("source_attachment_id")
-  );
-}
-
-function isMissingAliasHistoryTableError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const source = error as { code?: string; message?: string };
-  const message = source.message?.toLowerCase() ?? "";
-  return (
-    source.code === "42P01" ||
-    message.includes("expense_inbox_alias_history")
-  );
-}
-
 function ensureAdmin(): SupabaseClient {
   const admin = getSupabaseAdmin();
   if (!admin) {
@@ -320,526 +279,6 @@ function randomExpenseInboxAliasToken(aliasBase: string): string {
   );
 }
 
-function syncPayloadToAlias(payload: unknown): ExpenseInboxAliasRow | null {
-  if (!payload || typeof payload !== "object") return null;
-  const source = payload as Record<string, unknown>;
-  const aliasToken =
-    typeof source.aliasToken === "string" ? source.aliasToken : "";
-  const userId = typeof source.userId === "string" ? source.userId : "";
-  const active = source.active !== false;
-  if (!aliasToken || !userId) return null;
-  return {
-    user_id: userId,
-    alias_token: aliasToken,
-    active,
-  };
-}
-
-function syncPayloadToItem(payload: unknown): ExpenseInboxItem | null {
-  if (!payload || typeof payload !== "object") return null;
-  const source = payload as Record<string, unknown>;
-  const id = typeof source.id === "string" ? source.id : "";
-  const attachmentFilename =
-    typeof source.attachmentFilename === "string"
-      ? source.attachmentFilename
-      : "";
-  const attachmentContentType =
-    typeof source.attachmentContentType === "string"
-      ? source.attachmentContentType
-      : "";
-  const attachmentSize =
-    typeof source.attachmentSize === "number" ? source.attachmentSize : 0;
-  const attachmentHash =
-    typeof source.attachmentHash === "string" ? source.attachmentHash : "";
-  const status =
-    typeof source.status === "string"
-      ? (source.status as ExpenseInboxItemStatus)
-      : "pending";
-  const receivedAt =
-    typeof source.receivedAt === "string" ? source.receivedAt : "";
-  const createdAt = typeof source.createdAt === "string" ? source.createdAt : receivedAt;
-
-  if (!id || !attachmentFilename || !attachmentHash) return null;
-
-  return {
-    id,
-    fromEmail:
-      typeof source.fromEmail === "string" ? source.fromEmail : undefined,
-    fromName: typeof source.fromName === "string" ? source.fromName : undefined,
-    subject: typeof source.subject === "string" ? source.subject : undefined,
-    receivedAt,
-    attachmentFilename,
-    attachmentContentType,
-    attachmentSize,
-    attachmentHash,
-    status,
-    scanPayload: mapExpenseInboxScanPayload(source.scanPayload),
-    scanError:
-      typeof source.scanError === "string" ? source.scanError : undefined,
-    canRetry: status === "error",
-    createdAt,
-  };
-}
-
-interface SyncExpenseInboxItemRecord {
-  payload: Record<string, unknown>;
-  row: ExpenseInboxItemRow;
-}
-
-function syncPayloadToItemRow(input: {
-  payload: unknown;
-  userId: string;
-  entityId: string;
-}): SyncExpenseInboxItemRecord | null {
-  if (!input.payload || typeof input.payload !== "object") return null;
-  const payload = input.payload as Record<string, unknown>;
-  const item = syncPayloadToItem(payload);
-  const aliasToken =
-    typeof payload.aliasToken === "string" ? payload.aliasToken : "";
-  if (!item || item.id !== input.entityId || !aliasToken) return null;
-
-  return {
-    payload,
-    row: {
-      id: item.id,
-      user_id: input.userId,
-      alias_token: aliasToken,
-      from_email: item.fromEmail ?? null,
-      from_name: item.fromName ?? null,
-      subject: item.subject ?? null,
-      received_at: item.receivedAt,
-      attachment_filename: item.attachmentFilename,
-      attachment_content_type: item.attachmentContentType,
-      attachment_size: item.attachmentSize,
-      attachment_hash: item.attachmentHash,
-      status: item.status,
-      scan_payload: item.scanPayload ?? null,
-      scan_error: item.scanError ?? null,
-      source_email_id: null,
-      source_attachment_id: null,
-      created_at: item.createdAt,
-    },
-  };
-}
-
-async function ensureExpenseInboxAliasInSyncEntities(
-  userId: string,
-): Promise<ExpenseInboxAlias> {
-  const admin = ensureAdmin();
-  const aliasBase = await aliasBaseForUser(userId);
-  const { data: existing, error: existingError } = await admin
-    .from("sync_entities")
-    .select("payload")
-    .eq("user_id", userId)
-    .eq("entity_type", ALIAS_ENTITY_TYPE)
-    .eq("entity_id", PRIMARY_ALIAS_ENTITY_ID)
-    .eq("deleted", false)
-    .maybeSingle();
-
-  if (existingError) {
-    if (isMissingInboxTableError(existingError)) {
-      return ensureExpenseInboxAliasInSyncEntities(userId);
-    }
-    throw existingError;
-  }
-
-  const existingAlias = syncPayloadToAlias(
-    (existing as { payload?: unknown } | null)?.payload,
-  );
-  if (existingAlias?.active) {
-    if (isLegacyRandomAliasToken(existingAlias.alias_token)) {
-      return writeExpenseInboxAliasInSyncEntities({
-        userId,
-        aliasBase,
-        previousAliasToken: existingAlias.alias_token,
-      });
-    }
-
-    return {
-      userId,
-      aliasToken: existingAlias.alias_token,
-      address: buildExpenseInboxAddress(
-        existingAlias.alias_token,
-        getExpenseInboxDomain(),
-      ),
-    };
-  }
-
-  return writeExpenseInboxAliasInSyncEntities({
-    userId,
-    aliasBase,
-  });
-}
-
-async function syncAliasTokenReserved(aliasToken: string): Promise<boolean> {
-  const admin = ensureAdmin();
-  const { data: activeAlias, error: activeError } = await admin
-    .from("sync_entities")
-    .select("user_id")
-    .eq("entity_type", ALIAS_ENTITY_TYPE)
-    .eq("deleted", false)
-    .filter("payload->>aliasToken", "eq", aliasToken)
-    .limit(1)
-    .maybeSingle();
-
-  if (activeError) throw activeError;
-  if (activeAlias) return true;
-
-  const { data: historicalAlias, error: historicalError } = await admin
-    .from("sync_entities")
-    .select("user_id")
-    .eq("entity_type", ALIAS_HISTORY_ENTITY_TYPE)
-    .eq("entity_id", aliasToken)
-    .eq("deleted", false)
-    .limit(1)
-    .maybeSingle();
-
-  if (historicalError) throw historicalError;
-  return Boolean(historicalAlias);
-}
-
-async function rememberSyncExpenseInboxAlias(input: {
-  userId: string;
-  aliasToken: string;
-  previousAliasToken?: string;
-}): Promise<void> {
-  const admin = ensureAdmin();
-  const now = new Date().toISOString();
-
-  if (
-    input.previousAliasToken &&
-    input.previousAliasToken !== input.aliasToken
-  ) {
-    await admin.from("sync_entities").upsert(
-      {
-        user_id: input.userId,
-        entity_type: ALIAS_HISTORY_ENTITY_TYPE,
-        entity_id: input.previousAliasToken,
-        payload: {
-          userId: input.userId,
-          aliasToken: input.previousAliasToken,
-          status: "retired",
-          retiredAt: now,
-          updatedAt: now,
-        },
-        deleted: false,
-        updated_at: now,
-      },
-      { onConflict: "user_id,entity_type,entity_id" },
-    );
-  }
-
-  await admin.from("sync_entities").upsert(
-    {
-      user_id: input.userId,
-      entity_type: ALIAS_HISTORY_ENTITY_TYPE,
-      entity_id: input.aliasToken,
-      payload: {
-        userId: input.userId,
-        aliasToken: input.aliasToken,
-        status: "active",
-        updatedAt: now,
-      },
-      deleted: false,
-      updated_at: now,
-    },
-    { onConflict: "user_id,entity_type,entity_id" },
-  );
-}
-
-async function writeExpenseInboxAliasInSyncEntities(input: {
-  userId: string;
-  aliasBase: string;
-  previousAliasToken?: string;
-}): Promise<ExpenseInboxAlias> {
-  const admin = ensureAdmin();
-  const now = new Date().toISOString();
-
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    const aliasToken = randomExpenseInboxAliasToken(input.aliasBase);
-    if (await syncAliasTokenReserved(aliasToken)) {
-      continue;
-    }
-
-    const { error } = await admin.from("sync_entities").upsert(
-      {
-        user_id: input.userId,
-        entity_type: ALIAS_ENTITY_TYPE,
-        entity_id: PRIMARY_ALIAS_ENTITY_ID,
-        payload: {
-          userId: input.userId,
-          aliasToken,
-          active: true,
-          createdAt: now,
-          updatedAt: now,
-        },
-        deleted: false,
-        updated_at: now,
-      },
-      { onConflict: "user_id,entity_type,entity_id" },
-    );
-
-    if (error) throw error;
-
-    await rememberSyncExpenseInboxAlias({
-      userId: input.userId,
-      aliasToken,
-      previousAliasToken: input.previousAliasToken,
-    });
-
-    return {
-      userId: input.userId,
-      aliasToken,
-      address: buildExpenseInboxAddress(aliasToken, getExpenseInboxDomain()),
-    };
-  }
-
-  throw new Error("No se pudo crear el buzón de gastos.");
-}
-
-async function rotateExpenseInboxAliasInSyncEntities(
-  userId: string,
-): Promise<ExpenseInboxAlias> {
-  const admin = ensureAdmin();
-  const aliasBase = await aliasBaseForUser(userId);
-  const { data, error: existingError } = await admin
-    .from("sync_entities")
-    .select("payload")
-    .eq("user_id", userId)
-    .eq("entity_type", ALIAS_ENTITY_TYPE)
-    .eq("entity_id", PRIMARY_ALIAS_ENTITY_ID)
-    .eq("deleted", false)
-    .maybeSingle();
-
-  if (existingError) throw existingError;
-  const existingAlias = syncPayloadToAlias(
-    (data as { payload?: unknown } | null)?.payload,
-  );
-  return writeExpenseInboxAliasInSyncEntities({
-    userId,
-    aliasBase,
-    previousAliasToken: existingAlias?.alias_token,
-  });
-}
-
-async function resolveAliasInSyncEntities(
-  tokens: string[],
-): Promise<ExpenseInboxAliasRow | null> {
-  if (tokens.length === 0) return null;
-  const admin = ensureAdmin();
-
-  for (const token of tokens) {
-    const { data, error } = await admin
-      .from("sync_entities")
-      .select("payload")
-      .eq("entity_type", ALIAS_ENTITY_TYPE)
-      .eq("deleted", false)
-      .filter("payload->>aliasToken", "eq", token)
-      .limit(1)
-      .maybeSingle();
-
-    if (error) throw error;
-    const alias = syncPayloadToAlias((data as { payload?: unknown } | null)?.payload);
-    if (alias?.active) return alias;
-  }
-
-  return null;
-}
-
-async function listExpenseInboxItemsFromSyncEntities(
-  userId: string,
-  status: ExpenseInboxItemStatus | "open",
-): Promise<ExpenseInboxItem[]> {
-  const admin = ensureAdmin();
-  const { data, error } = await admin
-    .from("sync_entities")
-    .select("payload, updated_at")
-    .eq("user_id", userId)
-    .eq("entity_type", ITEM_ENTITY_TYPE)
-    .eq("deleted", false)
-    .order("updated_at", { ascending: false })
-    .limit(80);
-
-  if (error) throw error;
-
-  return ((data ?? []) as Array<{ payload?: unknown }>)
-    .map((row) => syncPayloadToItem(row.payload))
-    .filter((item): item is ExpenseInboxItem => {
-      if (!item) return false;
-      if (status === "open") return item.status === "pending" || item.status === "error";
-      return item.status === status;
-    })
-    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
-    .slice(0, 30);
-}
-
-async function getExpenseInboxItemFromSyncEntities(
-  userId: string,
-  itemId: string,
-): Promise<ExpenseInboxItem | null> {
-  const admin = ensureAdmin();
-  const { data, error } = await admin
-    .from("sync_entities")
-    .select("payload")
-    .eq("user_id", userId)
-    .eq("entity_type", ITEM_ENTITY_TYPE)
-    .eq("entity_id", itemId)
-    .eq("deleted", false)
-    .maybeSingle();
-
-  if (error) throw error;
-  return syncPayloadToItem((data as { payload?: unknown } | null)?.payload);
-}
-
-async function getExpenseInboxItemRecordFromSyncEntities(
-  userId: string,
-  itemId: string,
-): Promise<SyncExpenseInboxItemRecord | null> {
-  const admin = ensureAdmin();
-  const { data, error } = await admin
-    .from("sync_entities")
-    .select("entity_id, payload")
-    .eq("user_id", userId)
-    .eq("entity_type", ITEM_ENTITY_TYPE)
-    .eq("entity_id", itemId)
-    .eq("deleted", false)
-    .maybeSingle();
-
-  if (error) throw error;
-  const source = data as { entity_id?: unknown; payload?: unknown } | null;
-  if (typeof source?.entity_id !== "string") return null;
-  return syncPayloadToItemRow({
-    payload: source.payload,
-    userId,
-    entityId: source.entity_id,
-  });
-}
-
-async function updateExpenseInboxItemStatusInSyncEntities(input: {
-  userId: string;
-  itemId: string;
-  status: Extract<ExpenseInboxItemStatus, "processed" | "ignored">;
-}): Promise<void> {
-  const current = await getExpenseInboxItemRecordFromSyncEntities(
-    input.userId,
-    input.itemId,
-  );
-  if (!current) return;
-
-  const admin = ensureAdmin();
-  const now = new Date().toISOString();
-  const { error } = await admin.from("sync_entities").upsert(
-    {
-      user_id: input.userId,
-      entity_type: ITEM_ENTITY_TYPE,
-      entity_id: input.itemId,
-      payload: {
-        ...current.payload,
-        status: input.status,
-        processedAt: input.status === "processed" ? now : undefined,
-        ignoredAt: input.status === "ignored" ? now : undefined,
-        updatedAt: now,
-      },
-      deleted: false,
-      updated_at: now,
-    },
-    { onConflict: "user_id,entity_type,entity_id" },
-  );
-
-  if (error) throw error;
-}
-
-async function hasDuplicateAttachmentInSyncEntities(
-  userId: string,
-  hash: string,
-): Promise<boolean> {
-  return Boolean(await findExistingAttachmentInSyncEntities(userId, hash));
-}
-
-async function findExistingAttachmentInSyncEntities(
-  userId: string,
-  hash: string,
-): Promise<ExistingInboxAttachment | null> {
-  const admin = ensureAdmin();
-  const { data, error } = await admin
-    .from("sync_entities")
-    .select("entity_id, payload")
-    .eq("user_id", userId)
-    .eq("entity_type", ITEM_ENTITY_TYPE)
-    .eq("deleted", false)
-    .filter("payload->>attachmentHash", "eq", hash)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  const source = data as { entity_id?: unknown; payload?: unknown } | null;
-  if (typeof source?.entity_id !== "string") return null;
-  const record = syncPayloadToItemRow({
-    payload: source.payload,
-    userId,
-    entityId: source.entity_id,
-  });
-  if (!record) return null;
-  return {
-    id: record.row.id,
-    status: record.row.status,
-    scanError: record.row.scan_error ?? undefined,
-  };
-}
-
-async function insertInboxItemInSyncEntities(input: {
-  userId: string;
-  aliasToken: string;
-  email: ExpenseInboxInboundEmail;
-  attachment: ExpenseInboxAttachmentInput;
-  mimeType: string;
-  buffer: Buffer;
-  status: ExpenseInboxItemStatus;
-  scanPayload?: unknown;
-  scanError?: string;
-}): Promise<"inserted" | "duplicate"> {
-  const hash = attachmentHash(input.buffer);
-  if (await hasDuplicateAttachmentInSyncEntities(input.userId, hash)) {
-    return "duplicate";
-  }
-
-  const admin = ensureAdmin();
-  const now = new Date().toISOString();
-  const id = randomUUID();
-  const item: ExpenseInboxItem & { aliasToken: string; userId: string } = {
-    id,
-    userId: input.userId,
-    aliasToken: input.aliasToken,
-    fromEmail: input.email.fromEmail,
-    fromName: input.email.fromName,
-    subject: input.email.subject,
-    receivedAt: now,
-    attachmentFilename: input.attachment.filename || "factura-proveedor",
-    attachmentContentType: input.mimeType,
-    attachmentSize: input.buffer.byteLength,
-    attachmentHash: hash,
-    status: input.status,
-    scanPayload: mapExpenseInboxScanPayload(input.scanPayload),
-    scanError: input.scanError,
-    createdAt: now,
-  };
-
-  const { error } = await admin.from("sync_entities").upsert(
-    {
-      user_id: input.userId,
-      entity_type: ITEM_ENTITY_TYPE,
-      entity_id: id,
-      payload: item,
-      deleted: false,
-      updated_at: now,
-    },
-    { onConflict: "user_id,entity_type,entity_id" },
-  );
-
-  if (error) throw error;
-  return "inserted";
-}
-
 export async function ensureExpenseInboxAlias(
   userId: string,
 ): Promise<ExpenseInboxAlias> {
@@ -851,12 +290,7 @@ export async function ensureExpenseInboxAlias(
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (existingError) {
-    if (isMissingInboxTableError(existingError)) {
-      return ensureExpenseInboxAliasInSyncEntities(userId);
-    }
-    throw existingError;
-  }
+  if (existingError) throw existingError;
 
   const activeExisting = existing as ExpenseInboxAliasRow | null;
   if (activeExisting?.active && activeExisting.alias_token) {
@@ -893,19 +327,7 @@ async function aliasTokenReserved(aliasToken: string): Promise<boolean> {
     .limit(1)
     .maybeSingle();
 
-  if (error) {
-    if (isMissingAliasHistoryTableError(error)) {
-      const { data: activeAlias, error: activeError } = await admin
-        .from("expense_inbox_aliases")
-        .select("alias_token")
-        .eq("alias_token", aliasToken)
-        .limit(1)
-        .maybeSingle();
-      if (activeError) throw activeError;
-      return Boolean(activeAlias);
-    }
-    throw error;
-  }
+  if (error) throw error;
 
   return Boolean(data);
 }
@@ -929,10 +351,7 @@ async function rememberExpenseInboxAlias(input: {
     .eq("user_id", input.userId)
     .eq("status", "active");
 
-  if (retireActiveError) {
-    if (isMissingAliasHistoryTableError(retireActiveError)) return;
-    throw retireActiveError;
-  }
+  if (retireActiveError) throw retireActiveError;
 
   if (
     input.previousAliasToken &&
@@ -955,14 +374,12 @@ async function rememberExpenseInboxAlias(input: {
 
   const { error: activeError } = await admin
     .from("expense_inbox_alias_history")
-    .insert(
-      {
-        user_id: input.userId,
-        alias_token: input.aliasToken,
-        status: "active",
-        updated_at: now,
-      },
-    );
+    .insert({
+      user_id: input.userId,
+      alias_token: input.aliasToken,
+      status: "active",
+      updated_at: now,
+    });
 
   if (activeError) throw activeError;
 }
@@ -1002,13 +419,13 @@ async function writeExpenseInboxAlias(input: {
       return {
         userId: input.userId,
         aliasToken: row.alias_token,
-        address: buildExpenseInboxAddress(row.alias_token, getExpenseInboxDomain()),
+        address: buildExpenseInboxAddress(
+          row.alias_token,
+          getExpenseInboxDomain(),
+        ),
       };
     }
 
-    if (error && isMissingInboxTableError(error)) {
-      return writeExpenseInboxAliasInSyncEntities(input);
-    }
     if (error?.code !== "23505") throw error;
   }
 
@@ -1026,12 +443,7 @@ export async function rotateExpenseInboxAlias(
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (existingError) {
-    if (isMissingInboxTableError(existingError)) {
-      return rotateExpenseInboxAliasInSyncEntities(userId);
-    }
-    throw existingError;
-  }
+  if (existingError) throw existingError;
 
   const existingAlias = existing as ExpenseInboxAliasRow | null;
   return writeExpenseInboxAlias({
@@ -1092,26 +504,8 @@ export async function listExpenseInboxItems(
   }
 
   const { data, error } = await query;
-  if (error) {
-    if (isMissingInboxTableError(error)) {
-      return listExpenseInboxItemsFromSyncEntities(userId, status);
-    }
-    throw error;
-  }
-  const primaryItems = ((data ?? []) as unknown as ExpenseInboxItemRow[]).map(
-    mapItem,
-  );
-  const compatibilityItems = await listExpenseInboxItemsFromSyncEntities(
-    userId,
-    status,
-  );
-  const itemsById = new Map(
-    compatibilityItems.map((item) => [item.id, item] as const),
-  );
-  for (const item of primaryItems) itemsById.set(item.id, item);
-  return [...itemsById.values()]
-    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
-    .slice(0, 30);
+  if (error) throw error;
+  return ((data ?? []) as unknown as ExpenseInboxItemRow[]).map(mapItem);
 }
 
 export async function getExpenseInboxItem(
@@ -1144,15 +538,8 @@ export async function getExpenseInboxItem(
     .eq("id", itemId)
     .maybeSingle();
 
-  if (error) {
-    if (isMissingInboxTableError(error)) {
-      return getExpenseInboxItemFromSyncEntities(userId, itemId);
-    }
-    throw error;
-  }
-  return data
-    ? mapItem(data as unknown as ExpenseInboxItemRow)
-    : getExpenseInboxItemFromSyncEntities(userId, itemId);
+  if (error) throw error;
+  return data ? mapItem(data as unknown as ExpenseInboxItemRow) : null;
 }
 
 /**
@@ -1164,67 +551,16 @@ export async function getExpenseInboxOriginalAttachment(input: {
   itemId: string;
 }): Promise<ExpenseInboxOriginalDownload | null> {
   const admin = ensureAdmin();
-  const baseColumns = [
-    "id",
-    "user_id",
-    "alias_token",
-    "from_email",
-    "from_name",
-    "subject",
-    "received_at",
-    "attachment_filename",
-    "attachment_content_type",
-    "attachment_size",
-    "attachment_hash",
-    "status",
-    "scan_payload",
-    "scan_error",
-    "created_at",
-  ];
-  const selectRow = (includeProviderIds: boolean) =>
-    admin
-      .from("expense_inbox_items")
-      .select(
-        [
-          ...baseColumns,
-          ...(includeProviderIds
-            ? ["source_email_id", "source_attachment_id"]
-            : []),
-        ].join(", "),
-      )
-      .eq("user_id", input.userId)
-      .eq("id", input.itemId)
-      .maybeSingle();
-
-  let { data, error } = await selectRow(true);
-  if (error && isMissingRetryMetadataError(error)) {
-    ({ data, error } = await selectRow(false));
-  }
-  let row: ExpenseInboxItemRow | null = null;
-  if (error) {
-    if (!isMissingInboxTableError(error)) throw error;
-    row = (
-      await getExpenseInboxItemRecordFromSyncEntities(
-        input.userId,
-        input.itemId,
-      )
-    )?.row ?? null;
-  } else if (data) {
-    row = {
-      ...(data as unknown as ExpenseInboxItemRow),
-      source_email_id:
-        (data as unknown as ExpenseInboxItemRow).source_email_id ?? null,
-      source_attachment_id:
-        (data as unknown as ExpenseInboxItemRow).source_attachment_id ?? null,
-    };
-  } else {
-    row = (
-      await getExpenseInboxItemRecordFromSyncEntities(
-        input.userId,
-        input.itemId,
-      )
-    )?.row ?? null;
-  }
+  const { data, error } = await admin
+    .from("expense_inbox_items")
+    .select(
+      "id,user_id,alias_token,from_email,from_name,subject,received_at,attachment_filename,attachment_content_type,attachment_size,attachment_hash,status,scan_payload,scan_error,source_email_id,source_attachment_id,created_at",
+    )
+    .eq("user_id", input.userId)
+    .eq("id", input.itemId)
+    .maybeSingle();
+  if (error) throw error;
+  const row = data as unknown as ExpenseInboxItemRow | null;
   if (!row || (row.status !== "pending" && row.status !== "processed")) {
     return null;
   }
@@ -1268,11 +604,8 @@ export async function updateExpenseInboxItemStatus(input: {
     .select("id")
     .maybeSingle();
 
-  if (error && !isMissingInboxTableError(error)) {
-    throw error;
-  }
-  if (data) return;
-  await updateExpenseInboxItemStatusInSyncEntities(input);
+  if (error) throw error;
+  if (!data) throw new Error("No encuentro esa factura del buzón.");
 }
 
 async function resolveUserFromRecipients(
@@ -1293,16 +626,13 @@ async function resolveUserFromRecipients(
     .limit(1)
     .maybeSingle();
 
-  if (error) {
-    if (isMissingInboxTableError(error)) {
-      return resolveAliasInSyncEntities(tokens);
-    }
-    throw error;
-  }
+  if (error) throw error;
   return (data as ExpenseInboxAliasRow | null) ?? null;
 }
 
-function attachmentBase64(attachment: ExpenseInboxAttachmentInput): string | null {
+function attachmentBase64(
+  attachment: ExpenseInboxAttachmentInput,
+): string | null {
   const value =
     attachment.contentBase64 ??
     attachment.base64 ??
@@ -1346,13 +676,8 @@ async function findExistingAttachment(
     .limit(1)
     .maybeSingle();
 
-  if (error) {
-    if (isMissingInboxTableError(error)) {
-      return findExistingAttachmentInSyncEntities(userId, hash);
-    }
-    throw error;
-  }
-  if (!data) return findExistingAttachmentInSyncEntities(userId, hash);
+  if (error) throw error;
+  if (!data) return null;
   const row = data as { id?: unknown; status?: unknown; scan_error?: unknown };
   if (typeof row.id !== "string" || typeof row.status !== "string") return null;
   return {
@@ -1392,20 +717,13 @@ async function insertInboxItem(input: {
     scan_error: input.scanError ?? null,
     updated_at: now,
   };
-  let { error } = await admin.from("expense_inbox_items").insert({
+  const { error } = await admin.from("expense_inbox_items").insert({
     ...basePayload,
     source_email_id: input.attachment.providerEmailId ?? null,
     source_attachment_id: input.attachment.providerAttachmentId ?? null,
   });
 
-  if (error && isMissingRetryMetadataError(error)) {
-    ({ error } = await admin.from("expense_inbox_items").insert(basePayload));
-  }
-
   if (!error) return "inserted";
-  if (isMissingInboxTableError(error)) {
-    return insertInboxItemInSyncEntities(input);
-  }
   if (error.code === "23505") return "duplicate";
   throw error;
 }
@@ -1417,70 +735,20 @@ async function claimInboxItemRetry(input: {
 }): Promise<boolean> {
   const admin = ensureAdmin();
   const now = new Date().toISOString();
-  const claim = (includeRetryMetadata: boolean) =>
-    admin
-      .from("expense_inbox_items")
-      .update({
-        status: "processing",
-        scan_error: null,
-        ...(includeRetryMetadata
-          ? {
-              source_email_id: input.attachment.providerEmailId ?? null,
-              source_attachment_id:
-                input.attachment.providerAttachmentId ?? null,
-            }
-          : {}),
-        updated_at: now,
-      })
-      .eq("user_id", input.userId)
-      .eq("id", input.itemId)
-      .eq("status", "error")
-      .select("id")
-      .maybeSingle();
-
-  let { data, error } = await claim(true);
-  if (error && isMissingRetryMetadataError(error)) {
-    ({ data, error } = await claim(false));
-  }
-  if (error && isMissingInboxTableError(error)) {
-    return claimInboxItemRetryInSyncEntities(input);
-  }
-  if (error) throw error;
-  if (data) return true;
-  return claimInboxItemRetryInSyncEntities(input);
-}
-
-async function claimInboxItemRetryInSyncEntities(input: {
-  userId: string;
-  itemId: string;
-}): Promise<boolean> {
-  const current = await getExpenseInboxItemRecordFromSyncEntities(
-    input.userId,
-    input.itemId,
-  );
-  if (!current || current.row.status !== "error") return false;
-
-  const admin = ensureAdmin();
-  const now = new Date().toISOString();
   const { data, error } = await admin
-    .from("sync_entities")
+    .from("expense_inbox_items")
     .update({
-      payload: {
-        ...current.payload,
-        status: "processing",
-        scanError: null,
-        updatedAt: now,
-      },
+      status: "processing",
+      scan_error: null,
+      source_email_id: input.attachment.providerEmailId ?? null,
+      source_attachment_id: input.attachment.providerAttachmentId ?? null,
       updated_at: now,
     })
     .eq("user_id", input.userId)
-    .eq("entity_type", ITEM_ENTITY_TYPE)
-    .eq("entity_id", input.itemId)
-    .eq("deleted", false)
-    .eq("payload->>status", "error")
-    .select("entity_id")
+    .eq("id", input.itemId)
+    .eq("status", "error")
+    .select("id")
     .maybeSingle();
-
   if (error) throw error;
   return Boolean(data);
 }
@@ -1506,48 +774,6 @@ async function finishInboxItemRetry(input: {
     .eq("status", "processing")
     .select("id")
     .maybeSingle();
-  if (error && !isMissingInboxTableError(error)) throw error;
-  if (data) return;
-  await finishInboxItemRetryInSyncEntities(input);
-}
-
-async function finishInboxItemRetryInSyncEntities(input: {
-  userId: string;
-  itemId: string;
-  status: Extract<ExpenseInboxItemStatus, "pending" | "error">;
-  scanPayload?: unknown;
-  scanError?: string;
-}): Promise<void> {
-  const current = await getExpenseInboxItemRecordFromSyncEntities(
-    input.userId,
-    input.itemId,
-  );
-  if (!current || current.row.status !== "processing") {
-    throw new Error("El reintento del buzón ya no está activo.");
-  }
-
-  const admin = ensureAdmin();
-  const now = new Date().toISOString();
-  const { data, error } = await admin
-    .from("sync_entities")
-    .update({
-      payload: {
-        ...current.payload,
-        status: input.status,
-        scanPayload: input.scanPayload ?? null,
-        scanError: input.scanError ?? null,
-        updatedAt: now,
-      },
-      updated_at: now,
-    })
-    .eq("user_id", input.userId)
-    .eq("entity_type", ITEM_ENTITY_TYPE)
-    .eq("entity_id", input.itemId)
-    .eq("deleted", false)
-    .eq("payload->>status", "processing")
-    .select("entity_id")
-    .maybeSingle();
-
   if (error) throw error;
   if (!data) throw new Error("No se pudo confirmar el reintento del buzón.");
 }
@@ -1727,12 +953,16 @@ async function recoverRetryAttachment(
     getExpenseInboxDomain(),
   ).toLowerCase();
   const expectedFrom = bareEmailAddress(row.from_email ?? "");
-  const candidates = (await listRecentResendReceivedEmails({
-    apiKey: getResendApiKey(),
-    timeoutMs: 10_000,
-  }))
+  const candidates = (
+    await listRecentResendReceivedEmails({
+      apiKey: getResendApiKey(),
+      timeoutMs: 10_000,
+    })
+  )
     .filter((email) =>
-      email.to.some((recipient) => bareEmailAddress(recipient) === expectedAddress),
+      email.to.some(
+        (recipient) => bareEmailAddress(recipient) === expectedAddress,
+      ),
     )
     .filter((email) =>
       expectedFrom ? bareEmailAddress(email.from) === expectedFrom : true,
@@ -1781,67 +1011,16 @@ export async function retryExpenseInboxItem(input: {
   itemId: string;
 }): Promise<ExpenseInboxItem> {
   const admin = ensureAdmin();
-  const baseColumns = [
-    "id",
-    "user_id",
-    "alias_token",
-    "from_email",
-    "from_name",
-    "subject",
-    "received_at",
-    "attachment_filename",
-    "attachment_content_type",
-    "attachment_size",
-    "attachment_hash",
-    "status",
-    "scan_payload",
-    "scan_error",
-    "created_at",
-  ];
-  const selectRow = (includeRetryMetadata: boolean) =>
-    admin
-      .from("expense_inbox_items")
-      .select(
-        [
-          ...baseColumns,
-          ...(includeRetryMetadata
-            ? ["source_email_id", "source_attachment_id"]
-            : []),
-        ].join(", "),
-      )
-      .eq("user_id", input.userId)
-      .eq("id", input.itemId)
-      .maybeSingle();
-
-  let { data, error } = await selectRow(true);
-  if (error && isMissingRetryMetadataError(error)) {
-    ({ data, error } = await selectRow(false));
-  }
-  let row: ExpenseInboxItemRow | null = null;
-  if (error && isMissingInboxTableError(error)) {
-    row = (
-      await getExpenseInboxItemRecordFromSyncEntities(
-        input.userId,
-        input.itemId,
-      )
-    )?.row ?? null;
-  } else {
-    if (error) throw error;
-    if (data) {
-      row = {
-        source_email_id: null,
-        source_attachment_id: null,
-        ...(data as object),
-      } as ExpenseInboxItemRow;
-    } else {
-      row = (
-        await getExpenseInboxItemRecordFromSyncEntities(
-          input.userId,
-          input.itemId,
-        )
-      )?.row ?? null;
-    }
-  }
+  const { data, error } = await admin
+    .from("expense_inbox_items")
+    .select(
+      "id,user_id,alias_token,from_email,from_name,subject,received_at,attachment_filename,attachment_content_type,attachment_size,attachment_hash,status,scan_payload,scan_error,source_email_id,source_attachment_id,created_at",
+    )
+    .eq("user_id", input.userId)
+    .eq("id", input.itemId)
+    .maybeSingle();
+  if (error) throw error;
+  const row = data as unknown as ExpenseInboxItemRow | null;
   if (!row) throw new Error("No encuentro esa factura del buzón.");
   if (row.status !== "error") {
     throw new Error("Esta factura ya no necesita reintento.");
@@ -1896,8 +1075,9 @@ async function ingestNormalizedExpenseInboxEmailResolved(
     message: "Email procesado.",
   };
 
-  const { selected: attachments, overflow } =
-    splitResendAttachmentBatch(email.attachments);
+  const { selected: attachments, overflow } = splitResendAttachmentBatch(
+    email.attachments,
+  );
   for (const attachment of attachments) {
     const status = await processAttachment({
       userId: alias.user_id,
@@ -2003,7 +1183,8 @@ export async function ingestResendExpenseInboxEmail(
     };
     const mimeType = resolveExpenseInboxAttachmentMimeType(baseAttachment);
     const isInlineImage =
-      attachment.contentDisposition === "inline" && mimeType !== "application/pdf";
+      attachment.contentDisposition === "inline" &&
+      mimeType !== "application/pdf";
 
     if (!mimeType || isInlineImage) {
       attachments.push(baseAttachment);
@@ -2063,9 +1244,8 @@ export async function ingestResendExpenseInboxEmail(
       })),
     ],
   };
-  const ingested = await ingestNormalizedExpenseInboxEmailResolved(
-    normalizedEmail,
-  );
+  const ingested =
+    await ingestNormalizedExpenseInboxEmailResolved(normalizedEmail);
   if (ingested.userId) {
     await sendExpenseInboxCompanyCopy({
       userId: ingested.userId,

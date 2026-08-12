@@ -42,8 +42,8 @@ describe("central business events auto sync wiring", () => {
       normalSync.indexOf("} catch {"),
       normalSync.indexOf('if (drained.stoppedBy !== "empty")'),
     );
-    expect(queueFailureBlock).toContain(
-      "const pulled = await pullCentralBusinessEvents(ownerScope, options)",
+    expect(queueFailureBlock).toMatch(
+      /const pulled = await pullCentralBusinessEvents\(\s*ownerScope,\s*options,?\s*\)/,
     );
     expect(queueFailureBlock).toContain(
       "nextSequence: pulled?.ok ? pulled.nextSequence : 0",

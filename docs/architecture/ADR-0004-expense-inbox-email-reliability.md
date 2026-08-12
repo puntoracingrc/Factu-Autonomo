@@ -1,8 +1,8 @@
 # ADR-0004 - Fiabilidad del buzón de gastos por email
 
 - Estado: aceptada
-- Versión: 5
-- Fecha: 2026-07-17
+- Versión: 6
+- Fecha: 2026-08-12
 - Ámbito: recepción de facturas de proveedores por email mediante Resend
 
 ## Contexto
@@ -97,12 +97,12 @@ de host exacta, HTTPS y las restricciones SSRF. No se siguen redirecciones.
 17. El botón de compra solo aparece ante un error de cuota vigente y nunca para
     una cuenta cuyo medidor actual sea ilimitado. El reintento vuelve a evaluar
     la cuota en servidor; la UI no concede saldo ni altera la suscripción.
-18. Las entradas creadas antes de disponer de `expense_inbox_items` permanecen
-    visibles, deduplicadas y reintentables desde `sync_entities`. Si ambos
-    almacenamientos conviven, la fila de la tabla específica prevalece para el
-    mismo ID y el registro de compatibilidad conserva su ID, alias, hash y
-    estado. Un cambio de esquema no puede convertir un error recuperable en un
-    duplicado opaco ni ocultarlo de la lista.
+18. Alias, historial y entradas viven exclusivamente en
+    `expense_inbox_aliases`, `expense_inbox_alias_history` y
+    `expense_inbox_items`. La retirada del almacén genérico importa primero
+    sus filas compatibles, conserva IDs, alias, hash y estado, y solo después
+    archiva el origen. El runtime no tiene fallback: una tabla ausente es un
+    error visible y reintentable, nunca una escritura silenciosa en otra ruta.
 19. El navegador autenticado puede recuperar temporalmente el original de una
     entrada propia `pending` o `processed` únicamente para archivarlo en el
     Drive del usuario durante el guardado del gasto. La ruta exige cuenta
@@ -119,8 +119,8 @@ autenticación de usuario, se elimina firma o límite, se deja de devolver 500,
 se pierde deduplicación, el reclamo atómico del error, se relaja la resolución
 de alias activos o desaparece el historial de retirada. También cubre la copia
 idempotente, el remitente alineado, la confirmación `delivered`, el bloqueo de
-bucles, el cierre `processed`/`ignored` y la compatibilidad de lectura y
-reintento con `sync_entities`. La prueba de descarga reproduce el host real
+bucles, el cierre `processed`/`ignored` y la ausencia de cualquier fallback al
+almacén genérico retirado. La prueba de descarga reproduce el host real
 `cdn.resend.app` y mantiene casos adversariales para dominios imitadores.
 La ruta autenticada del original cubre además aislamiento por propietario,
 rate limit, `no-store`, bytes exactos y errores sin PII.

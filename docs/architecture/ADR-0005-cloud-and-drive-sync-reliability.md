@@ -1,8 +1,13 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 11
-- Fecha: 2026-07-22
+- Versión: 12
+- Fecha: 2026-08-12
+
+> Desde V12, la parte de sincronización genérica descrita históricamente en
+> este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
+> contratos de dispositivos, copias JSON, Google Drive y durabilidad local.
+> No existe rollback al escritor genérico del navegador.
 
 ## Contexto
 
@@ -134,9 +139,9 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    La tabla es privada al servidor. Si se pierde un dispositivo, una sesión
    nueva puede listar los dispositivos de la cuenta, revocar el perdido y
    reclamar la plaza liberada.
-5. Las policies de `sync_entities` y `user_backups` exigen a la vez propietario,
-   plan con nube y token de dispositivo activo. La comprobación se realiza en
-   Supabase para que un cliente manipulado no pueda saltarse el límite visual.
+5. Las APIs y tablas centrales exigen a la vez propietario, plan con nube y
+   token de dispositivo activo. La comprobación se realiza en servidor para
+   que un cliente manipulado no pueda saltarse el límite visual.
 6. El alta se serializa por usuario en base de datos. Dos navegadores que
    intenten ocupar la última plaza a la vez no pueden superar el límite.
 7. Si un downgrade deja más dispositivos registrados que plazas, solo los más
@@ -225,7 +230,8 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 ## Consecuencias
 
 - La aplicación evita carreras entre sincronización manual y automática.
-- Un dispositivo puede seguir trabajando offline sin perder su cola.
+- Un dispositivo puede seguir trabajando offline sin perder las colas
+  centrales durables ni el expediente auxiliar fiscal pendiente.
 - Una reparación no puede sobrescribir la nube con el estado atascado que
   pretende sustituir ni declarar éxito antes del guardado local verificado.
 - El panel Admin no obliga a interpretar una acción correcta como prueba de
@@ -270,17 +276,9 @@ deben superar:
 - `src/lib/app-data-durability.test.ts`
 - `src/lib/fiscal-notifications/structured-review-save-command.v1.test.ts`
 - `src/components/fiscal-notifications/FiscalNotificationIntakeView.test.tsx`
-- `src/lib/cloud/sync-operation.test.ts`
-- `src/lib/cloud/auth-operation-guard.test.ts`
-- `src/lib/cloud/device-repair.test.ts`
-- `src/lib/cloud/device-repair-preview.test.ts`
-- `src/components/cloud/CloudRepairPreviewModal.test.tsx`
 - `src/lib/cloud/sync-errors.test.ts`
 - `src/lib/cloud/sync-queue.test.ts`
-- `src/lib/cloud/sync-review-storage.test.ts`
-- `src/lib/cloud/sync-review-operation-guard.test.ts`
-- `src/lib/cloud/persisted-snapshot-adoption.test.ts`
-- `src/lib/cloud/repository.test.ts`
+- `src/lib/cloud/legacy-sync-retirement.test.ts`
 - `src/lib/cloud/devices.test.ts`
 - `src/lib/cloud/device-client.test.ts`
 - `src/lib/cloud/device-token.test.ts`

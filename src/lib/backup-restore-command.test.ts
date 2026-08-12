@@ -94,7 +94,8 @@ function retirementStates(): { applied: AppData; rolledBack: AppData } {
       disposition: "browser_download_requested",
     },
   );
-  if (rolledBack.status !== "applied") throw new Error("fixture rollback failed");
+  if (rolledBack.status !== "applied")
+    throw new Error("fixture rollback failed");
   return { applied: applied.data, rolledBack: rolledBack.data };
 }
 
@@ -153,11 +154,11 @@ describe("durable backup restore command", () => {
           entityType: "expense",
           entityId: "expense-unrelated",
         }),
-        expect.objectContaining({
-          entityType: "customer",
-          entityId: "customer-current",
-          deleted: true,
-        }),
+      ]),
+    );
+    expect(result.data.meta?.pendingChanges).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ entityType: "customer" }),
       ]),
     );
   });
