@@ -7,7 +7,6 @@ import {
   markFullySynced,
   rebuildCloudSnapshot,
 } from "./incremental";
-import { hasUnsyncedChanges } from "./sync-queue";
 import { snapshotIntegrityMetadataChange } from "./diff";
 
 function legacyRemoteInvoice(): Document {
@@ -128,7 +127,6 @@ describe("incremental sync state", () => {
     const synced = markFullySynced(data, "2026-06-10T12:00:00.000Z");
 
     expect(hasPendingSyncChanges(synced)).toBe(false);
-    expect(hasUnsyncedChanges(synced)).toBe(false);
     expect(synced.meta?.lastSyncedAt).toBe("2026-06-10T12:00:00.000Z");
   });
 

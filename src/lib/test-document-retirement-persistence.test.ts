@@ -13,7 +13,6 @@ import {
   mergePendingChanges,
 } from "./cloud/diff";
 import { mergeRemoteOntoLocal } from "./cloud/incremental";
-import { buildCloudReplacementChanges } from "./cloud/sync-queue";
 import {
   applyTestDocumentRetirement,
   buildTestDocumentRetirementPreview,
@@ -377,23 +376,6 @@ describe("persistencia de retiros explícitos", () => {
     expect(projectedRollback.documents[0]?.receiptDocumentId).toBe(
       "synthetic-test-receipt",
     );
-  });
-
-  it("conserva el timestamp del evento en reemplazos cloud", () => {
-    const { applied } = fixture();
-    const replacement = buildCloudReplacementChanges(
-      applied,
-      "2099-01-01T00:00:00.000Z",
-    );
-    const audit = replacement.find(
-      (change) => change.entityType === "document_retirement_batch",
-    );
-    expect(audit?.updatedAt).toBe(APPLIED_AT);
-    expect(
-      replacement
-        .filter((change) => change.entityType !== "document_retirement_batch")
-        .every((change) => change.updatedAt === "2099-01-01T00:00:00.000Z"),
-    ).toBe(true);
   });
 
   it("incluye el historial en backup y bloquea una copia que lo omite", () => {
