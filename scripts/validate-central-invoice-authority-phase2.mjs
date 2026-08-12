@@ -129,6 +129,8 @@ const allowedQuoteUnlinkEventsMigration =
   "20260804155708_central_invoice_quote_unlink_events.sql";
 const allowedVoidedQuoteUnlinkMigration =
   "20260804165537_allow_voided_invoice_quote_unlink.sql";
+const allowedClosedDocumentEventPullMigration =
+  "20260812100000_central_invoice_closed_document_event_pull.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -145,6 +147,7 @@ const allowedCentralMigrations = new Set([
   allowedCollectionStatusEventsV3Migration,
   allowedQuoteUnlinkEventsMigration,
   allowedVoidedQuoteUnlinkMigration,
+  allowedClosedDocumentEventPullMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -699,6 +702,36 @@ if (centralMigrations.includes(allowedOutboxPullMigration)) {
   assert.doesNotMatch(localOutboxPull, /\binsert\s+into\s+public\.(?!central_invoice_)/i);
   assert.doesNotMatch(localOutboxPull, /\buser_backups\b/i);
   assert.doesNotMatch(localOutboxPull, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedClosedDocumentEventPullMigration)) {
+  const closedDocumentEventPull = read(
+    `supabase/migrations/${allowedClosedDocumentEventPullMigration}`,
+  );
+  assert.match(
+    closedDocumentEventPull,
+    /CENTRAL_INVOICE_AUTHORITY_CLOSED_DOCUMENT_EVENT_PULL_V1/,
+  );
+  assert.match(
+    closedDocumentEventPull,
+    /create\s+or\s+replace\s+function\s+public\.list_central_invoice_events_v1/i,
+  );
+  assert.match(closedDocumentEventPull, /\bsecurity\s+definer\b/i);
+  assert.match(closedDocumentEventPull, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(
+    closedDocumentEventPull,
+    /auth\.role\(\)\s*<>\s*'service_role'/i,
+  );
+  assert.match(
+    closedDocumentEventPull,
+    /lifecycle_status\s+in\s*\(\s*'issued'\s*,\s*'rectified'\s*,\s*'voided'\s*\)/i,
+  );
+  assert.doesNotMatch(
+    closedDocumentEventPull,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(closedDocumentEventPull, /\buser_backups\b/i);
+  assert.doesNotMatch(closedDocumentEventPull, /\bsync_entities\b/i);
 }
 
 if (centralMigrations.includes(allowedRealtimeWakeupsMigration)) {

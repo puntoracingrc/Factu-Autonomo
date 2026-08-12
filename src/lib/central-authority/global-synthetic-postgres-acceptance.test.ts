@@ -10,10 +10,22 @@ import {
   type CentralBusinessJson,
 } from "@/lib/central-business-authority/mutation-command";
 import {
+  buildCentralBusinessEventAppDataTransition,
+  verifyCentralBusinessEventContentHash,
+} from "@/lib/central-business-authority/events-app-data-sync";
+import { listCentralBusinessEventsThroughRpc } from "@/lib/central-business-authority/events-rpc-adapter";
+import type { CentralBusinessEntityVersion } from "@/lib/central-business-authority/durable-queue";
+import { applyCentralInvoiceAuthorityPulledEventsToDocuments } from "@/lib/central-invoice-authority/events-local-apply";
+import type {
+  CentralInvoiceAuthorityEventsCursor,
+  CentralInvoiceAuthorityPulledBrowserEvent,
+} from "@/lib/central-invoice-authority/events-client";
+import { listCentralInvoiceAuthorityEventsThroughRpc } from "@/lib/central-invoice-authority/events-rpc-adapter";
+import {
   createExpenseWorkDocumentUnlinkPayload,
   createExpenseWorkDocumentUpdatePayload,
 } from "@/lib/rentabilidad-real/expense-linking/expense-linking";
-import type { Expense } from "@/lib/types";
+import { EMPTY_DATA, type AppData, type Expense } from "@/lib/types";
 
 const acceptanceEnabled =
   process.env.CENTRAL_GLOBAL_SYNTHETIC_LOCAL_ENABLED === "true";
@@ -38,6 +50,15 @@ interface CompanyContext {
   invoiceLocalId: string;
   rectificationLocalId: string;
   signedIn: SupabaseClient;
+  devices: SyntheticDeviceState[];
+}
+
+interface SyntheticDeviceState {
+  id: string;
+  data: AppData;
+  businessCursor: number;
+  businessVersions: Map<string, CentralBusinessEntityVersion>;
+  invoiceCursor: CentralInvoiceAuthorityEventsCursor | null;
 }
 
 interface CentralInvoiceIdentity {
@@ -87,6 +108,181 @@ function jsonValue(value: unknown): CentralBusinessJson {
 
 function contentHash(value: unknown): string {
   return sha256(stableCentralBusinessJson(jsonValue(value)));
+}
+
+function createSyntheticDevice(
+  companyTag: string,
+  suffix: string,
+): SyntheticDeviceState {
+  return {
+    id: `${companyTag}-${suffix}`,
+    data: {
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        commercialName: `Empresa sintetica ${companyTag}`,
+        name: `Empresa sintetica ${companyTag}`,
+        nif: "B00000000",
+      },
+      documents: [],
+      expenses: [],
+      recurringExpenses: [],
+      userReminders: [],
+      suppliers: [],
+      products: [],
+      customers: [],
+      testDocumentRetirementBatches: [],
+    },
+    businessCursor: 0,
+    businessVersions: new Map(),
+    invoiceCursor: null,
+  };
+}
+
+function businessVersionKey(entityType: string, entityId: string): string {
+  return `${entityType}:${entityId}`;
+}
+
+async function syncBusinessDevice(
+  company: CompanyContext,
+  device: SyntheticDeviceState,
+) {
+  const events = await listCentralBusinessEventsThroughRpc(
+    {
+      rpc: async (name, args) => {
+        const { data, error } = await admin.rpc(name, args);
+        return { data, error };
+      },
+    },
+    {
+      userId: company.userId,
+      deviceId: device.id,
+      afterSequence: device.businessCursor,
+      limit: 500,
+    },
+  );
+
+  for (const event of events) {
+    expect(await verifyCentralBusinessEventContentHash(event)).toBe(true);
+    const key = businessVersionKey(event.entityType, event.entityId);
+    const transition = buildCentralBusinessEventAppDataTransition({
+      data: device.data,
+      event,
+      knownVersion: device.businessVersions.get(key),
+    });
+    device.data = transition.data;
+    device.businessVersions.set(key, {
+      entityType: event.entityType,
+      entityId: event.entityId,
+      version: event.entityVersion,
+      deleted: event.operationKind === "delete",
+      contentHash: event.contentHash,
+    });
+    device.businessCursor = event.eventSequence;
+  }
+
+  return events;
+}
+
+async function syncInvoiceDevice(
+  company: CompanyContext,
+  device: SyntheticDeviceState,
+) {
+  const events = await listCentralInvoiceAuthorityEventsThroughRpc(
+    {
+      rpc: async (name, args) => {
+        const { data, error } = await admin.rpc(name, args);
+        return { data, error };
+      },
+    },
+    {
+      userId: company.userId,
+      deviceId: device.id,
+      afterCreatedAt: device.invoiceCursor?.afterCreatedAt,
+      afterEventId: device.invoiceCursor?.afterEventId,
+      limit: 100,
+    },
+  );
+  const browserEvents = events as CentralInvoiceAuthorityPulledBrowserEvent[];
+  const applied = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+    documents: device.data.documents,
+    profile: device.data.profile,
+    events: browserEvents,
+    receivedAt: "2026-08-10T10:10:00.000Z",
+  });
+  expect(applied.conflicts).toEqual([]);
+  device.data = { ...device.data, documents: applied.documents };
+  const last = events.at(-1);
+  if (last) {
+    device.invoiceCursor = {
+      afterCreatedAt: last.createdAt,
+      afterEventId: last.eventId,
+    };
+  }
+  return { events, applied };
+}
+
+async function syncDevice(
+  company: CompanyContext,
+  device: SyntheticDeviceState,
+) {
+  const invoices = await syncInvoiceDevice(company, device);
+  const business = await syncBusinessDevice(company, device);
+  return { business, invoices };
+}
+
+function finalDeviceProjection(
+  company: CompanyContext,
+  device: SyntheticDeviceState,
+) {
+  const document = (id: string) =>
+    device.data.documents.find((candidate) => candidate.id === id);
+  const original = document(company.invoiceLocalId);
+  const rectification = document(company.rectificationLocalId);
+  const expense = device.data.expenses.find(
+    (candidate) => candidate.id === company.expenseId,
+  );
+
+  return {
+    customers: device.data.customers
+      .map(({ id, name, email }) => ({ id, name, email }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    supplier: device.data.suppliers.find(({ id }) => id === company.supplierId),
+    product: device.data.products.find(({ id }) => id === company.productId),
+    quote: document(company.quoteId),
+    receipt: document(company.receiptId),
+    original: original
+      ? {
+          id: original.id,
+          number: original.number,
+          status: original.status,
+          paymentStatus: original.paymentStatus,
+          paidAt: original.paidAt,
+          rectifiedById: original.rectifiedById,
+          sourceQuoteDocumentId: original.sourceQuoteDocumentId,
+          sourceQuoteNumber: original.sourceQuoteNumber,
+          authority: original.centralInvoiceAuthority,
+        }
+      : null,
+    rectification: rectification
+      ? {
+          id: rectification.id,
+          number: rectification.number,
+          status: rectification.status,
+          rectification: rectification.rectification,
+          authority: rectification.centralInvoiceAuthority,
+        }
+      : null,
+    expense: expense
+      ? {
+          id: expense.id,
+          amount: expense.amount,
+          supplierId: expense.supplierId,
+          workDocumentId: expense.workDocumentId,
+          workAllocations: expense.workAllocations,
+        }
+      : null,
+  };
 }
 
 function rpcRow(value: unknown): Record<string, unknown> {
@@ -393,6 +589,10 @@ describeAcceptance(
             invoiceLocalId: `${tag}-invoice`,
             rectificationLocalId: `${tag}-rectification`,
             signedIn,
+            devices: [
+              createSyntheticDevice(tag, "pc"),
+              createSyntheticDevice(tag, "mobile"),
+            ],
           } satisfies CompanyContext;
         }),
       );
@@ -447,12 +647,21 @@ describeAcceptance(
         };
         const product = {
           id: company.productId,
+          key: `articulo sintetico ${index + 1}`,
           name: `Articulo sintetico ${index + 1}`,
+          family: "General",
           saleDescription: `Articulo sintetico ${company.tag}`,
           salePrice: 50,
           ivaPercent: 21,
           source: "manual",
           createdAt: issuedAt,
+          updatedAt: issuedAt,
+          sales: {
+            enabled: true,
+            description: `Articulo sintetico ${company.tag}`,
+            unitPrice: 50,
+            ivaPercent: 21,
+          },
         };
         const expense: Expense = {
           id: company.expenseId,
@@ -632,20 +841,25 @@ describeAcceptance(
             operation: "expense-link",
           }),
         ).toMatchObject({ result_status: "committed", entity_version: 2 });
-        const unlinkedExpense = createExpenseWorkDocumentUnlinkPayload(
-          linkedExpense,
-          [company.invoiceLocalId],
-        );
-        expect(
-          await mutateEntity({
-            company,
-            entityType: "expense",
-            entityId: company.expenseId,
-            expectedVersion: 2,
-            payload: unlinkedExpense,
-            operation: "expense-unlink",
-          }),
-        ).toMatchObject({ result_status: "committed", entity_version: 3 });
+
+        for (const device of company.devices) {
+          const initialSync = await syncDevice(company, device);
+          expect(initialSync.invoices.events).toHaveLength(1);
+          expect(initialSync.business).toHaveLength(8);
+          expect(
+            device.data.expenses.find(({ id }) => id === company.expenseId),
+          ).toMatchObject({
+            workDocumentId: company.invoiceLocalId,
+          });
+          expect(
+            device.data.documents.find(
+              ({ id }) => id === company.invoiceLocalId,
+            ),
+          ).toMatchObject({
+            number: invoice.fullNumber,
+            sourceQuoteDocumentId: company.quoteId,
+          });
+        }
 
         const paidPayload = {
           ...originalPayload,
@@ -733,6 +947,21 @@ describeAcceptance(
         });
         expect(rectification.sequence).toBe(1);
 
+        const unlinkedExpense = createExpenseWorkDocumentUnlinkPayload(
+          linkedExpense,
+          [company.invoiceLocalId],
+        );
+        expect(
+          await mutateEntity({
+            company,
+            entityType: "expense",
+            entityId: company.expenseId,
+            expectedVersion: 2,
+            payload: unlinkedExpense,
+            operation: "expense-unlink-after-rectification",
+          }),
+        ).toMatchObject({ result_status: "committed", entity_version: 3 });
+
         const beforeUnlink = await admin
           .from("central_invoice_documents")
           .select(
@@ -790,6 +1019,73 @@ describeAcceptance(
           "document.client.name",
           company.billingCustomerName,
         );
+
+        for (const device of company.devices) {
+          const finalSync = await syncDevice(company, device);
+          expect(finalSync.invoices.events).toHaveLength(3);
+          expect(finalSync.invoices.applied.conflicts).toEqual([]);
+          expect(finalSync.business).toHaveLength(2);
+        }
+
+        const reinstalledMobile = createSyntheticDevice(
+          company.tag,
+          "reinstalled-mobile",
+        );
+        const recovered = await syncDevice(company, reinstalledMobile);
+        expect(recovered.invoices.events).toHaveLength(4);
+        expect(recovered.invoices.applied.conflicts).toEqual([]);
+        expect(recovered.business).toHaveLength(10);
+        company.devices.push(reinstalledMobile);
+
+        const expectedProjection = finalDeviceProjection(
+          company,
+          company.devices[0]!,
+        );
+        for (const device of company.devices) {
+          expect(finalDeviceProjection(company, device)).toEqual(
+            expectedProjection,
+          );
+          const localExpense = device.data.expenses.find(
+            ({ id }) => id === company.expenseId,
+          );
+          expect(localExpense).toMatchObject({
+            id: company.expenseId,
+            amount: 24.2,
+            supplierId: company.supplierId,
+          });
+          expect(localExpense).not.toHaveProperty("workDocumentId");
+          expect(localExpense).not.toHaveProperty("workAllocations");
+          expect(
+            device.data.documents.find(
+              ({ id }) => id === company.invoiceLocalId,
+            ),
+          ).toMatchObject({
+            status: "anulada",
+            paymentStatus: "paid",
+            rectifiedById: company.rectificationLocalId,
+          });
+          const localOriginal = device.data.documents.find(
+            ({ id }) => id === company.invoiceLocalId,
+          );
+          expect(localOriginal?.sourceQuoteDocumentId).toBeUndefined();
+          expect(localOriginal?.sourceQuoteNumber).toBeUndefined();
+          expect(
+            device.data.documents.find(
+              ({ id }) => id === company.rectificationLocalId,
+            ),
+          ).toMatchObject({
+            number: rectification.fullNumber,
+            rectification: {
+              originalDocumentId: company.invoiceLocalId,
+            },
+          });
+          expect(
+            device.data.documents.find(({ id }) => id === company.receiptId),
+          ).toMatchObject({
+            number: `R-SYN-${scope}-2026-0001`,
+            sourceDocumentId: company.invoiceLocalId,
+          });
+        }
 
         const finalExpense = await admin
           .from("central_business_entities")
@@ -947,17 +1243,24 @@ describeAcceptance(
           },
         );
         expect(invoiceEvents.error).toBeNull();
-        expect(invoiceEvents.data).toHaveLength(1);
-        expect(invoiceEvents.data).toEqual([
-          expect.objectContaining({
-            event_type: "rectification_issued",
-            full_number: `${rectificationSeries}-0001`,
-          }),
+        expect(invoiceEvents.data).toHaveLength(4);
+        expect(
+          (invoiceEvents.data as Array<Record<string, unknown>>).map(
+            ({ event_type }) => event_type,
+          ),
+        ).toEqual([
+          "invoice_issued",
+          "invoice_collection_updated",
+          "rectification_issued",
+          "invoice_relationship_updated",
         ]);
-        expect(invoiceEvents.data?.[0]?.document_payload).toHaveProperty(
-          "client.name",
-          company.billingCustomerName,
-        );
+        expect(
+          (invoiceEvents.data as Array<Record<string, unknown>>).every(
+            (event) =>
+              (event.document_payload as Record<string, unknown>)?.client !==
+              undefined,
+          ),
+        ).toBe(true);
 
         const wakeups = await company.signedIn
           .from("central_invoice_event_wakeups")
