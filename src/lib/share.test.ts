@@ -87,6 +87,11 @@ describe("normalizePhoneForWhatsApp", () => {
     expect(normalizePhoneForWhatsApp("+34 612 345 678")).toBe("34612345678");
   });
 
+  it("no añade España a un número de Andorra con prefijo internacional", () => {
+    expect(normalizePhoneForWhatsApp("+376 668 856")).toBe("376668856");
+    expect(normalizePhoneForWhatsApp("00376 668 856")).toBe("376668856");
+  });
+
   it("rechaza números demasiado cortos", () => {
     expect(normalizePhoneForWhatsApp("12345")).toBeNull();
   });
@@ -98,6 +103,12 @@ describe("buildWhatsAppUrl", () => {
     expect(url).toContain("https://web.whatsapp.com/send?");
     expect(url).toContain("phone=34612345678");
     expect(url).toContain("text=Hola");
+  });
+
+  it("conserva el prefijo de Andorra en el enlace", () => {
+    const url = buildWhatsAppUrl("+376 668 856", "Hola");
+    expect(url).toContain("phone=376668856");
+    expect(url).not.toContain("phone=34376668856");
   });
 });
 

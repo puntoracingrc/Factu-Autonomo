@@ -13,17 +13,22 @@ const accountSource = readFileSync(
   new URL("../../app/cuenta/page.tsx", import.meta.url),
   "utf8",
 );
+const supportSource = readFileSync(
+  new URL("./SupportRecoveryToolsSection.tsx", import.meta.url),
+  "utf8",
+);
 const appStoreSource = readFileSync(
   new URL("../../context/AppStore.tsx", import.meta.url),
   "utf8",
 );
 
 describe("AppIssuedDocumentRecoveryCard wiring", () => {
-  it("queda integrada en Cuenta → Copias después de la copia manual", () => {
-    expect(accountSource).toContain("<AppIssuedDocumentRecoveryCard />");
-    expect(accountSource.indexOf("<DataOwnershipCard />")).toBeLessThan(
-      accountSource.indexOf("<AppIssuedDocumentRecoveryCard />"),
+  it("queda fuera de Cuenta y solo se monta con permiso temporal", () => {
+    expect(accountSource).not.toContain("<AppIssuedDocumentRecoveryCard />");
+    expect(supportSource).toContain(
+      'has("issued_document_recovery") &&',
     );
+    expect(supportSource).toContain("<AppIssuedDocumentRecoveryCard />");
   });
   it("construye preview completa y sella un único candidateKey seleccionado", () => {
     expect(cardSource).toContain("buildAppIssuedDocumentRecoveryPreview(data)");
@@ -55,7 +60,10 @@ describe("AppIssuedDocumentRecoveryCard wiring", () => {
     expect(cardSource).toContain(
       "Si el documento no debe seguir en tus listas activas",
     );
-    expect(cardSource).toContain("Archivar documentos descartados");
+    expect(cardSource).toContain(
+      "El archivado de descartados requiere una operación",
+    );
+    expect(cardSource).toContain("permanece bloqueado");
   });
 
   it("exige descarga, relectura y confirmación ligadas a identidad, precondición y grupo", () => {

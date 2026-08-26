@@ -10,6 +10,14 @@ const accountSource = readFileSync(
   new URL("../../app/cuenta/page.tsx", import.meta.url),
   "utf8",
 );
+const supportSource = readFileSync(
+  new URL("./SupportRecoveryToolsSection.tsx", import.meta.url),
+  "utf8",
+);
+const adminSupportSource = readFileSync(
+  new URL("../admin/AdminUserRecoveryToolsPanel.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("TestDocumentRetirementCard wiring", () => {
   it("queda fuera de Cuenta mientras no tenga un comando central atómico", () => {
@@ -18,6 +26,9 @@ describe("TestDocumentRetirementCard wiring", () => {
     );
     expect(accountSource).not.toContain('id="mantenimiento-documentos-prueba"');
     expect(accountSource).not.toContain("<TestDocumentRetirementCard />");
+    expect(supportSource).not.toContain("TestDocumentRetirementCard");
+    expect(adminSupportSource).toContain("BLOCKED_RECOVERY_TOOL");
+    expect(adminSupportSource).toContain("Bloqueada");
   });
 
   it("exige cuenta autenticada, nube vigente, cero pendientes y fuera de demo", () => {

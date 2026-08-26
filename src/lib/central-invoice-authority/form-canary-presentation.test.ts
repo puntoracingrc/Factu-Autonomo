@@ -59,7 +59,7 @@ describe("central invoice authority form canary presentation", () => {
       .toBe("estado central no disponible");
   });
 
-  it("muestra comprobacion solo cuando el canario publico esta solicitado", () => {
+  it("no muestra estados internos mientras comprueba la emisión", () => {
     expect(
       describeCentralInvoiceAuthorityFormPolicyNotice({
         policy: null,
@@ -77,13 +77,14 @@ describe("central invoice authority form canary presentation", () => {
       }),
     ).toMatchObject({
       schema: CENTRAL_INVOICE_AUTHORITY_FORM_POLICY_NOTICE,
-      visible: true,
+      visible: false,
       tone: "info",
-      title: "Comprobando autoridad central",
+      title: "",
+      message: "",
     });
   });
 
-  it("avisa cuando el formulario usara el servidor central y no promete fallback local", () => {
+  it("explica la emisión definitiva sin jerga técnica", () => {
     const notice = describeCentralInvoiceAuthorityFormPolicyNotice({
       policy: centralPolicy(),
       documentLabel: "factura",
@@ -91,25 +92,33 @@ describe("central invoice authority form canary presentation", () => {
 
     expect(notice).toMatchObject({
       visible: true,
-      tone: "success",
-      title: "Canario central activo",
+      tone: "info",
+      title: "Emisión definitiva",
     });
-    expect(notice.message).toContain("servidor central");
-    expect(notice.message).toContain("no se creara una emision local alternativa");
+    expect(notice.message).toContain("número definitivo");
+    expect(notice.message).toContain("datos fiscales ni borrarla");
+    expect(notice.message).toContain("factura rectificativa");
+    expect(notice.message).not.toContain("canario");
+    expect(notice.message).not.toContain("preflight");
+    expect(notice.message).not.toContain("servidor central");
   });
 
-  it("marca fail-closed cuando el navegador ya recuerda autoridad central", () => {
+  it("mantiene el aviso tranquilo cuando debe fallar de forma cerrada", () => {
     const notice = describeCentralInvoiceAuthorityFormPolicyNotice({
       policy: centralPolicy({ reason: "last_known_central_authority" }),
       documentLabel: "factura",
     });
 
-    expect(notice.tone).toBe("error");
-    expect(notice.message).toContain("ya vio autoridad central");
-    expect(notice.message).toContain("no se permite volver a numeracion local");
+    expect(notice).toMatchObject({
+      visible: true,
+      tone: "info",
+      title: "Emisión definitiva",
+    });
+    expect(notice.message).not.toContain("autoridad central");
+    expect(notice.message).not.toContain("numeración local");
   });
 
-  it("mantiene el flujo local visible si el canario publico aun no esta listo", () => {
+  it("oculta el estado interno si el despliegue central aun no está listo", () => {
     const notice = describeCentralInvoiceAuthorityFormPolicyNotice({
       policy: localPolicy({
         reason: "public_canary_not_ready",
@@ -145,15 +154,14 @@ describe("central invoice authority form canary presentation", () => {
     });
 
     expect(notice).toMatchObject({
-      visible: true,
-      tone: "warning",
-      title: "Canario central en espera",
+      visible: false,
+      tone: "info",
+      title: "",
+      message: "",
     });
-    expect(notice.message).toContain("flujo local actual");
-    expect(notice.message).toContain("central_invoice_issue_rpc_unavailable");
   });
 
-  it("avisa cuando el canario servidor aplica al usuario pero aun no puede emitir", () => {
+  it("oculta el estado interno del servidor si todavía no puede emitir", () => {
     const notice = describeCentralInvoiceAuthorityFormPolicyNotice({
       policy: localPolicy({
         reason: "server_canary_not_ready",
@@ -188,12 +196,21 @@ describe("central invoice authority form canary presentation", () => {
     });
 
     expect(notice).toMatchObject({
-      visible: true,
-      tone: "warning",
-      title: "Canario central en espera",
+      visible: false,
+      tone: "info",
+      title: "",
+      message: "",
     });
-    expect(notice.message).toContain("Tu cuenta esta incluida");
-    expect(notice.message).toContain("flujo local actual");
-    expect(notice.message).toContain("schema_not_ready");
+  });
+
+  it("adapta la explicación para una rectificativa", () => {
+    const notice = describeCentralInvoiceAuthorityFormPolicyNotice({
+      policy: centralPolicy(),
+      documentLabel: "factura rectificativa",
+    });
+
+    expect(notice.message).toContain("esta factura rectificativa");
+    expect(notice.message).toContain("Revisa la vista previa");
+    expect(notice.message).not.toContain("deberás emitir una factura rectificativa");
   });
 });

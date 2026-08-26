@@ -28,9 +28,7 @@ import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PromoCodeRedeemer } from "@/components/promotions/PromoCodeRedeemer";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
-import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
-import { AppIssuedDocumentRecoveryCard } from "@/components/settings/AppIssuedDocumentRecoveryCard";
-import { ImportedLegacyDocumentRepairCard } from "@/components/settings/ImportedLegacyDocumentRepairCard";
+import { SupportRecoveryToolsSection } from "@/components/settings/SupportRecoveryToolsSection";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 
@@ -191,19 +189,13 @@ export default function CuentaPage() {
       <AccountSection
         id="copias-cuenta"
         title="Copias"
-        description="Descarga una copia manual, restaura un JSON revisado o guarda una copia extra en Google Drive."
+        description="Descarga una copia manual o guarda una copia extra en Google Drive."
         Icon={HardDrive}
       >
         <GoogleDriveBackupCard />
 
         <div id="datos-privacidad" className="scroll-mt-24">
           <DataOwnershipCard />
-        </div>
-        <div id="reparacion-repartos-gastos" className="scroll-mt-24">
-          <ExpenseWorkAllocationRepairCard />
-        </div>
-        <div id="recuperacion-documentos-factu" className="scroll-mt-24">
-          <AppIssuedDocumentRecoveryCard />
         </div>
       </AccountSection>
 
@@ -213,7 +205,6 @@ export default function CuentaPage() {
         description="Trae datos desde otros programas con una previsualización antes de aplicar cambios."
         Icon={Upload}
       >
-        <ImportedLegacyDocumentRepairCard />
         <Card className="mb-6 space-y-3">
           <h3 className="text-lg font-bold text-slate-900">Importar datos</h3>
           <p className="text-sm text-slate-600">
@@ -226,6 +217,8 @@ export default function CuentaPage() {
           </ButtonLink>
         </Card>
       </AccountSection>
+
+      <SupportRecoveryToolsSection />
 
       <AccountSection
         id="legal-privacidad"

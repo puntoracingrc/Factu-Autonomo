@@ -9,6 +9,10 @@ const accountSource = readFileSync(
   new URL("../../app/cuenta/page.tsx", import.meta.url),
   "utf8",
 );
+const supportSource = readFileSync(
+  new URL("./SupportRecoveryToolsSection.tsx", import.meta.url),
+  "utf8",
+);
 const appStoreSource = readFileSync(
   new URL("../../context/AppStore.tsx", import.meta.url),
   "utf8",
@@ -78,14 +82,13 @@ describe("ImportedLegacyDocumentRepairCard wiring", () => {
     expect(cardSource).toContain("No hay cambios seguros pendientes");
   });
 
-  it("vive antes del importador en Cuenta > Importación", () => {
-    const repair = accountSource.indexOf(
+  it("queda fuera del importador normal y exige permiso temporal", () => {
+    expect(accountSource).not.toContain(
       "<ImportedLegacyDocumentRepairCard />",
     );
-    const importer = accountSource.indexOf("Abrir importador");
-    expect(repair).toBeGreaterThan(0);
-    expect(importer).toBeGreaterThan(repair);
     expect(accountSource).toContain('id="importar-datos"');
+    expect(supportSource).toContain('has("legacy_import_repair") &&');
+    expect(supportSource).toContain("<ImportedLegacyDocumentRepairCard />");
   });
 
   it("AppStore publica memoria solo mediante commitDurableAppData", () => {

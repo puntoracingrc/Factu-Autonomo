@@ -156,6 +156,13 @@ const centralAuthorityLegacySyncCutoverMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const adminUserRecoveryToolsMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260826110100_admin_user_recovery_tools.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -206,6 +213,7 @@ const serviceReadOnlyTables = [
   "central_invoice_series_reconciliations",
   "central_business_document_series_reconciliations",
 ];
+const serviceLimitedWriteTables = ["admin_user_recovery_grants"];
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -232,6 +240,7 @@ const classifiedTables = new Set([
   ...browserRealtimeWakeupTables,
   ...centralAuthorityCutoverTables,
   ...serviceReadOnlyTables,
+  ...serviceLimitedWriteTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -546,6 +555,38 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         `grant all on table public.${table} to service_role`,
       );
       expect(source).not.toMatch(
+        new RegExp(
+          `grant\\s+[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
+          "i",
+        ),
+      );
+    }
+  });
+
+  it("keeps temporary recovery grants private with least privilege", () => {
+    for (const table of serviceLimitedWriteTables) {
+      expect(adminUserRecoveryToolsMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(adminUserRecoveryToolsMigrationSource).toMatch(
+        new RegExp(
+          `revoke all on table public\\.${escapedTable(table)}[\\s\\S]*?from public, anon, authenticated`,
+          "i",
+        ),
+      );
+      expect(adminUserRecoveryToolsMigrationSource).toMatch(
+        new RegExp(
+          `grant select, insert, update[\\s\\S]*?on table public\\.${escapedTable(table)}[\\s\\S]*?to service_role`,
+          "i",
+        ),
+      );
+      expect(adminUserRecoveryToolsMigrationSource).not.toMatch(
+        new RegExp(
+          `grant\\s+[^;]*delete[^;]*on table public\\.${escapedTable(table)}`,
+          "i",
+        ),
+      );
+      expect(adminUserRecoveryToolsMigrationSource).not.toMatch(
         new RegExp(
           `grant\\s+[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
           "i",
