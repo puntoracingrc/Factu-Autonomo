@@ -104,7 +104,7 @@ describe("collectAppRecommendations", () => {
       },
       billing: {
         ...baseBilling,
-        documentsThisMonth: 10,
+        documentsThisMonth: 15,
       },
     });
 

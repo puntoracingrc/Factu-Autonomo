@@ -222,6 +222,37 @@ describe("central invoice authority issue route handler", () => {
     expect(serialized).not.toContain("emittedSnapshotShouldNotLeak");
   });
 
+  it("bloquea la emisión en la propia ruta central cuando no queda cuota", async () => {
+    stubActiveEnv();
+    const rpc = vi.fn();
+    const dependencies = deps({
+      getRpcClient: vi.fn(() => ({ rpc })),
+      reserveQuota: vi.fn(async () => ({
+        allowed: false as const,
+        block: {
+          code: "limit_reached" as const,
+          message: "Has alcanzado el límite de documentos.",
+          metric: "documents" as const,
+          used: 15,
+          included: 15,
+          effectiveLimit: 15,
+          creditBalance: 0,
+          capacityBonus: 0,
+          remaining: 0,
+          resetAt: "2026-08-31T22:00:00.000Z",
+        },
+      })),
+    });
+
+    const response = await request(dependencies);
+
+    expect(response.status).toBe(402);
+    expect(response.body).toMatchObject({
+      error: { code: "BILLING_QUOTA_LIMIT_REACHED" },
+    });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("bloquea en la ruta una serie production cuando el canario es test-only", async () => {
     stubActiveEnv();
     const rpc = vi.fn();

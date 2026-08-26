@@ -49,12 +49,16 @@ describe("expense VAT page fail-closed wiring", () => {
       "ensureSupplierForExpense(",
     );
     const manualSupplierCreation = manualSave.indexOf(
-      "await createSupplier(resolved.create)",
+      "await createSupplier(",
+    );
+    const atomicManualSupplierSave = manualSave.indexOf(
+      "usesDurableManualSupplierSave",
     );
     expect(manualPreparation).toBeGreaterThanOrEqual(0);
     expect(manualBlockedReturn).toBeGreaterThan(manualPreparation);
     expect(manualSupplierResolution).toBeGreaterThan(manualBlockedReturn);
     expect(manualSupplierCreation).toBeGreaterThan(manualSupplierResolution);
+    expect(atomicManualSupplierSave).toBeGreaterThan(manualBlockedReturn);
   });
 
   it("deshabilita el CSV si el filtro contiene IVA pendiente", () => {

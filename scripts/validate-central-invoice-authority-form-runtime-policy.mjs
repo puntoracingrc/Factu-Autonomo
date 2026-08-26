@@ -121,7 +121,10 @@ assert.match(
 );
 
 const docBranchStart = documentForm.indexOf("const centralDocumentEligible");
-const docBranchEnd = documentForm.indexOf("recordDocumentCreated();", docBranchStart);
+const docBranchEnd = documentForm.indexOf(
+  "saved = attachIssuerSnapshot",
+  docBranchStart,
+);
 assert.ok(docBranchStart >= 0, "Missing document central eligibility");
 assert.ok(docBranchEnd > docBranchStart, "Cannot isolate DocumentForm branch");
 const docBranch = documentForm.slice(docBranchStart, docBranchEnd);
@@ -140,7 +143,7 @@ const rectBranchStart = rectificationForm.indexOf(
   "const centralRectificationEligible",
 );
 const rectBranchEnd = rectificationForm.indexOf(
-  "recordDocumentCreated();",
+  "if (isDraft)",
   rectBranchStart,
 );
 assert.ok(rectBranchStart >= 0, "Missing rectification central eligibility");

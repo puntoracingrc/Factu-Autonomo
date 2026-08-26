@@ -13,7 +13,10 @@ import type {
 } from "@/lib/central-business-authority/quote-create-canary";
 
 export function useCentralQuoteCreate(): {
-  createQuote: (draft: CentralQuoteDraft) => Promise<CentralQuoteCreateResult>;
+  createQuote: (
+    draft: CentralQuoteDraft,
+    options?: { id?: string },
+  ) => Promise<CentralQuoteCreateResult>;
 } {
   const {
     addDocument,
@@ -25,7 +28,7 @@ export function useCentralQuoteCreate(): {
   const userId = planGate.centralUserId;
 
   const createQuote = useCallback(
-    async (draft: CentralQuoteDraft) => {
+    async (draft: CentralQuoteDraft, options?: { id?: string }) => {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
@@ -38,6 +41,7 @@ export function useCentralQuoteCreate(): {
           getCurrentData,
           addDocumentFallback: addDocument,
           addCentralDocumentDurably: addCentralBusinessNumberedDocumentDurably,
+          createId: options?.id ? () => options.id as string : undefined,
           syncEventsBeforeWrite: userId
             ? () => syncCentralBusinessEvents(userId)
             : undefined,

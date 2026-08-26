@@ -11,7 +11,6 @@ import { ProductUnsavedChangesDialog } from "@/components/products/ProductUnsave
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
 import { useCentralProductCreate } from "@/hooks/useCentralProductCreate";
 import { normalizeDocumentUnitId } from "@/lib/document-units";
 import {
@@ -53,7 +52,6 @@ export default function NuevoProductoPage() {
   const router = useRouter();
   const { data } = useAppStore();
   const { createProduct } = useCentralProductCreate();
-  const { checkCanAddProduct } = useBilling();
   const [form, setForm] = useState<ProductFormDraft>(EMPTY_PRODUCT_FORM_DRAFT);
   const [initialForm, setInitialForm] = useState<ProductFormDraft>(
     EMPTY_PRODUCT_FORM_DRAFT,
@@ -232,17 +230,6 @@ export default function NuevoProductoPage() {
     if (data.products.some((product) => product.key === key)) {
       setError(
         "Ya existe un producto muy parecido. Ábrelo desde la coincidencia indicada.",
-      );
-      return;
-    }
-
-    const productLimit = checkCanAddProduct(
-      data.products.filter((product) => !product.hidden).length,
-    );
-    if (!productLimit.allowed) {
-      setError(
-        productLimit.reason ??
-          "No puedes añadir más productos con tu plan actual.",
       );
       return;
     }

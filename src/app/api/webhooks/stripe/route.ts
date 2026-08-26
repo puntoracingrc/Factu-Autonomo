@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import type { PaidPlanId } from "@/lib/billing/plans";
 import {
+  BILLING_QUOTA_PACKS,
+  BILLING_QUOTA_PACK_FULFILLMENT_CONTRACT,
+  isBillingQuotaPackKey,
+} from "@/lib/billing/quotas";
+import {
   grantPaidReferralReward,
   isEligiblePaidReferralInvoice,
 } from "@/lib/billing/paid-referral-rewards";
@@ -20,6 +25,7 @@ import {
   syncBillingProfileFromCustomerId,
 } from "@/lib/billing/sync-billing-profile";
 import {
+  completeStripeQuotaPackEvent,
   completeStripeScanPackEvent,
   markStripeEventFailed,
   markStripeEventProcessed,
@@ -226,6 +232,8 @@ async function handleCheckoutCompleted(
 ): Promise<{ completedAtomically: boolean; receiptManualReview: boolean }> {
   const userId = session.metadata?.user_id;
   const isScanPack = session.metadata?.checkout_type === "scan_pack";
+  const isQuotaPack = session.metadata?.checkout_type === "quota_pack";
+  const quotaPack = session.metadata?.quota_pack;
 
   if (isScanPack) {
     if (
@@ -248,6 +256,23 @@ async function handleCheckoutCompleted(
     }
   }
 
+  if (isQuotaPack) {
+    if (
+      !isBillingQuotaPackKey(quotaPack) ||
+      session.mode !== "payment" ||
+      !session.id ||
+      session.metadata?.quota_quantity !==
+        String(BILLING_QUOTA_PACKS[quotaPack].quantity) ||
+      session.metadata?.fulfillment_contract !==
+        BILLING_QUOTA_PACK_FULFILLMENT_CONTRACT
+    ) {
+      throw new InvalidCheckoutStateError("quota_pack_checkout_invalid");
+    }
+    if (!userId) {
+      throw new InvalidCheckoutStateError("quota_pack_user_missing");
+    }
+  }
+
   if (session.payment_status === "unpaid") {
     return { completedAtomically: false, receiptManualReview: false };
   }
@@ -261,11 +286,11 @@ async function handleCheckoutCompleted(
     return { completedAtomically: false, receiptManualReview: false };
   }
 
-  if (session.mode === "payment" && !isScanPack) {
+  if (session.mode === "payment" && !isScanPack && !isQuotaPack) {
     throw new InvalidCheckoutStateError("payment_checkout_type_unknown");
   }
 
-  if (isScanPack && session.payment_status !== "paid") {
+  if ((isScanPack || isQuotaPack) && session.payment_status !== "paid") {
     throw new InvalidCheckoutStateError("pack_checkout_invalid");
   }
 
@@ -284,6 +309,18 @@ async function handleCheckoutCompleted(
       scanCredits: SCAN_PACK_SIZE,
       paymentStatus: "paid",
       fulfillmentContract: SCAN_PACK_FULFILLMENT_CONTRACT,
+    });
+    completedAtomically = true;
+  } else if (isQuotaPack && isBillingQuotaPackKey(quotaPack)) {
+    await completeStripeQuotaPackEvent({
+      eventId,
+      attemptToken,
+      userId,
+      checkoutSessionId: session.id,
+      pack: quotaPack,
+      quantity: BILLING_QUOTA_PACKS[quotaPack].quantity,
+      paymentStatus: "paid",
+      fulfillmentContract: BILLING_QUOTA_PACK_FULFILLMENT_CONTRACT,
     });
     completedAtomically = true;
   } else {
@@ -628,8 +665,11 @@ export async function POST(request: Request) {
         ? "legacy_checkout_unresolved"
         : error instanceof InvalidCheckoutStateError
           ? "invalid_checkout_state"
-          : error instanceof Error && error.message.includes("Conflicto")
-            ? "scan_pack_conflict"
+          : error instanceof Error &&
+              error.message.includes("pack de límites")
+            ? "quota_pack_conflict"
+            : error instanceof Error && error.message.includes("Conflicto")
+              ? "scan_pack_conflict"
             : "handler_failed";
     const failureResult = await markStripeEventFailed(
       event.id,

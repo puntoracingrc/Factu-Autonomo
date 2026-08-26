@@ -24,6 +24,7 @@ import { GoogleDriveAutoBackup } from "@/components/cloud/GoogleDriveAutoBackup"
 import { DataAccessEventReporter } from "@/components/security/DataAccessEventReporter";
 import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
 import { DemoModeBanner } from "@/components/demo/DemoModeBanner";
+import { UsageBanner } from "@/components/billing/UsageBanner";
 import { QuickToolsLauncher } from "@/components/documents/QuickToolsLauncher";
 import { ReferralCapture } from "@/components/referrals/ReferralCapture";
 import { ReferralRedeemOnLogin } from "@/components/referrals/ReferralRedeemOnLogin";
@@ -763,6 +764,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
           ) : null}
+          <UsageBanner />
           {workspaceLoading ? (
             <AppStartupMainContent
               pathname={pathname}

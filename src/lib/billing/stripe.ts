@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { getStripePriceIds } from "./config";
 import type { PaidPlanId } from "./plans";
+import type { BillingQuotaPackKey } from "./quotas";
 
 let stripeClient: Stripe | null = null;
 
@@ -46,4 +47,11 @@ export function planFromStripePriceId(priceId: string | null | undefined): PaidP
 
 export function scanPackPriceId(): string | null {
   return getStripePriceIds().scanPack ?? null;
+}
+
+export function quotaPackPriceId(pack: BillingQuotaPackKey): string | null {
+  const ids = getStripePriceIds();
+  if (pack === "documents_5") return ids.documentPack ?? null;
+  if (pack === "manual_expenses_10") return ids.manualExpensePack ?? null;
+  return ids.contactPack ?? null;
 }

@@ -162,6 +162,37 @@ describe("central business mutation route", () => {
     );
   });
 
+  it("bloquea una ficha nueva desde la ruta central si no queda cupo", async () => {
+    enableCanary();
+    const rpc = vi.fn();
+    const deps = dependencies({
+      getRpcClient: vi.fn(() => ({ rpc })),
+      reserveQuota: vi.fn(async () => ({
+        allowed: false as const,
+        block: {
+          code: "limit_reached" as const,
+          message: "Has alcanzado el límite de clientes.",
+          metric: "customers" as const,
+          used: 15,
+          included: 15,
+          effectiveLimit: 15,
+          creditBalance: 0,
+          capacityBonus: 0,
+          remaining: 0,
+          resetAt: null,
+        },
+      })),
+    });
+
+    const result = await request(deps);
+
+    expect(result.status).toBe(402);
+    expect(result.body).toMatchObject({
+      error: { code: "BILLING_QUOTA_LIMIT_REACHED" },
+    });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("rechaza payload grande, operacion invalida y conflicto de version", async () => {
     enableCanary();
     const deps = dependencies();

@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import {
   centralAuthorityPlanLoadingFailure,
   useCentralAuthorityPlanGate,
@@ -25,6 +26,7 @@ export function useCentralProductCreate(): {
     syncCentralBusinessEvents,
   } = useAppStore();
   const planGate = useCentralAuthorityPlanGate();
+  const { reserveQuota, commitQuota, releaseQuota } = useBilling();
   const userId = planGate.centralUserId;
 
   const createProduct = useCallback(
@@ -32,24 +34,47 @@ export function useCentralProductCreate(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      return createProductWithCentralCanary({
+      const productId = crypto.randomUUID();
+      const reservation = draft.hidden
+        ? null
+        : await reserveQuota({
+            metric: "products",
+            operationKey: `product:${productId}`,
+            subjectId: productId,
+          });
+      if (reservation && !reservation.allowed) {
+        return { ok: false as const, error: reservation.block.message };
+      }
+      const result = await createProductWithCentralCanary({
         userId,
         draft,
         dependencies: {
           getCurrentData,
           addProductFallback: addProduct,
           addProductDurably,
+          createId: () => productId,
           syncEventsBeforeWrite: userId
             ? () => syncCentralBusinessEvents(userId)
             : undefined,
         },
       });
+      if (!result.ok) {
+        if (reservation?.allowed) await releaseQuota(reservation);
+        return result;
+      }
+      if (reservation?.allowed) {
+        await commitQuota(reservation, result.product.id);
+      }
+      return result;
     },
     [
       addProduct,
       addProductDurably,
       getCurrentData,
       planGate.mode,
+      commitQuota,
+      releaseQuota,
+      reserveQuota,
       syncCentralBusinessEvents,
       userId,
     ],

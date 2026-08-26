@@ -11,8 +11,11 @@ describe("billing plans", () => {
   });
 
   it("limita el plan gratis", () => {
-    expect(PLANS.free.limits.maxDocumentsPerMonth).toBe(10);
+    expect(PLANS.free.limits.maxDocumentsPerMonth).toBe(15);
+    expect(PLANS.free.limits.maxManualExpensesPerMonth).toBe(10);
     expect(PLANS.free.limits.maxCustomers).toBe(15);
+    expect(PLANS.free.limits.maxSuppliers).toBe(15);
+    expect(PLANS.free.limits.maxProducts).toBe(10);
     expect(PLANS.free.limits.cloudSync).toBe(false);
     expect(PLANS.free.limits.maxCloudDevices).toBe(0);
     expect(PLANS.free.limits.databaseImport).toBe(false);

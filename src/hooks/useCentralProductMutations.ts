@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import {
   centralAuthorityPlanLoadingFailure,
   useCentralAuthorityPlanGate,
@@ -34,6 +35,8 @@ export function useCentralProductMutations(): {
     updateProductDurably,
   } = useAppStore();
   const planGate = useCentralAuthorityPlanGate();
+  const { commitQuota, releaseQuota, removeQuotaSubject, reserveQuota } =
+    useBilling();
   const userId = planGate.centralUserId;
 
   const commonDependencies = useMemo(
@@ -63,13 +66,44 @@ export function useCentralProductMutations(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      return updateProductWithCentralCanary({
+      const current = getCurrentData().products.find(
+        (candidate) => candidate.id === product.id,
+      );
+      const restoring = current?.hidden === true && product.hidden === false;
+      const archiving = current?.hidden !== true && product.hidden === true;
+      const reservation = restoring
+        ? await reserveQuota({
+            metric: "products",
+            operationKey: `product:${product.id}`,
+            subjectId: product.id,
+          })
+        : null;
+      if (reservation && !reservation.allowed) {
+        return { ok: false as const, error: reservation.block.message };
+      }
+      const result = await updateProductWithCentralCanary({
         userId,
         product,
         dependencies: commonDependencies,
       });
+      if (!result.ok) {
+        if (reservation?.allowed) await releaseQuota(reservation);
+        return result;
+      }
+      if (reservation?.allowed) await commitQuota(reservation, product.id);
+      if (archiving) await removeQuotaSubject("products", product.id);
+      return result;
     },
-    [commonDependencies, planGate.mode, userId],
+    [
+      commitQuota,
+      commonDependencies,
+      getCurrentData,
+      planGate.mode,
+      releaseQuota,
+      removeQuotaSubject,
+      reserveQuota,
+      userId,
+    ],
   );
 
   const deleteProduct = useCallback(
@@ -77,13 +111,17 @@ export function useCentralProductMutations(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      return deleteProductWithCentralCanary({
+      const result = await deleteProductWithCentralCanary({
         userId,
         productId,
         dependencies: commonDependencies,
       });
+      if (result.ok) {
+        await removeQuotaSubject("products", productId);
+      }
+      return result;
     },
-    [commonDependencies, planGate.mode, userId],
+    [commonDependencies, planGate.mode, removeQuotaSubject, userId],
   );
 
   const isCentralProduct = useCallback(

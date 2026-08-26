@@ -7,6 +7,16 @@ export interface ScannedExpenseDurableValue {
   supplier?: Supplier;
 }
 
+export function scannedExpenseBundleIds(operationId: string): {
+  expenseId: string;
+  supplierId: string;
+} {
+  return {
+    expenseId: `scanned-expense-${operationId}`,
+    supplierId: `scanned-supplier-${operationId}`,
+  };
+}
+
 export function buildScannedExpenseDurableTransition(input: {
   data: AppData;
   expense: Omit<Expense, "id" | "createdAt"> | Expense;
@@ -21,11 +31,12 @@ export function buildScannedExpenseDurableTransition(input: {
 
   const storedExpense = isStoredExpense(input.expense) ? input.expense : null;
   const updating = storedExpense !== null;
+  const ids = scannedExpenseBundleIds(operationId);
   const expenseId = storedExpense
     ? storedExpense.id
-    : `scanned-expense-${operationId}`;
+    : ids.expenseId;
   const supplierId = input.supplier
-    ? `scanned-supplier-${operationId}`
+    ? ids.supplierId
     : input.expense.supplierId;
   const existingExpenses = input.data.expenses.filter(
     (expense) => expense.id === expenseId,

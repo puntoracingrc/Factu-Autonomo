@@ -52,11 +52,14 @@ function validIsoTimestamp(value: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
 
-function providerSummaryExpenseId(operationId: string, rowIndex: number) {
+export function providerSummaryExpenseId(
+  operationId: string,
+  rowIndex: number,
+) {
   return `provider-summary-expense-${operationId}-${rowIndex}`;
 }
 
-function providerSummarySupplierId(operationId: string) {
+export function providerSummarySupplierId(operationId: string) {
   return `provider-summary-supplier-${operationId}`;
 }
 

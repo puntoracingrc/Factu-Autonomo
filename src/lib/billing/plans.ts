@@ -9,7 +9,9 @@ export type PaidPlanId = "pro" | "pro_plus";
 
 export interface PlanLimits {
   maxDocumentsPerMonth: number | null;
+  maxManualExpensesPerMonth: number | null;
   maxCustomers: number | null;
+  maxSuppliers: number | null;
   maxProducts: number | null;
   expenseScansPerMonth: number | null;
   expenseInbox: boolean;
@@ -48,8 +50,10 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     priceYearlyEur: 0,
     trialDays: 0,
     limits: {
-      maxDocumentsPerMonth: 10,
+      maxDocumentsPerMonth: 15,
+      maxManualExpensesPerMonth: 10,
       maxCustomers: 15,
+      maxSuppliers: 15,
       maxProducts: 10,
       expenseScansPerMonth: 0,
       expenseInbox: false,
@@ -77,7 +81,9 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     trialDays: TRIAL_DAYS,
     limits: {
       maxDocumentsPerMonth: null,
+      maxManualExpensesPerMonth: null,
       maxCustomers: null,
+      maxSuppliers: null,
       maxProducts: null,
       expenseScansPerMonth: 30,
       expenseInbox: true,
@@ -105,7 +111,9 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     trialDays: 0,
     limits: {
       maxDocumentsPerMonth: null,
+      maxManualExpensesPerMonth: null,
       maxCustomers: null,
+      maxSuppliers: null,
       maxProducts: null,
       expenseScansPerMonth: 30,
       expenseInbox: true,
@@ -133,7 +141,9 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     trialDays: 0,
     limits: {
       maxDocumentsPerMonth: null,
+      maxManualExpensesPerMonth: null,
       maxCustomers: null,
+      maxSuppliers: null,
       maxProducts: null,
       expenseScansPerMonth: 150,
       expenseInbox: true,

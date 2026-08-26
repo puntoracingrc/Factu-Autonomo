@@ -34,9 +34,11 @@ import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
-import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
+import {
+  useBilling,
+  type BillingQuotaReservationHandle,
+} from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { useCentralQuoteCreate } from "@/hooks/useCentralQuoteCreate";
@@ -54,6 +56,7 @@ import {
   unitPriceFromGross,
 } from "@/lib/calculations";
 import { isVatExempt, zeroIvaItems } from "@/lib/vat-regime";
+import { isQuotaCountedDocument } from "@/lib/billing/quotas";
 import {
   applyConfirmedDocumentIvaToItems,
   applyLineMeasurementDraft,
@@ -490,15 +493,14 @@ export function DocumentForm({
   const centralPlanGate = useCentralAuthorityPlanGate();
   const {
     billingEnabled,
-    checkCanCreateDocument,
+    commitQuota,
     isPro,
-    recordDocumentCreated,
+    releaseQuota,
+    reserveQuota,
   } = useBilling();
   const { cloudEnabled, user: cloudUser, syncNow } = useCloudSync();
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const centralCanaryEnabled = isCentralInvoiceAuthorityFormCanaryEnabled();
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [saveAction, setSaveAction] = useState<"idle" | "save" | "save-pdf">(
     "idle",
   );
@@ -1712,15 +1714,36 @@ export function DocumentForm({
 
     setSaveAction(download ? "save-pdf" : "save");
 
-    if (!existing) {
-      const gate = checkCanCreateDocument(data.customers.length);
-      if (!gate.allowed) {
-        setUpgradeReason(gate.reason);
-        setUpgradeOpen(true);
+    const pendingDocumentId = existing?.id ?? crypto.randomUUID();
+    const becomesDefinitive =
+      resolvedStatus !== "borrador" &&
+      !existing?.rectification &&
+      !(type === "recibo" && Boolean(existing?.sourceDocumentId));
+    const needsDocumentQuota =
+      becomesDefinitive && !(existing && isQuotaCountedDocument(existing));
+    let documentQuotaReservation: BillingQuotaReservationHandle | null = null;
+    if (needsDocumentQuota) {
+      const quota = await reserveQuota({
+        metric: "documents",
+        operationKey: `document:${pendingDocumentId}:definitive`,
+        subjectId: pendingDocumentId,
+      });
+      if (!quota.allowed) {
         setSaveAction("idle");
         return;
       }
+      documentQuotaReservation = {
+        claimId: quota.claimId,
+        metric: quota.metric,
+      };
     }
+
+    const releaseDocumentQuota = async () => {
+      if (documentQuotaReservation) {
+        await releaseQuota(documentQuotaReservation);
+        documentQuotaReservation = null;
+      }
+    };
 
     const requiresFreshCloudBeforeEmission =
       resolvedStatus !== "borrador" &&
@@ -1730,6 +1753,7 @@ export function DocumentForm({
     if (requiresFreshCloudBeforeEmission) {
       const synced = await syncNow();
       if (!synced) {
+        await releaseDocumentQuota();
         setSaveAction("idle");
         setFormError(
           "No se pudo comprobar la nube antes de emitir. Abre Cuenta > Problemas de sincronización y compara la copia de la nube antes de continuar para evitar duplicar la numeración.",
@@ -1766,6 +1790,7 @@ export function DocumentForm({
       );
 
       if (!customerResult.ok) {
+        await releaseDocumentQuota();
         setFormError(customerResult.error);
         setSaveAction("idle");
         return;
@@ -1801,6 +1826,7 @@ export function DocumentForm({
         type,
       );
       if (!emissionCheck.ok) {
+        await releaseDocumentQuota();
         setFormError(
           emissionCheck.message ?? "Revisa los datos del documento.",
         );
@@ -1817,6 +1843,7 @@ export function DocumentForm({
         resolvedStatus,
       });
     if (centralDocumentEligible && centralPlanGate.mode === "loading") {
+      await releaseDocumentQuota();
       setSaveAction("idle");
       setFormError(centralAuthorityPlanLoadingFailure().error);
       return;
@@ -1830,7 +1857,7 @@ export function DocumentForm({
 
     let saved: Document;
     if (centralPolicy?.shouldUseCentralAuthority) {
-      const localDocumentId = existing?.id ?? crypto.randomUUID();
+      const localDocumentId = pendingDocumentId;
       const issuedAt = new Date().toISOString();
       const centralRequest =
         buildCentralInvoiceAuthorityDocumentFormIssueRequest({
@@ -1878,6 +1905,15 @@ export function DocumentForm({
       );
 
       if (!centralSave.ok) {
+        if (
+          documentQuotaReservation &&
+          centralSave.code === "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING"
+        ) {
+          await commitQuota(documentQuotaReservation, localDocumentId);
+          documentQuotaReservation = null;
+        } else {
+          await releaseDocumentQuota();
+        }
         setSaveAction("idle");
         setFormError(centralSave.message);
         return;
@@ -1893,6 +1929,7 @@ export function DocumentForm({
       try {
         saved = await updateDocument(saved);
       } catch (error) {
+        await releaseDocumentQuota();
         setSaveAction("idle");
         setFormError(
           error instanceof DocumentIntegrityError
@@ -1902,20 +1939,38 @@ export function DocumentForm({
         return;
       }
     } else if (type === "presupuesto") {
-      const quoteSave = await createQuote({
-        ...payload,
-        type: "presupuesto",
-      });
+      const quoteSave = await createQuote(
+        {
+          ...payload,
+          type: "presupuesto",
+        },
+        { id: pendingDocumentId },
+      );
       if (!quoteSave.ok) {
+        await releaseDocumentQuota();
         setSaveAction("idle");
         setFormError(quoteSave.error);
         return;
       }
       saved = quoteSave.document;
     } else {
-      saved = addDocument(payload);
+      try {
+        saved = addDocument(payload);
+      } catch (error) {
+        await releaseDocumentQuota();
+        setSaveAction("idle");
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo guardar el documento.",
+        );
+        return;
+      }
     }
-    if (!existing) recordDocumentCreated();
+    if (documentQuotaReservation) {
+      await commitQuota(documentQuotaReservation, saved.id);
+      documentQuotaReservation = null;
+    }
 
     saved = attachIssuerSnapshot(saved, effectiveDocumentProfile);
 
@@ -2872,11 +2927,6 @@ export function DocumentForm({
         </div>
       </div>
 
-      <UpgradeModal
-        open={upgradeOpen}
-        onClose={() => setUpgradeOpen(false)}
-        reason={upgradeReason}
-      />
     </div>
   );
 }

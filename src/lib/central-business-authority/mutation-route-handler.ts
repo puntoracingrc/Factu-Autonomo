@@ -15,6 +15,10 @@ import {
   CentralBusinessMutationServiceError,
   mutateCentralBusinessEntity,
 } from "./mutation-service";
+import type {
+  CentralQuotaDecision,
+  CentralQuotaReservation,
+} from "@/lib/billing/central-quota-enforcement";
 
 assertServerOnlyModule();
 
@@ -66,6 +70,22 @@ export interface CentralBusinessMutationRouteDependencies {
     | { allowed: false; status: number; code: string; message: string }
   >;
   getRpcClient(): CentralBusinessMutationRpcClient | null;
+  reserveQuota?(input: {
+    userId: string;
+    mutation: MutationBody;
+  }): Promise<CentralQuotaDecision>;
+  commitQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
+  releaseQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
+  releaseDeletedQuota?(input: {
+    userId: string;
+    mutation: MutationBody;
+  }): Promise<void>;
 }
 
 interface MutationBody {
@@ -262,6 +282,51 @@ export function createCentralBusinessMutationRouteHandler(
         });
       }
 
+      let quotaReservations: CentralQuotaReservation[] = [];
+      if (dependencies.reserveQuota) {
+        let decision: CentralQuotaDecision;
+        try {
+          decision = await dependencies.reserveQuota({
+            userId: auth.userId,
+            mutation: body,
+          });
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_UNAVAILABLE",
+              message:
+                "No se pudo confirmar el límite con el servidor. No se guardó ningún cambio.",
+            },
+          });
+        }
+        if (!decision.allowed) {
+          return json(402, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_LIMIT_REACHED",
+              message: decision.block.message,
+              quota: decision.block,
+            },
+          });
+        }
+        quotaReservations = decision.reservations;
+      }
+
+      const releaseQuota = async () => {
+        if (!dependencies.releaseQuota || quotaReservations.length === 0) {
+          return;
+        }
+        try {
+          await dependencies.releaseQuota({
+            userId: auth.userId,
+            reservations: quotaReservations,
+          });
+        } catch {
+          // The reservation lease expires automatically if cleanup is unavailable.
+        }
+      };
+
       try {
         const result = await mutateCentralBusinessEntity({
           mutation: {
@@ -277,6 +342,27 @@ export function createCentralBusinessMutationRouteHandler(
           userEmail: auth.userEmail,
           activation,
         });
+        try {
+          if (dependencies.commitQuota && quotaReservations.length > 0) {
+            await dependencies.commitQuota({
+              userId: auth.userId,
+              reservations: quotaReservations,
+            });
+          }
+          await dependencies.releaseDeletedQuota?.({
+            userId: auth.userId,
+            mutation: body,
+          });
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_FINALIZATION_PENDING",
+              message:
+                "El cambio quedó confirmado en el servidor central, pero falta actualizar su límite. Reintenta la sincronización; no repitas la ficha.",
+            },
+          });
+        }
         return json(200, {
           ok: true,
           schema: CENTRAL_BUSINESS_MUTATION_ROUTE,
@@ -284,6 +370,7 @@ export function createCentralBusinessMutationRouteHandler(
           result: result.rpcResult,
         });
       } catch (error) {
+        await releaseQuota();
         if (error instanceof CentralBusinessMutationCommandError) {
           return json(400, {
             ok: false,

@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import {
   centralAuthorityPlanLoadingFailure,
   useCentralAuthorityPlanGate,
@@ -34,6 +35,7 @@ export function useCentralSupplierMutations(): {
     updateSupplierDurably,
   } = useAppStore();
   const planGate = useCentralAuthorityPlanGate();
+  const { removeQuotaSubject } = useBilling();
   const userId = planGate.centralUserId;
 
   const commonDependencies = useMemo(
@@ -77,13 +79,17 @@ export function useCentralSupplierMutations(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      return deleteSupplierWithCentralCanary({
+      const result = await deleteSupplierWithCentralCanary({
         userId,
         supplierId,
         dependencies: commonDependencies,
       });
+      if (result.ok) {
+        await removeQuotaSubject("suppliers", supplierId);
+      }
+      return result;
     },
-    [commonDependencies, planGate.mode, userId],
+    [commonDependencies, planGate.mode, removeQuotaSubject, userId],
   );
 
   const isCentralSupplier = useCallback(

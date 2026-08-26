@@ -87,8 +87,10 @@ const TRUST_POINTS = [
 
 const FREE_FEATURES = [
   "Cuenta gratuita verificada, sin tarjeta",
-  "Hasta 10 documentos al mes",
-  "Hasta 15 clientes",
+  "Hasta 15 documentos definitivos al mes; los borradores no cuentan",
+  "Hasta 10 gastos manuales al mes",
+  "Hasta 15 clientes y 15 proveedores",
+  "Hasta 10 productos o servicios",
   "Facturas, presupuestos y recibos en PDF",
   "Información VeriFactu/SIF (registro y QR desactivados)",
   "Logo personalizado en PDF",

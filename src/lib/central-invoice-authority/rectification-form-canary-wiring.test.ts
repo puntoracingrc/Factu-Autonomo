@@ -5,7 +5,7 @@ const form = readFileSync("src/components/forms/RectificativaForm.tsx", "utf8");
 
 function saveBranch(): string {
   const start = form.indexOf("const payload = buildRectificativaPayload");
-  const end = form.indexOf("recordDocumentCreated();", start);
+  const end = form.indexOf("if (isDraft)", start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return form.slice(start, end);

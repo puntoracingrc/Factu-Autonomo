@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import {
   centralAuthorityPlanLoadingFailure,
   useCentralAuthorityPlanGate,
@@ -28,6 +29,7 @@ export function useCentralCustomerMutations(): {
     updateCustomerDurably,
   } = useAppStore();
   const planGate = useCentralAuthorityPlanGate();
+  const { removeQuotaSubject } = useBilling();
   const userId = planGate.centralUserId;
 
   const baseDependencies = useMemo(
@@ -84,7 +86,7 @@ export function useCentralCustomerMutations(): {
       try {
         const { deleteCustomerWithCentralCanary } =
           await import("@/lib/central-business-authority/customer-mutation-canary");
-        return await deleteCustomerWithCentralCanary({
+        const result = await deleteCustomerWithCentralCanary({
           userId,
           customerId,
           dependencies: {
@@ -94,6 +96,10 @@ export function useCentralCustomerMutations(): {
               : undefined,
           },
         });
+        if (result.ok) {
+          await removeQuotaSubject("customers", customerId);
+        }
+        return result;
       } catch {
         return {
           ok: false as const,
@@ -102,7 +108,13 @@ export function useCentralCustomerMutations(): {
         };
       }
     },
-    [baseDependencies, planGate.mode, syncCentralBusinessEvents, userId],
+    [
+      baseDependencies,
+      planGate.mode,
+      removeQuotaSubject,
+      syncCentralBusinessEvents,
+      userId,
+    ],
   );
 
   const isCentralCustomer = useCallback(

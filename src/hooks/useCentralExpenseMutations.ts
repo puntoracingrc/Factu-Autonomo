@@ -4,6 +4,10 @@ import { useCallback, useMemo } from "react";
 
 import { useAppStore } from "@/context/AppStore";
 import {
+  useBilling,
+  type BillingQuotaReservationHandle,
+} from "@/context/BillingContext";
+import {
   centralAuthorityPlanLoadingFailure,
   useCentralAuthorityPlanGate,
 } from "@/hooks/useCentralAuthorityPlanGate";
@@ -23,13 +27,20 @@ import {
   prepareCentralFixedExpenseBundle,
   prepareCentralProviderSummaryExpenseBundle,
   prepareCentralScannedExpenseBundle,
+  providerSummarySupplierId,
   type ProviderSummaryExpenseBundleValue,
 } from "@/lib/central-business-authority/expense-bundle-preparation";
 import type { CentralBusinessEntityMutationResult } from "@/lib/central-business-authority/entity-mutation-canary";
-import type { FixedExpenseBundleValue } from "@/lib/app-data-durability";
+import {
+  fixedExpenseBundleIds,
+  type FixedExpenseBundleValue,
+} from "@/lib/app-data-durability";
 import type { ProviderInvoiceSummaryRow } from "@/lib/provider-summary-expenses";
 import type { RecurringExpenseDraft } from "@/lib/recurring-expenses";
-import type { ScannedExpenseDurableValue } from "@/lib/scanned-expense-durability";
+import {
+  scannedExpenseBundleIds,
+  type ScannedExpenseDurableValue,
+} from "@/lib/scanned-expense-durability";
 import type { Expense, Supplier } from "@/lib/types";
 
 type ExpenseDraft = Omit<Expense, "id" | "createdAt">;
@@ -86,6 +97,7 @@ export function useCentralExpenseMutations(): {
     updateExpenseDurably,
   } = useAppStore();
   const planGate = useCentralAuthorityPlanGate();
+  const { reserveQuota, commitQuota, releaseQuota } = useBilling();
   const userId = planGate.centralUserId;
 
   const syncEventsBeforeWrite = useMemo(
@@ -98,22 +110,53 @@ export function useCentralExpenseMutations(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      return createExpenseWithCentralCanary({
+      const baseline = getCurrentData();
+      const existingIds = new Set(baseline.expenses.map((entry) => entry.id));
+      const expenseId = crypto.randomUUID();
+      let reservation: BillingQuotaReservationHandle | null = null;
+      if (expense.origin === "manual") {
+        const quota = await reserveQuota({
+          metric: "manual_expenses",
+          operationKey: `manual-expense:${expenseId}`,
+          subjectId: expenseId,
+        });
+        if (!quota.allowed) {
+          return { ok: false as const, error: quota.block.message };
+        }
+        reservation = { claimId: quota.claimId, metric: quota.metric };
+      }
+      const result = await createExpenseWithCentralCanary({
         userId,
         expense,
         dependencies: {
           getCurrentData,
           addExpenseFallback: addExpense,
           addExpenseDurably,
+          createId: () => expenseId,
           syncEventsBeforeWrite,
         },
       });
+      if (!result.ok) {
+        if (reservation) await releaseQuota(reservation);
+        return result;
+      }
+      if (reservation) {
+        const created =
+          result.expense ??
+          getCurrentData().expenses.find((entry) => !existingIds.has(entry.id));
+        if (created) await commitQuota(reservation, created.id);
+        else await releaseQuota(reservation);
+      }
+      return result;
     },
     [
       addExpense,
       addExpenseDurably,
+      commitQuota,
       getCurrentData,
       planGate.mode,
+      releaseQuota,
+      reserveQuota,
       syncEventsBeforeWrite,
       userId,
     ],
@@ -171,7 +214,44 @@ export function useCentralExpenseMutations(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      return saveCentralExpenseBundleWithCanary({
+      const ids = scannedExpenseBundleIds(options.operationId);
+      const reservations: Array<{
+        handle: BillingQuotaReservationHandle;
+        kind: "expense" | "supplier";
+      }> = [];
+      if (!("id" in expense) && expense.origin === "manual") {
+        const quota = await reserveQuota({
+          metric: "manual_expenses",
+          operationKey: `manual-expense:${options.operationId}`,
+          subjectId: ids.expenseId,
+        });
+        if (!quota.allowed) {
+          return { ok: false as const, error: quota.block.message };
+        }
+        reservations.push({
+          handle: { claimId: quota.claimId, metric: quota.metric },
+          kind: "expense",
+        });
+      }
+      if (options.supplier) {
+        const quota = await reserveQuota({
+          metric: "suppliers",
+          operationKey: `supplier:${options.operationId}`,
+          subjectId: ids.supplierId,
+          source: "automatic_supplier",
+        });
+        if (!quota.allowed) {
+          await Promise.all(
+            reservations.map(({ handle }) => releaseQuota(handle)),
+          );
+          return { ok: false as const, error: quota.block.message };
+        }
+        reservations.push({
+          handle: { claimId: quota.claimId, metric: quota.metric },
+          kind: "supplier",
+        });
+      }
+      const result = await saveCentralExpenseBundleWithCanary({
         userId,
         operationId: options.operationId,
         dependencies: {
@@ -194,10 +274,28 @@ export function useCentralExpenseMutations(): {
             }),
         },
       });
+      if (!result.ok) {
+        await Promise.all(
+          reservations.map(({ handle }) => releaseQuota(handle)),
+        );
+        return result;
+      }
+      for (const reservation of reservations) {
+        const subject =
+          reservation.kind === "expense"
+            ? result.local.value.expense
+            : result.local.value.supplier;
+        if (subject) await commitQuota(reservation.handle, subject.id);
+        else await releaseQuota(reservation.handle);
+      }
+      return result;
     },
     [
+      commitQuota,
       getCurrentData,
       planGate.mode,
+      releaseQuota,
+      reserveQuota,
       saveScannedExpenseDurablyFallback,
       syncEventsBeforeWrite,
       userId,
@@ -205,15 +303,52 @@ export function useCentralExpenseMutations(): {
   );
 
   const saveFixedExpenseWithRecurringTemplate = useCallback(
-    (
+    async (
       expense: DurableExpense,
       item: RecurringExpenseDraft,
       options: DurableExpenseSaveOptions,
     ) => {
       if (planGate.mode === "loading") {
-        return Promise.resolve(centralAuthorityPlanLoadingFailure());
+        return centralAuthorityPlanLoadingFailure();
       }
-      return saveCentralExpenseBundleWithCanary({
+      const reservations: Array<{
+        handle: BillingQuotaReservationHandle;
+        kind: "expense" | "supplier";
+      }> = [];
+      const ids = fixedExpenseBundleIds(options.operationId);
+      if (!("id" in expense) && expense.origin === "manual") {
+        const quota = await reserveQuota({
+          metric: "manual_expenses",
+          operationKey: `manual-expense:${options.operationId}`,
+          subjectId: ids.expenseId,
+        });
+        if (!quota.allowed) {
+          return { ok: false as const, error: quota.block.message };
+        }
+        reservations.push({
+          handle: { claimId: quota.claimId, metric: quota.metric },
+          kind: "expense",
+        });
+      }
+      if (options.supplier) {
+        const quota = await reserveQuota({
+          metric: "suppliers",
+          operationKey: `supplier:${options.operationId}`,
+          subjectId: ids.supplierId,
+          source: "automatic_supplier",
+        });
+        if (!quota.allowed) {
+          await Promise.all(
+            reservations.map(({ handle }) => releaseQuota(handle)),
+          );
+          return { ok: false as const, error: quota.block.message };
+        }
+        reservations.push({
+          handle: { claimId: quota.claimId, metric: quota.metric },
+          kind: "supplier",
+        });
+      }
+      const result = await saveCentralExpenseBundleWithCanary({
         userId,
         operationId: options.operationId,
         dependencies: {
@@ -243,10 +378,28 @@ export function useCentralExpenseMutations(): {
             }),
         },
       });
+      if (!result.ok) {
+        await Promise.all(
+          reservations.map(({ handle }) => releaseQuota(handle)),
+        );
+        return result;
+      }
+      for (const reservation of reservations) {
+        const subject =
+          reservation.kind === "expense"
+            ? result.local.value.expense
+            : result.local.value.supplier;
+        if (subject) await commitQuota(reservation.handle, subject.id);
+        else await releaseQuota(reservation.handle);
+      }
+      return result;
     },
     [
+      commitQuota,
       getCurrentData,
       planGate.mode,
+      releaseQuota,
+      reserveQuota,
       saveFixedExpenseWithRecurringTemplateFallback,
       syncEventsBeforeWrite,
       userId,
@@ -254,9 +407,22 @@ export function useCentralExpenseMutations(): {
   );
 
   const saveProviderSummaryExpenses = useCallback(
-    (input: ProviderSummaryExpenseSaveInput) => {
+    async (input: ProviderSummaryExpenseSaveInput) => {
       if (planGate.mode === "loading") {
-        return Promise.resolve(centralAuthorityPlanLoadingFailure());
+        return centralAuthorityPlanLoadingFailure();
+      }
+      let supplierReservation: BillingQuotaReservationHandle | null = null;
+      if (input.supplier) {
+        const quota = await reserveQuota({
+          metric: "suppliers",
+          operationKey: `supplier:${input.operationId}`,
+          subjectId: providerSummarySupplierId(input.operationId),
+          source: "automatic_supplier",
+        });
+        if (!quota.allowed) {
+          return { ok: false as const, error: quota.block.message };
+        }
+        supplierReservation = { claimId: quota.claimId, metric: quota.metric };
       }
       const prepare = ({
         data,
@@ -276,7 +442,7 @@ export function useCentralExpenseMutations(): {
           fileName: input.fileName,
         });
 
-      return saveCentralExpenseBundleWithCanary({
+      const result = await saveCentralExpenseBundleWithCanary({
         userId,
         operationId: input.operationId,
         dependencies: {
@@ -297,11 +463,26 @@ export function useCentralExpenseMutations(): {
             commitPreparedAppDataDurably(expected, transition),
         },
       });
+      if (!result.ok) {
+        if (supplierReservation) await releaseQuota(supplierReservation);
+        return result;
+      }
+      if (supplierReservation) {
+        if (result.local.value.supplier) {
+          await commitQuota(supplierReservation, result.local.value.supplier.id);
+        } else {
+          await releaseQuota(supplierReservation);
+        }
+      }
+      return result;
     },
     [
+      commitQuota,
       commitPreparedAppDataDurably,
       getCurrentData,
       planGate.mode,
+      releaseQuota,
+      reserveQuota,
       syncEventsBeforeWrite,
       userId,
     ],

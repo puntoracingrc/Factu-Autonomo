@@ -1,4 +1,8 @@
 import type Stripe from "stripe";
+import {
+  BILLING_QUOTA_PACKS,
+  isBillingQuotaPackKey,
+} from "./quotas";
 import { createHash } from "node:crypto";
 import { APP_BRAND_NAME } from "../brand";
 import { sendEmail } from "../email/send";
@@ -185,10 +189,14 @@ export function receiptFromCheckoutSession(
   const amountCents = session.amount_total;
   if (amountCents == null) return null;
 
+  const quotaPack = session.metadata?.quota_pack;
   const description =
     session.metadata?.checkout_type === "scan_pack"
       ? "Pack de 10 escaneos extra"
-      : `${APP_BRAND_NAME} Pro`;
+      : session.metadata?.checkout_type === "quota_pack" &&
+          isBillingQuotaPackKey(quotaPack)
+        ? BILLING_QUOTA_PACKS[quotaPack].label
+        : `${APP_BRAND_NAME} Pro`;
 
   const customerEmail =
     session.customer_details?.email?.trim() ||

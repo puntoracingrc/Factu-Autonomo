@@ -5,7 +5,7 @@ const form = readFileSync("src/components/forms/DocumentForm.tsx", "utf8");
 
 function creationBranch(): string {
   const start = form.indexOf("const centralDocumentEligible");
-  const end = form.indexOf("recordDocumentCreated();", start);
+  const end = form.indexOf("saved = attachIssuerSnapshot", start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return form.slice(start, end);
@@ -44,7 +44,10 @@ describe("DocumentForm central authority canary wiring", () => {
     expect(branch).toContain(
       "shouldUseCentralInvoiceAuthorityDocumentFormCanary",
     );
-    expect(branch).toContain("crypto.randomUUID()");
+    expect(form).toContain(
+      "const pendingDocumentId = existing?.id ?? crypto.randomUUID()",
+    );
+    expect(branch).toContain("const localDocumentId = pendingDocumentId");
     expect(branch).toContain(
       "buildCentralInvoiceAuthorityDocumentFormIssueRequest",
     );

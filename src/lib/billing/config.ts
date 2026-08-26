@@ -21,6 +21,9 @@ export function getStripePriceIds(): {
   proPlusMonthly: string | undefined;
   proPlusYearly: string | undefined;
   scanPack: string | undefined;
+  documentPack: string | undefined;
+  manualExpensePack: string | undefined;
+  contactPack: string | undefined;
 } {
   return {
     monthly: process.env.STRIPE_PRICE_MONTHLY,
@@ -28,6 +31,9 @@ export function getStripePriceIds(): {
     proPlusMonthly: process.env.STRIPE_PRICE_PRO_PLUS_MONTHLY,
     proPlusYearly: process.env.STRIPE_PRICE_PRO_PLUS_YEARLY,
     scanPack: process.env.STRIPE_PRICE_SCAN_PACK,
+    documentPack: process.env.STRIPE_PRICE_DOCUMENT_PACK,
+    manualExpensePack: process.env.STRIPE_PRICE_EXPENSE_PACK,
+    contactPack: process.env.STRIPE_PRICE_CONTACT_PACK,
   };
 }
 
