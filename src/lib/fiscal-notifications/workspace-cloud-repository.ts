@@ -18,6 +18,7 @@ import type { SyncChange } from "@/lib/cloud/diff";
 
 const TABLE = "workspace_auxiliary_entities";
 const ENTITY_TYPE = "fiscal_notifications_workspace";
+const MAX_CAS_ATTEMPTS = 3;
 
 interface WorkspaceRow {
   entity_type: string;
@@ -37,6 +38,46 @@ interface WorkspaceWritePlan {
   workspace: Readonly<FiscalNotificationsWorkspaceStorageEnvelopeV2>;
   updatedAt: string;
   previous?: WorkspaceRow;
+}
+
+function timestampMilliseconds(value: string): number | null {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function timestampsReferToSameInstant(left: string, right: string): boolean {
+  const leftMilliseconds = timestampMilliseconds(left);
+  const rightMilliseconds = timestampMilliseconds(right);
+  return (
+    leftMilliseconds !== null &&
+    rightMilliseconds !== null &&
+    leftMilliseconds === rightMilliseconds
+  );
+}
+
+function nextWorkspaceUpdatedAt(
+  current: string,
+  preferred: string,
+  fallback: string,
+): string {
+  const currentMilliseconds = timestampMilliseconds(current);
+  const preferredMilliseconds = timestampMilliseconds(preferred);
+  if (
+    preferredMilliseconds !== null &&
+    (currentMilliseconds === null ||
+      preferredMilliseconds > currentMilliseconds)
+  ) {
+    return new Date(preferredMilliseconds).toISOString();
+  }
+
+  const fallbackMilliseconds = timestampMilliseconds(fallback);
+  return new Date(
+    Math.max(
+      Date.now(),
+      fallbackMilliseconds ?? 0,
+      currentMilliseconds === null ? 0 : currentMilliseconds + 1,
+    ),
+  ).toISOString();
 }
 
 function workspaceEnvelope(
@@ -128,7 +169,7 @@ function rowMatches(
     row.entity_type === ENTITY_TYPE &&
       row.entity_id === FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2 &&
       !row.deleted &&
-      row.updated_at === plan.updatedAt &&
+      timestampsReferToSameInstant(row.updated_at, plan.updatedAt) &&
       parsed &&
       stableStringifySnapshot(parsed) ===
         stableStringifySnapshot(plan.workspace),
@@ -190,28 +231,68 @@ async function writeCas(
     }
     plan = {
       ...plan,
-      updatedAt: plan.updatedAt > current.updated_at ? plan.updatedAt : syncedAt,
+      updatedAt: nextWorkspaceUpdatedAt(
+        current.updated_at,
+        plan.updatedAt,
+        syncedAt,
+      ),
       previous: current,
     };
   }
 
-  const previous = plan.previous;
-  if (!previous) return;
-  const updated = await supabase
-    .from(TABLE)
-    .update(rowForWrite(userId, plan))
-    .eq("user_id", userId)
-    .eq("entity_type", ENTITY_TYPE)
-    .eq("entity_id", previous.entity_id)
-    .eq("deleted", false)
-    .eq("updated_at", previous.updated_at)
-    .select("entity_type, entity_id, payload, deleted, updated_at");
-  if (updated.error) throw updated.error;
-  if (
-    updated.data?.length !== 1 ||
-    !rowMatches(updated.data[0] as WorkspaceRow, plan, expectedOwnerScope)
-  ) {
-    throw new Error("El expediente fiscal remoto cambio antes de confirmar");
+  for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
+    const previous = plan.previous;
+    if (!previous) return;
+    const updated = await supabase
+      .from(TABLE)
+      .update(rowForWrite(userId, plan))
+      .eq("user_id", userId)
+      .eq("entity_type", ENTITY_TYPE)
+      .eq("entity_id", previous.entity_id)
+      .eq("deleted", false)
+      .eq("updated_at", previous.updated_at)
+      .select("entity_type, entity_id, payload, deleted, updated_at");
+    if (updated.error) throw updated.error;
+    if (
+      updated.data?.length === 1 &&
+      rowMatches(updated.data[0] as WorkspaceRow, plan, expectedOwnerScope)
+    ) {
+      return;
+    }
+
+    const currentRows = await pullRows(userId);
+    validateRows(currentRows, expectedOwnerScope);
+    const current = currentRows[0];
+    if (!current) {
+      throw new Error("El expediente fiscal remoto desaparecio al confirmar");
+    }
+    const currentWorkspace = workspaceEnvelope(
+      current.payload,
+      expectedOwnerScope,
+    )!;
+    const comparison = compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+      currentWorkspace,
+      plan.workspace,
+      expectedOwnerScope,
+    );
+    if (comparison === "EQUAL" || comparison === "CURRENT_ADVANCES") return;
+    if (comparison !== "INCOMING_ADVANCES") {
+      throw fiscalWorkspaceDivergedSyncError();
+    }
+    if (attempt === MAX_CAS_ATTEMPTS - 1) {
+      throw new Error(
+        "El expediente fiscal remoto volvio a cambiar antes de confirmar",
+      );
+    }
+    plan = {
+      ...plan,
+      updatedAt: nextWorkspaceUpdatedAt(
+        current.updated_at,
+        plan.updatedAt,
+        syncedAt,
+      ),
+      previous: current,
+    };
   }
 }
 
@@ -280,8 +361,11 @@ export async function pushFiscalNotificationsWorkspaceChanges(
       userId,
       {
         workspace: change.payload,
-        updatedAt:
-          change.updatedAt > previous.updated_at ? change.updatedAt : syncedAt,
+        updatedAt: nextWorkspaceUpdatedAt(
+          previous.updated_at,
+          change.updatedAt,
+          syncedAt,
+        ),
         previous,
       },
       expectedOwnerScope,
@@ -301,8 +385,11 @@ export async function pushFiscalNotificationsWorkspaceChanges(
       userId,
       {
         workspace: change.payload,
-        updatedAt:
-          change.updatedAt > previous.updated_at ? change.updatedAt : syncedAt,
+        updatedAt: nextWorkspaceUpdatedAt(
+          previous.updated_at,
+          change.updatedAt,
+          syncedAt,
+        ),
         previous,
       },
       expectedOwnerScope,
