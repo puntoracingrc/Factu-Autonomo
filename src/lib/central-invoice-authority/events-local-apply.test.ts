@@ -55,7 +55,9 @@ function document(overrides: Partial<Document> = {}): Document {
 }
 
 function jsonValue(value: unknown): CentralInvoiceAuthorityEventsClientJson {
-  return JSON.parse(JSON.stringify(value)) as CentralInvoiceAuthorityEventsClientJson;
+  return JSON.parse(
+    JSON.stringify(value),
+  ) as CentralInvoiceAuthorityEventsClientJson;
 }
 
 function event(
@@ -317,7 +319,9 @@ describe("central invoice authority local event apply", () => {
       },
     ]);
     expect(result.documents).toHaveLength(2);
-    expect(result.documents.find((doc) => doc.id === original.id)).toMatchObject({
+    expect(
+      result.documents.find((doc) => doc.id === original.id),
+    ).toMatchObject({
       status: "rectificada",
       rectifiedById: "central-rectification-1",
       updatedAt: "2026-07-27T12:01:00.000Z",
@@ -404,8 +408,12 @@ describe("central invoice authority local event apply", () => {
       paymentStatus: "paid",
       status: "pagado",
       paidAt: "2026-08-04T12:00:00.000Z",
-      documentSnapshot: { number: "F-2026-0001" } as unknown as Document["documentSnapshot"],
-      pdfSnapshot: { number: "F-2026-0001" } as unknown as Document["pdfSnapshot"],
+      documentSnapshot: {
+        number: "F-2026-0001",
+      } as unknown as Document["documentSnapshot"],
+      pdfSnapshot: {
+        number: "F-2026-0001",
+      } as unknown as Document["pdfSnapshot"],
       centralInvoiceAuthority: {
         schemaVersion: 1,
         source: "central_invoice_authority",
@@ -455,6 +463,56 @@ describe("central invoice authority local event apply", () => {
     expect(result.documents[0]?.sourceQuoteNumber).toBeUndefined();
     expect(result.documents[0]?.documentSnapshot).toBe(local.documentSnapshot);
     expect(result.documents[0]?.pdfSnapshot).toBe(local.pdfSnapshot);
+  });
+
+  it("asigna y reemplaza el presupuesto recibido desde otro dispositivo", () => {
+    const local = document({
+      sourceQuoteDocumentId: "quote-old",
+      sourceQuoteNumber: "P-2026-0006",
+      centralInvoiceAuthority: {
+        schemaVersion: 1,
+        source: "central_invoice_authority",
+        serverDocumentId: "server-document-1",
+        identityId: "identity-1",
+        outboxEventId: "event-1",
+        eventType: "invoice_issued",
+        fullNumber: "F-2026-0001",
+        sequence: 1,
+        documentVersion: 1,
+        receivedAt: "2026-08-04T12:00:00.000Z",
+      },
+    });
+    const reassigned = document({
+      sourceQuoteDocumentId: "quote-new",
+      sourceQuoteNumber: "P-2026-0007",
+      updatedAt: "2026-08-26T08:00:00.000Z",
+    });
+
+    const result = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+      documents: [local],
+      profile,
+      events: [
+        event(
+          {
+            eventId: "event-link-2",
+            eventType: "invoice_relationship_updated",
+            documentVersion: 2,
+          },
+          reassigned,
+        ),
+      ],
+      receivedAt: "2026-08-26T08:00:01.000Z",
+    });
+
+    expect(result.applied[0]?.action).toBe("relationship_updated");
+    expect(result.documents[0]).toMatchObject({
+      sourceQuoteDocumentId: "quote-new",
+      sourceQuoteNumber: "P-2026-0007",
+      centralInvoiceAuthority: {
+        eventType: "invoice_relationship_updated",
+        documentVersion: 2,
+      },
+    });
   });
 
   it("bloquea una rectificativa central si falta su factura original", () => {

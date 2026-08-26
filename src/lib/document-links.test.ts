@@ -15,7 +15,9 @@ import {
   type Expense,
 } from "./types";
 
-function document(overrides: Partial<Document> & { id: string; type: DocumentType }): Document {
+function document(
+  overrides: Partial<Document> & { id: string; type: DocumentType },
+): Document {
   return {
     number:
       overrides.type === "factura"
@@ -162,15 +164,12 @@ describe("document links", () => {
       status: "borrador",
     });
 
-    const result = applyDocumentLinkUpdate(
-      [invoice, oldReceipt, newReceipt],
-      {
-        relation: "invoice_receipt",
-        invoiceId: invoice.id,
-        receiptId: newReceipt.id,
-        updatedAt: "2026-06-30T09:00:00.000Z",
-      },
-    );
+    const result = applyDocumentLinkUpdate([invoice, oldReceipt, newReceipt], {
+      relation: "invoice_receipt",
+      invoiceId: invoice.id,
+      receiptId: newReceipt.id,
+      updatedAt: "2026-06-30T09:00:00.000Z",
+    });
 
     expect(result).toEqual([invoice, oldReceipt, newReceipt]);
     expect(result[0]).toBe(invoice);
@@ -335,6 +334,41 @@ describe("document links", () => {
     });
   });
 
+  it("usa la relacion operativa de la original y no la copia sellada en la rectificativa", () => {
+    const quote = document({ id: "quote-stale", type: "presupuesto" });
+    const invoice = document({
+      id: "invoice-1",
+      type: "factura",
+      status: "rectificada",
+      rectifiedById: "rect-1",
+    });
+    const rectification = document({
+      id: "rect-1",
+      type: "factura",
+      number: "FR-2026-0001",
+      sourceQuoteDocumentId: quote.id,
+      sourceQuoteNumber: quote.number,
+      rectification: {
+        originalDocumentId: invoice.id,
+        originalNumber: invoice.number,
+        originalDate: invoice.date,
+        reason: "Correccion",
+        type: "correccion",
+      },
+    });
+
+    expect(
+      getDocumentChainItems(rectification, [quote, invoice, rectification]).map(
+        (item) => item.role,
+      ),
+    ).toEqual(["factura", "rectificativa"]);
+    expect(
+      getDocumentChainItems(quote, [quote, invoice, rectification]).map(
+        (item) => item.role,
+      ),
+    ).toEqual(["presupuesto"]);
+  });
+
   it("muestra en la cadena el importe parcial aplicado al trabajo", () => {
     const invoice = document({ id: "invoice-1", type: "factura" });
     const expense: Expense = {
@@ -350,12 +384,9 @@ describe("document links", () => {
       createdAt: "2026-06-30T08:00:00.000Z",
     };
 
-    const chain = getDocumentChainItems(
-      invoice,
-      [invoice],
-      [expense],
-      { "expense-1": 40 },
-    );
+    const chain = getDocumentChainItems(invoice, [invoice], [expense], {
+      "expense-1": 40,
+    });
 
     expect(chain.at(-1)).toMatchObject({
       role: "gastos",

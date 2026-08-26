@@ -1,6 +1,7 @@
 import { todayISO } from "./calculations";
 import { isQuoteExpired } from "./quote-validity";
 import { hasLegacyImportProtectionClaim } from "./document-integrity/legacy-import-attestation";
+import { isRectificativa } from "./rectificativas";
 import type { Document, LineItem } from "./types";
 
 export type InvoiceDraftFromQuote = Omit<
@@ -41,6 +42,7 @@ export function findInvoiceCreatedFromQuote(
   return documents.find(
     (doc) =>
       doc.type === "factura" &&
+      !isRectificativa(doc) &&
       doc.sourceQuoteDocumentId === quoteId,
   );
 }

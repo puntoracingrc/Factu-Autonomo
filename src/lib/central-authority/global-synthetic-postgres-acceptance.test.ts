@@ -1020,9 +1020,42 @@ describeAcceptance(
           company.billingCustomerName,
         );
 
+        const relink = await admin.rpc(
+          "set_central_invoice_quote_relationship_v1",
+          {
+            p_user_id: company.userId,
+            p_device_id: `${company.tag}-pc`,
+            p_session_hash: sha256(`${company.tag}-pc-session`),
+            p_idempotency_key_hash: sha256(`${company.tag}-quote-relink`),
+            p_request_hash: sha256(`${company.tag}-quote-relink-request`),
+            p_document_id: invoice.documentId,
+            p_identity_id: invoice.identityId,
+            p_expected_version: 3,
+            p_quote_entity_id: company.quoteId,
+          },
+        );
+        if (relink.error) throw relink.error;
+        expect(invoiceIdentity(relink.data).documentVersion).toBe(4);
+
+        const afterRelink = await admin
+          .from("central_invoice_documents")
+          .select("current_version,current_payload,emitted_hash")
+          .eq("id", invoice.documentId)
+          .eq("user_id", company.userId)
+          .single();
+        expect(afterRelink.error).toBeNull();
+        expect(afterRelink.data).toMatchObject({
+          current_version: 4,
+          emitted_hash: emittedHashBeforeUnlink,
+        });
+        expect(afterRelink.data?.current_payload).toMatchObject({
+          sourceQuoteDocumentId: company.quoteId,
+          sourceQuoteNumber: quoteNumber,
+        });
+
         for (const device of company.devices) {
           const finalSync = await syncDevice(company, device);
-          expect(finalSync.invoices.events).toHaveLength(3);
+          expect(finalSync.invoices.events).toHaveLength(4);
           expect(finalSync.invoices.applied.conflicts).toEqual([]);
           expect(finalSync.business).toHaveLength(2);
         }
@@ -1032,7 +1065,7 @@ describeAcceptance(
           "reinstalled-mobile",
         );
         const recovered = await syncDevice(company, reinstalledMobile);
-        expect(recovered.invoices.events).toHaveLength(4);
+        expect(recovered.invoices.events).toHaveLength(5);
         expect(recovered.invoices.applied.conflicts).toEqual([]);
         expect(recovered.business).toHaveLength(10);
         company.devices.push(reinstalledMobile);
@@ -1067,8 +1100,8 @@ describeAcceptance(
           const localOriginal = device.data.documents.find(
             ({ id }) => id === company.invoiceLocalId,
           );
-          expect(localOriginal?.sourceQuoteDocumentId).toBeUndefined();
-          expect(localOriginal?.sourceQuoteNumber).toBeUndefined();
+          expect(localOriginal?.sourceQuoteDocumentId).toBe(company.quoteId);
+          expect(localOriginal?.sourceQuoteNumber).toBe(quoteNumber);
           expect(
             device.data.documents.find(
               ({ id }) => id === company.rectificationLocalId,
@@ -1212,6 +1245,28 @@ describeAcceptance(
         "central rectified identity scope mismatch",
       );
 
+      const crossTenantQuote = await admin.rpc(
+        "set_central_invoice_quote_relationship_v1",
+        {
+          p_user_id: first.company.userId,
+          p_device_id: `${first.company.tag}-pc`,
+          p_session_hash: sha256(`${first.company.tag}-session`),
+          p_idempotency_key_hash: sha256(
+            `${first.company.tag}-cross-quote-link`,
+          ),
+          p_request_hash: sha256(
+            `${first.company.tag}-cross-quote-link-request`,
+          ),
+          p_document_id: first.invoice.documentId,
+          p_identity_id: first.invoice.identityId,
+          p_expected_version: 4,
+          p_quote_entity_id: second.company.quoteId,
+        },
+      );
+      expect(crossTenantQuote.error?.message).toContain(
+        "central quote not found for this owner",
+      );
+
       for (const company of companies) {
         const businessEvents = await admin.rpc(
           "list_central_business_events_v1",
@@ -1243,7 +1298,7 @@ describeAcceptance(
           },
         );
         expect(invoiceEvents.error).toBeNull();
-        expect(invoiceEvents.data).toHaveLength(4);
+        expect(invoiceEvents.data).toHaveLength(5);
         expect(
           (invoiceEvents.data as Array<Record<string, unknown>>).map(
             ({ event_type }) => event_type,
@@ -1252,6 +1307,7 @@ describeAcceptance(
           "invoice_issued",
           "invoice_collection_updated",
           "rectification_issued",
+          "invoice_relationship_updated",
           "invoice_relationship_updated",
         ]);
         expect(
@@ -1266,7 +1322,7 @@ describeAcceptance(
           .from("central_invoice_event_wakeups")
           .select("user_id,outbox_event_id");
         expect(wakeups.error).toBeNull();
-        expect(wakeups.data?.length).toBeGreaterThanOrEqual(4);
+        expect(wakeups.data?.length).toBeGreaterThanOrEqual(5);
         expect(
           wakeups.data?.every((wakeup) => wakeup.user_id === company.userId),
         ).toBe(true);

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   CENTRAL_INVOICE_AUTHORITY_RELATIONSHIP_CLIENT,
+  setCentralInvoiceQuoteFromBrowser,
   unlinkCentralInvoiceQuoteFromBrowser,
 } from "./relationship-client";
 
@@ -31,7 +32,10 @@ describe("central invoice relationship browser client", () => {
 
   it("envia solo la referencia central y normaliza la identidad", async () => {
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      expect(JSON.parse(String(init?.body))).toEqual(input);
+      expect(JSON.parse(String(init?.body))).toEqual({
+        ...input,
+        quoteDocumentId: null,
+      });
       return new Response(
         JSON.stringify({
           ok: true,
@@ -63,6 +67,47 @@ describe("central invoice relationship browser client", () => {
         fullNumber: "F-2026-0001",
         sequence: 1,
         documentVersion: 2,
+      },
+    });
+  });
+
+  it("envia y confirma la referencia del presupuesto asignado", async () => {
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        quoteDocumentId: "quote-1",
+      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          rpcResult: {
+            documentId: input.documentRef.serverDocumentId,
+            identityId: input.documentRef.identityId,
+            outboxEventId: "00000000-0000-4000-8000-000000000013",
+            fullNumber: "F-2026-0001",
+            sequence: 1,
+            documentVersion: 3,
+            sourceQuoteDocumentId: "quote-1",
+            sourceQuoteNumber: "P-2026-0007",
+          },
+        }),
+        { status: 200 },
+      );
+    });
+
+    await expect(
+      setCentralInvoiceQuoteFromBrowser(
+        { ...input, quoteDocumentId: "quote-1" },
+        {
+          fetchImpl: fetchImpl as typeof fetch,
+          getAccessToken: async () => "access-token",
+          getDeviceToken: () => "device-token",
+        },
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      identity: {
+        sourceQuoteDocumentId: "quote-1",
+        sourceQuoteNumber: "P-2026-0007",
       },
     });
   });

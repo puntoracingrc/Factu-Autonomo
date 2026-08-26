@@ -1426,12 +1426,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                     <div className="min-w-0 xl:col-span-2">
                       <InvoiceRelationshipWorkspace
                         doc={doc}
-                        quoteLinkEditable={
-                          editable &&
-                          !canonicalDocumentChain.some(
-                            (item) => item.role === "presupuesto",
-                          )
-                        }
+                        quoteLinkEditable={editable}
                         onClose={() => setExpandedRelationshipDocumentId(null)}
                         onExpenseAllocationsChange={(allocations) =>
                           setExpenseAllocationsByDocumentId((current) => ({

@@ -40,6 +40,7 @@ import {
   expensePurchaseLineBaseTotal,
 } from "@/lib/expenses";
 import { showFactuToast } from "@/lib/factu/occasional";
+import { findInvoiceCreatedFromQuote } from "@/lib/quote-to-invoice";
 import {
   buildExpenseLinkImpact,
   buildExpenseUnlinkImpact,
@@ -113,11 +114,33 @@ export function InvoiceRelationshipWorkspace({
     allocations: ExpenseCostAllocationsByExpenseId,
   ) => void;
 }) {
-  const { data, updateDocumentLink, unlinkDocumentQuote } = useAppStore();
+  const { data, setDocumentQuote, unlinkDocumentQuote } = useAppStore();
   const { updateExpense } = useCentralExpenseMutations();
   const vatExempt = isVatExempt(data.profile);
   const [activeTab, setActiveTab] = useState<RelationshipTab>("gastos");
-  const linkedQuote = findQuoteLinkedToInvoice(data.documents, doc);
+  const relationshipInvoice = useMemo(() => {
+    if (!doc.rectification) return doc;
+    return data.documents.find(
+      (candidate) =>
+        candidate.id === doc.rectification?.originalDocumentId &&
+        candidate.type === "factura" &&
+        !candidate.rectification,
+    );
+  }, [data.documents, doc]);
+  const linkedQuote = relationshipInvoice
+    ? findQuoteLinkedToInvoice(data.documents, relationshipInvoice)
+    : undefined;
+  const unresolvedQuoteLink = Boolean(
+    relationshipInvoice &&
+    !linkedQuote &&
+    (relationshipInvoice.sourceQuoteDocumentId ||
+      relationshipInvoice.sourceQuoteNumber),
+  );
+  const canManageQuote = Boolean(
+    relationshipInvoice &&
+    !unresolvedQuoteLink &&
+    (quoteLinkEditable || relationshipInvoice.centralInvoiceAuthority),
+  );
   const [quoteId, setQuoteId] = useState(linkedQuote?.id ?? "");
   const [quoteQuery, setQuoteQuery] = useState("");
   const [expenseQuery, setExpenseQuery] = useState("");
@@ -134,6 +157,7 @@ export function InvoiceRelationshipWorkspace({
   );
   const [showClosedExpenses, setShowClosedExpenses] = useState(false);
   const [savingExpenseId, setSavingExpenseId] = useState<string | null>(null);
+  const [savingQuote, setSavingQuote] = useState(false);
   const [unlinkingQuote, setUnlinkingQuote] = useState(false);
   const savingExpenseIdRef = useRef<string | null>(null);
 
@@ -187,7 +211,17 @@ export function InvoiceRelationshipWorkspace({
   const receiptItem = canonicalChainItems.find(
     (item) => item.role === "recibo",
   );
-  const quoteOptions = linkableDocuments(data.documents, "presupuesto");
+  const quoteOptions = useMemo(
+    () =>
+      linkableDocuments(data.documents, "presupuesto").filter((quote) => {
+        const linkedInvoice = findInvoiceCreatedFromQuote(
+          data.documents,
+          quote.id,
+        );
+        return !linkedInvoice || linkedInvoice.id === relationshipInvoice?.id;
+      }),
+    [data.documents, relationshipInvoice?.id],
+  );
   const savedQuoteId = linkedQuote?.id ?? "";
   const quoteLinkChanged = quoteId !== savedQuoteId;
   const filteredQuoteOptions = useMemo(
@@ -228,26 +262,37 @@ export function InvoiceRelationshipWorkspace({
     setExpenseAllocations(nextAllocations);
   }, [data.expenses, doc.id, workDocumentIds]);
 
-  function saveQuoteLink() {
-    if (!quoteId || !quoteLinkChanged) return;
-    updateDocumentLink({
-      relation: "quote_invoice",
-      invoiceId: doc.id,
-      quoteId,
-    });
-    showFactuToast("Presupuesto vinculado.");
+  async function saveQuoteLink() {
+    if (!relationshipInvoice || !quoteId || !quoteLinkChanged || savingQuote) {
+      return;
+    }
+    setSavingQuote(true);
+    try {
+      const saved = await setDocumentQuote(relationshipInvoice.id, quoteId);
+      if (!saved) {
+        window.alert(
+          "No se pudo confirmar el vínculo en el servidor central. Comprueba que el presupuesto no esté asociado a otra factura y vuelve a intentarlo.",
+        );
+        return;
+      }
+      showFactuToast(
+        linkedQuote ? "Presupuesto cambiado." : "Presupuesto vinculado.",
+      );
+    } finally {
+      setSavingQuote(false);
+    }
   }
 
   async function unlinkQuote() {
-    if (!linkedQuote || unlinkingQuote) return;
+    if (!relationshipInvoice || !linkedQuote || unlinkingQuote) return;
     const confirmed = window.confirm(
-      `Se separara la relacion visible entre ${documentShortNumber(linkedQuote)} y ${documentShortNumber(doc)}.\n\nEl presupuesto y la factura seguiran intactos. No cambia el PDF, el numero, el QR, los importes ni ninguna rectificativa.`,
+      `Se separara la relacion visible entre ${documentShortNumber(linkedQuote)} y ${documentShortNumber(relationshipInvoice)}.\n\nEl presupuesto y la factura seguiran intactos. No cambia el PDF, el numero, el QR, los importes ni ninguna rectificativa.`,
     );
     if (!confirmed) return;
 
     setUnlinkingQuote(true);
     try {
-      const unlinked = await unlinkDocumentQuote(doc.id);
+      const unlinked = await unlinkDocumentQuote(relationshipInvoice.id);
       if (!unlinked) {
         window.alert(
           "No se pudo confirmar la desvinculacion en el servidor central. No se ha cambiado la relacion local.",
@@ -495,96 +540,108 @@ export function InvoiceRelationshipWorkspace({
 
       {activeTab === "presupuesto" ? (
         <div className="mt-4">
-          {!quoteLinkEditable ? (
+          {linkedQuote || !canManageQuote ? (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
               {linkedQuote ? (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <span>
-                    Esta factura conserva el presupuesto de origen. Puedes
-                    separarlos sin modificar ninguno de los dos documentos.
+                    Esta factura está vinculada a{" "}
+                    {documentShortNumber(linkedQuote)}. Puedes cambiar o separar
+                    esta relación sin modificar ninguno de los dos documentos.
                   </span>
                   <Button
                     type="button"
                     variant="danger"
                     className="min-h-11 shrink-0 rounded-lg px-4 text-sm"
                     onClick={() => void unlinkQuote()}
-                    disabled={unlinkingQuote}
+                    disabled={unlinkingQuote || savingQuote}
                   >
                     <Unlink className="h-4 w-4" />
-                    {unlinkingQuote ? "Desvinculando..." : "Desvincular presupuesto"}
+                    {unlinkingQuote
+                      ? "Desvinculando..."
+                      : "Desvincular presupuesto"}
                   </Button>
                 </div>
               ) : (
                 <>
-                  Una factura emitida no admite añadir manualmente un
-                  presupuesto de origen. Los vínculos operativos posteriores
-                  usarán una relación de rentabilidad separada.
+                  {unresolvedQuoteLink && relationshipInvoice
+                    ? `La factura conserva el vínculo con ${relationshipInvoice.sourceQuoteNumber ?? "un presupuesto"}, pero ese presupuesto aún no está disponible. Espera a que termine la sincronización antes de cambiar la relación.`
+                    : "No se puede cambiar esta relación porque la factura original no está disponible en este dispositivo."}
                 </>
               )}
             </div>
           ) : null}
-          {quoteLinkEditable ? (
+          {canManageQuote ? (
             <>
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <Field
-              label="Buscar presupuesto"
-              hint="Busca por número, cliente o importe. Vincularlo no cambia el PDF emitido."
-            >
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={quoteQuery}
-                  onChange={(event) => setQuoteQuery(event.target.value)}
-                  placeholder="Número, cliente o importe..."
-                  className="pl-10 text-sm"
-                />
-              </div>
-            </Field>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                className="min-h-12 text-sm"
-                onClick={saveQuoteLink}
-                disabled={!quoteId || !quoteLinkChanged}
-              >
-                <Link2 className="h-4 w-4" />
-                Guardar vínculo
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredQuoteOptions.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                No hay presupuestos que coincidan.
-              </p>
-            ) : (
-              filteredQuoteOptions.map((quote) => (
-                <button
-                  key={quote.id}
-                  type="button"
-                  onClick={() => setQuoteId(quote.id)}
-                  className={`flex min-h-16 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
-                    quoteId === quote.id
-                      ? "border-blue-400 bg-blue-50 text-blue-950 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-100"
-                      : "border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:bg-slate-800"
-                  }`}
+              <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <Field
+                  label="Buscar presupuesto"
+                  hint="Busca por número, cliente o importe. Esta relación no cambia el PDF emitido."
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-black">
-                      {documentShortNumber(quote)} · {quote.client.name}
-                    </span>
-                    <span className="block text-xs opacity-70">
-                      {formatShortDate(quote.date)}
-                    </span>
-                  </span>
-                  {quoteId === quote.id ? (
-                    <Check className="h-5 w-5 shrink-0 text-blue-600" />
-                  ) : null}
-                </button>
-              ))
-            )}
-          </div>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      value={quoteQuery}
+                      onChange={(event) => setQuoteQuery(event.target.value)}
+                      placeholder="Número, cliente o importe..."
+                      className="pl-10 text-sm"
+                    />
+                  </div>
+                </Field>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    className="min-h-12 text-sm"
+                    onClick={() => void saveQuoteLink()}
+                    disabled={
+                      !quoteId ||
+                      !quoteLinkChanged ||
+                      savingQuote ||
+                      unlinkingQuote
+                    }
+                  >
+                    <Link2 className="h-4 w-4" />
+                    {savingQuote
+                      ? "Guardando..."
+                      : linkedQuote
+                        ? "Cambiar presupuesto"
+                        : "Vincular presupuesto"}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredQuoteOptions.length === 0 ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    No hay presupuestos libres que coincidan.
+                  </p>
+                ) : (
+                  filteredQuoteOptions.map((quote) => (
+                    <button
+                      key={quote.id}
+                      type="button"
+                      onClick={() => setQuoteId(quote.id)}
+                      className={`flex min-h-16 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
+                        quoteId === quote.id
+                          ? "border-blue-400 bg-blue-50 text-blue-950 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-100"
+                          : "border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-black">
+                          {documentShortNumber(quote)} · {quote.client.name}
+                        </span>
+                        <span className="block text-xs opacity-70">
+                          {formatShortDate(quote.date)}
+                        </span>
+                      </span>
+                      {quoteId === quote.id ? (
+                        <Check className="h-5 w-5 shrink-0 text-blue-600" />
+                      ) : null}
+                    </button>
+                  ))
+                )}
+              </div>
             </>
           ) : null}
         </div>
@@ -1162,8 +1219,8 @@ function ExpenseLineAllocationEditor({
                     {usedElsewhere
                       ? "Asignada a otro trabajo"
                       : included
-                      ? "Incluida en este trabajo"
-                      : "Fuera del cálculo de este trabajo"}
+                        ? "Incluida en este trabajo"
+                        : "Fuera del cálculo de este trabajo"}
                   </span>
                 </span>
                 <span className="shrink-0 font-black">

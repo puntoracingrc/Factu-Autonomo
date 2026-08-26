@@ -4,7 +4,7 @@ import type {
 } from "./relationship-rpc-adapter";
 import {
   CentralInvoiceAuthorityRelationshipRpcAdapterError,
-  unlinkCentralInvoiceQuoteThroughRpc,
+  setCentralInvoiceQuoteThroughRpc,
 } from "./relationship-rpc-adapter";
 
 assertServerOnlyModule();
@@ -69,6 +69,7 @@ interface CentralInvoiceAuthorityRelationshipRouteBody {
     identityId: string;
     expectedVersion: number;
   };
+  quoteDocumentId: string | null;
 }
 
 function assertServerOnlyModule() {
@@ -117,11 +118,29 @@ function parseBody(raw: string): CentralInvoiceAuthorityRelationshipRouteBody {
     !isObject(parsed.documentRef) ||
     typeof parsed.documentRef.serverDocumentId !== "string" ||
     typeof parsed.documentRef.identityId !== "string" ||
-    typeof parsed.documentRef.expectedVersion !== "number"
+    typeof parsed.documentRef.expectedVersion !== "number" ||
+    !(
+      parsed.quoteDocumentId === undefined ||
+      parsed.quoteDocumentId === null ||
+      typeof parsed.quoteDocumentId === "string"
+    )
   ) {
     throw new Error("INVALID_BODY");
   }
-  return parsed as unknown as CentralInvoiceAuthorityRelationshipRouteBody;
+  return {
+    idempotencyKey: parsed.idempotencyKey,
+    documentRef: {
+      serverDocumentId: parsed.documentRef.serverDocumentId,
+      identityId: parsed.documentRef.identityId,
+      expectedVersion: parsed.documentRef.expectedVersion,
+    },
+    // Older installed clients sent only the unlink command. Treating an
+    // omitted target as null keeps that operation backwards compatible.
+    quoteDocumentId:
+      typeof parsed.quoteDocumentId === "string"
+        ? parsed.quoteDocumentId
+        : null,
+  };
 }
 
 export function createCentralInvoiceAuthorityRelationshipRouteHandler(
@@ -201,10 +220,11 @@ export function createCentralInvoiceAuthorityRelationshipRouteHandler(
         },
         idempotencyKey: body.idempotencyKey,
         documentRef: body.documentRef,
+        quoteDocumentId: body.quoteDocumentId,
       };
 
       try {
-        const rpcResult = await unlinkCentralInvoiceQuoteThroughRpc(
+        const rpcResult = await setCentralInvoiceQuoteThroughRpc(
           rpcClient,
           rpcInput,
         );
@@ -214,7 +234,9 @@ export function createCentralInvoiceAuthorityRelationshipRouteHandler(
           rpcResult,
         });
       } catch (error) {
-        if (error instanceof CentralInvoiceAuthorityRelationshipRpcAdapterError) {
+        if (
+          error instanceof CentralInvoiceAuthorityRelationshipRpcAdapterError
+        ) {
           return json(error.code === "RELATIONSHIP_RPC_REJECTED" ? 409 : 400, {
             ok: false,
             error: {

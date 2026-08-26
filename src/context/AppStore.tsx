@@ -377,25 +377,29 @@ function applyConfirmedCentralCollectionState(
   };
 }
 
-function centralRelationshipIdempotencyKey(doc: Document): string {
+function centralRelationshipIdempotencyKey(
+  doc: Document,
+  quoteDocumentId: string | null,
+): string {
   const version = doc.centralInvoiceAuthority?.documentVersion ?? 0;
   return [
     "central-relationship",
     centralCollectionIdempotencyPart(doc.id),
     String(version),
-    "unlink-quote",
+    quoteDocumentId ? "set-quote" : "unlink-quote",
+    centralCollectionIdempotencyPart(quoteDocumentId ?? "none"),
   ].join(":");
 }
 
-function applyConfirmedCentralQuoteUnlink(
+function applyConfirmedCentralQuoteRelationship(
   current: Document,
   identity: CentralInvoiceAuthorityRelationshipIdentity,
   receivedAt: string,
 ): Document {
   return {
     ...current,
-    sourceQuoteDocumentId: undefined,
-    sourceQuoteNumber: undefined,
+    sourceQuoteDocumentId: identity.sourceQuoteDocumentId,
+    sourceQuoteNumber: identity.sourceQuoteNumber,
     updatedAt: receivedAt,
     centralInvoiceAuthority: {
       ...current.centralInvoiceAuthority!,
@@ -580,6 +584,10 @@ interface AppStoreValue {
     customerId: string,
   ) => Document | null;
   updateDocumentLink: (update: DocumentLinkUpdate) => void;
+  setDocumentQuote: (
+    invoiceId: string,
+    quoteDocumentId: string | null,
+  ) => Promise<boolean>;
   unlinkDocumentQuote: (invoiceId: string) => Promise<boolean>;
   markAsCollected: (id: string) => Promise<boolean>;
   unmarkAsCollected: (id: string) => Promise<boolean>;
@@ -2270,8 +2278,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
-  const unlinkDocumentQuote = useCallback(
-    async (invoiceId: string): Promise<boolean> => {
+  const setDocumentQuote = useCallback(
+    async (
+      invoiceId: string,
+      quoteDocumentId: string | null,
+    ): Promise<boolean> => {
       if (
         durableStorageBaselineRef.current.status === "indeterminate" ||
         writeBlockRef.current
@@ -2281,44 +2292,73 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       const previous = dataRef.current;
       const invoice = findUniqueDocumentById(previous.documents, invoiceId);
+      if (!invoice || invoice.type !== "factura" || invoice.rectification) {
+        return false;
+      }
       if (
-        !invoice ||
-        invoice.type !== "factura" ||
-        invoice.rectification ||
-        (!invoice.sourceQuoteDocumentId && !invoice.sourceQuoteNumber)
+        quoteDocumentId === null &&
+        !invoice.sourceQuoteDocumentId &&
+        !invoice.sourceQuoteNumber
       ) {
         return false;
       }
+      if (
+        quoteDocumentId !== null &&
+        invoice.sourceQuoteDocumentId === quoteDocumentId
+      ) {
+        return true;
+      }
+
+      const quote = quoteDocumentId
+        ? findUniqueDocumentById(previous.documents, quoteDocumentId)
+        : null;
+      if (quoteDocumentId && (!quote || quote.type !== "presupuesto")) {
+        return false;
+      }
+      const conflictingInvoice = quoteDocumentId
+        ? previous.documents.find(
+            (candidate) =>
+              candidate.type === "factura" &&
+              !candidate.rectification &&
+              candidate.id !== invoice.id &&
+              candidate.sourceQuoteDocumentId === quoteDocumentId,
+          )
+        : undefined;
+      if (conflictingInvoice) return false;
 
       const link = invoice.centralInvoiceAuthority;
       if (!link) {
         const nextDocuments = applyDocumentLinkUpdate(previous.documents, {
           relation: "quote_invoice",
           invoiceId,
-          quoteId: null,
+          quoteId: quoteDocumentId,
         });
         const resolved = setAppData({ ...previous, documents: nextDocuments });
         return resolved !== previous;
       }
 
       try {
-        const { unlinkCentralInvoiceQuoteFromBrowser } =
+        const { setCentralInvoiceQuoteFromBrowser } =
           await import("@/lib/central-invoice-authority/relationship-client");
-        const result = await unlinkCentralInvoiceQuoteFromBrowser({
-          idempotencyKey: centralRelationshipIdempotencyKey(invoice),
+        const result = await setCentralInvoiceQuoteFromBrowser({
+          idempotencyKey: centralRelationshipIdempotencyKey(
+            invoice,
+            quoteDocumentId,
+          ),
           documentRef: {
             serverDocumentId: link.serverDocumentId,
             identityId: link.identityId,
             expectedVersion: link.documentVersion,
           },
+          quoteDocumentId,
         });
         if (!result.ok) {
           void reportAppError({
             severity: "warning",
             area: "central_invoice_authority",
-            code: "relationship_unlink_failed",
+            code: "relationship_update_failed",
             message:
-              "No se pudo confirmar en servidor central la desvinculacion del presupuesto.",
+              "No se pudo confirmar en servidor central el cambio de presupuesto.",
             metadata: {
               status: result.status,
               code: result.code,
@@ -2326,6 +2366,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               causeMessage: result.causeMessage,
             },
           });
+          return false;
+        }
+        if (
+          result.identity.sourceQuoteDocumentId !==
+            (quoteDocumentId ?? undefined) ||
+          Boolean(result.identity.sourceQuoteNumber) !==
+            Boolean(quoteDocumentId)
+        ) {
           return false;
         }
 
@@ -2347,12 +2395,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             }
             if (currentLink.documentVersion > result.identity.documentVersion) {
               applied =
-                !current.sourceQuoteDocumentId && !current.sourceQuoteNumber;
+                current.sourceQuoteDocumentId ===
+                  result.identity.sourceQuoteDocumentId &&
+                current.sourceQuoteNumber === result.identity.sourceQuoteNumber;
               return currentData;
             }
 
             applied = true;
-            const confirmed = applyConfirmedCentralQuoteUnlink(
+            const confirmed = applyConfirmedCentralQuoteRelationship(
               current,
               result.identity,
               receivedAt,
@@ -2372,14 +2422,18 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         void reportAppError({
           severity: "warning",
           area: "central_invoice_authority",
-          code: "relationship_unlink_unexpected_error",
-          message:
-            "No se pudo preparar la desvinculacion central del presupuesto.",
+          code: "relationship_update_unexpected_error",
+          message: "No se pudo preparar el cambio central del presupuesto.",
         });
         return false;
       }
     },
     [setAppData],
+  );
+
+  const unlinkDocumentQuote = useCallback(
+    (invoiceId: string): Promise<boolean> => setDocumentQuote(invoiceId, null),
+    [setDocumentQuote],
   );
 
   const issueDocument = useCallback(
@@ -4029,6 +4083,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocument,
       repairDocumentCustomer,
       updateDocumentLink,
+      setDocumentQuote,
       unlinkDocumentQuote,
       markAsCollected,
       unmarkAsCollected,
@@ -4124,6 +4179,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updateDocument,
       repairDocumentCustomer,
       updateDocumentLink,
+      setDocumentQuote,
       unlinkDocumentQuote,
       markAsCollected,
       unmarkAsCollected,
