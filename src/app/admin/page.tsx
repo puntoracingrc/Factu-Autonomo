@@ -33,6 +33,7 @@ import { FiscalCalendarHealthPanel } from "@/components/admin/FiscalCalendarHeal
 import { FiscalWatchPanel } from "@/components/admin/FiscalWatchPanel";
 import { AdminPartnersPanel } from "@/components/admin/AdminPartnersPanel";
 import { AdminPromotionsPanel } from "@/components/admin/AdminPromotionsPanel";
+import { AdminUserRecoveryToolsPanel } from "@/components/admin/AdminUserRecoveryToolsPanel";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
@@ -314,7 +315,7 @@ const ADMIN_MENU: Array<{
   {
     id: "usuarios",
     label: "Usuarios",
-    description: "Planes, pagos, restauración y acceso de cuentas.",
+    description: "Planes, pagos, restauración y soporte temporal de cuentas.",
     Icon: UserCog,
   },
   {
@@ -1841,6 +1842,7 @@ function UserAdminCard({
       </div>
 
       <UserRestorePanel user={user} />
+      <AdminUserRecoveryToolsPanel userId={user.id} />
       {ADMIN_MFA_UI_ENABLED && <UserMfaRecoveryPanel user={user} />}
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
@@ -3956,7 +3958,7 @@ function UsersPanel() {
           <div>
             <h2 className="text-xl font-bold text-slate-900">Usuarios</h2>
             <p className="text-sm text-slate-600">
-              Gestiona planes manuales, créditos IA, pagos registrados y acceso.
+              Gestiona planes, pagos, acceso, copias y herramientas temporales de soporte.
             </p>
           </div>
           <Button type="button" variant="secondary" onClick={loadUsers} disabled={loading}>

@@ -9,6 +9,10 @@ const accountSource = readFileSync(
   new URL("../../app/cuenta/page.tsx", import.meta.url),
   "utf8",
 );
+const supportSource = readFileSync(
+  new URL("./SupportRecoveryToolsSection.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("ExpenseWorkAllocationRepairCard wiring", () => {
   it("ofrece preview, confirmación, apply atómico y rollback explícito", () => {
@@ -25,13 +29,13 @@ describe("ExpenseWorkAllocationRepairCard wiring", () => {
     expect(cardSource).toContain("if (!visible) return null");
   });
 
-  it("vive en Cuenta > Copias después de la copia manual", () => {
-    const backup = accountSource.indexOf("<DataOwnershipCard />");
-    const repair = accountSource.indexOf("<ExpenseWorkAllocationRepairCard />");
-
-    expect(backup).toBeGreaterThan(0);
-    expect(repair).toBeGreaterThan(backup);
-    expect(accountSource).toContain('id="reparacion-repartos-gastos"');
+  it("queda fuera de Cuenta y solo se monta con permiso temporal", () => {
+    expect(accountSource).not.toContain("<ExpenseWorkAllocationRepairCard />");
+    expect(accountSource).toContain("<SupportRecoveryToolsSection />");
+    expect(supportSource).toContain(
+      'has("expense_allocation_repair") &&',
+    );
+    expect(supportSource).toContain("<ExpenseWorkAllocationRepairCard />");
   });
 
   it("no se ejecuta desde un efecto ni llama servicios de nube", () => {

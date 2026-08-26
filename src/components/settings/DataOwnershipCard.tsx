@@ -22,7 +22,11 @@ import {
 import { MAX_ENCRYPTED_BACKUP_BYTES } from "@/lib/security/backup-envelope";
 import { testDocumentRetirementTenantFingerprintForUserId } from "@/lib/test-document-retirement-persistence";
 
-export function DataOwnershipCard() {
+export function DataOwnershipCard({
+  restoreOnly = false,
+}: {
+  restoreOnly?: boolean;
+}) {
   const { data, getCurrentData, restoreBackupData } = useAppStore();
   const { limits, loading: billingLoading } = useBilling();
   const { user, cloudEnabled, pauseCloudForLocalRestore } = useCloudSync();
@@ -245,284 +249,310 @@ export function DataOwnershipCard() {
 
   return (
     <Card className="mb-6 space-y-4 border-slate-200 bg-slate-50/80">
-      <div className="flex items-start gap-3">
-        <div className="rounded-xl bg-blue-100 p-2 text-blue-700">
-          <Shield className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="font-bold text-slate-900">¿Dónde están mis datos?</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Tus facturas y gastos son tuyos. Esta app no los vende ni los usa
-            para otra cosa.
-          </p>
-        </div>
-      </div>
-
-      <ul className="space-y-3 text-sm text-slate-700">
-        <li className="flex gap-2">
-          <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-          <span>
-            <strong>En este dispositivo:</strong> Factu mantiene los datos de
-            trabajo en tu navegador (móvil u ordenador) para funcionar también
-            de forma local.
-          </span>
-        </li>
-        {!billingLoading && !planIncludesCloud ? (
-          <li className="flex gap-2">
-            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            <span>
-              <strong>Plan Gratis:</strong> tus facturas y datos de trabajo no
-              se guardan en la nube de Factu. Solo puedes usar ese histórico en
-              este dispositivo. Protégelo con copias manuales guardadas fuera
-              del dispositivo o con la copia automática opcional en Drive.
-            </span>
-          </li>
-        ) : null}
-        {!billingLoading && planIncludesCloud && cloudEnabled ? (
-          <li className="flex gap-2">
-            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-            <span>
-              <strong>Plan con nube:</strong> tus datos de trabajo se guardan y
-              sincronizan en tu espacio privado.{" "}
-              {hasActiveCloudSession
-                ? "Solo entra quien tenga tu email y contraseña de esa cuenta."
-                : "Solo tú, con tu email y contraseña."}{" "}
-              Pro admite hasta 2 dispositivos y Pro+ hasta 5. Otros usuarios de
-              Factu no ven tus datos.
-            </span>
-          </li>
-        ) : null}
-        <li className="flex gap-2">
-          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <span>
-            <strong>Protege el acceso:</strong>{" "}
-            {billingLoading
-              ? "estamos comprobando qué almacenamiento incluye tu plan."
-              : planIncludesCloud
-                ? "si alguien obtiene el acceso a tu cuenta, podría ver la copia sincronizada. Usa una contraseña fuerte y no la compartas."
-                : "en Gratis, protege este dispositivo y conserva una copia externa actualizada; perder el navegador sin copia puede suponer perder el histórico."}
-          </span>
-        </li>
-      </ul>
-
-      <div className="rounded-2xl border border-blue-100 bg-white p-4">
-        <h3 className="text-base font-bold text-slate-900">
-          Copia de seguridad
-        </h3>
-        <p className="mt-1 text-sm text-slate-600">
-          Descarga una copia JSON de tus datos locales. Con sesión iniciada se
-          cifra automáticamente para que no pueda leerse fuera de tu cuenta.
-        </p>
-        <p className="mt-2 text-xs text-slate-500">
-          El archivo se genera en este navegador y no aplica datos
-          automáticamente. Sin sesión iniciada, la copia será legible y deberás
-          guardarla en un lugar seguro.
-        </p>
-        <p className="mt-2 text-xs text-slate-500">{BACKUP_SCOPE_NOTICE}</p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <Button
-            variant="secondary"
-            onClick={() => void handleBackupExport()}
-            disabled={backupInProgress}
-          >
-            <Download className="h-5 w-5" />
-            {backupInProgress ? "Cifrando copia…" : "Exportar copia de seguridad"}
-          </Button>
-        </div>
-        {backupFeedback && (
-          <p
-            aria-live="polite"
-            className={`mt-3 text-sm font-medium ${
-              backupFeedback.tone === "success"
-                ? "text-emerald-700"
-                : "text-red-600"
-            }`}
-          >
-            {backupFeedback.message}
-          </p>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 className="text-base font-bold text-slate-900">
-          Importar copia de seguridad
-        </h3>
-        <p className="mt-1 text-sm text-slate-600">
-          Selecciona una copia JSON, cifrada o antigua, para revisarla antes de
-          restaurar. No se aplicarán cambios.
-        </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={storageStateUnknown || restoreInProgress}
-          >
+      {restoreOnly ? (
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-amber-100 p-2 text-amber-700">
             <FileJson className="h-5 w-5" />
-            Seleccionar archivo de copia
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void handleReviewBackup()}
-            disabled={
-              !selectedBackupFile || storageStateUnknown || restoreInProgress
-            }
-          >
-            Revisar copia
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(event) =>
-              handleBackupFileChange(event.target.files?.[0])
-            }
-          />
-        </div>
-        {selectedBackupFile && (
-          <p className="mt-3 text-xs text-slate-500">
-            Archivo seleccionado: {selectedBackupFile.name}
-          </p>
-        )}
-        {importError && (
-          <p
-            aria-live="polite"
-            className="mt-3 text-sm font-medium text-red-600"
-          >
-            {importError}
-          </p>
-        )}
-        {restoreDraft && (
-          <div
-            aria-live="polite"
-            className="mt-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950"
-          >
-            <div>
-              <p className="font-semibold">Resumen de la copia</p>
-              <p className="mt-1 text-emerald-900">
-                Exportada el {restoreDraft.preview.exportedAt.slice(0, 10)} ·
-                versión {restoreDraft.preview.exportVersion} · origen{" "}
-                {restoreDraft.preview.source}
-              </p>
-            </div>
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div>
-                <dt className="text-xs text-emerald-800">Clientes</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.customers}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-emerald-800">Documentos</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.documents}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-emerald-800">Presupuestos</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.quotes}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-emerald-800">Facturas</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.invoices}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-emerald-800">Emitidas</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.issuedInvoices}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-emerald-800">Cobradas</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.paidInvoices}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-emerald-800">Proveedores</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.suppliers}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-emerald-800">Gastos</dt>
-                <dd className="font-bold">
-                  {restoreDraft.preview.counts.expenses}
-                </dd>
-              </div>
-            </dl>
-            <p>
-              Perfil emisor:{" "}
-              <strong>
-                {restoreDraft.preview.hasIssuerProfile ? "incluido" : "vacío"}
-              </strong>
+          </div>
+          <div>
+            <h2 className="font-bold text-slate-900">
+              Restaurar una copia local
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Herramienta temporal de soporte para este navegador.
             </p>
-            <ul className="space-y-1">
-              {restoreDraft.preview.warnings.map((warning) => (
-                <li key={warning}>· {warning}</li>
-              ))}
-            </ul>
-            <div className="space-y-3 rounded-xl border border-amber-200 bg-white p-4 text-slate-700">
-              <p className="font-semibold text-slate-900">Restaurar copia</p>
-              <p>
-                Confirma que se reemplazarán los datos locales de este
-                navegador. Al restaurar, Factu solicitará automáticamente la
-                descarga de una copia del estado actual antes de guardar el
-                reemplazo.
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-blue-100 p-2 text-blue-700">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-900">
+                ¿Dónde están mis datos?
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Tus facturas y gastos son tuyos. Esta app no los vende ni los
+                usa para otra cosa.
               </p>
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={confirmedReplacement}
-                  disabled={storageStateUnknown || restoreInProgress}
-                  onChange={(event) =>
-                    setConfirmedReplacement(event.target.checked)
-                  }
-                  className="mt-1 h-4 w-4 rounded"
-                />
-                <span>
-                  Entiendo que se reemplazarán los datos locales actuales.
-                </span>
-              </label>
-              {restoreBlocker && (
-                <p className="text-xs text-amber-700">{restoreBlocker}</p>
-              )}
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => void handleRestoreBackup()}
-                disabled={
-                  Boolean(restoreBlocker) ||
-                  storageStateUnknown ||
-                  restoreInProgress
-                }
-              >
-                {restoreInProgress
-                  ? "Guardando…"
-                  : "Restaurar con copia automática"}
-              </Button>
             </div>
           </div>
-        )}
-        {restoreFeedback && (
-          <p
-            aria-live="polite"
-            className={`mt-3 text-sm font-medium ${
-              restoreFeedback.tone === "success"
-                ? "text-emerald-700"
-                : "text-red-600"
-            }`}
-          >
-            {restoreFeedback.message}
+
+          <ul className="space-y-3 text-sm text-slate-700">
+            <li className="flex gap-2">
+              <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+              <span>
+                <strong>En este dispositivo:</strong> Factu mantiene los datos
+                de trabajo en tu navegador (móvil u ordenador) para funcionar
+                también de forma local.
+              </span>
+            </li>
+            {!billingLoading && !planIncludesCloud ? (
+              <li className="flex gap-2">
+                <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <span>
+                  <strong>Plan Gratis:</strong> tus facturas y datos de trabajo
+                  no se guardan en la nube de Factu. Solo puedes usar ese
+                  histórico en este dispositivo. Protégelo con copias manuales
+                  guardadas fuera del dispositivo o con la copia automática
+                  opcional en Drive.
+                </span>
+              </li>
+            ) : null}
+            {!billingLoading && planIncludesCloud && cloudEnabled ? (
+              <li className="flex gap-2">
+                <Shield className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                <span>
+                  <strong>Plan con nube:</strong> tus datos de trabajo se
+                  guardan y sincronizan en tu espacio privado.{" "}
+                  {hasActiveCloudSession
+                    ? "Solo entra quien tenga tu email y contraseña de esa cuenta."
+                    : "Solo tú, con tu email y contraseña."}{" "}
+                  Pro admite hasta 2 dispositivos y Pro+ hasta 5. Otros usuarios
+                  de Factu no ven tus datos.
+                </span>
+              </li>
+            ) : null}
+            <li className="flex gap-2">
+              <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>
+                <strong>Protege el acceso:</strong>{" "}
+                {billingLoading
+                  ? "estamos comprobando qué almacenamiento incluye tu plan."
+                  : planIncludesCloud
+                    ? "si alguien obtiene el acceso a tu cuenta, podría ver la copia sincronizada. Usa una contraseña fuerte y no la compartas."
+                    : "en Gratis, protege este dispositivo y conserva una copia externa actualizada; perder el navegador sin copia puede suponer perder el histórico."}
+              </span>
+            </li>
+          </ul>
+
+          <div className="rounded-2xl border border-blue-100 bg-white p-4">
+            <h3 className="text-base font-bold text-slate-900">
+              Copia de seguridad
+            </h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Descarga una copia JSON de tus datos locales. Con sesión iniciada
+              se cifra automáticamente para que no pueda leerse fuera de tu
+              cuenta.
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              El archivo se genera en este navegador y no aplica datos
+              automáticamente. Sin sesión iniciada, la copia será legible y
+              deberás guardarla en un lugar seguro.
+            </p>
+            <p className="mt-2 text-xs text-slate-500">{BACKUP_SCOPE_NOTICE}</p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="secondary"
+                onClick={() => void handleBackupExport()}
+                disabled={backupInProgress}
+              >
+                <Download className="h-5 w-5" />
+                {backupInProgress
+                  ? "Cifrando copia…"
+                  : "Exportar copia de seguridad"}
+              </Button>
+            </div>
+            {backupFeedback && (
+              <p
+                aria-live="polite"
+                className={`mt-3 text-sm font-medium ${
+                  backupFeedback.tone === "success"
+                    ? "text-emerald-700"
+                    : "text-red-600"
+                }`}
+              >
+                {backupFeedback.message}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {restoreOnly && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h3 className="text-base font-bold text-slate-900">
+            Importar copia de seguridad
+          </h3>
+          <p className="mt-1 text-sm text-slate-600">
+            Selecciona una copia JSON, cifrada o antigua, para revisarla antes
+            de restaurar. No se aplicarán cambios.
           </p>
-        )}
-      </div>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={storageStateUnknown || restoreInProgress}
+            >
+              <FileJson className="h-5 w-5" />
+              Seleccionar archivo de copia
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void handleReviewBackup()}
+              disabled={
+                !selectedBackupFile || storageStateUnknown || restoreInProgress
+              }
+            >
+              Revisar copia
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(event) =>
+                handleBackupFileChange(event.target.files?.[0])
+              }
+            />
+          </div>
+          {selectedBackupFile && (
+            <p className="mt-3 text-xs text-slate-500">
+              Archivo seleccionado: {selectedBackupFile.name}
+            </p>
+          )}
+          {importError && (
+            <p
+              aria-live="polite"
+              className="mt-3 text-sm font-medium text-red-600"
+            >
+              {importError}
+            </p>
+          )}
+          {restoreDraft && (
+            <div
+              aria-live="polite"
+              className="mt-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950"
+            >
+              <div>
+                <p className="font-semibold">Resumen de la copia</p>
+                <p className="mt-1 text-emerald-900">
+                  Exportada el {restoreDraft.preview.exportedAt.slice(0, 10)} ·
+                  versión {restoreDraft.preview.exportVersion} · origen{" "}
+                  {restoreDraft.preview.source}
+                </p>
+              </div>
+              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div>
+                  <dt className="text-xs text-emerald-800">Clientes</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.customers}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-emerald-800">Documentos</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.documents}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-emerald-800">Presupuestos</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.quotes}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-emerald-800">Facturas</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.invoices}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-emerald-800">Emitidas</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.issuedInvoices}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-emerald-800">Cobradas</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.paidInvoices}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-emerald-800">Proveedores</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.suppliers}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-emerald-800">Gastos</dt>
+                  <dd className="font-bold">
+                    {restoreDraft.preview.counts.expenses}
+                  </dd>
+                </div>
+              </dl>
+              <p>
+                Perfil emisor:{" "}
+                <strong>
+                  {restoreDraft.preview.hasIssuerProfile ? "incluido" : "vacío"}
+                </strong>
+              </p>
+              <ul className="space-y-1">
+                {restoreDraft.preview.warnings.map((warning) => (
+                  <li key={warning}>· {warning}</li>
+                ))}
+              </ul>
+              <div className="space-y-3 rounded-xl border border-amber-200 bg-white p-4 text-slate-700">
+                <p className="font-semibold text-slate-900">Restaurar copia</p>
+                <p>
+                  Confirma que se reemplazarán los datos locales de este
+                  navegador. Al restaurar, Factu solicitará automáticamente la
+                  descarga de una copia del estado actual antes de guardar el
+                  reemplazo.
+                </p>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={confirmedReplacement}
+                    disabled={storageStateUnknown || restoreInProgress}
+                    onChange={(event) =>
+                      setConfirmedReplacement(event.target.checked)
+                    }
+                    className="mt-1 h-4 w-4 rounded"
+                  />
+                  <span>
+                    Entiendo que se reemplazarán los datos locales actuales.
+                  </span>
+                </label>
+                {restoreBlocker && (
+                  <p className="text-xs text-amber-700">{restoreBlocker}</p>
+                )}
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => void handleRestoreBackup()}
+                  disabled={
+                    Boolean(restoreBlocker) ||
+                    storageStateUnknown ||
+                    restoreInProgress
+                  }
+                >
+                  {restoreInProgress
+                    ? "Guardando…"
+                    : "Restaurar con copia automática"}
+                </Button>
+              </div>
+            </div>
+          )}
+          {restoreFeedback && (
+            <p
+              aria-live="polite"
+              className={`mt-3 text-sm font-medium ${
+                restoreFeedback.tone === "success"
+                  ? "text-emerald-700"
+                  : "text-red-600"
+              }`}
+            >
+              {restoreFeedback.message}
+            </p>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

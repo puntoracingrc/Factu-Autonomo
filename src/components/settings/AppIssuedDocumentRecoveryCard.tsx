@@ -866,8 +866,9 @@ export function AppIssuedDocumentRecoveryCard() {
           </p>
           <p className="mt-2 rounded-lg border border-violet-200 bg-white p-2 text-sm font-semibold text-violet-900">
             Si el documento no debe seguir en tus listas activas, no lo
-            recuperes: usa primero «Archivar documentos descartados», justo
-            encima de este bloque.
+            recuperes. El archivado de descartados requiere una operación
+            central separada y permanece bloqueado hasta que soporte pueda
+            confirmarla de forma atómica.
           </p>
         </div>
       </div>
