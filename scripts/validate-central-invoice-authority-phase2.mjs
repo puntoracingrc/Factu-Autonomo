@@ -131,6 +131,8 @@ const allowedVoidedQuoteUnlinkMigration =
   "20260804165537_allow_voided_invoice_quote_unlink.sql";
 const allowedClosedDocumentEventPullMigration =
   "20260812100000_central_invoice_closed_document_event_pull.sql";
+const allowedQuoteRelationshipAssignmentMigration =
+  "20260826073420_central_invoice_quote_relationship_assignment.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -148,6 +150,7 @@ const allowedCentralMigrations = new Set([
   allowedQuoteUnlinkEventsMigration,
   allowedVoidedQuoteUnlinkMigration,
   allowedClosedDocumentEventPullMigration,
+  allowedQuoteRelationshipAssignmentMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -304,6 +307,42 @@ if (centralMigrations.includes(allowedVoidedQuoteUnlinkMigration)) {
     voidedQuoteUnlink,
     /\binsert\s+into\s+public\.(?!central_invoice_)/i,
   );
+}
+
+if (centralMigrations.includes(allowedQuoteRelationshipAssignmentMigration)) {
+  const quoteRelationshipAssignment = read(
+    `supabase/migrations/${allowedQuoteRelationshipAssignmentMigration}`,
+  );
+  assert.match(
+    quoteRelationshipAssignment,
+    /CENTRAL_INVOICE_QUOTE_RELATIONSHIP_ASSIGNMENT_V1/,
+  );
+  assert.match(
+    quoteRelationshipAssignment,
+    /create\s+or\s+replace\s+function\s+public\.set_central_invoice_quote_relationship_v1/i,
+  );
+  assert.match(quoteRelationshipAssignment, /security\s+definer/i);
+  assert.match(quoteRelationshipAssignment, /set\s+search_path\s+=\s+''/i);
+  assert.match(quoteRelationshipAssignment, /service_role/);
+  assert.match(
+    quoteRelationshipAssignment,
+    /entity_row\.user_id\s*=\s*p_user_id/i,
+  );
+  assert.match(quoteRelationshipAssignment, /invoice_relationship_updated/);
+  assert.doesNotMatch(
+    quoteRelationshipAssignment,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(
+    quoteRelationshipAssignment,
+    /\bupdate\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(
+    quoteRelationshipAssignment,
+    /\binsert\s+into\s+public\.(?!central_invoice_)/i,
+  );
+  assert.doesNotMatch(quoteRelationshipAssignment, /\buser_backups\b/i);
+  assert.doesNotMatch(quoteRelationshipAssignment, /\bsync_entities\b/i);
 }
 
 if (centralMigrations.includes(allowedSeriesReconciliationMigration)) {

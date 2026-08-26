@@ -33,7 +33,7 @@ export function DocumentLinkManagerButton({
   expanded = false,
   onToggle,
 }: DocumentLinkManagerButtonProps) {
-  const { data, updateDocumentLink, unlinkDocumentQuote } = useAppStore();
+  const { data, setDocumentQuote, unlinkDocumentQuote } = useAppStore();
   const vatExempt = isVatExempt(data.profile);
   const [open, setOpen] = useState(false);
   const [quoteId, setQuoteId] = useState("");
@@ -41,11 +41,24 @@ export function DocumentLinkManagerButton({
   const [unlinkingInvoiceId, setUnlinkingInvoiceId] = useState<string | null>(
     null,
   );
+  const [savingInvoiceId, setSavingInvoiceId] = useState<string | null>(null);
   const modalTitleId = useId();
   const modalDescriptionId = useId();
 
-  const linkedQuote =
-    doc.type === "factura" ? findQuoteLinkedToInvoice(data.documents, doc) : undefined;
+  const relationshipInvoice =
+    doc.type === "factura" && doc.rectification
+      ? data.documents.find(
+          (candidate) =>
+            candidate.id === doc.rectification?.originalDocumentId &&
+            candidate.type === "factura" &&
+            !candidate.rectification,
+        )
+      : doc.type === "factura"
+        ? doc
+        : undefined;
+  const linkedQuote = relationshipInvoice
+    ? findQuoteLinkedToInvoice(data.documents, relationshipInvoice)
+    : undefined;
   const linkedReceipt =
     doc.type === "factura"
       ? findReceiptForInvoice(data.documents, doc.id, doc.receiptDocumentId)
@@ -55,15 +68,52 @@ export function DocumentLinkManagerButton({
       ? findInvoiceCreatedFromQuote(data.documents, doc.id)
       : undefined;
   const linkedInvoiceFromReceipt =
-    doc.type === "recibo" ? findInvoiceLinkedToReceipt(data.documents, doc) : undefined;
+    doc.type === "recibo"
+      ? findInvoiceLinkedToReceipt(data.documents, doc)
+      : undefined;
+  const unresolvedQuoteLink = Boolean(
+    relationshipInvoice &&
+    !linkedQuote &&
+    (relationshipInvoice.sourceQuoteDocumentId ||
+      relationshipInvoice.sourceQuoteNumber),
+  );
+  const canManageInvoiceQuote = Boolean(
+    relationshipInvoice &&
+    !unresolvedQuoteLink &&
+    (isDocumentEditable(relationshipInvoice) ||
+      relationshipInvoice.centralInvoiceAuthority),
+  );
+  const quoteOptionsForInvoice = useMemo(
+    () =>
+      linkableDocuments(data.documents, "presupuesto").filter((quote) => {
+        const linkedInvoice = findInvoiceCreatedFromQuote(
+          data.documents,
+          quote.id,
+        );
+        return !linkedInvoice || linkedInvoice.id === relationshipInvoice?.id;
+      }),
+    [data.documents, relationshipInvoice?.id],
+  );
+  const invoiceOptionsForQuote = useMemo(
+    () =>
+      linkableDocuments(data.documents, "factura").filter(
+        (invoice) =>
+          !invoice.rectification &&
+          !invoice.sourceQuoteDocumentId &&
+          !invoice.sourceQuoteNumber &&
+          (isDocumentEditable(invoice) ||
+            Boolean(invoice.centralInvoiceAuthority)),
+      ),
+    [data.documents],
+  );
   const hasCurrentLink =
     doc.type === "factura"
       ? Boolean(
           linkedQuote ||
-            linkedReceipt ||
-            doc.sourceQuoteDocumentId ||
-            doc.sourceQuoteNumber ||
-            doc.receiptDocumentId,
+          linkedReceipt ||
+          doc.sourceQuoteDocumentId ||
+          doc.sourceQuoteNumber ||
+          doc.receiptDocumentId,
         )
       : doc.type === "presupuesto"
         ? Boolean(linkedInvoiceFromQuote)
@@ -79,26 +129,42 @@ export function DocumentLinkManagerButton({
     setOpen(false);
   }
 
-  function confirmQuoteForInvoice(nextQuoteId: string) {
-    if (doc.type !== "factura") return;
-    updateDocumentLink({
-      relation: "quote_invoice",
-      invoiceId: doc.id,
-      quoteId: nextQuoteId,
-    });
-    setQuoteId(nextQuoteId);
-    showFactuToast("Presupuesto vinculado.");
+  async function confirmQuoteForInvoice(nextQuoteId: string) {
+    if (!relationshipInvoice || !nextQuoteId || savingInvoiceId) return;
+    setSavingInvoiceId(relationshipInvoice.id);
+    try {
+      const saved = await setDocumentQuote(relationshipInvoice.id, nextQuoteId);
+      if (!saved) {
+        window.alert(
+          "No se pudo confirmar el vínculo en el servidor central. Comprueba que el presupuesto no esté asociado a otra factura.",
+        );
+        return;
+      }
+      setQuoteId(nextQuoteId);
+      showFactuToast(
+        linkedQuote ? "Presupuesto cambiado." : "Presupuesto vinculado.",
+      );
+    } finally {
+      setSavingInvoiceId(null);
+    }
   }
 
-  function confirmInvoiceForQuote(nextInvoiceId: string) {
-    if (doc.type !== "presupuesto") return;
-    updateDocumentLink({
-      relation: "quote_invoice",
-      invoiceId: nextInvoiceId,
-      quoteId: doc.id,
-    });
-    setInvoiceForQuoteId(nextInvoiceId);
-    showFactuToast("Factura vinculada.");
+  async function confirmInvoiceForQuote(nextInvoiceId: string) {
+    if (doc.type !== "presupuesto" || !nextInvoiceId || savingInvoiceId) return;
+    setSavingInvoiceId(nextInvoiceId);
+    try {
+      const saved = await setDocumentQuote(nextInvoiceId, doc.id);
+      if (!saved) {
+        window.alert(
+          "No se pudo confirmar el vínculo en el servidor central. Comprueba la sincronización y vuelve a intentarlo.",
+        );
+        return;
+      }
+      setInvoiceForQuoteId(nextInvoiceId);
+      showFactuToast("Factura vinculada.");
+    } finally {
+      setSavingInvoiceId(null);
+    }
   }
 
   async function unlinkQuoteFromInvoice(
@@ -154,110 +220,138 @@ export function DocumentLinkManagerButton({
         <Link2 className="h-5 w-5" />
       </IconActionButton>
 
-      {!onToggle ? <Modal
-        open={open}
-        onClose={closeModal}
-        titleId={modalTitleId}
-        descriptionId={modalDescriptionId}
-        closeOnBackdrop={false}
-        overlayClassName="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-3 sm:items-center"
-        panelClassName="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl supports-[height:100dvh]:max-h-[92dvh] sm:p-5"
-        testId="document-link-modal"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id={modalTitleId} className="text-xl font-bold text-slate-900">
-              {title}
-            </h2>
-            <p
-              id={modalDescriptionId}
-              className="mt-1 text-sm text-slate-500"
+      {!onToggle ? (
+        <Modal
+          open={open}
+          onClose={closeModal}
+          titleId={modalTitleId}
+          descriptionId={modalDescriptionId}
+          closeOnBackdrop={false}
+          overlayClassName="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-3 sm:items-center"
+          panelClassName="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl supports-[height:100dvh]:max-h-[92dvh] sm:p-5"
+          testId="document-link-modal"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2
+                id={modalTitleId}
+                className="text-xl font-bold text-slate-900"
+              >
+                {title}
+              </h2>
+              <p
+                id={modalDescriptionId}
+                className="mt-1 text-sm text-slate-500"
+              >
+                Organiza documentos relacionados. Esto no cambia el PDF emitido,
+                la numeración, el QR ni los importes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              aria-label="Cerrar vínculos"
             >
-              Organiza documentos relacionados. Esto no cambia el PDF emitido,
-              la numeración, el QR ni los importes.
-            </p>
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={closeModal}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            aria-label="Cerrar vínculos"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
 
-        <div className="mt-4 space-y-4">
-          {doc.type === "factura" ? (
-            <>
-              {linkedQuote || !isDocumentEditable(doc) ? (
+          <div className="mt-4 space-y-4">
+            {doc.type === "factura" ? (
+              <>
+                {linkedQuote && relationshipInvoice ? (
+                  <CanonicalDocumentLink
+                    title="Presupuesto de origen"
+                    linkedDocument={linkedQuote}
+                    emptyText=""
+                    explanation="Puedes cambiar o separar la relación operativa sin modificar la factura ni el presupuesto."
+                    onUnlink={() =>
+                      void unlinkQuoteFromInvoice(
+                        relationshipInvoice,
+                        linkedQuote,
+                      )
+                    }
+                    unlinking={unlinkingInvoiceId === relationshipInvoice.id}
+                  />
+                ) : null}
+                {unresolvedQuoteLink && relationshipInvoice ? (
+                  <CanonicalDocumentLink
+                    title="Presupuesto de origen"
+                    linkedDocument={undefined}
+                    emptyText={`La factura conserva el vínculo con ${relationshipInvoice.sourceQuoteNumber ?? "un presupuesto"}, pero ese presupuesto todavía no está disponible en este dispositivo.`}
+                    explanation="Espera a que termine la sincronización antes de cambiar o separar la relación."
+                  />
+                ) : null}
+                {canManageInvoiceQuote ? (
+                  <DocumentLinkSection
+                    title={
+                      linkedQuote
+                        ? "Cambiar presupuesto"
+                        : "Presupuesto relacionado"
+                    }
+                    hint="Puedes asignarlo también después de emitir. El vínculo no cambia el PDF, el número ni los importes."
+                    documents={quoteOptionsForInvoice}
+                    selectedId={quoteId}
+                    onSelectedIdChange={setQuoteId}
+                    vatExempt={vatExempt}
+                    onSave={() => void confirmQuoteForInvoice(quoteId)}
+                    saving={savingInvoiceId === relationshipInvoice?.id}
+                  />
+                ) : !linkedQuote && !unresolvedQuoteLink ? (
+                  <CanonicalDocumentLink
+                    title="Presupuesto de origen"
+                    linkedDocument={undefined}
+                    emptyText="La factura original no está disponible para gestionar esta relación."
+                    explanation="Los documentos fiscales permanecen intactos."
+                  />
+                ) : null}
                 <CanonicalDocumentLink
-                  title="Presupuesto de origen"
-                  linkedDocument={linkedQuote}
-                  emptyText="Esta factura no conserva un presupuesto de origen."
+                  title="Recibo relacionado"
+                  linkedDocument={linkedReceipt}
+                  emptyText="El recibo aparecerá automáticamente cuando lo crees desde esta factura."
+                  explanation="Este vínculo procede del flujo de creación del recibo y no se modifica manualmente aquí."
+                />
+              </>
+            ) : null}
+
+            {doc.type === "presupuesto" ? (
+              linkedInvoiceFromQuote ? (
+                <CanonicalDocumentLink
+                  title="Factura generada"
+                  linkedDocument={linkedInvoiceFromQuote}
+                  emptyText=""
                   explanation="Puedes separar la relación operativa sin modificar la factura ni el presupuesto."
-                  onUnlink={
-                    linkedQuote
-                      ? () => void unlinkQuoteFromInvoice(doc, linkedQuote)
-                      : undefined
+                  onUnlink={() =>
+                    void unlinkQuoteFromInvoice(linkedInvoiceFromQuote, doc)
                   }
-                  unlinking={unlinkingInvoiceId === doc.id}
+                  unlinking={unlinkingInvoiceId === linkedInvoiceFromQuote.id}
                 />
               ) : (
                 <DocumentLinkSection
-                  title="Presupuesto relacionado"
-                  hint="Solo para una factura todavía en borrador que no nació ya de otro presupuesto."
-                  documents={linkableDocuments(data.documents, "presupuesto")}
-                  selectedId={quoteId}
-                  onSelectedIdChange={setQuoteId}
+                  title="Factura relacionada"
+                  hint="Selecciona una factura solo si todavía no existe una relación de origen."
+                  selectedId={invoiceForQuoteId}
+                  onSelectedIdChange={setInvoiceForQuoteId}
                   vatExempt={vatExempt}
-                  onSave={() => confirmQuoteForInvoice(quoteId)}
+                  documents={invoiceOptionsForQuote}
+                  onSave={() => void confirmInvoiceForQuote(invoiceForQuoteId)}
+                  saving={savingInvoiceId === invoiceForQuoteId}
                 />
-              )}
+              )
+            ) : null}
+
+            {doc.type === "recibo" ? (
               <CanonicalDocumentLink
-                title="Recibo relacionado"
-                linkedDocument={linkedReceipt}
-                emptyText="El recibo aparecerá automáticamente cuando lo crees desde esta factura."
+                title="Factura de origen"
+                linkedDocument={linkedInvoiceFromReceipt}
+                emptyText="Este recibo no conserva una factura de origen. No se crea ni se reasigna desde este panel."
                 explanation="Este vínculo procede del flujo de creación del recibo y no se modifica manualmente aquí."
               />
-            </>
-          ) : null}
-
-          {doc.type === "presupuesto" ? (
-            linkedInvoiceFromQuote ? (
-              <CanonicalDocumentLink
-                title="Factura generada"
-                linkedDocument={linkedInvoiceFromQuote}
-                emptyText=""
-                explanation="Puedes separar la relación operativa sin modificar la factura ni el presupuesto."
-                onUnlink={() =>
-                  void unlinkQuoteFromInvoice(linkedInvoiceFromQuote, doc)
-                }
-                unlinking={unlinkingInvoiceId === linkedInvoiceFromQuote.id}
-              />
-            ) : (
-              <DocumentLinkSection
-                title="Factura relacionada"
-                hint="Selecciona una factura solo si todavía no existe una relación de origen."
-                documents={linkableDocuments(data.documents, "factura")}
-                selectedId={invoiceForQuoteId}
-                onSelectedIdChange={setInvoiceForQuoteId}
-                vatExempt={vatExempt}
-                onSave={() => confirmInvoiceForQuote(invoiceForQuoteId)}
-              />
-            )
-          ) : null}
-
-          {doc.type === "recibo" ? (
-            <CanonicalDocumentLink
-              title="Factura de origen"
-              linkedDocument={linkedInvoiceFromReceipt}
-              emptyText="Este recibo no conserva una factura de origen. No se crea ni se reasigna desde este panel."
-              explanation="Este vínculo procede del flujo de creación del recibo y no se modifica manualmente aquí."
-            />
-          ) : null}
-        </div>
-      </Modal> : null}
+            ) : null}
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 }
@@ -291,9 +385,7 @@ function CanonicalDocumentLink({
       ) : (
         <p className="mt-2 text-sm leading-6 text-slate-500">{emptyText}</p>
       )}
-      <p className="mt-2 text-xs text-slate-500">
-        {explanation}
-      </p>
+      <p className="mt-2 text-xs text-slate-500">{explanation}</p>
       {linkedDocument && onUnlink ? (
         <button
           type="button"
@@ -317,6 +409,7 @@ function DocumentLinkSection({
   onSelectedIdChange,
   vatExempt,
   onSave,
+  saving = false,
 }: {
   title: string;
   hint: string;
@@ -325,10 +418,13 @@ function DocumentLinkSection({
   onSelectedIdChange: (id: string) => void;
   vatExempt: boolean;
   onSave: () => void;
+  saving?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(!selectedId);
-  const selectedDocument = documents.find((document) => document.id === selectedId);
+  const selectedDocument = documents.find(
+    (document) => document.id === selectedId,
+  );
   const results = useMemo(() => {
     const source = query.trim()
       ? filterDocumentsByQuery(documents, query, { vatExempt })
@@ -356,7 +452,8 @@ function DocumentLinkSection({
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-sky-100 bg-white px-3 text-sm font-bold text-sky-700 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
             <Link2 className="h-4 w-4" />
-            {documentShortNumber(selectedDocument)} · {selectedDocument.client.name}
+            {documentShortNumber(selectedDocument)} ·{" "}
+            {selectedDocument.client.name}
           </Link>
           <button
             type="button"
@@ -433,10 +530,10 @@ function DocumentLinkSection({
           type="button"
           onClick={onSave}
           className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!selectedId}
+          disabled={!selectedId || saving}
         >
           <Link2 className="h-4 w-4" />
-          Vincular
+          {saving ? "Guardando..." : "Vincular"}
         </button>
       </div>
     </section>

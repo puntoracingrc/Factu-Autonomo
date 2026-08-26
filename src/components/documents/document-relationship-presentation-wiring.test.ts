@@ -15,13 +15,11 @@ describe("wiring de la proyección visual de relaciones", () => {
     expect(documentList).toContain(
       "selectDocumentRelationshipPresentationItems(\n                canonicalDocumentChain,",
     );
-    expect(documentList).toContain(
-      "workDocumentIds: canonicalDocumentChain",
-    );
+    expect(documentList).toContain("workDocumentIds: canonicalDocumentChain");
     expect(documentList).not.toContain("workDocumentIds: relationshipItems");
     expect(documentList).toContain("relationshipItems.length > 0");
     expect(documentList).toContain("items={relationshipItems}");
-    expect(documentList).toContain("!canonicalDocumentChain.some(");
+    expect(documentList).toContain("quoteLinkEditable={editable}");
   });
 
   it("mantiene recibo e IDs de trabajo canónicos dentro del workspace", () => {
@@ -34,9 +32,7 @@ describe("wiring de la proyección visual de relaciones", () => {
     );
     const relatedIdsBlock = workspace.slice(relatedIdsStart, componentStart);
 
-    expect(workspace).toContain(
-      "const canonicalChainItems = useMemo(",
-    );
+    expect(workspace).toContain("const canonicalChainItems = useMemo(");
     expect(workspace).toContain(
       "selectDocumentRelationshipPresentationItems(canonicalChainItems, doc)",
     );
@@ -48,5 +44,15 @@ describe("wiring de la proyección visual de relaciones", () => {
     expect(relatedIdsBlock).not.toContain(
       "selectDocumentRelationshipPresentationItems",
     );
+  });
+
+  it("solo ofrece facturas libres desde un presupuesto y espera vínculos aún no sincronizados", () => {
+    const manager = source("./DocumentLinkManagerButton.tsx");
+    const workspace = source("./InvoiceRelationshipWorkspace.tsx");
+
+    expect(manager).toContain("!invoice.sourceQuoteDocumentId");
+    expect(manager).toContain("!invoice.sourceQuoteNumber");
+    expect(manager).toContain("const unresolvedQuoteLink = Boolean(");
+    expect(workspace).toContain("const unresolvedQuoteLink = Boolean(");
   });
 });

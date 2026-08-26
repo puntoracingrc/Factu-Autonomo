@@ -107,6 +107,7 @@ function buildDocumentLinkIndex(documents: Document[]): DocumentLinkIndex {
     }
     if (
       document.type === "factura" &&
+      !isRectificativa(document) &&
       document.sourceQuoteDocumentId &&
       !invoiceByQuoteId.has(document.sourceQuoteDocumentId)
     ) {
@@ -235,9 +236,9 @@ export function getDocumentChainItems(
     if (isRectificativa(document)) {
       rectification = document;
       invoice = findOriginalForRectification(index, document);
-      quote =
-        findQuoteLinkedToInvoiceWithIndex(index, document) ??
-        (invoice ? findQuoteLinkedToInvoiceWithIndex(index, invoice) : undefined);
+      quote = invoice
+        ? findQuoteLinkedToInvoiceWithIndex(index, invoice)
+        : findQuoteLinkedToInvoiceWithIndex(index, document);
     } else {
       invoice = document;
       rectification = findRectificationForInvoice(index, document);
@@ -264,11 +265,11 @@ export function getDocumentChainItems(
       invoice = linkedInvoice;
       rectification = findRectificationForInvoice(index, linkedInvoice);
     }
-    quote =
-      (rectification
+    quote = invoice
+      ? findQuoteLinkedToInvoiceWithIndex(index, invoice)
+      : rectification
         ? findQuoteLinkedToInvoiceWithIndex(index, rectification)
-        : undefined) ??
-      (invoice ? findQuoteLinkedToInvoiceWithIndex(index, invoice) : undefined);
+        : undefined;
   }
 
   const items: DocumentChainItem[] = [];

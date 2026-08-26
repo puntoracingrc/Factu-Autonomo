@@ -18,6 +18,10 @@ export interface CentralInvoiceAuthorityRelationshipRequest {
   };
 }
 
+export interface CentralInvoiceAuthorityRelationshipUpdateRequest extends CentralInvoiceAuthorityRelationshipRequest {
+  quoteDocumentId: string | null;
+}
+
 export interface CentralInvoiceAuthorityRelationshipIdentity {
   serverDocumentId: string;
   identityId: string;
@@ -25,6 +29,8 @@ export interface CentralInvoiceAuthorityRelationshipIdentity {
   fullNumber: string;
   sequence: number;
   documentVersion: number;
+  sourceQuoteDocumentId?: string;
+  sourceQuoteNumber?: string;
 }
 
 export type CentralInvoiceAuthorityRelationshipResult =
@@ -87,6 +93,18 @@ function identityFromPayload(
   ) {
     return null;
   }
+  const sourceQuoteDocumentId = rpc.sourceQuoteDocumentId;
+  const sourceQuoteNumber = rpc.sourceQuoteNumber;
+  const hasLinkedQuote =
+    typeof sourceQuoteDocumentId === "string" &&
+    sourceQuoteDocumentId.length > 0 &&
+    typeof sourceQuoteNumber === "string" &&
+    sourceQuoteNumber.length > 0;
+  const hasUnlinkedQuote =
+    (sourceQuoteDocumentId === undefined || sourceQuoteDocumentId === null) &&
+    (sourceQuoteNumber === undefined || sourceQuoteNumber === null);
+  if (!hasLinkedQuote && !hasUnlinkedQuote) return null;
+
   return {
     serverDocumentId: rpc.documentId,
     identityId: rpc.identityId,
@@ -94,11 +112,13 @@ function identityFromPayload(
     fullNumber: rpc.fullNumber,
     sequence: rpc.sequence,
     documentVersion: rpc.documentVersion,
+    sourceQuoteDocumentId: hasLinkedQuote ? sourceQuoteDocumentId : undefined,
+    sourceQuoteNumber: hasLinkedQuote ? sourceQuoteNumber : undefined,
   };
 }
 
-export async function unlinkCentralInvoiceQuoteFromBrowser(
-  input: CentralInvoiceAuthorityRelationshipRequest,
+export async function setCentralInvoiceQuoteFromBrowser(
+  input: CentralInvoiceAuthorityRelationshipUpdateRequest,
   dependencies: CentralInvoiceAuthorityRelationshipDependencies = {},
 ): Promise<CentralInvoiceAuthorityRelationshipResult> {
   const accessToken = await (
@@ -140,7 +160,8 @@ export async function unlinkCentralInvoiceQuoteFromBrowser(
 
   const payload = (await response.json().catch(() => null)) as unknown;
   if (!response.ok) {
-    const error = isObject(payload) && isObject(payload.error) ? payload.error : {};
+    const error =
+      isObject(payload) && isObject(payload.error) ? payload.error : {};
     return errorResult(
       response.status,
       typeof error.code === "string"
@@ -148,12 +169,14 @@ export async function unlinkCentralInvoiceQuoteFromBrowser(
         : "CENTRAL_AUTHORITY_RELATIONSHIP_REJECTED",
       typeof error.message === "string"
         ? error.message
-        : "La autoridad central no acepto la desvinculacion.",
+        : "La autoridad central no acepto el cambio de relacion.",
       {
         causeCode:
           typeof error.causeCode === "string" ? error.causeCode : undefined,
         causeMessage:
-          typeof error.causeMessage === "string" ? error.causeMessage : undefined,
+          typeof error.causeMessage === "string"
+            ? error.causeMessage
+            : undefined,
       },
     );
   }
@@ -172,4 +195,14 @@ export async function unlinkCentralInvoiceQuoteFromBrowser(
     schema: CENTRAL_INVOICE_AUTHORITY_RELATIONSHIP_CLIENT,
     identity,
   };
+}
+
+export async function unlinkCentralInvoiceQuoteFromBrowser(
+  input: CentralInvoiceAuthorityRelationshipRequest,
+  dependencies: CentralInvoiceAuthorityRelationshipDependencies = {},
+): Promise<CentralInvoiceAuthorityRelationshipResult> {
+  return setCentralInvoiceQuoteFromBrowser(
+    { ...input, quoteDocumentId: null },
+    dependencies,
+  );
 }

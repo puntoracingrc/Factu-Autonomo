@@ -13,6 +13,7 @@ const body = {
     identityId: "00000000-0000-4000-8000-000000000011",
     expectedVersion: 1,
   },
+  quoteDocumentId: "quote-1",
 };
 
 function dependencies(
@@ -41,6 +42,8 @@ function dependencies(
               full_number: "F-2026-0001",
               sequence: 1,
               document_version: 2,
+              source_quote_document_id: body.quoteDocumentId,
+              source_quote_number: "P-2026-0007",
             },
           ],
         };
@@ -89,7 +92,7 @@ describe("central invoice authority relationship route", () => {
     expect((await request(noDevice)).status).toBe(403);
   });
 
-  it("desvincula mediante RPC privada y devuelve cabeceras no cacheables", async () => {
+  it("asigna mediante RPC privada y devuelve cabeceras no cacheables", async () => {
     const rpc = vi.fn(async () => ({
       error: null,
       data: [
@@ -101,6 +104,8 @@ describe("central invoice authority relationship route", () => {
           full_number: "F-2026-0001",
           sequence: 1,
           document_version: 2,
+          source_quote_document_id: body.quoteDocumentId,
+          source_quote_number: "P-2026-0007",
         },
       ],
     }));
@@ -110,13 +115,45 @@ describe("central invoice authority relationship route", () => {
     expect(response.status).toBe(200);
     expect(response.headers["Cache-Control"]).toContain("no-store");
     expect(rpc).toHaveBeenCalledWith(
-      "unlink_central_invoice_quote_v1",
+      "set_central_invoice_quote_relationship_v1",
       expect.objectContaining({
         p_user_id: userId,
         p_document_id: body.documentRef.serverDocumentId,
         p_identity_id: body.documentRef.identityId,
+        p_quote_entity_id: body.quoteDocumentId,
       }),
     );
+  });
+
+  it("interpreta un cliente instalado antiguo como una desvinculacion", async () => {
+    const rpc = vi.fn(async (_name, args) => {
+      expect(args.p_quote_entity_id).toBeNull();
+      return {
+        error: null,
+        data: [
+          {
+            result_status: "committed",
+            document_id: body.documentRef.serverDocumentId,
+            identity_id: body.documentRef.identityId,
+            outbox_event_id: "00000000-0000-4000-8000-000000000014",
+            full_number: "F-2026-0001",
+            sequence: 1,
+            document_version: 3,
+            source_quote_document_id: null,
+            source_quote_number: null,
+          },
+        ],
+      };
+    });
+    const deps = dependencies({ getRpcClient: vi.fn(() => ({ rpc })) });
+    const legacyBody = {
+      idempotencyKey: body.idempotencyKey,
+      documentRef: body.documentRef,
+    };
+
+    expect(
+      (await request(deps, { rawBody: JSON.stringify(legacyBody) })).status,
+    ).toBe(200);
   });
 
   it("rechaza cuerpos incompletos antes de llamar a Supabase", async () => {

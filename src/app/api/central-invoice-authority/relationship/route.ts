@@ -85,7 +85,7 @@ const routeHandler = createCentralInvoiceAuthorityRelationshipRouteHandler({
     if (!admin) return null;
     return {
       rpc(
-        name: "unlink_central_invoice_quote_v1",
+        name: "set_central_invoice_quote_relationship_v1",
         args: CentralInvoiceAuthorityRelationshipRpcArgs,
       ) {
         return admin.rpc(name, args) as unknown as ReturnType<

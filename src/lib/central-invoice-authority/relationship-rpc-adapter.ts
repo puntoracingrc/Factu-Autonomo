@@ -7,7 +7,7 @@ export const CENTRAL_INVOICE_AUTHORITY_RELATIONSHIP_RPC_ADAPTER =
 
 export interface CentralInvoiceAuthorityRelationshipRpcClient {
   rpc(
-    name: "unlink_central_invoice_quote_v1",
+    name: "set_central_invoice_quote_relationship_v1",
     args: CentralInvoiceAuthorityRelationshipRpcArgs,
   ): Promise<{
     data: unknown;
@@ -29,6 +29,7 @@ export interface CentralInvoiceAuthorityRelationshipRpcArgs {
   p_document_id: string;
   p_identity_id: string;
   p_expected_version: number;
+  p_quote_entity_id: string | null;
 }
 
 export interface CentralInvoiceAuthorityRelationshipRpcInput {
@@ -43,6 +44,7 @@ export interface CentralInvoiceAuthorityRelationshipRpcInput {
     identityId: string;
     expectedVersion: number;
   };
+  quoteDocumentId: string | null;
 }
 
 export interface CentralInvoiceAuthorityRelationshipRpcResult {
@@ -54,6 +56,8 @@ export interface CentralInvoiceAuthorityRelationshipRpcResult {
   fullNumber: string;
   sequence: number;
   documentVersion: number;
+  sourceQuoteDocumentId?: string;
+  sourceQuoteNumber?: string;
 }
 
 export type CentralInvoiceAuthorityRelationshipRpcAdapterErrorCode =
@@ -114,7 +118,7 @@ function assertIdempotencyKey(value: string) {
   if (!/^[a-zA-Z0-9:_-]{12,120}$/.test(value)) {
     throw new CentralInvoiceAuthorityRelationshipRpcAdapterError(
       "INVALID_RELATIONSHIP_RPC_INPUT",
-      "La desvinculacion central requiere una clave de idempotencia estable.",
+      "La relacion central requiere una clave de idempotencia estable.",
     );
   }
 }
@@ -134,7 +138,16 @@ export function buildCentralInvoiceAuthorityRelationshipRpcArgs(
   ) {
     throw new CentralInvoiceAuthorityRelationshipRpcAdapterError(
       "INVALID_RELATIONSHIP_RPC_INPUT",
-      "La desvinculacion central requiere una version central positiva.",
+      "La relacion central requiere una version central positiva.",
+    );
+  }
+  if (
+    input.quoteDocumentId !== null &&
+    (input.quoteDocumentId.length < 1 || input.quoteDocumentId.length > 200)
+  ) {
+    throw new CentralInvoiceAuthorityRelationshipRpcAdapterError(
+      "INVALID_RELATIONSHIP_RPC_INPUT",
+      "El presupuesto central indicado no es valido.",
     );
   }
 
@@ -147,6 +160,7 @@ export function buildCentralInvoiceAuthorityRelationshipRpcArgs(
     p_document_id: input.documentRef.serverDocumentId,
     p_identity_id: input.documentRef.identityId,
     p_expected_version: input.documentRef.expectedVersion,
+    p_quote_entity_id: input.quoteDocumentId,
   };
 }
 
@@ -171,6 +185,16 @@ function parseRpcRow(
   const fullNumber = row.full_number;
   const sequence = row.sequence;
   const documentVersion = row.document_version;
+  const sourceQuoteDocumentId = row.source_quote_document_id;
+  const sourceQuoteNumber = row.source_quote_number;
+  const hasLinkedQuote =
+    typeof sourceQuoteDocumentId === "string" &&
+    sourceQuoteDocumentId.length > 0 &&
+    typeof sourceQuoteNumber === "string" &&
+    sourceQuoteNumber.length > 0;
+  const hasUnlinkedQuote =
+    (sourceQuoteDocumentId === null || sourceQuoteDocumentId === undefined) &&
+    (sourceQuoteNumber === null || sourceQuoteNumber === undefined);
 
   if (
     (status !== "committed" && status !== "replayed") ||
@@ -183,7 +207,8 @@ function parseRpcRow(
     sequence <= 0 ||
     typeof documentVersion !== "number" ||
     !Number.isInteger(documentVersion) ||
-    documentVersion <= 0
+    documentVersion <= 0 ||
+    (!hasLinkedQuote && !hasUnlinkedQuote)
   ) {
     throw new CentralInvoiceAuthorityRelationshipRpcAdapterError(
       "INVALID_RELATIONSHIP_RPC_RESULT",
@@ -200,23 +225,25 @@ function parseRpcRow(
     fullNumber,
     sequence,
     documentVersion,
+    sourceQuoteDocumentId: hasLinkedQuote ? sourceQuoteDocumentId : undefined,
+    sourceQuoteNumber: hasLinkedQuote ? sourceQuoteNumber : undefined,
   };
 }
 
-export async function unlinkCentralInvoiceQuoteThroughRpc(
+export async function setCentralInvoiceQuoteThroughRpc(
   client: CentralInvoiceAuthorityRelationshipRpcClient,
   input: CentralInvoiceAuthorityRelationshipRpcInput,
 ): Promise<CentralInvoiceAuthorityRelationshipRpcResult> {
   const args = buildCentralInvoiceAuthorityRelationshipRpcArgs(input);
   const { data, error } = await client.rpc(
-    "unlink_central_invoice_quote_v1",
+    "set_central_invoice_quote_relationship_v1",
     args,
   );
 
   if (error) {
     throw new CentralInvoiceAuthorityRelationshipRpcAdapterError(
       "RELATIONSHIP_RPC_REJECTED",
-      "Supabase rechazo la desvinculacion central.",
+      "Supabase rechazo el cambio de relacion central.",
       error.code,
       error.message,
     );
@@ -224,4 +251,14 @@ export async function unlinkCentralInvoiceQuoteThroughRpc(
 
   const row = Array.isArray(data) ? data[0] : data;
   return parseRpcRow(row);
+}
+
+export async function unlinkCentralInvoiceQuoteThroughRpc(
+  client: CentralInvoiceAuthorityRelationshipRpcClient,
+  input: Omit<CentralInvoiceAuthorityRelationshipRpcInput, "quoteDocumentId">,
+): Promise<CentralInvoiceAuthorityRelationshipRpcResult> {
+  return setCentralInvoiceQuoteThroughRpc(client, {
+    ...input,
+    quoteDocumentId: null,
+  });
 }

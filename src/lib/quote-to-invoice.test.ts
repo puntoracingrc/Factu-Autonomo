@@ -159,9 +159,15 @@ describe("quote to invoice conversion", () => {
   it("solo permite presupuestos activos", () => {
     expect(canConvertQuoteToInvoice(quote)).toBe(true);
     expect(canConvertQuoteToInvoice({ ...quote, type: "factura" })).toBe(false);
-    expect(canConvertQuoteToInvoice({ ...quote, status: "anulada" })).toBe(false);
-    expect(canConvertQuoteToInvoice({ ...quote, status: "rechazado" })).toBe(false);
-    expect(canConvertQuoteToInvoice({ ...quote, status: "vencido" })).toBe(false);
+    expect(canConvertQuoteToInvoice({ ...quote, status: "anulada" })).toBe(
+      false,
+    );
+    expect(canConvertQuoteToInvoice({ ...quote, status: "rechazado" })).toBe(
+      false,
+    );
+    expect(canConvertQuoteToInvoice({ ...quote, status: "vencido" })).toBe(
+      false,
+    );
     expect(
       canConvertQuoteToInvoice({
         ...quote,
@@ -182,7 +188,33 @@ describe("quote to invoice conversion", () => {
       sourceQuoteNumber: quote.number,
     } satisfies Document;
 
-    expect(findInvoiceCreatedFromQuote([quote, invoice], quote.id)).toBe(invoice);
-    expect(findInvoiceCreatedFromQuote([quote, invoice], "other-quote")).toBeUndefined();
+    expect(findInvoiceCreatedFromQuote([quote, invoice], quote.id)).toBe(
+      invoice,
+    );
+    expect(
+      findInvoiceCreatedFromQuote([quote, invoice], "other-quote"),
+    ).toBeUndefined();
+  });
+
+  it("no confunde la copia del vinculo en una rectificativa con la factura operativa", () => {
+    const rectification = {
+      ...quote,
+      id: "rectification-1",
+      type: "factura",
+      number: "FR-2026-0001",
+      sourceQuoteDocumentId: quote.id,
+      sourceQuoteNumber: quote.number,
+      rectification: {
+        originalDocumentId: "invoice-1",
+        originalNumber: "F-2026-0001",
+        originalDate: "2026-06-20",
+        reason: "Correccion",
+        type: "correccion",
+      },
+    } satisfies Document;
+
+    expect(
+      findInvoiceCreatedFromQuote([quote, rectification], quote.id),
+    ).toBeUndefined();
   });
 });
