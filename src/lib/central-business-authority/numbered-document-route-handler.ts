@@ -15,6 +15,10 @@ import {
   createCentralBusinessNumberedDocument,
   reconcileCentralBusinessDocumentSeries,
 } from "./numbered-document-service";
+import type {
+  CentralQuotaDecision,
+  CentralQuotaReservation,
+} from "@/lib/billing/central-quota-enforcement";
 
 assertServerOnlyModule();
 
@@ -66,6 +70,21 @@ export interface CentralBusinessNumberedDocumentRouteDependencies {
     | { allowed: false; status: number; code: string; message: string }
   >;
   getRpcClient(): CentralBusinessNumberedDocumentRpcClient | null;
+  reserveQuota?(input: {
+    userId: string;
+    action: NumberedDocumentBody["action"];
+    entityType: CentralBusinessNumberedDocumentEntityType;
+    entityId?: string;
+    payloadWithoutNumber?: CentralBusinessJson;
+  }): Promise<CentralQuotaDecision>;
+  commitQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
+  releaseQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
 }
 
 interface ReconcileSeriesBody {
@@ -309,6 +328,55 @@ export function createCentralBusinessNumberedDocumentRouteHandler(
         });
       }
 
+      let quotaReservations: CentralQuotaReservation[] = [];
+      if (dependencies.reserveQuota) {
+        let decision: CentralQuotaDecision;
+        try {
+          decision = await dependencies.reserveQuota({
+            userId: auth.userId,
+            action: body.action,
+            entityType: body.entityType,
+            entityId: body.action === "create" ? body.entityId : undefined,
+            payloadWithoutNumber:
+              body.action === "create" ? body.payloadWithoutNumber : undefined,
+          });
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_UNAVAILABLE",
+              message:
+                "No se pudo confirmar el límite con el servidor. No se creó ningún documento.",
+            },
+          });
+        }
+        if (!decision.allowed) {
+          return json(402, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_LIMIT_REACHED",
+              message: decision.block.message,
+              quota: decision.block,
+            },
+          });
+        }
+        quotaReservations = decision.reservations;
+      }
+
+      const releaseQuota = async () => {
+        if (!dependencies.releaseQuota || quotaReservations.length === 0) {
+          return;
+        }
+        try {
+          await dependencies.releaseQuota({
+            userId: auth.userId,
+            reservations: quotaReservations,
+          });
+        } catch {
+          // The reservation lease expires automatically if cleanup is unavailable.
+        }
+      };
+
       const serverAuth = {
         userId: auth.userId,
         deviceId: device.deviceId,
@@ -336,12 +404,30 @@ export function createCentralBusinessNumberedDocumentRouteHandler(
                 userEmail: auth.userEmail,
                 activation,
               });
+        try {
+          if (dependencies.commitQuota && quotaReservations.length > 0) {
+            await dependencies.commitQuota({
+              userId: auth.userId,
+              reservations: quotaReservations,
+            });
+          }
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_FINALIZATION_PENDING",
+              message:
+                "El documento quedó confirmado en el servidor central, pero falta actualizar su límite. Reintenta la sincronización; no vuelvas a emitirlo.",
+            },
+          });
+        }
         return json(200, {
           ok: true,
           schema: CENTRAL_BUSINESS_NUMBERED_DOCUMENT_ROUTE,
           result: result.rpcResult,
         });
       } catch (error) {
+        await releaseQuota();
         if (error instanceof CentralBusinessNumberedDocumentCommandError) {
           return json(400, {
             ok: false,

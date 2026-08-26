@@ -6,13 +6,11 @@ import { ArrowLeft, UserPlus, X } from "lucide-react";
 import { CustomerAiAutofill } from "@/components/clients/CustomerAiAutofill";
 import type { CustomerAiAutofillValues } from "@/components/clients/CustomerAiAutofill";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
-import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
 import { useCentralCustomerCreate } from "@/hooks/useCentralCustomerCreate";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import { RESIDENCE_TYPES, residenceTypeAllowsAddressExtra } from "@/lib/customer-address";
@@ -59,12 +57,9 @@ export default function NuevoClientePage() {
   );
   const { data } = useAppStore();
   const { createCustomer } = useCentralCustomerCreate();
-  const { checkCanAddCustomer } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [savingCustomer, setSavingCustomer] = useState(false);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
 
   function updateFormField<K extends keyof typeof EMPTY_FORM>(
     field: K,
@@ -114,13 +109,6 @@ export default function NuevoClientePage() {
     const validation = validateCustomerInput(data.customers, form);
     if (!validation.ok) {
       setFormError(validation.error ?? "Revisa los datos del cliente");
-      return;
-    }
-
-    const gate = checkCanAddCustomer(data.customers.length);
-    if (!gate.allowed) {
-      setUpgradeReason(gate.reason);
-      setUpgradeOpen(true);
       return;
     }
 
@@ -366,11 +354,6 @@ export default function NuevoClientePage() {
         </Button>
       </Card>
 
-      <UpgradeModal
-        open={upgradeOpen}
-        onClose={() => setUpgradeOpen(false)}
-        reason={upgradeReason}
-      />
     </div>
   );
 }

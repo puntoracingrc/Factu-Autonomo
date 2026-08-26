@@ -33,6 +33,7 @@ import { FiscalCalendarHealthPanel } from "@/components/admin/FiscalCalendarHeal
 import { FiscalWatchPanel } from "@/components/admin/FiscalWatchPanel";
 import { AdminPartnersPanel } from "@/components/admin/AdminPartnersPanel";
 import { AdminPromotionsPanel } from "@/components/admin/AdminPromotionsPanel";
+import { AdminQuotaBlocksPanel } from "@/components/admin/AdminQuotaBlocksPanel";
 import { AdminUserRecoveryToolsPanel } from "@/components/admin/AdminUserRecoveryToolsPanel";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -83,6 +84,7 @@ type AdminSection =
   | "usuarios"
   | "partners"
   | "promociones"
+  | "limites"
   | "sistema"
   | "supabase"
   | "vercel"
@@ -92,7 +94,7 @@ type AdminSection =
 
 type OperationsSection = Exclude<
   AdminSection,
-  "usuarios" | "partners" | "promociones" | "aprendizaje"
+  "usuarios" | "partners" | "promociones" | "limites" | "aprendizaje"
 >;
 
 const ADMIN_MFA_UI_ENABLED = false;
@@ -329,6 +331,12 @@ const ADMIN_MENU: Array<{
     label: "Promociones",
     description: "Códigos, ventajas, caducidad y límites de canje.",
     Icon: TicketPercent,
+  },
+  {
+    id: "limites",
+    label: "Límites Gratis",
+    description: "Bloqueos centrales, cuentas afectadas y origen del intento.",
+    Icon: Ban,
   },
   {
     id: "supabase",
@@ -4682,10 +4690,14 @@ export default function AdminPage() {
       {capabilities?.fullAdmin && section === "promociones" && (
         <AdminPromotionsPanel />
       )}
+      {capabilities?.fullAdmin && section === "limites" && (
+        <AdminQuotaBlocksPanel />
+      )}
       {capabilities?.fullAdmin &&
         section !== "usuarios" &&
         section !== "partners" &&
         section !== "promociones" &&
+        section !== "limites" &&
         section !== "aprendizaje" && (
         <OperationsPanel section={section} onSignalsLoaded={handleSignalsLoaded} />
       )}

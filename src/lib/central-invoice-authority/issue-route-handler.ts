@@ -14,6 +14,10 @@ import {
   CentralInvoiceAuthorityIssueServiceError,
   issueCentralInvoiceWithAuthority,
 } from "./issue-service";
+import type {
+  CentralQuotaDecision,
+  CentralQuotaReservation,
+} from "@/lib/billing/central-quota-enforcement";
 
 assertServerOnlyModule();
 
@@ -54,6 +58,19 @@ export interface CentralInvoiceAuthorityIssueRouteDependencies {
     userAgent: string | null;
   }): Promise<CentralInvoiceAuthorityRouteDeviceGateResult>;
   getRpcClient(): CentralInvoiceAuthorityIssueRpcClient | null;
+  reserveQuota?(input: {
+    userId: string;
+    kind: CentralInvoiceAuthorityIssueKind;
+    localDocumentId: string;
+  }): Promise<CentralQuotaDecision>;
+  commitQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
+  releaseQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
 }
 
 export interface CentralInvoiceAuthorityIssueRouteRequest {
@@ -259,6 +276,52 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
         });
       }
 
+      let quotaReservations: CentralQuotaReservation[] = [];
+      if (dependencies.reserveQuota) {
+        let decision: CentralQuotaDecision;
+        try {
+          decision = await dependencies.reserveQuota({
+            userId: auth.userId,
+            kind: body.kind,
+            localDocumentId: body.draft.localDocumentId,
+          });
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_UNAVAILABLE",
+              message:
+                "No se pudo confirmar el límite con el servidor. No se emitió ninguna factura.",
+            },
+          });
+        }
+        if (!decision.allowed) {
+          return json(402, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_LIMIT_REACHED",
+              message: decision.block.message,
+              quota: decision.block,
+            },
+          });
+        }
+        quotaReservations = decision.reservations;
+      }
+
+      const releaseQuota = async () => {
+        if (!dependencies.releaseQuota || quotaReservations.length === 0) {
+          return;
+        }
+        try {
+          await dependencies.releaseQuota({
+            userId: auth.userId,
+            reservations: quotaReservations,
+          });
+        } catch {
+          // The reservation lease expires automatically if cleanup is unavailable.
+        }
+      };
+
       const issueInput: CentralInvoiceAuthorityIssueInput = {
         kind: body.kind,
         auth: {
@@ -284,6 +347,24 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
           userEmail: auth.userEmail,
         });
 
+        try {
+          if (dependencies.commitQuota && quotaReservations.length > 0) {
+            await dependencies.commitQuota({
+              userId: auth.userId,
+              reservations: quotaReservations,
+            });
+          }
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_FINALIZATION_PENDING",
+              message:
+                "La factura quedó emitida en el servidor central, pero falta actualizar su límite. Reintenta la sincronización; no vuelvas a emitirla.",
+            },
+          });
+        }
+
         return json(200, {
           ok: true,
           schema: CENTRAL_INVOICE_AUTHORITY_ISSUE_ROUTE,
@@ -293,6 +374,7 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
           rpcResult: result.rpcResult,
         });
       } catch (error) {
+        await releaseQuota();
         if (error instanceof CentralInvoiceAuthorityIssueCommandError) {
           return commandErrorResponse(error);
         }

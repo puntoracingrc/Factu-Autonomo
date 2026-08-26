@@ -192,6 +192,41 @@ describe("central business numbered document route", () => {
     });
   });
 
+  it("consulta la cuota en servidor antes de numerar el presupuesto", async () => {
+    enableCanary();
+    const rpc = vi.fn();
+    const reserveQuota = vi.fn(async () => ({
+      allowed: false as const,
+      block: {
+        code: "limit_reached" as const,
+        message: "Has alcanzado el límite de documentos.",
+        metric: "documents" as const,
+        used: 15,
+        included: 15,
+        effectiveLimit: 15,
+        creditBalance: 0,
+        capacityBonus: 0,
+        remaining: 0,
+        resetAt: "2026-08-31T22:00:00.000Z",
+      },
+    }));
+
+    const result = await request(
+      dependencies({ getRpcClient: () => ({ rpc }), reserveQuota }),
+      creationBody(),
+    );
+
+    expect(result.status).toBe(402);
+    expect(reserveQuota).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId,
+        action: "create",
+        entityId: "quote-a",
+      }),
+    );
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("traduce la falta de conciliacion y rechaza cuerpos ambiguos", async () => {
     enableCanary();
     const conflict = dependencies({

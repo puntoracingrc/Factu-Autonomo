@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { getStripe } from "@/lib/billing/stripe";
 import {
+  completeStripeQuotaPackEvent,
   completeStripeScanPackEvent,
   markStripeEventFailed,
   markStripeEventProcessed,
@@ -37,6 +38,7 @@ vi.mock("@/lib/billing/stripe-events", () => ({
   reserveStripeEvent: vi.fn(),
   markStripeEventProcessed: vi.fn(),
   markStripeEventFailed: vi.fn(),
+  completeStripeQuotaPackEvent: vi.fn(),
   completeStripeScanPackEvent: vi.fn(),
 }));
 
@@ -128,6 +130,31 @@ function scanPackEvent(
   };
 }
 
+function quotaPackEvent(
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id: "evt_checkout_session_completed_quota_pack",
+    type: "checkout.session.completed",
+    data: {
+      object: {
+        id: "cs_test_quota_pack_1",
+        created: 1_788_000_000,
+        mode: "payment",
+        payment_status: "paid",
+        metadata: {
+          user_id: "11111111-1111-4111-8111-111111111111",
+          checkout_type: "quota_pack",
+          quota_pack: "documents_5",
+          quota_quantity: "5",
+          fulfillment_contract: "quota_pack_atomic_v1",
+        },
+        ...overrides,
+      },
+    },
+  };
+}
+
 describe("POST /api/webhooks/stripe", () => {
   beforeEach(() => {
     vi.mocked(markStripeEventProcessed).mockResolvedValue(undefined);
@@ -135,6 +162,10 @@ describe("POST /api/webhooks/stripe", () => {
     vi.mocked(completeStripeScanPackEvent).mockResolvedValue({
       status: "applied",
       creditedScanCredits: 10,
+    });
+    vi.mocked(completeStripeQuotaPackEvent).mockResolvedValue({
+      status: "applied",
+      grantedQuantity: 5,
     });
     vi.mocked(receiptFromCheckoutSession).mockReturnValue(null);
     vi.mocked(sendPaymentReceiptEmail).mockResolvedValue({ sent: true });
@@ -362,6 +393,53 @@ describe("POST /api/webhooks/stripe", () => {
     expect(response.status).toBe(200);
     expect(completeStripeScanPackEvent).toHaveBeenCalledOnce();
     expect(markStripeEventProcessed).not.toHaveBeenCalled();
+  });
+
+  it("acredita un extra de documentos mediante el ledger atómico", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    const event = quotaPackEvent();
+    vi.mocked(getStripe).mockReturnValue(fakeStripe(event) as never);
+    vi.mocked(reserveStripeEvent).mockResolvedValue(acquiredReservation());
+
+    const response = await POST(stripeRequest());
+
+    expect(response.status).toBe(200);
+    expect(completeStripeQuotaPackEvent).toHaveBeenCalledWith({
+      eventId: event.id,
+      attemptToken: ATTEMPT_TOKEN,
+      userId: "11111111-1111-4111-8111-111111111111",
+      checkoutSessionId: "cs_test_quota_pack_1",
+      pack: "documents_5",
+      quantity: 5,
+      paymentStatus: "paid",
+      fulfillmentContract: "quota_pack_atomic_v1",
+    });
+    expect(markStripeEventProcessed).not.toHaveBeenCalled();
+  });
+
+  it("rechaza un extra cuya cantidad fue manipulada", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    const event = quotaPackEvent({
+      metadata: {
+        user_id: "11111111-1111-4111-8111-111111111111",
+        checkout_type: "quota_pack",
+        quota_pack: "documents_5",
+        quota_quantity: "5000",
+        fulfillment_contract: "quota_pack_atomic_v1",
+      },
+    });
+    vi.mocked(getStripe).mockReturnValue(fakeStripe(event) as never);
+    vi.mocked(reserveStripeEvent).mockResolvedValue(acquiredReservation());
+
+    const response = await POST(stripeRequest());
+
+    expect(response.status).toBe(500);
+    expect(completeStripeQuotaPackEvent).not.toHaveBeenCalled();
+    expect(markStripeEventFailed).toHaveBeenCalledWith(
+      event.id,
+      ATTEMPT_TOKEN,
+      "invalid_checkout_state",
+    );
   });
 
   it("bloquea metadata de créditos manipulada sin conceder el pack", async () => {

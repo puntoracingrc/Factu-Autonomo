@@ -163,6 +163,13 @@ const adminUserRecoveryToolsMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const billingQuotaMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260826134002_central_free_plan_quotas.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -214,6 +221,12 @@ const serviceReadOnlyTables = [
   "central_business_document_series_reconciliations",
 ];
 const serviceLimitedWriteTables = ["admin_user_recovery_grants"];
+const billingQuotaServiceOnlyTables = [
+  "billing_quota_block_events",
+  "billing_quota_claims",
+  "billing_quota_entitlements",
+  "billing_quota_pack_purchases",
+] as const;
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -241,6 +254,7 @@ const classifiedTables = new Set([
   ...centralAuthorityCutoverTables,
   ...serviceReadOnlyTables,
   ...serviceLimitedWriteTables,
+  ...billingQuotaServiceOnlyTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -555,6 +569,26 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         `grant all on table public.${table} to service_role`,
       );
       expect(source).not.toMatch(
+        new RegExp(
+          `grant\\s+[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
+          "i",
+        ),
+      );
+    }
+  });
+
+  it("keeps billing quota state and telemetry server-only", () => {
+    for (const table of billingQuotaServiceOnlyTables) {
+      expect(billingQuotaMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(billingQuotaMigrationSource).toContain(
+        `revoke all on table public.${table}\n  from public, anon, authenticated`,
+      );
+      expect(billingQuotaMigrationSource).toContain(
+        `grant all on table public.${table} to service_role`,
+      );
+      expect(billingQuotaMigrationSource).not.toMatch(
         new RegExp(
           `grant\\s+[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
           "i",

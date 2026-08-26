@@ -15,7 +15,8 @@ describe("central quote create canary wiring", () => {
   it("conecta solo las altas nuevas de presupuesto al hook canario", () => {
     expect(form).toContain("useCentralQuoteCreate");
     expect(form).toContain('if (type === "presupuesto")');
-    expect(form).toContain("const quoteSave = await createQuote({");
+    expect(form).toContain("const quoteSave = await createQuote(");
+    expect(form).toContain("{ id: pendingDocumentId }");
     expect(form).toContain("saved = quoteSave.document");
     expect(hook).toContain("createQuoteWithCentralCanary");
     expect(hook).toMatch(

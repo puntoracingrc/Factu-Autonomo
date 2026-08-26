@@ -151,6 +151,36 @@ describe("central business batch mutation route", () => {
     );
   });
 
+  it("bloquea el lote completo antes del RPC si una cuota no está disponible", async () => {
+    enableCanary();
+    const rpc = vi.fn();
+    const reserveQuota = vi.fn(async () => ({
+      allowed: false as const,
+      block: {
+        code: "limit_reached" as const,
+        message: "Has alcanzado el límite de proveedores.",
+        metric: "suppliers" as const,
+        used: 15,
+        included: 15,
+        effectiveLimit: 15,
+        creditBalance: 0,
+        capacityBonus: 0,
+        remaining: 0,
+        resetAt: null,
+      },
+    }));
+
+    const result = await request(
+      dependencies({ getRpcClient: () => ({ rpc }), reserveQuota }),
+    );
+
+    expect(result.status).toBe(402);
+    expect(reserveQuota).toHaveBeenCalledWith(
+      expect.objectContaining({ userId }),
+    );
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("rechaza lotes vacios, grandes o con una ficha repetida", async () => {
     enableCanary();
     expect(

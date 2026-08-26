@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
 import {
+  commitCentralQuotaReservations,
+  releaseCentralQuotaReservations,
+  reserveCentralNumberedDocumentQuota,
+} from "@/lib/billing/central-quota-enforcement";
+import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
   normalizeCloudDeviceToken,
@@ -101,6 +106,9 @@ const handler = createCentralBusinessNumberedDocumentRouteHandler({
       },
     };
   },
+  reserveQuota: reserveCentralNumberedDocumentQuota,
+  commitQuota: commitCentralQuotaReservations,
+  releaseQuota: releaseCentralQuotaReservations,
 });
 
 function response(result: {

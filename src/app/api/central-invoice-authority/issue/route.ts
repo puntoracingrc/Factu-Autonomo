@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  commitCentralQuotaReservations,
+  releaseCentralQuotaReservations,
+  reserveCentralInvoiceQuota,
+} from "@/lib/billing/central-quota-enforcement";
 import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
 import {
   ensureCloudDeviceAccess,
@@ -98,6 +103,9 @@ const routeHandler = createCentralInvoiceAuthorityIssueRouteHandler({
       },
     };
   },
+  reserveQuota: reserveCentralInvoiceQuota,
+  commitQuota: commitCentralQuotaReservations,
+  releaseQuota: releaseCentralQuotaReservations,
 });
 
 function toNextResponse(response: {

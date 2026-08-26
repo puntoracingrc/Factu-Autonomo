@@ -13,7 +13,6 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import type { CustomerAiAutofillValues } from "@/components/clients/CustomerAiAutofill";
 import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
 import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentActions";
@@ -26,7 +25,6 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
 import { useCentralCustomerCreate } from "@/hooks/useCentralCustomerCreate";
 import { useCentralCustomerMutations } from "@/hooks/useCentralCustomerMutations";
 import { formatMoney } from "@/lib/calculations";
@@ -234,7 +232,6 @@ export default function ClientesPage() {
   const { createCustomer } = useCentralCustomerCreate();
   const { updateCustomer, deleteCustomer, isCentralCustomer } =
     useCentralCustomerMutations();
-  const { checkCanAddCustomer } = useBilling();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -244,8 +241,6 @@ export default function ClientesPage() {
   );
   const [savingCustomer, setSavingCustomer] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [mergeMode, setMergeMode] = useState(false);
   const [mergeSearch, setMergeSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -536,12 +531,6 @@ export default function ClientesPage() {
             : "Cliente guardado correctamente",
       );
     } else {
-      const gate = checkCanAddCustomer(data.customers.length);
-      if (!gate.allowed) {
-        setUpgradeReason(gate.reason);
-        setUpgradeOpen(true);
-        return;
-      }
       maybeCelebrateFirstCustomer(data.customers.length);
       setSavingCustomer(true);
       const result = await createCustomer(payload).finally(() =>
@@ -1252,11 +1241,6 @@ export default function ClientesPage() {
         />
       ) : null}
 
-      <UpgradeModal
-        open={upgradeOpen}
-        onClose={() => setUpgradeOpen(false)}
-        reason={upgradeReason}
-      />
     </div>
   );
 }

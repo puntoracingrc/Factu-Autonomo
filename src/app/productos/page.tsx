@@ -34,7 +34,10 @@ import { ProductUnsavedChangesDialog } from "@/components/products/ProductUnsave
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
-import { useBilling } from "@/context/BillingContext";
+import {
+  useBilling,
+  type BillingQuotaReservationHandle,
+} from "@/context/BillingContext";
 import { useCentralProductCatalogStructure } from "@/hooks/useCentralProductCatalogStructure";
 import { useCentralProductCreate } from "@/hooks/useCentralProductCreate";
 import { useCentralProductMutations } from "@/hooks/useCentralProductMutations";
@@ -206,7 +209,8 @@ export default function ProductosPage() {
   const { createProduct } = useCentralProductCreate();
   const { applyCatalogStructure } = useCentralProductCatalogStructure();
   const { updateProduct, deleteProduct } = useCentralProductMutations();
-  const { checkCanAddProduct } = useBilling();
+  const { reserveQuota, commitQuota, releaseQuota, removeQuotaSubject } =
+    useBilling();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState(ALL);
   const [subfamily, setSubfamily] = useState(ALL);
@@ -801,17 +805,6 @@ export default function ProductosPage() {
     };
   }
 
-  function catalogProductCount(): number {
-    return data.products.filter((product) => !product.hidden).length;
-  }
-
-  function canAddCatalogProduct(): boolean {
-    const limit = checkCanAddProduct(catalogProductCount());
-    if (limit.allowed) return true;
-    alert(limit.reason ?? "No puedes añadir más productos con tu plan actual.");
-    return false;
-  }
-
   async function saveProductPatch(
     product: PurchaseProductSummary,
     patch: Partial<Product>,
@@ -828,7 +821,6 @@ export default function ProductosPage() {
       }
       return result.value;
     }
-    if (!canAddCatalogProduct()) return null;
     const result = await createProduct({
       ...productFromSummary(product),
       ...patch,
@@ -849,25 +841,6 @@ export default function ProductosPage() {
     return data.products.find((entry) => entry.key === product.key);
   }
 
-  function canMaterializeStructureProducts(
-    affectedProducts: PurchaseProductSummary[],
-  ): boolean {
-    const newCatalogProducts = affectedProducts.filter(
-      (product) => !catalogProductForSummary(product),
-    ).length;
-    if (newCatalogProducts === 0) return true;
-
-    const limit = checkCanAddProduct(
-      catalogProductCount() + newCatalogProducts - 1,
-    );
-    if (limit.allowed) return true;
-    setFamilyNotice(
-      limit.reason ??
-        "No puedes guardar el aprendizaje de todos los productos afectados con tu plan actual.",
-    );
-    return false;
-  }
-
   async function runCatalogStructureOperation(
     operation: ProductCatalogStructureOperation,
     affectedProducts: PurchaseProductSummary[],
@@ -876,15 +849,60 @@ export default function ProductosPage() {
       setFamilyNotice("Espera a que termine el cambio anterior.");
       return null;
     }
-    if (!canMaterializeStructureProducts(affectedProducts)) return null;
     catalogOperationPendingRef.current = true;
     setCatalogOperationPending(true);
+    const missingProducts = affectedProducts.filter(
+      (product) => !catalogProductForSummary(product),
+    );
+    const reservations: BillingQuotaReservationHandle[] = [];
     try {
+      const operationKey = crypto.randomUUID();
+      for (let index = 0; index < missingProducts.length; index += 1) {
+        const reserved = await reserveQuota({
+          metric: "products",
+          operationKey: `product-catalog:${operationKey}:${index}`,
+        });
+        if (!reserved.allowed) {
+          await Promise.all(
+            reservations.map((reservation) => releaseQuota(reservation)),
+          );
+          setFamilyNotice(reserved.block.message);
+          return null;
+        }
+        reservations.push(reserved);
+      }
+
+      const beforeIds = new Set(data.products.map((product) => product.id));
       const saved = await applyCatalogStructure(operation);
       if (!saved.ok) {
+        await Promise.all(
+          reservations.map((reservation) => releaseQuota(reservation)),
+        );
         setFamilyNotice(saved.error);
         return null;
       }
+      const createdIds = saved.result.data.products
+        .filter((product) => !product.hidden && !beforeIds.has(product.id))
+        .map((product) => product.id);
+      const afterIds = new Set(
+        saved.result.data.products.map((product) => product.id),
+      );
+      const removedIds = data.products
+        .filter((product) => !product.hidden && !afterIds.has(product.id))
+        .map((product) => product.id);
+      await Promise.all(
+        [
+          ...reservations.map((reservation, index) => {
+            const productId = createdIds[index];
+            return productId
+              ? commitQuota(reservation, productId)
+              : releaseQuota(reservation);
+          }),
+          ...removedIds.map((productId) =>
+            removeQuotaSubject("products", productId),
+          ),
+        ],
+      );
       return saved.result;
     } finally {
       catalogOperationPendingRef.current = false;
@@ -1020,8 +1038,6 @@ export default function ProductosPage() {
     const affectedProducts = products.filter(
       (product) => product.family === sourceFamily,
     );
-    if (!canMaterializeStructureProducts(affectedProducts)) return false;
-
     const result = await runCatalogStructureOperation(
       { type: "rename_family", sourceFamily, targetFamily },
       affectedProducts,
@@ -1226,7 +1242,6 @@ export default function ProductosPage() {
   }
 
   async function duplicateProduct(product: PurchaseProductSummary) {
-    if (!canAddCatalogProduct()) return;
     const duplicate = uniqueDuplicateProductParts(product);
     const result = await createProduct({
       ...productFromSummary(product),

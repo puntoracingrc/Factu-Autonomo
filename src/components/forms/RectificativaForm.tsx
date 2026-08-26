@@ -13,7 +13,6 @@ import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
-import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -117,16 +116,9 @@ export function RectificativaForm({
   } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
   const centralPlanGate = useCentralAuthorityPlanGate();
-  const {
-    billingEnabled,
-    checkCanCreateDocument,
-    isPro,
-    recordDocumentCreated,
-  } = useBilling();
+  const { billingEnabled, isPro } = useBilling();
   const { user: cloudUser } = useCloudSync();
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [saveAction, setSaveAction] = useState<
     "idle" | "draft" | "save" | "save-pdf"
   >("idle");
@@ -405,14 +397,6 @@ export function RectificativaForm({
     setFormError(null);
     setSaveAction(isDraft ? "draft" : download ? "save-pdf" : "save");
 
-    const gate = checkCanCreateDocument(data.customers.length);
-    if (!gate.allowed) {
-      setUpgradeReason(gate.reason);
-      setUpgradeOpen(true);
-      setSaveAction("idle");
-      return;
-    }
-
     const payload = buildRectificativaPayload(statusOverride);
 
     if (!isDraft) {
@@ -574,8 +558,6 @@ export function RectificativaForm({
       setSaveAction("idle");
       return;
     }
-
-    recordDocumentCreated();
 
     if (isDraft) {
       setSaveAction("idle");
@@ -953,11 +935,6 @@ export function RectificativaForm({
         </div>
       </div>
 
-      <UpgradeModal
-        open={upgradeOpen}
-        onClose={() => setUpgradeOpen(false)}
-        reason={upgradeReason}
-      />
     </div>
   );
 }

@@ -251,6 +251,7 @@ export default function NuevoGastoPage() {
   const [saveSubmitError, setSaveSubmitError] = useState<string | null>(null);
   const [storageStateUnknown, setStorageStateUnknown] = useState(false);
   const fixedSaveOperationIdRef = useRef<string | null>(null);
+  const manualSupplierSaveOperationIdRef = useRef<string | null>(null);
   const fixedSaveInProgressRef = useRef(false);
   const [, setSupplierHint] = useState<string | null>(null);
 
@@ -366,6 +367,7 @@ export default function NuevoGastoPage() {
       setVatSubmitError(null);
       if (!storageStateUnknown) setSaveSubmitError(null);
       fixedSaveOperationIdRef.current = null;
+      manualSupplierSaveOperationIdRef.current = null;
       const scannedSupplierNif =
         payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif;
       const match = findBestSupplierMatch(data.suppliers, {
@@ -491,6 +493,7 @@ export default function NuevoGastoPage() {
     setVatSubmitError(null);
     if (!storageStateUnknown) setSaveSubmitError(null);
     fixedSaveOperationIdRef.current = null;
+    manualSupplierSaveOperationIdRef.current = null;
     setDate(todayISO());
     setSupplierName("");
     setDescription("");
@@ -1530,6 +1533,11 @@ export default function NuevoGastoPage() {
     return fixedSaveOperationIdRef.current;
   }
 
+  function manualSupplierSaveOperationId(): string {
+    manualSupplierSaveOperationIdRef.current ??= crypto.randomUUID();
+    return manualSupplierSaveOperationIdRef.current;
+  }
+
   async function updateActiveInboxItemStatus(
     status: "processed" | "ignored",
   ): Promise<boolean> {
@@ -1696,8 +1704,23 @@ export default function NuevoGastoPage() {
         };
 
     let supplierId = resolved.supplierId;
-    if (resolved.create && !usesDurableFixedSave && !usesDurableScannedSave) {
-      const created = await createSupplier(resolved.create);
+    const usesDurableManualSupplierSave = Boolean(
+      resolved.create &&
+        !editingExpense &&
+        !providerSummaryUpgradeTarget &&
+        expenseOrigin === "manual" &&
+        !usesDurableFixedSave &&
+        !usesDurableScannedSave,
+    );
+    if (
+      resolved.create &&
+      !usesDurableFixedSave &&
+      !usesDurableScannedSave &&
+      !usesDurableManualSupplierSave
+    ) {
+      const created = await createSupplier(resolved.create, {
+        quotaSource: "automatic_supplier",
+      });
       if (!created.ok) {
         setSaveSubmitError(created.error);
         return;
@@ -1855,6 +1878,23 @@ export default function NuevoGastoPage() {
           result.replayed,
         );
       }
+    } else if (usesDurableManualSupplierSave && resolved.create) {
+      const centralResult = await saveScannedExpenseDurably(payload, {
+        expected: durableExpected,
+        operationId: manualSupplierSaveOperationId(),
+        supplier: resolved.create,
+      });
+      if (!centralResult.ok && !centralResult.localFailure) {
+        setSaveSubmitError(centralResult.error);
+        return;
+      }
+      const result = centralResult.ok
+        ? centralResult.local
+        : centralResult.localFailure!;
+      if (result.status !== "applied") {
+        reportDurableExpenseSaveFailure(result);
+        return;
+      }
     } else if (editingExpense) {
       const result = await updateCentralExpense({
         ...editingExpense,
@@ -1897,9 +1937,11 @@ export default function NuevoGastoPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
       fixedSaveInProgressRef.current = false;
       fixedSaveOperationIdRef.current = null;
+      manualSupplierSaveOperationIdRef.current = null;
       return;
     }
 
+    manualSupplierSaveOperationIdRef.current = null;
     router.push("/gastos");
   }
 

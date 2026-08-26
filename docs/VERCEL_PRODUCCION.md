@@ -41,6 +41,10 @@ Copia desde tu `.env.local` (Production + Preview):
 | `STRIPE_PRICE_YEARLY` | `price_1TpVc8Rr6FrMLNZFtblG0vCk` |
 | `STRIPE_PRICE_PRO_PLUS_MONTHLY` | `price_1TpVSNRr6FrMLNZFqOQJZ3wH` |
 | `STRIPE_PRICE_PRO_PLUS_YEARLY` | `price_1TpVUKRr6FrMLNZFu5igCCKH` |
+| `STRIPE_PRICE_SCAN_PACK` | el `price_...` del pack de escaneos |
+| `STRIPE_PRICE_DOCUMENT_PACK` | el `price_...` de 5 documentos extra |
+| `STRIPE_PRICE_EXPENSE_PACK` | el `price_...` de 10 gastos manuales extra |
+| `STRIPE_PRICE_CONTACT_PACK` | el `price_...` de 5 clientes y 5 proveedores extra |
 | `STRIPE_WEBHOOK_SECRET` | el `whsec_...` del webhook de **esta URL** (ver abajo) |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` (sin `/rest/v1/`) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` (o legacy `anon` JWT) |

@@ -52,7 +52,7 @@ for (const required of [
 }
 
 const saveStart = form.indexOf("const payload = buildRectificativaPayload");
-const saveEnd = form.indexOf("recordDocumentCreated();", saveStart);
+const saveEnd = form.indexOf("if (!saved)", saveStart);
 assert.ok(saveStart >= 0, "Missing rectification payload before save");
 assert.ok(saveEnd > saveStart, "Cannot isolate rectification save branch");
 const saveBranch = form.slice(saveStart, saveEnd);

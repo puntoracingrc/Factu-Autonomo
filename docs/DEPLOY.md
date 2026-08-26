@@ -35,11 +35,15 @@ versión anterior.
    - Mensual: **5,99 EUR** (sin IVA; activa impuestos en Stripe para España).
    - Anual: **49 EUR**.
 3. Producto **Pack escaneos** (pago único): **10 escaneos — 1,99 EUR** (+ IVA).
-4. Copia los `price_...` IDs (mensual, anual y pack).
-5. Developers → Webhooks → endpoint:
+4. Crea también estos extras de pago único para el plan Gratis:
+   - **5 documentos extra — 2,99 EUR** (+ IVA).
+   - **10 gastos manuales extra — 1,99 EUR** (+ IVA).
+   - **5 clientes y 5 proveedores extra — 3,99 EUR** (+ IVA).
+5. Copia todos los `price_...` IDs en sus variables correspondientes.
+6. Developers → Webhooks → endpoint:
    - URL: `https://TU-DOMINIO/api/webhooks/stripe`
    - Eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.updated`
-6. Copia el **webhook signing secret**.
+7. Copia el **webhook signing secret**.
 
 Las sesiones nuevas de packs llevan el contrato persistente
 `scan_pack_atomic_v1`. Una sesión anterior sin esa marca o un evento que ya
@@ -79,6 +83,9 @@ STRIPE_PRICE_YEARLY=price_...
 STRIPE_PRICE_PRO_PLUS_MONTHLY=price_...
 STRIPE_PRICE_PRO_PLUS_YEARLY=price_...
 STRIPE_PRICE_SCAN_PACK=price_...
+STRIPE_PRICE_DOCUMENT_PACK=price_...
+STRIPE_PRICE_EXPENSE_PACK=price_...
+STRIPE_PRICE_CONTACT_PACK=price_...
 
 # Recibos de pago por email (opcional pero recomendado)
 RESEND_API_KEY=re_...

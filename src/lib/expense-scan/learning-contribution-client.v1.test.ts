@@ -396,9 +396,19 @@ describe("expense learning contribution client v1", () => {
     expect(
       page.match(/completeLocalSemanticShadowAfterDurableSave\(/gu),
     ).toHaveLength(3);
-    for (const saveIndex of allIndexes(page, "saveScannedExpenseDurably(")) {
-      const applied = page.indexOf('result.status !== "applied"', saveIndex);
-      const complete = page.indexOf(
+    const scannedSavePaths = page.slice(
+      0,
+      page.indexOf("} else if (usesDurableManualSupplierSave"),
+    );
+    for (const saveIndex of allIndexes(
+      scannedSavePaths,
+      "saveScannedExpenseDurably(",
+    )) {
+      const applied = scannedSavePaths.indexOf(
+        'result.status !== "applied"',
+        saveIndex,
+      );
+      const complete = scannedSavePaths.indexOf(
         "completeLocalSemanticShadowAfterDurableSave(",
         applied,
       );

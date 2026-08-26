@@ -12,6 +12,10 @@ import {
   type CentralBusinessOperationKind,
 } from "./mutation-command";
 import { CentralBusinessMutationServiceError } from "./mutation-service";
+import type {
+  CentralQuotaDecision,
+  CentralQuotaReservation,
+} from "@/lib/billing/central-quota-enforcement";
 
 assertServerOnlyModule();
 
@@ -63,6 +67,22 @@ export interface CentralBusinessBatchMutationRouteDependencies {
     | { allowed: false; status: number; code: string; message: string }
   >;
   getRpcClient(): CentralBusinessBatchMutationRpcClient | null;
+  reserveQuota?(input: {
+    userId: string;
+    mutations: BatchMutationBodyItem[];
+  }): Promise<CentralQuotaDecision>;
+  commitQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
+  releaseQuota?(input: {
+    userId: string;
+    reservations: CentralQuotaReservation[];
+  }): Promise<void>;
+  releaseDeletedQuota?(input: {
+    userId: string;
+    mutation: BatchMutationBodyItem;
+  }): Promise<void>;
 }
 
 interface BatchMutationBodyItem {
@@ -291,6 +311,51 @@ export function createCentralBusinessBatchMutationRouteHandler(
         });
       }
 
+      let quotaReservations: CentralQuotaReservation[] = [];
+      if (dependencies.reserveQuota) {
+        let decision: CentralQuotaDecision;
+        try {
+          decision = await dependencies.reserveQuota({
+            userId: auth.userId,
+            mutations: operations,
+          });
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_UNAVAILABLE",
+              message:
+                "No se pudo confirmar el límite con el servidor. No se guardó ninguna parte del lote.",
+            },
+          });
+        }
+        if (!decision.allowed) {
+          return json(402, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_LIMIT_REACHED",
+              message: decision.block.message,
+              quota: decision.block,
+            },
+          });
+        }
+        quotaReservations = decision.reservations;
+      }
+
+      const releaseQuota = async () => {
+        if (!dependencies.releaseQuota || quotaReservations.length === 0) {
+          return;
+        }
+        try {
+          await dependencies.releaseQuota({
+            userId: auth.userId,
+            reservations: quotaReservations,
+          });
+        } catch {
+          // The reservation lease expires automatically if cleanup is unavailable.
+        }
+      };
+
       try {
         const result = await mutateCentralBusinessBatch({
           mutations: operations.map((operation) => ({
@@ -306,6 +371,31 @@ export function createCentralBusinessBatchMutationRouteHandler(
           userEmail: auth.userEmail,
           activation,
         });
+        try {
+          if (dependencies.commitQuota && quotaReservations.length > 0) {
+            await dependencies.commitQuota({
+              userId: auth.userId,
+              reservations: quotaReservations,
+            });
+          }
+          if (dependencies.releaseDeletedQuota) {
+            for (const mutation of operations) {
+              await dependencies.releaseDeletedQuota({
+                userId: auth.userId,
+                mutation,
+              });
+            }
+          }
+        } catch {
+          return json(503, {
+            ok: false,
+            error: {
+              code: "BILLING_QUOTA_FINALIZATION_PENDING",
+              message:
+                "El lote quedó confirmado en el servidor central, pero falta actualizar su límite. Reintenta la sincronización; no repitas las fichas.",
+            },
+          });
+        }
         return json(200, {
           ok: true,
           schema: CENTRAL_BUSINESS_BATCH_MUTATION_ROUTE,
@@ -313,6 +403,7 @@ export function createCentralBusinessBatchMutationRouteHandler(
           result: result.rpcResult,
         });
       } catch (error) {
+        await releaseQuota();
         if (error instanceof CentralBusinessMutationCommandError) {
           return json(400, {
             ok: false,

@@ -41,7 +41,8 @@ export function useCentralDocumentCustomerUpsert(): {
           dependencies: {
             getCurrentData,
             fallback: upsertCustomerFallback,
-            createCustomer,
+            createCustomer: (draft) =>
+              createCustomer(draft, { quotaSource: "automatic_customer" }),
             updateCustomer,
           },
         });

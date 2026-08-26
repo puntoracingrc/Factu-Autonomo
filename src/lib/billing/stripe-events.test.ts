@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
+  completeStripeQuotaPackEvent,
   completeStripeScanPackEvent,
   markStripeEventFailed,
   markStripeEventProcessed,
@@ -209,6 +210,56 @@ describe("Stripe event leases", () => {
     ).resolves.toEqual({
       status: "already_applied",
       creditedScanCredits: 0,
+    });
+  });
+
+  it("concede cada pack de límites mediante una única RPC atómica", async () => {
+    const rpc = adminWithRpc([
+      { result_status: "applied", granted_quantity: 5 },
+    ]);
+
+    await expect(
+      completeStripeQuotaPackEvent({
+        eventId: "evt_quota_pack",
+        attemptToken: TOKEN,
+        userId: "22222222-2222-4222-8222-222222222222",
+        checkoutSessionId: "cs_test_quota_pack",
+        pack: "documents_5",
+        quantity: 5,
+        paymentStatus: "paid",
+        fulfillmentContract: "quota_pack_atomic_v1",
+      }),
+    ).resolves.toEqual({ status: "applied", grantedQuantity: 5 });
+
+    expect(rpc).toHaveBeenCalledWith("complete_stripe_quota_pack_event", {
+      p_event_id: "evt_quota_pack",
+      p_attempt_token: TOKEN,
+      p_user_id: "22222222-2222-4222-8222-222222222222",
+      p_checkout_session_id: "cs_test_quota_pack",
+      p_pack_key: "documents_5",
+      p_quantity: 5,
+      p_payment_status: "paid",
+      p_fulfillment_contract: "quota_pack_atomic_v1",
+      p_completed_at: null,
+    });
+
+    adminWithRpc([
+      { result_status: "already_applied", granted_quantity: 0 },
+    ]);
+    await expect(
+      completeStripeQuotaPackEvent({
+        eventId: "evt_quota_pack_2",
+        attemptToken: TOKEN,
+        userId: "22222222-2222-4222-8222-222222222222",
+        checkoutSessionId: "cs_test_quota_pack",
+        pack: "documents_5",
+        quantity: 5,
+        paymentStatus: "paid",
+        fulfillmentContract: "quota_pack_atomic_v1",
+      }),
+    ).resolves.toEqual({
+      status: "already_applied",
+      grantedQuantity: 0,
     });
   });
 

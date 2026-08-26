@@ -21,7 +21,7 @@ const runtimeDoc = readFileSync(
 
 function documentCreationBranch(): string {
   const start = documentForm.indexOf("const centralDocumentEligible");
-  const end = documentForm.indexOf("recordDocumentCreated();", start);
+  const end = documentForm.indexOf("saved = attachIssuerSnapshot", start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return documentForm.slice(start, end);
@@ -29,7 +29,7 @@ function documentCreationBranch(): string {
 
 function rectificationCreationBranch(): string {
   const start = rectificationForm.indexOf("const centralRectificationEligible");
-  const end = rectificationForm.indexOf("recordDocumentCreated();", start);
+  const end = rectificationForm.indexOf("if (isDraft)", start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return rectificationForm.slice(start, end);

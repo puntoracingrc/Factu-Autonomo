@@ -1,12 +1,14 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { AI_UNITS_PER_SCAN } from "./scan-limits";
+import type { BillingQuotaPackKey } from "./quotas";
 
 export type StripeEventStatus = "processing" | "processed" | "failed";
 export type StripeEventFailureCode =
   | "handler_failed"
   | "invalid_checkout_state"
   | "legacy_checkout_unresolved"
-  | "scan_pack_conflict";
+  | "scan_pack_conflict"
+  | "quota_pack_conflict";
 
 export interface StripeEventReservation {
   reserved: boolean;
@@ -33,6 +35,22 @@ export interface CompleteStripeScanPackInput {
 export type StripeScanPackCompletion =
   | { status: "applied"; creditedScanCredits: number }
   | { status: "already_applied"; creditedScanCredits: 0 };
+
+export interface CompleteStripeQuotaPackInput {
+  eventId: string;
+  attemptToken: string;
+  userId: string;
+  checkoutSessionId: string;
+  pack: BillingQuotaPackKey;
+  quantity: number;
+  paymentStatus: "paid";
+  fulfillmentContract: string;
+  completedAt?: string;
+}
+
+export type StripeQuotaPackCompletion =
+  | { status: "applied"; grantedQuantity: number }
+  | { status: "already_applied"; grantedQuantity: 0 };
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -235,4 +253,48 @@ export async function completeStripeScanPackEvent(
   return status === "applied"
     ? { status, creditedScanCredits: credited }
     : { status, creditedScanCredits: 0 };
+}
+
+export async function completeStripeQuotaPackEvent(
+  input: CompleteStripeQuotaPackInput,
+): Promise<StripeQuotaPackCompletion> {
+  const admin = requireAdmin();
+  const { data, error } = await admin.rpc("complete_stripe_quota_pack_event", {
+    p_event_id: input.eventId,
+    p_attempt_token: input.attemptToken,
+    p_user_id: input.userId,
+    p_checkout_session_id: input.checkoutSessionId,
+    p_pack_key: input.pack,
+    p_quantity: input.quantity,
+    p_payment_status: input.paymentStatus,
+    p_fulfillment_contract: input.fulfillmentContract,
+    p_completed_at: input.completedAt ?? null,
+  });
+  if (error) throw new Error(errorMessage(error));
+
+  const row = firstRpcRow(data);
+  const status = row?.result_status;
+  const granted = row?.granted_quantity;
+  if (
+    (status !== "applied" && status !== "already_applied") ||
+    typeof granted !== "number"
+  ) {
+    if (status === "effect_conflict") {
+      throw new Error("Conflicto en la concesión del pack de límites Stripe");
+    }
+    if (status === "stale_attempt") {
+      throw new Error("El intento Stripe ya no conserva su lease");
+    }
+    throw new Error("Respuesta inválida al completar el pack de límites Stripe");
+  }
+
+  if (status === "applied" && granted !== input.quantity) {
+    throw new Error("Cantidad concedida incoherente para el pack Stripe");
+  }
+  if (status === "already_applied" && granted !== 0) {
+    throw new Error("Un pack repetido no puede añadir más capacidad");
+  }
+  return status === "applied"
+    ? { status, grantedQuantity: granted }
+    : { status, grantedQuantity: 0 };
 }
