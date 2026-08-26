@@ -93,8 +93,10 @@ export async function POST(request: Request) {
       quota_quantity: String(definition.quantity),
       fulfillment_contract: BILLING_QUOTA_PACK_FULFILLMENT_CONTRACT,
     },
+    automatic_tax: { enabled: true },
     tax_id_collection: { enabled: true },
     billing_address_collection: "required",
+    customer_update: customerId ? { address: "auto" } : undefined,
   });
 
   return NextResponse.json({ url: session.url });

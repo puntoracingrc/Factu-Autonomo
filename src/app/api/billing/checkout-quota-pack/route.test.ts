@@ -77,6 +77,10 @@ describe("POST /api/billing/checkout-quota-pack", () => {
       expect.objectContaining({
         mode: "payment",
         customer: "cus_test_buyer",
+        automatic_tax: { enabled: true },
+        tax_id_collection: { enabled: true },
+        billing_address_collection: "required",
+        customer_update: { address: "auto" },
         metadata: {
           user_id: "11111111-1111-4111-8111-111111111111",
           checkout_type: "quota_pack",
