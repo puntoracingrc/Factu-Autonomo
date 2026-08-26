@@ -77,9 +77,9 @@ for (const required of [
   "CENTRAL_INVOICE_AUTHORITY_FORM_POLICY_NOTICE_V1",
   "describeCentralInvoiceAuthorityFormPolicyNotice",
   "CentralInvoiceAuthorityFormPolicyNotice",
-  "Comprobando autoridad central",
-  "Canario central activo",
-  "Canario central en espera",
+  "Emisión definitiva",
+  "datos fiscales ni borrarla",
+  "factura rectificativa",
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=false",
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS=",
   "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS=",
@@ -87,6 +87,19 @@ for (const required of [
   "CENTRAL_INVOICE_AUTHORITY_MODE=off",
 ]) {
   includes(noticeBody, required, "central authority form policy notice");
+}
+
+for (const internalCopy of [
+  "Comprobando autoridad central",
+  "Canario central activo",
+  "Canario central en espera",
+  "preflight final",
+]) {
+  assert.doesNotMatch(
+    policyNotice,
+    new RegExp(internalCopy, "i"),
+    `central authority form policy notice must not expose ${internalCopy}`,
+  );
 }
 
 const resolverStart = client.indexOf(
