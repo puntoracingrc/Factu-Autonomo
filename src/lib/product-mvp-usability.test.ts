@@ -541,12 +541,12 @@ describe("MVP usability polish", () => {
     expect(demoPanelSource).toContain("Crea una factura de cero");
     expect(demoPanelSource).toContain("Convierte un presupuesto");
     expect(demoPanelSource).toContain("Registrar gasto ficticio");
-    expect(demoPanelSource).toContain("Revisa impuestos");
+    expect(demoPanelSource).not.toContain("Revisa impuestos");
     expect(demoPanelSource).toContain("createDemoWorkspaceData");
     expect(demoPanelSource).toContain("resetDemoWorkspaceData");
     expect(demoPanelSource).toContain("/cuenta?modo=crear#inicio-sesion");
     expect(demoPanelSource).toContain("/facturas/nuevo");
-    expect(demoPanelSource).toContain("/impuestos");
+    expect(demoPanelSource).not.toContain("/impuestos");
     expect(demoWorkspaceSource).toContain("demo-invoice-draft");
     expect(demoWorkspaceSource).toContain("DEMO_WORKSPACE_STORAGE_KEY");
     expect(demoHookSource).toContain("useState(false)");

@@ -4,14 +4,14 @@ import { APP_BRAND_NAME } from "@/lib/brand";
 export const metadata: Metadata = {
   title: "Inicio",
   description:
-    "Facturación sencilla para autónomos: facturas, gastos, impuestos orientativos e información VeriFactu/SIF con registro y QR desactivados.",
+    "Facturación sencilla para autónomos: facturas, presupuestos, clientes, gastos e información VeriFactu/SIF con registro y QR desactivados.",
   alternates: {
     canonical: "/inicio",
   },
   openGraph: {
     title: `${APP_BRAND_NAME} | Facturación sencilla para autónomos`,
     description:
-      "Crea facturas, controla gastos y revisa impuestos orientativos sin pelearte con hojas de cálculo.",
+      "Crea facturas, organiza clientes y controla gastos sin pelearte con hojas de cálculo.",
     url: "/inicio",
   },
 };

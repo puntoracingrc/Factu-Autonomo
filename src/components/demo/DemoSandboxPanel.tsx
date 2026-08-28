@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  BarChart3,
   CheckCircle2,
   FileText,
   FilePlus2,
@@ -52,12 +51,6 @@ const demoTourSteps = [
     description: "Crea compras y tickets de ejemplo sin tocar nada real.",
     href: "/gastos/nuevo",
     Icon: ShoppingCart,
-  },
-  {
-    label: "Revisa impuestos",
-    description: "Consulta el resumen orientativo de IVA, IRPF e ingresos.",
-    href: "/impuestos",
-    Icon: BarChart3,
   },
 ];
 
@@ -110,9 +103,17 @@ export function DemoSandboxPanel() {
       document.acceptanceStatus === "accepted",
   ).length;
   const demoStats = [
-    countLabel(data.customers.length, "cliente de ejemplo", "clientes de ejemplo"),
+    countLabel(
+      data.customers.length,
+      "cliente de ejemplo",
+      "clientes de ejemplo",
+    ),
     countLabel(pendingInvoices, "factura pendiente", "facturas pendientes"),
-    countLabel(acceptedQuotes, "presupuesto aceptado", "presupuestos aceptados"),
+    countLabel(
+      acceptedQuotes,
+      "presupuesto aceptado",
+      "presupuestos aceptados",
+    ),
     countLabel(data.expenses.length, "gasto cargado", "gastos cargados"),
   ];
 
@@ -142,8 +143,8 @@ export function DemoSandboxPanel() {
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-700">
             Estás viendo una empresa ficticia. Sigue la ruta recomendada para
-            tocar facturas, clientes automáticos, gastos e impuestos sin
-            sincronizar nada con la nube.
+            tocar facturas, clientes automáticos y gastos sin sincronizar nada
+            con la nube.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {demoStats.map((stat) => (

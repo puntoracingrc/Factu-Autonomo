@@ -148,6 +148,7 @@ beforeEach(() => {
   vi.mocked(isConsultorFiscalEnabled).mockReturnValue(true);
   vi.mocked(getUserFromBearer).mockResolvedValue({
     id: "user-test",
+    email: "persianasalmar@gmail.com",
   } as Awaited<ReturnType<typeof getUserFromBearer>>);
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
@@ -211,6 +212,19 @@ describe("POST /api/fiscal-notifications/audit", () => {
 
     const withoutConsent = await POST(request({ consent: null }));
     expect(withoutConsent.status).toBe(403);
+    expect(reviewFiscalNotificationLibraryWithAiV1).not.toHaveBeenCalled();
+  });
+
+  it("no revisa documentos de una cuenta fuera de la preview", async () => {
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "other-user",
+      email: "usuario@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(404);
+    expect(checkRateLimit).not.toHaveBeenCalled();
     expect(reviewFiscalNotificationLibraryWithAiV1).not.toHaveBeenCalled();
   });
 

@@ -3,6 +3,7 @@ import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { consumeFiscalAiFallback } from "@/lib/billing/scan-usage-server";
+import { hasUnlimitedAiAccess } from "@/lib/billing/unlimited-ai-access";
 import {
   fiscalAiFallbackTriggerFor,
   runFiscalAiFallbackAfterLocal,
@@ -24,6 +25,12 @@ vi.mock("@/lib/billing/config", () => ({
 vi.mock("@/lib/billing/scan-usage-server", () => ({
   consumeFiscalAiFallback: vi.fn(),
 }));
+
+vi.mock("@/lib/billing/unlimited-ai-access", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/billing/unlimited-ai-access")>();
+  return { ...actual, hasUnlimitedAiAccess: vi.fn() };
+});
 
 vi.mock("@/lib/expense-deductibility/ai-fallback/orchestrator", () => ({
   fiscalAiFallbackTriggerFor: vi.fn((result: EvaluationResult) =>
@@ -82,7 +89,8 @@ const ALLOWED_USAGE = {
 function authenticatedUser(id = "user-a") {
   return {
     id,
-    email: `${id}@example.test`,
+    email:
+      id === "user-b" ? "puntoracingrc@gmail.com" : "persianasalmar@gmail.com",
     email_confirmed_at: "2026-07-12T08:00:00.000Z",
   } as Awaited<ReturnType<typeof getUserFromBearer>>;
 }
@@ -201,8 +209,7 @@ function expectPrivateResponse(response: Response) {
   expect(response.headers.get("vary")).toContain("X-AI-Consent-Version");
 }
 
-function expectNoAiBoundaryWasCrossed() {
-  expect(getUserFromBearer).not.toHaveBeenCalled();
+function expectNoAiProviderBoundaryWasCrossed() {
   expect(consumeFiscalAiFallback).not.toHaveBeenCalled();
   expect(createOpenAiFiscalFallbackProvider).not.toHaveBeenCalled();
   expect(runFiscalAiFallbackAfterLocal).not.toHaveBeenCalled();
@@ -219,6 +226,7 @@ describe("POST /api/expense-deductibility/evaluate", () => {
     vi.mocked(isBillingEnforced).mockReturnValue(false);
     vi.mocked(isOpenAiConfigured).mockReturnValue(true);
     vi.mocked(consumeFiscalAiFallback).mockResolvedValue(ALLOWED_USAGE);
+    vi.mocked(hasUnlimitedAiAccess).mockReturnValue(false);
     vi.mocked(runFiscalAiFallbackAfterLocal).mockImplementation(
       async ({ localResult }) => aiProposal(localResult),
     );
@@ -245,7 +253,8 @@ describe("POST /api/expense-deductibility/evaluate", () => {
     });
     expect(checkRateLimit).not.toHaveBeenCalled();
     expect(globalThis.crypto.randomUUID).not.toHaveBeenCalled();
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
+    expect(getUserFromBearer).not.toHaveBeenCalled();
   });
 
   it("conserva NO_MATCH local cuando la flag específica de IA está desactivada", async () => {
@@ -263,10 +272,10 @@ describe("POST /api/expense-deductibility/evaluate", () => {
       indirectTax: null,
       requiresHumanReview: true,
     });
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
-  it("resuelve una regla local sin autenticar, consumir cuota ni invocar IA", async () => {
+  it("resuelve una regla local tras autorizar la cuenta sin consumir cuota ni invocar IA", async () => {
     const response = await POST(eligibleAiRequest(evaluationPayload()));
     const body = await response.json();
 
@@ -293,7 +302,7 @@ describe("POST /api/expense-deductibility/evaluate", () => {
     expect(fiscalAiFallbackTriggerFor).toHaveBeenCalledWith(
       expect.objectContaining({ status: "NEEDS_REVIEW" }),
     );
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
   it("devuelve NEEDS_INPUT sin atravesar la frontera de IA", async () => {
@@ -321,10 +330,10 @@ describe("POST /api/expense-deductibility/evaluate", () => {
       requiresHumanReview: true,
     });
     expect(body.data.missingInformation).toHaveLength(4);
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
-  it("devuelve UNSUPPORTED sin autenticar ni invocar IA", async () => {
+  it("devuelve UNSUPPORTED sin invocar IA", async () => {
     const payload = evaluationPayload();
     payload.allowAiFallback = true;
     payload.context.jurisdiction = "ES_CANARY_IGIC";
@@ -344,7 +353,7 @@ describe("POST /api/expense-deductibility/evaluate", () => {
       requiresHumanReview: true,
     });
     expect(body.data.calculationTrace).toEqual([]);
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
   it("ejecuta el fallback solo tras NO_MATCH, consentimiento vigente y bearer válido", async () => {
@@ -405,7 +414,7 @@ describe("POST /api/expense-deductibility/evaluate", () => {
     vi.unstubAllGlobals();
   });
 
-  it("no autentica ni llama a IA cuando falta consentimiento vigente", async () => {
+  it("autoriza la cuenta pero no llama a IA cuando falta consentimiento vigente", async () => {
     const response = await POST(
       jsonRequest(noMatchPayload(), {
         authorization: "Bearer verified-token",
@@ -420,26 +429,42 @@ describe("POST /api/expense-deductibility/evaluate", () => {
       requiresHumanReview: true,
     });
     expect(body.data.warnings.join(" ")).toMatch(/consentimiento vigente/i);
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
+    expect(getUserFromBearer).toHaveBeenCalledOnce();
   });
 
-  it("conserva el resultado local cuando el bearer no identifica un usuario", async () => {
+  it("rechaza la función cuando el bearer no identifica un usuario", async () => {
     vi.mocked(getUserFromBearer).mockResolvedValue(null);
 
     const response = await POST(eligibleAiRequest());
     const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.data).toMatchObject({
-      status: "NO_MATCH",
-      evaluationOrigin: "LOCAL_RULE",
-      requiresHumanReview: true,
+    expect(response.status).toBe(401);
+    expect(body).toEqual({
+      error: "Inicia sesión para usar esta función.",
     });
-    expect(body.data.warnings.join(" ")).toMatch(/sesión autenticada/i);
     expect(getUserFromBearer).toHaveBeenCalledOnce();
     expect(consumeFiscalAiFallback).not.toHaveBeenCalled();
     expect(createOpenAiFiscalFallbackProvider).not.toHaveBeenCalled();
     expect(runFiscalAiFallbackAfterLocal).not.toHaveBeenCalled();
+  });
+
+  it("mantiene el endpoint cerrado para una cuenta fuera de la preview", async () => {
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "other-user",
+      email: "usuario@example.com",
+      email_confirmed_at: "2026-07-12T08:00:00.000Z",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await POST(eligibleAiRequest());
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: "El Consultor fiscal no está disponible.",
+    });
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(globalThis.crypto.randomUUID).not.toHaveBeenCalled();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
   it("aplica el límite costoso con el usuario derivado de cada bearer", async () => {
@@ -617,12 +642,15 @@ describe("POST /api/expense-deductibility/evaluate", () => {
     });
     expect(serialized).not.toContain("supplier-private-value");
     expect(serialized).not.toMatch(/stack|TaxEngineValidationError/);
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
   it("devuelve 413 antes de leer un cuerpo declarado por encima de 64 KiB", async () => {
     const response = await POST(
-      jsonRequest("{}", { contentLength: 64 * 1024 + 1 }),
+      jsonRequest("{}", {
+        authorization: "Bearer verified-token",
+        contentLength: 64 * 1024 + 1,
+      }),
     );
     const body = await response.json();
 
@@ -632,7 +660,7 @@ describe("POST /api/expense-deductibility/evaluate", () => {
       error: "La solicitud de análisis es demasiado grande.",
     });
     expect(globalThis.crypto.randomUUID).not.toHaveBeenCalled();
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
   it("devuelve 429 general antes de validar el cuerpo o tocar IA", async () => {
@@ -643,7 +671,9 @@ describe("POST /api/expense-deductibility/evaluate", () => {
       retryAfterSeconds: 37,
     });
 
-    const response = await POST(jsonRequest("not-json"));
+    const response = await POST(
+      jsonRequest("not-json", { authorization: "Bearer verified-token" }),
+    );
     const body = await response.json();
 
     expect(response.status).toBe(429);
@@ -654,11 +684,13 @@ describe("POST /api/expense-deductibility/evaluate", () => {
       error: "Demasiados intentos. Prueba de nuevo en unos instantes.",
     });
     expect(globalThis.crypto.randomUUID).not.toHaveBeenCalled();
-    expectNoAiBoundaryWasCrossed();
+    expectNoAiProviderBoundaryWasCrossed();
   });
 
   it("sanea un fallo del orquestador sin devolver stack, PII ni el error interno", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     vi.mocked(runFiscalAiFallbackAfterLocal).mockRejectedValue(
       new Error(
         "provider stack for foreign-tenant-secret and supplier-private-value",

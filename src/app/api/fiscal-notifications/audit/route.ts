@@ -12,6 +12,7 @@ import {
   unlimitedAiUsageResult,
 } from "@/lib/billing/unlimited-ai-access";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import { parseFiscalNotificationLibraryAiAuditInputV1 } from "@/lib/fiscal-notifications/library-ai-audit.v1";
 import {
   FiscalNotificationLibraryAiAuditProviderErrorV1,
@@ -62,6 +63,12 @@ export async function POST(request: Request) {
     return json(
       { error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE },
       { status: 401 },
+    );
+  }
+  if (!hasPrivatePreviewAccess(user.email)) {
+    return json(
+      { error: "El Consultor fiscal no está disponible." },
+      { status: 404 },
     );
   }
   if (

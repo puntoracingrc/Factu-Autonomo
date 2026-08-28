@@ -744,9 +744,7 @@ export async function generateMetadata({
           type: "article",
         }
       : undefined,
-    robots: isOfficialInformation
-      ? { index: true, follow: true }
-      : { index: false, follow: false, noarchive: true },
+    robots: { index: false, follow: false, noarchive: true },
   };
 }
 

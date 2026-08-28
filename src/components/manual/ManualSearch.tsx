@@ -5,7 +5,12 @@ import { useMemo, useState } from "react";
 import { ChevronRight, Search } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Field";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { buildManualHref } from "@/lib/manual/return-url";
+import {
+  hasPrivatePreviewAccess,
+  isPrivatePreviewManualSlug,
+} from "@/lib/private-preview-access";
 import type { ManualSection } from "@/lib/manual/types";
 
 interface ManualSearchProps {
@@ -36,14 +41,25 @@ function sectionSearchText(section: ManualSection): string {
 
 export function ManualSearch({ sections, returnTo }: ManualSearchProps) {
   const [query, setQuery] = useState("");
+  const { user } = useCloudSync();
+  const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
   const normalizedQuery = normalizeSearch(query);
+  const visibleSections = useMemo(
+    () =>
+      privatePreviewAccess
+        ? sections
+        : sections.filter(
+            (section) => !isPrivatePreviewManualSlug(section.slug),
+          ),
+    [privatePreviewAccess, sections],
+  );
 
   const results = useMemo(() => {
-    if (!normalizedQuery) return sections;
-    return sections.filter((section) =>
+    if (!normalizedQuery) return visibleSections;
+    return visibleSections.filter((section) =>
       normalizeSearch(sectionSearchText(section)).includes(normalizedQuery),
     );
-  }, [normalizedQuery, sections]);
+  }, [normalizedQuery, visibleSections]);
 
   return (
     <div className="space-y-4">

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
+import { ChevronLeft, Lightbulb } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ManualRichText } from "@/components/manual/ManualRichText";
 import { ManualScreenshot } from "@/components/manual/ManualScreenshot";
 import { FactuManualLogo } from "@/components/manual/FactuManualLogo";
 import { ManualReturnBar } from "@/components/manual/ManualReturnBar";
-import { buildManualHref } from "@/lib/manual/return-url";
+import { ManualSectionNavigation } from "@/components/manual/ManualSectionNavigation";
 import {
   getManualScreenshotContract,
   isManualScreenshotApproved,
@@ -16,6 +16,8 @@ interface ManualSectionViewProps {
   section: ManualSection;
   previous?: ManualSection;
   next?: ManualSection;
+  publicPrevious?: ManualSection;
+  publicNext?: ManualSection;
   returnTo?: string | null;
 }
 
@@ -23,6 +25,8 @@ export function ManualSectionView({
   section,
   previous,
   next,
+  publicPrevious,
+  publicNext,
   returnTo,
 }: ManualSectionViewProps) {
   return (
@@ -48,7 +52,9 @@ export function ManualSectionView({
           <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
             Factu · Sección {section.order}
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">{section.title}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900">
+            {section.title}
+          </h1>
           <p className="mt-2 text-slate-600">{section.summary}</p>
         </div>
       </header>
@@ -102,38 +108,13 @@ export function ManualSectionView({
         })}
       </div>
 
-      <nav className="mt-8 grid gap-3 sm:grid-cols-2">
-        {previous ? (
-          <Link
-            href={buildManualHref(`/ayuda/${previous.slug}`, returnTo)}
-            className="rounded-2xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Anterior
-            </p>
-            <p className="mt-1 flex items-center gap-1 font-semibold text-slate-900">
-              <ChevronLeft className="h-4 w-4" />
-              {previous.title}
-            </p>
-          </Link>
-        ) : (
-          <div />
-        )}
-        {next && (
-          <Link
-            href={buildManualHref(`/ayuda/${next.slug}`, returnTo)}
-            className="rounded-2xl border border-slate-200 bg-white p-4 text-right transition-colors hover:bg-slate-50 sm:col-start-2"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Siguiente
-            </p>
-            <p className="mt-1 flex items-center justify-end gap-1 font-semibold text-slate-900">
-              {next.title}
-              <ChevronRight className="h-4 w-4" />
-            </p>
-          </Link>
-        )}
-      </nav>
+      <ManualSectionNavigation
+        previous={previous}
+        next={next}
+        publicPrevious={publicPrevious}
+        publicNext={publicNext}
+        returnTo={returnTo}
+      />
     </div>
   );
 }

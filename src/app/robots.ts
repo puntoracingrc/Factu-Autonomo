@@ -9,6 +9,12 @@ const appInternalRoutes = [
   "/google-auth",
   "/drive",
   "/avisos",
+  "/afiliados",
+  "/ayuda/calendario-fiscal",
+  "/ayuda/consultor-fiscal",
+  "/ayuda/impuestos",
+  "/ayuda/modelos-aeat",
+  "/ayuda/test-autonomos",
   "/clientes",
   "/configuracion",
   "/consultor-fiscal",
@@ -29,7 +35,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/consultor-fiscal/modelos"],
+        allow: ["/"],
         disallow: appInternalRoutes,
       },
     ],

@@ -15,6 +15,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { isTaxModelDiagnosticEnabled } from "@/lib/tax-model-diagnostic/config";
+import {
+  hasPrivatePreviewAccess,
+  isPrivatePreviewPath,
+} from "@/lib/private-preview-access";
 export type AppNavItem = {
   href: string;
   activeBase?: string;
@@ -115,6 +119,13 @@ export const MOBILE_PRIMARY_NAV_ITEMS = APP_NAV_ITEMS.filter((item) =>
 export const MOBILE_MORE_NAV_ITEMS = APP_NAV_ITEMS.filter(
   (item) => !mobilePrimaryHrefSet.has(item.href),
 );
+
+export function appNavItemsForEmail(
+  email: string | null | undefined,
+): readonly AppNavItem[] {
+  if (hasPrivatePreviewAccess(email)) return APP_NAV_ITEMS;
+  return APP_NAV_ITEMS.filter((item) => !isPrivatePreviewPath(item.href));
+}
 
 export function isAppNavItemActive(
   pathname: string,

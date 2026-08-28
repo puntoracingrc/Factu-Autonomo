@@ -60,7 +60,8 @@ describe("paid Affiliate reward protection", () => {
     expect(api).toContain("registeredCount");
     expect(api).toContain("payingCount");
     expect(api).toContain('"Cache-Control": "private, no-store, max-age=0"');
+    expect(api).toContain("hasPrivatePreviewAccess(user.email)");
     expect(api).not.toContain("referee_user_id");
-    expect(api).not.toContain("email");
+    expect(api).not.toMatch(/\bemail\s*:/);
   });
 });

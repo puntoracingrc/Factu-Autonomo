@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { tryRedeemPendingReferral } from "@/lib/referrals/client";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 
 /** Aplica un código ?ref= pendiente cuando hay sesión iniciada. */
 export function ReferralRedeemOnLogin() {
@@ -10,7 +11,7 @@ export function ReferralRedeemOnLogin() {
   const attemptedForUser = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id || !hasPrivatePreviewAccess(user.email)) {
       attemptedForUser.current = null;
       return;
     }
@@ -24,7 +25,7 @@ export function ReferralRedeemOnLogin() {
         );
       }
     });
-  }, [user?.id]);
+  }, [user?.email, user?.id]);
 
   return null;
 }

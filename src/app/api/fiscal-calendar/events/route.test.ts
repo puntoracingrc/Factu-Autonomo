@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { FiscalCalendarProviderError } from "@/lib/fiscal-calendar/errors";
 import { getFiscalCalendarService } from "@/lib/fiscal-calendar/service";
 import {
@@ -9,6 +10,10 @@ import { GET } from "./route";
 
 vi.mock("@/lib/fiscal-calendar/service", () => ({
   getFiscalCalendarService: vi.fn(),
+}));
+
+vi.mock("@/lib/billing/server-auth", () => ({
+  getUserFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/server/rate-limit", async () => {
@@ -23,6 +28,7 @@ const listEvents = vi.fn();
 function request(query = "from=2026-07-01&to=2026-12-31&categories=iva") {
   return new Request(
     `http://localhost:3000/api/fiscal-calendar/events?${query}`,
+    { headers: { Authorization: "Bearer test-token" } },
   );
 }
 
@@ -67,6 +73,10 @@ describe("GET /api/fiscal-calendar/events", () => {
     vi.stubEnv("VERCEL", "");
     vi.stubEnv("VERCEL_ENV", "");
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "true");
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "preview-user",
+      email: "persianasalmar@gmail.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
     vi.mocked(getFiscalCalendarService).mockReturnValue({
       listEvents,
     } as never);
@@ -96,6 +106,19 @@ describe("GET /api/fiscal-calendar/events", () => {
     expect(checkRateLimit).not.toHaveBeenCalled();
     expect(getFiscalCalendarService).not.toHaveBeenCalled();
     expect(response.headers.get("cache-control")).toContain("no-store");
+  });
+
+  it("no consulta el calendario para una cuenta fuera de la preview", async () => {
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "other-user",
+      email: "usuario@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(404);
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(getFiscalCalendarService).not.toHaveBeenCalled();
   });
 
   it("no hereda la flag del analizador de gastos", async () => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { redeemReferralCode } from "@/lib/billing/referrals";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -14,6 +15,12 @@ export async function POST(request: Request) {
   });
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  if (!hasPrivatePreviewAccess(user.email)) {
+    return NextResponse.json(
+      { error: "La función no está disponible." },
+      { status: 404 },
+    );
   }
   const rateLimit = await checkRateLimit(
     request,

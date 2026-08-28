@@ -26,7 +26,10 @@ const validEvent = {
 function request(body: unknown) {
   return new Request("https://example.test/api/tax-diagnostic/events", {
     method: "POST",
-    headers: { Authorization: "Bearer test", "Content-Type": "application/json" },
+    headers: {
+      Authorization: "Bearer test",
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
   });
 }
@@ -34,7 +37,10 @@ function request(body: unknown) {
 describe("POST /api/tax-diagnostic/events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getUserFromBearer).mockResolvedValue({ id: "real-user-id" } as never);
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "real-user-id",
+      email: "persianasalmar@gmail.com",
+    } as never);
     vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
     vi.mocked(persistTaxProductEvent).mockResolvedValue(true);
   });
@@ -44,23 +50,43 @@ describe("POST /api/tax-diagnostic/events", () => {
     expect((await POST(request(validEvent))).status).toBe(401);
   });
 
+  it("keeps the endpoint closed for accounts outside the preview", async () => {
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "other-user-id",
+      email: "usuario@example.com",
+    } as never);
+
+    expect((await POST(request(validEvent))).status).toBe(404);
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(persistTaxProductEvent).not.toHaveBeenCalled();
+  });
+
   it("persists only a normalized closed event", async () => {
-    const response = await POST(request({ ...validEvent, contractVersion: "1.0.0" }));
+    const response = await POST(
+      request({ ...validEvent, contractVersion: "1.0.0" }),
+    );
     expect(response.status).toBe(200);
     expect(persistTaxProductEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ contractVersion: "1.0.0", eventType: "tax_models_catalog_opened" }),
+      expect.objectContaining({
+        contractVersion: "1.0.0",
+        eventType: "tax_models_catalog_opened",
+      }),
       "real-user-id",
     );
   });
 
   it("rejects personal or raw fields before storage", async () => {
-    const response = await POST(request({ ...validEvent, properties: { rawText: "NIF 12345678Z" } }));
+    const response = await POST(
+      request({ ...validEvent, properties: { rawText: "NIF 12345678Z" } }),
+    );
     expect(response.status).toBe(400);
     expect(persistTaxProductEvent).not.toHaveBeenCalled();
   });
 
   it("keeps telemetry storage failure non-blocking and sanitized", async () => {
-    vi.mocked(persistTaxProductEvent).mockRejectedValue(new Error("database detail"));
+    vi.mocked(persistTaxProductEvent).mockRejectedValue(
+      new Error("database detail"),
+    );
     const response = await POST(request(validEvent));
     expect(response.status).toBe(202);
     expect(await response.json()).toEqual({ ok: false });

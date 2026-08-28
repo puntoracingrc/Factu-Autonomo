@@ -31,9 +31,14 @@ export function PricingComparisonPanel() {
           </p>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
             {APP_BRAND_NAME} está pensada para facturar, controlar gastos y
-            orientarte con impuestos. No intenta ser banco, nóminas ni gestoría
-            automática. Por eso Pro está en{" "}
-            <strong>{formatReferencePrice(ranking.find((e) => e.isUs)?.referenceMonthlyEur ?? 0)}/mes</strong>{" "}
+            organizar clientes y productos. No intenta ser banco, nóminas ni
+            gestoría automática. Por eso Pro está en{" "}
+            <strong>
+              {formatReferencePrice(
+                ranking.find((e) => e.isUs)?.referenceMonthlyEur ?? 0,
+              )}
+              /mes
+            </strong>{" "}
             — por debajo de alternativas parecidas del mercado español.
           </p>
         </div>
@@ -86,7 +91,9 @@ export function PricingComparisonPanel() {
                     </span>
                   )}
                 </td>
-                <td className="px-2 py-2.5 text-slate-600">{entry.limitsNote}</td>
+                <td className="px-2 py-2.5 text-slate-600">
+                  {entry.limitsNote}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -96,8 +103,9 @@ export function PricingComparisonPanel() {
       <p className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-slate-500">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Precios orientativos sin IVA (el 21 % se añade al contratar). Fuentes:
-        webs públicas, actualizado el {formatVerifiedDate(PRICING_REVIEW.lastVerified)}.
-        Las promociones pueden variar; el ranking usa el precio habitual.
+        webs públicas, actualizado el{" "}
+        {formatVerifiedDate(PRICING_REVIEW.lastVerified)}. Las promociones
+        pueden variar; el ranking usa el precio habitual.
       </p>
 
       <button

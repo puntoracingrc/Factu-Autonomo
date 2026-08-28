@@ -13,7 +13,7 @@ export const primerosPasosSection: ManualSection = {
       title: "1. Elige cómo quieres empezar",
       paragraphs: [
         "Desde **Inicio**, pulsa **Empezar gratis** si quieres crear una cuenta real sin tarjeta, o **Demo sin registro** si solo quieres curiosear.",
-        "En **Demo sin registro** verás una empresa ficticia y podrás tocar facturas, gastos e impuestos sin afectar a tus datos.",
+        "En **Demo sin registro** verás una empresa ficticia y podrás tocar facturas, clientes, gastos y productos sin afectar a tus datos.",
         "Si entras en la app sin cuenta, puedes crear datos en este navegador. Verás un aviso de **Estás probando sin cuenta** o **Tienes datos guardados solo en este navegador**.",
         "Para trabajar ya con tus datos, ve a **Cuenta** y pulsa **Crear cuenta**. El plan Gratis es una cuenta real sin tarjeta, con límites de uso y email verificado.",
       ],

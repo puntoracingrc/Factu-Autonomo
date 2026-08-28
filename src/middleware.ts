@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
-import { isPublicAeatOfficialIndexablePathV1 } from "@/lib/fiscal-models/model-pages/official-content/indexable-paths.v1";
 import { isPublicAeatModelReviewPathV1 } from "@/lib/fiscal-models/model-pages/public-review-route-manifest.v1";
 import { buildSecurityResponseHeaders } from "@/lib/security-response-headers";
 import { isTaxModelDiagnosticEnabled } from "@/lib/tax-model-diagnostic/config";
@@ -21,17 +20,12 @@ const LEGAL_ALIAS_DESTINATIONS: Readonly<Record<string, string>> = {
   "/terms": "/legal/terminos",
 };
 
-function applyPrivateHeaders(
-  response: NextResponse,
-  options: Readonly<{ allowIndex?: boolean }> = {},
-): NextResponse {
+function applyPrivateHeaders(response: NextResponse): NextResponse {
   for (const [key, value] of Object.entries(PRIVATE_APP_HEADERS)) {
     response.headers.set(key, value);
   }
-  if (!options.allowIndex) {
-    for (const [key, value] of Object.entries(PRIVATE_APP_ROBOTS_HEADERS)) {
-      response.headers.set(key, value);
-    }
+  for (const [key, value] of Object.entries(PRIVATE_APP_ROBOTS_HEADERS)) {
+    response.headers.set(key, value);
   }
   return response;
 }
@@ -157,11 +151,7 @@ export function middleware(request?: NextRequest) {
     return privateNotFoundResponse();
   }
 
-  return applyPrivateHeaders(NextResponse.next(), {
-    allowIndex:
-      request !== undefined &&
-      isPublicAeatOfficialIndexablePathV1(request.nextUrl.pathname),
-  });
+  return applyPrivateHeaders(NextResponse.next());
 }
 
 export const config = {
@@ -174,7 +164,11 @@ export const config = {
     "/auth/callback/:path*",
     "/avisos/:path*",
     "/afiliados/:path*",
+    "/ayuda/calendario-fiscal/:path*",
     "/ayuda/consultor-fiscal/:path*",
+    "/ayuda/impuestos/:path*",
+    "/ayuda/modelos-aeat/:path*",
+    "/ayuda/test-autonomos/:path*",
     "/clientes/:path*",
     "/configuracion/:path*",
     "/consultor-fiscal/:path*",

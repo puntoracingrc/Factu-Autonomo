@@ -38,6 +38,7 @@ import {
 } from "@/lib/referrals/storage";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import {
   describeTurnstileClientError,
   describeTurnstileSiteKeyIssue,
@@ -672,7 +673,8 @@ export function CloudAccountCard({
             ) : null}
             {surface !== "partner" &&
             billingEnabled &&
-            authMode === "signup" ? (
+            authMode === "signup" &&
+            hasPrivatePreviewAccess(email) ? (
               <Field
                 label="Código de invitación"
                 hint={`Opcional — ${REFERRAL_BONUS_SCANS} créditos IA para ambos después de un pago válido`}

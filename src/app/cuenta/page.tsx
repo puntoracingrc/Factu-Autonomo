@@ -31,6 +31,8 @@ import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { SupportRecoveryToolsSection } from "@/components/settings/SupportRecoveryToolsSection";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
+import { useCloudSync } from "@/context/CloudSyncContext";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 
 const ACCOUNT_NAV_ITEMS: Array<{
   href: string;
@@ -95,6 +97,9 @@ function AccountSection({
 }
 
 export default function CuentaPage() {
+  const { user } = useCloudSync();
+  const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
+
   return (
     <div>
       <PageHeader
@@ -133,23 +138,25 @@ export default function CuentaPage() {
         <AiUsageMeterCard />
         <SubscriptionBillingCard />
         <PromoCodeRedeemer />
-        <Card className="mb-6 flex flex-col gap-4 border-violet-200 bg-violet-50/60 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
-              <Gift className="h-5 w-5" />
-            </span>
-            <div>
-              <h3 className="font-bold text-slate-900">Afiliados</h3>
-              <p className="mt-1 text-sm text-slate-600">
-                Comparte tu enlace y consulta las ventajas conseguidas por tus
-                invitaciones.
-              </p>
+        {privatePreviewAccess ? (
+          <Card className="mb-6 flex flex-col gap-4 border-violet-200 bg-violet-50/60 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                <Gift className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900">Afiliados</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Comparte tu enlace y consulta las ventajas conseguidas por tus
+                  invitaciones.
+                </p>
+              </div>
             </div>
-          </div>
-          <ButtonLink href="/afiliados" variant="secondary">
-            Abrir Afiliados
-          </ButtonLink>
-        </Card>
+            <ButtonLink href="/afiliados" variant="secondary">
+              Abrir Afiliados
+            </ButtonLink>
+          </Card>
+        ) : null}
       </AccountSection>
 
       <AccountSection

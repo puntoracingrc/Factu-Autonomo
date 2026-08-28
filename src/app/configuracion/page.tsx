@@ -34,6 +34,7 @@ import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { VerifactuSettingsCard } from "@/components/verifactu/VerifactuSettingsCard";
 import { useBilling } from "@/context/BillingContext";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import {
   findBusinessProfileDraftConflictPaths,
@@ -107,6 +108,7 @@ import type {
   NumberingLastSequence,
   ProductFamilyMarkupSettings,
 } from "@/lib/types";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 
 type SettingsSectionKey =
   | "business"
@@ -259,6 +261,8 @@ export default function ConfiguracionPage() {
   const { data } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
   const { billingEnabled, isPro } = useBilling();
+  const { user } = useCloudSync();
+  const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
   const initialProfile = normalizeSettingsProfile(data.profile);
   const [form, setForm] = useState(initialProfile);
   const profileBaselineRef = useRef(initialProfile);
@@ -1576,15 +1580,22 @@ export default function ConfiguracionPage() {
               hint="La usará el logo de la cabecera cuando tengas sesión iniciada."
             >
               <select
-                value={appPreferences.startPage}
+                value={
+                  appPreferences.startPage === "taxes" && !privatePreviewAccess
+                    ? "panel"
+                    : appPreferences.startPage
+                }
                 onChange={(event) =>
                   updateAppPreferences({
-                    startPage: event.target.value as AppPreferences["startPage"],
+                    startPage: event.target
+                      .value as AppPreferences["startPage"],
                   })
                 }
                 className="min-h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 shadow-inner outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
-                {APP_START_PAGE_OPTIONS.map((option) => (
+                {APP_START_PAGE_OPTIONS.filter(
+                  (option) => privatePreviewAccess || option.value !== "taxes",
+                ).map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label} - {option.description}
                   </option>

@@ -556,6 +556,17 @@ export function FiscalCalendarView({
       setLoading(true);
       setError(null);
       try {
+        const { getSupabaseClientAsync } =
+          await import("@/lib/supabase/client");
+        const supabase = await getSupabaseClientAsync();
+        const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
+          data: { session: null },
+        };
+        const token = sessionData.session?.access_token;
+        if (!token) {
+          setError("Inicia sesión para consultar el calendario fiscal.");
+          return;
+        }
         const response = await fetch(
           requestUrl(
             appliedQuery.startDate,
@@ -565,7 +576,10 @@ export function FiscalCalendarView({
           {
             method: "GET",
             cache: "no-store",
-            headers: { Accept: "application/json" },
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
             signal: controller.signal,
           },
         );

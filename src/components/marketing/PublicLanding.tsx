@@ -8,8 +8,8 @@ import {
   BarChart3,
   CheckCircle2,
   FileText,
-  Landmark,
   MonitorPlay,
+  PackageSearch,
   Receipt,
   ScanLine,
   ShieldCheck,
@@ -34,10 +34,10 @@ const productPillars = [
     tone: "bg-emerald-50 text-emerald-700",
   },
   {
-    title: "Impuestos orientativos",
+    title: "Clientes y productos",
     description:
-      "Ten a mano IVA, IRPF y beneficio por periodo para llegar a tu gestor con los números más claros.",
-    Icon: Landmark,
+      "Reutiliza clientes, productos y precios para preparar cada documento con menos trabajo repetido.",
+    Icon: PackageSearch,
     tone: "bg-amber-50 text-amber-700",
   },
   {
@@ -54,7 +54,7 @@ const firstSteps = [
   "Abre una factura y escribe los datos del cliente.",
   "Guarda: el cliente queda creado automáticamente.",
   "Emite la factura y descarga el PDF.",
-  "Registra gastos y revisa el resumen fiscal.",
+  "Registra gastos y consulta tus documentos cuando los necesites.",
 ];
 
 const trustItems = [
@@ -62,7 +62,7 @@ const trustItems = [
   "Información VeriFactu/SIF; registro y QR desactivados",
   "Email verificado antes de acciones reales",
   "Gratis: 1 dispositivo local; Pro: 2 sincronizados; Pro+: 5",
-  "Fiscal orientativo, revisable con tu gestor",
+  "Copias y sincronización según el plan contratado",
 ];
 
 const VERIFACTU_PUBLIC_NOTICE =
@@ -231,8 +231,8 @@ export function PublicLanding() {
                 Facturación sencilla para autónomos
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-700 sm:text-xl">
-                Crea facturas, controla gastos y mira tus impuestos orientativos
-                sin pelearte con hojas de cálculo.
+                Crea facturas, organiza clientes y controla gastos sin pelearte
+                con hojas de cálculo.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -261,8 +261,8 @@ export function PublicLanding() {
               <div className="mt-5 flex max-w-2xl items-start gap-2 text-sm font-medium text-slate-600">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                 <p>
-                  ¿Qué incluye hoy sobre VeriFactu/SIF? Información de alcance
-                  y controles internos de integridad. {VERIFACTU_PUBLIC_NOTICE}{" "}
+                  ¿Qué incluye hoy sobre VeriFactu/SIF? Información de alcance y
+                  controles internos de integridad. {VERIFACTU_PUBLIC_NOTICE}{" "}
                   <Link
                     href="/legal/verifactu"
                     className="font-bold text-blue-700 underline underline-offset-2"
@@ -442,8 +442,8 @@ export function PublicLanding() {
               lista
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-              Sin tarjeta para empezar. Si necesitas documentos ilimitados, nube,
-              importación avanzada o IA, puedes pasar a Pro cuando tenga
+              Sin tarjeta para empezar. Si necesitas documentos ilimitados,
+              nube, importación avanzada o IA, puedes pasar a Pro cuando tenga
               sentido.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
