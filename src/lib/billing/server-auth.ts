@@ -9,6 +9,7 @@ interface GetUserFromBearerOptions {
 export interface VerifiedUserSession {
   user: User;
   sessionId: string;
+  aal: "aal1" | "aal2";
 }
 
 function bearerToken(authorization: string | null): string | null {
@@ -61,6 +62,10 @@ export async function getUserSessionFromBearer(
   if (userResult.error || claimsResult.error || !user || !claims) return null;
   if (claims.sub !== user.id) return null;
 
+  const aal = claims.aal;
+  if (aal !== "aal1" && aal !== "aal2") return null;
+  const verifiedAal: "aal1" | "aal2" = aal === "aal2" ? "aal2" : "aal1";
+
   const sessionId = claims.session_id?.trim();
   if (
     !sessionId ||
@@ -74,5 +79,5 @@ export async function getUserSessionFromBearer(
     return null;
   }
 
-  return { user, sessionId };
+  return { user, sessionId, aal: verifiedAal };
 }

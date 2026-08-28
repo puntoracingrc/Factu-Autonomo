@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 import { isAdminUser } from "@/lib/admin/access";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 vi.mock("@/lib/admin/access", () => ({
@@ -9,7 +9,7 @@ vi.mock("@/lib/admin/access", () => ({
 }));
 
 vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+  getUserSessionFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -39,10 +39,11 @@ function rateLimitBucketFromMock(rows: Array<Record<string, unknown>> = []) {
 
 describe("GET /api/admin/health", () => {
   beforeEach(() => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "admin-1",
-      email: "admin@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getUserSessionFromBearer).mockResolvedValue({
+      user: { id: "admin-1", email: "admin@example.com" },
+      sessionId: "22222222-2222-4222-8222-222222222222",
+      aal: "aal2",
+    } as Awaited<ReturnType<typeof getUserSessionFromBearer>>);
     vi.mocked(isAdminUser).mockReturnValue(true);
   });
 

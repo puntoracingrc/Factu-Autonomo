@@ -1,10 +1,18 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { GET } from "./route";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
 
 vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+  getUserSessionFromBearer: vi.fn(),
 }));
+
+function session(email: string, aal: "aal1" | "aal2") {
+  return {
+    user: { id: email, email },
+    sessionId: "22222222-2222-4222-8222-222222222222",
+    aal,
+  } as Awaited<ReturnType<typeof getUserSessionFromBearer>>;
+}
 
 function request() {
   return new Request("http://localhost/api/admin/capabilities", {
@@ -19,7 +27,7 @@ describe("GET /api/admin/capabilities", () => {
   });
 
   it("requiere sesion", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    vi.mocked(getUserSessionFromBearer).mockResolvedValue(null);
 
     const response = await GET(request());
 
@@ -33,10 +41,9 @@ describe("GET /api/admin/capabilities", () => {
         "ADMIN_EMAILS",
         "admin-one@example.com,admin-two@example.com",
       );
-      vi.mocked(getUserFromBearer).mockResolvedValue({
-        id: email,
-        email,
-      } as Awaited<ReturnType<typeof getUserFromBearer>>);
+      vi.mocked(getUserSessionFromBearer).mockResolvedValue(
+        session(email, "aal2"),
+      );
 
       const response = await GET(request());
       const body = await response.json();
@@ -47,16 +54,15 @@ describe("GET /api/admin/capabilities", () => {
         adminEmailAuthorized: true,
         aiLearning: true,
         learningLabel: "admin",
+        adminMfa: { required: true, satisfied: true, currentLevel: "aal2" },
       });
-      expect(body).not.toHaveProperty("adminMfa");
     },
   );
 
   it("reconoce a persianasalmar como administrador propietario completo", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-empresa",
-      email: "persianasalmar@gmail.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getUserSessionFromBearer).mockResolvedValue(
+      session("persianasalmar@gmail.com", "aal2"),
+    );
 
     const response = await GET(request());
     const body = await response.json();
@@ -67,6 +73,24 @@ describe("GET /api/admin/capabilities", () => {
       adminEmailAuthorized: true,
       aiLearning: true,
       learningLabel: "admin",
+    });
+  });
+
+  it("mantiene el bootstrap MFA visible pero no concede Admin en AAL1", async () => {
+    vi.mocked(getUserSessionFromBearer).mockResolvedValue(
+      session("persianasalmar@gmail.com", "aal1"),
+    );
+
+    const response = await GET(request());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(body).toMatchObject({
+      fullAdmin: false,
+      adminEmailAuthorized: true,
+      aiLearning: false,
+      adminMfa: { required: true, satisfied: false, currentLevel: "aal1" },
     });
   });
 });

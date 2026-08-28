@@ -138,14 +138,17 @@ const adminRoutes = [
   "admin/vercel-usage/route.ts",
 ] as const;
 
+const adminLearningRoutes = [
+  "admin/ai-learning/correct/route.ts",
+  "admin/ai-learning/feedback/route.ts",
+] as const;
+
 const partnerRoutes = [
   "partners/access/route.ts",
   "partners/me/route.ts",
 ] as const;
 
 const bearerRoutes = [
-  "admin/ai-learning/correct/route.ts",
-  "admin/ai-learning/feedback/route.ts",
   "admin/capabilities/route.ts",
   "billing/ai-usage/route.ts",
   "billing/checkout-scan-pack/route.ts",
@@ -225,6 +228,7 @@ const scheduledRoutes = [
 
 const distributedRateLimitedRoutes = [
   ...adminRoutes,
+  ...adminLearningRoutes,
   ...bearerRoutes,
   ...partnerRoutes,
   ...publicConstrainedRoutes,
@@ -319,6 +323,7 @@ describe("API security inventory", () => {
   it("classifies every route under exactly one access boundary", () => {
     const classified = [
       ...adminRoutes,
+      ...adminLearningRoutes,
       ...bearerRoutes,
       ...partnerRoutes,
       ...publicConstrainedRoutes,
@@ -333,6 +338,11 @@ describe("API security inventory", () => {
   it("keeps admin and bearer routes behind server-side identity checks", () => {
     for (const route of adminRoutes) {
       expect(sourceFor(route), route).toContain("getAdminAccessFromRequest");
+    }
+    for (const route of adminLearningRoutes) {
+      expect(sourceFor(route), route).toContain(
+        "getAdminAiLearningAccessFromRequest",
+      );
     }
     for (const route of bearerRoutes) {
       expect(sourceFor(route), route).toMatch(/getUser(?:Session)?FromBearer/);

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { aiLearningAccountForEmail } from "@/lib/ai-learning";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getAdminAiLearningAccessFromRequest } from "@/lib/admin/server-access";
 import {
   correctExpenseScanPayloadWithInstruction,
   isExpenseScanCorrectionConfigured,
@@ -13,14 +12,9 @@ import {
 import { readJsonBody } from "@/lib/server/request-body";
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  if (!aiLearningAccountForEmail(user.email).allowed) {
-    return NextResponse.json({ error: "Cuenta no autorizada" }, { status: 403 });
-  }
+  const access = await getAdminAiLearningAccessFromRequest(request);
+  if (!access.ok) return access.response;
+  const { user } = access;
   const rateLimit = await checkRateLimit(
     request,
     {

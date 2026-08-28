@@ -106,7 +106,9 @@ export default function GoogleDriveCallbackPage() {
         const params = new URLSearchParams(window.location.search);
         const googleError = params.get("error")?.trim();
         const state = params.get("state")?.trim() ?? "";
-        const pending = state ? loadPendingDriveBackupRequest(state) : null;
+        const pending = state
+          ? await loadPendingDriveBackupRequest(state)
+          : null;
         returnPath = pending?.returnPath;
 
         if (googleError) {

@@ -165,7 +165,9 @@ export function setStoredRentabilidadRealHoursSettings(
 ): RentabilidadRealHoursCalculationSettings {
   const normalized = normalizeSettings(settings);
   if (storageAvailable()) {
-    localStorage.setItem(HOURS_SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
+    const serialized = JSON.stringify(normalized);
+    // Local-first calculation inputs are business preferences, not credentials.
+    localStorage.setItem(HOURS_SETTINGS_STORAGE_KEY, serialized);
   }
   return normalized;
 }

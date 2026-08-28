@@ -1042,6 +1042,65 @@ function isIsoTimestamp(value: unknown): value is string {
   return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
 }
 
+function isAsciiLetter(character: string | undefined): boolean {
+  if (!character) return false;
+  const code = character.charCodeAt(0);
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function isAsciiDigit(character: string | undefined): boolean {
+  if (!character) return false;
+  const code = character.charCodeAt(0);
+  return code >= 48 && code <= 57;
+}
+
+function readSafePathIdentifier(
+  value: string,
+  start: number,
+): { identifier: string; next: number } | null {
+  if (!isAsciiLetter(value[start])) return null;
+  let next = start + 1;
+  while (isAsciiLetter(value[next]) || isAsciiDigit(value[next])) next += 1;
+  return { identifier: value.slice(start, next), next };
+}
+
+function parseSafeInternalPathSegments(value: string): string[] | null {
+  let index = value.startsWith("$") ? 1 : 0;
+  if (value[index] === ".") index += 1;
+
+  const root = readSafePathIdentifier(value, index);
+  if (!root) return null;
+  const segments = [root.identifier];
+  index = root.next;
+
+  while (index < value.length) {
+    if (value[index] === ".") {
+      index += 1;
+      const identifier = readSafePathIdentifier(value, index);
+      if (!identifier) return null;
+      segments.push(identifier.identifier);
+      index = identifier.next;
+      continue;
+    }
+
+    if (value[index] === "[") {
+      index += 1;
+      const digitsStart = index;
+      while (isAsciiDigit(value[index])) index += 1;
+      if (index === digitsStart || value[index] !== "]") return null;
+      index += 1;
+      continue;
+    }
+
+    const identifier = readSafePathIdentifier(value, index);
+    if (!identifier) return null;
+    segments.push(identifier.identifier);
+    index = identifier.next;
+  }
+
+  return segments;
+}
+
 function isSafeInternalPath(value: unknown): value is string {
   if (
     typeof value !== "string" ||
@@ -1052,17 +1111,8 @@ function isSafeInternalPath(value: unknown): value is string {
     return false;
   }
   if (value === "$") return true;
-  if (!/^\$?(?:\.?[A-Za-z][A-Za-z0-9]*|\[\d+\])+$/u.test(value)) {
-    return false;
-  }
-  const withoutRootMarker = value.startsWith("$.")
-    ? value.slice(2)
-    : value.startsWith("$")
-      ? value.slice(1)
-      : value;
-  const root = withoutRootMarker.split(/[.[]/u, 1)[0];
-  if (!SAFE_VALIDATION_PATH_ROOTS.has(root)) return false;
-  const segments = withoutRootMarker.match(/[A-Za-z][A-Za-z0-9]*/gu) ?? [];
+  const segments = parseSafeInternalPathSegments(value);
+  if (!segments || !SAFE_VALIDATION_PATH_ROOTS.has(segments[0])) return false;
   return segments.every((segment) => SAFE_VALIDATION_PATH_SEGMENTS.has(segment));
 }
 

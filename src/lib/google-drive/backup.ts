@@ -11,7 +11,6 @@ export const DRIVE_BACKUP_FOLDER_NAME = "Factu - copias de seguridad";
 export const DRIVE_BACKUP_SETTINGS_KEY = "factura-autonomo-drive-backup";
 export const DRIVE_BACKUP_CALLBACK_PATH = "/drive/callback";
 export const DRIVE_BACKUP_PENDING_KEY = "factura-autonomo-drive-backup-pending";
-export const DRIVE_BACKUP_TOKEN_KEY = "factura-autonomo-drive-access-token";
 export const DRIVE_BACKUP_FILE_PREFIX = "factu-autonomo-drive-backup-";
 export const DRIVE_BACKUP_RETENTION_LIMIT = 10;
 export const DRIVE_BACKUP_SETTINGS_EVENT =
@@ -39,7 +38,7 @@ export interface DriveBackupSettings {
 }
 
 export interface PendingDriveBackupRequest {
-  state: string;
+  stateDigest: string;
   frequency: DriveBackupFrequency;
   requestedAt: string;
   returnPath?: DriveBackupReturnPath;
@@ -205,25 +204,25 @@ function normalizePendingDriveBackupRequest(
   raw: unknown,
 ): PendingDriveBackupRequest | null {
   if (!isRecord(raw)) return null;
-  const state = safeString(raw.state);
+  const stateDigest = safeString(raw.stateDigest);
   const requestedAt = safeString(raw.requestedAt);
-  if (!state || !requestedAt) return null;
+  if (!stateDigest || !requestedAt) return null;
 
   const requestedTime = Date.parse(requestedAt);
   if (!Number.isFinite(requestedTime)) return null;
   if (Date.now() - requestedTime > DRIVE_BACKUP_PENDING_MAX_AGE_MS) return null;
 
   return {
-    state,
+    stateDigest,
     frequency: normalizeFrequency(raw.frequency),
     requestedAt,
     returnPath: normalizeDriveBackupReturnPath(raw.returnPath),
   };
 }
 
-export function loadPendingDriveBackupRequest(
+export async function loadPendingDriveBackupRequest(
   expectedState?: string,
-): PendingDriveBackupRequest | null {
+): Promise<PendingDriveBackupRequest | null> {
   if (typeof window === "undefined") return null;
 
   try {
@@ -231,7 +230,10 @@ export function loadPendingDriveBackupRequest(
       JSON.parse(sessionStorage.getItem(DRIVE_BACKUP_PENDING_KEY) ?? "null"),
     );
     if (!pending) return null;
-    if (expectedState && pending.state !== expectedState) return null;
+    if (expectedState) {
+      const expectedDigest = await hashOauthState(expectedState);
+      if (!expectedDigest || pending.stateDigest !== expectedDigest) return null;
+    }
     return pending;
   } catch {
     return null;
@@ -243,7 +245,7 @@ export function clearPendingDriveBackupRequest(): void {
   sessionStorage.removeItem(DRIVE_BACKUP_PENDING_KEY);
 }
 
-function createOauthState(): string {
+function createOauthState(): string | null {
   const webCrypto = globalThis.crypto;
   if (webCrypto?.randomUUID) {
     return webCrypto.randomUUID();
@@ -257,7 +259,25 @@ function createOauthState(): string {
     );
   }
 
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return null;
+}
+
+async function hashOauthState(state: string): Promise<string | null> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return null;
+
+  try {
+    const digest = await subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(state),
+    );
+    const hex = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+    return `sha256:${hex}`;
+  } catch {
+    return null;
+  }
 }
 
 export function buildGoogleDriveAuthorizationUrl(input: {
@@ -277,11 +297,11 @@ export function buildGoogleDriveAuthorizationUrl(input: {
   return url.toString();
 }
 
-export function startGoogleDriveBackupRedirect(input: {
+export async function startGoogleDriveBackupRedirect(input: {
   clientId: string;
   frequency: DriveBackupFrequency;
   returnPath?: DriveBackupReturnPath;
-}): { ok: true } | { ok: false; error: string } {
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   if (typeof window === "undefined") {
     return { ok: false, error: "Google Drive solo funciona en el navegador." };
   }
@@ -291,8 +311,24 @@ export function startGoogleDriveBackupRedirect(input: {
     return { ok: false, error: "Google Drive no está configurado." };
   }
 
+  const state = createOauthState();
+  if (!state) {
+    return {
+      ok: false,
+      error: "Este navegador no permite iniciar Google Drive de forma segura.",
+    };
+  }
+
+  const stateDigest = await hashOauthState(state);
+  if (!stateDigest) {
+    return {
+      ok: false,
+      error: "Este navegador no permite iniciar Google Drive de forma segura.",
+    };
+  }
+
   const pending: PendingDriveBackupRequest = {
-    state: createOauthState(),
+    stateDigest,
     frequency: input.frequency,
     requestedAt: new Date().toISOString(),
     returnPath: input.returnPath,
@@ -304,7 +340,7 @@ export function startGoogleDriveBackupRedirect(input: {
     buildGoogleDriveAuthorizationUrl({
       clientId,
       redirectUri,
-      state: pending.state,
+      state,
     }),
   );
 
@@ -406,23 +442,6 @@ export function shouldRunAutomaticDriveBackup(
   };
 }
 
-function loadSessionToken(): { accessToken: string; expiresAt: number } | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const raw = JSON.parse(
-      sessionStorage.getItem(DRIVE_BACKUP_TOKEN_KEY) ?? "null",
-    );
-    if (!isRecord(raw)) return null;
-    const accessToken = safeString(raw.accessToken);
-    const expiresAt = Number(raw.expiresAt);
-    if (!accessToken || !Number.isFinite(expiresAt)) return null;
-    return { accessToken, expiresAt };
-  } catch {
-    return null;
-  }
-}
-
 export function cacheDriveAccessToken(
   accessToken: string,
   expiresIn = 3600,
@@ -434,20 +453,13 @@ export function cacheDriveAccessToken(
     accessToken: cleanToken,
     expiresAt: Date.now() + expiresIn * 1000,
   };
-
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(DRIVE_BACKUP_TOKEN_KEY, JSON.stringify(cachedToken));
 }
 
 export function clearDriveAccessToken(): void {
   cachedToken = null;
-
-  if (typeof window === "undefined") return;
-  sessionStorage.removeItem(DRIVE_BACKUP_TOKEN_KEY);
 }
 
 function getCachedToken(): string | null {
-  if (!cachedToken) cachedToken = loadSessionToken();
   if (!cachedToken) return null;
   if (cachedToken.expiresAt - Date.now() < 60_000) {
     clearDriveAccessToken();

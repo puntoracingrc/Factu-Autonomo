@@ -596,8 +596,12 @@ export function clientAddressToFormFields(
   if (client.streetType) {
     const type = getStreetType(client.streetType);
     if (type && firstSegment) {
-      const abbr = type.abbreviation.replace(/\./g, "\\.");
-      const prefixPattern = new RegExp(`^(${abbr}|${type.label})\\s*`, "i");
+      const escapeRegExp = (value: string) =>
+        value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const prefixPattern = new RegExp(
+        `^(${escapeRegExp(type.abbreviation)}|${escapeRegExp(type.label)})\\s*`,
+        "i",
+      );
       return {
         streetType: client.streetType,
         streetLine: firstSegment.replace(prefixPattern, "").trim() || firstSegment,

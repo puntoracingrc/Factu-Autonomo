@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { resolveOptInFixturePath } from "../../../scripts/private-fixture-paths.mjs";
 import {
@@ -245,6 +246,38 @@ const baseSheets: HoldedInputSheet[] = [
 ];
 
 describe("Holded importer", () => {
+  it("extrae texto XLSX sin conservar etiquetas anidadas o reconstruibles", () => {
+    const workbook = zipSync({
+      "xl/workbook.xml": strToU8(
+        '<workbook><sheets><sheet name="Contactos" r:id="rId1"/></sheets></workbook>',
+      ),
+      "xl/_rels/workbook.xml.rels": strToU8(
+        '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+      ),
+      "xl/sharedStrings.xml": strToU8(
+        "<sst><si><t>nombre</t></si><si><t>Cliente &lt;b&gt;Seguro&lt;/b&gt;</t></si>" +
+          "<si><t>Cliente <scr<script>ipt>Seguro</scr<script>ipt></t></si></sst>",
+      ),
+      "xl/worksheets/sheet1.xml": strToU8(
+        '<worksheet><sheetData><row><c r="A1" t="s"><v>0</v></c></row>' +
+          '<row><c r="A2" t="s"><v>1</v></c></row>' +
+          '<row><c r="A3" t="s"><v>2</v></c></row></sheetData></worksheet>',
+      ),
+    });
+    const buffer = workbook.buffer.slice(
+      workbook.byteOffset,
+      workbook.byteOffset + workbook.byteLength,
+    ) as ArrayBuffer;
+
+    expect(parseHoldedWorkbookBuffer(buffer)).toEqual([
+      {
+        name: "Contactos",
+        kind: "contacts",
+        rows: [{ nombre: "Cliente <b>Seguro</b>" }, { nombre: "Cliente Seguro" }],
+      },
+    ]);
+  });
+
   it("persiste procedencia en una factura externa que sigue como borrador editable", () => {
     const draftSheets = baseSheets.map((sheet) =>
       sheet.kind === "invoices"

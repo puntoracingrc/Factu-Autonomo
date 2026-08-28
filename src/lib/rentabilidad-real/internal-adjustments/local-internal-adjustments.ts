@@ -62,10 +62,9 @@ export function setStoredInternalAdjustments(
 ): InternalProfitabilityAdjustment[] {
   const normalized = normalizeStoredAdjustments(adjustments);
   if (storageAvailable()) {
-    localStorage.setItem(
-      INTERNAL_ADJUSTMENTS_STORAGE_KEY,
-      JSON.stringify(normalized),
-    );
+    const serialized = JSON.stringify(normalized);
+    // Local-first profitability inputs are business data, not authentication secrets.
+    localStorage.setItem(INTERNAL_ADJUSTMENTS_STORAGE_KEY, serialized);
   }
   return normalized;
 }
