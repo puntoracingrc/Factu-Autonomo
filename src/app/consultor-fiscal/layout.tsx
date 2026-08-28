@@ -1,3 +1,4 @@
+import { PrivatePreviewAccessGate } from "@/components/access/PrivatePreviewAccessGate";
 import { AdvisorAreaNavigation } from "@/components/consultor-fiscal/AdvisorAreaNavigation";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
 import { isTaxModelDiagnosticEnabled } from "@/lib/tax-model-diagnostic/config";
@@ -7,13 +8,13 @@ export default function ConsultorFiscalLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const consultorFiscalEnabled = isConsultorFiscalEnabled();
   return (
-    <>
+    <PrivatePreviewAccessGate>
       <AdvisorAreaNavigation
         expenseAnalysisEnabled={consultorFiscalEnabled}
         notificationsEnabled
         taxModelDiagnosticEnabled={isTaxModelDiagnosticEnabled()}
       />
       {children}
-    </>
+    </PrivatePreviewAccessGate>
   );
 }

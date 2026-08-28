@@ -11,6 +11,7 @@ import {
 } from "@/lib/billing/unlimited-ai-access";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import {
   fiscalAiFallbackTriggerFor,
   runFiscalAiFallbackAfterLocal,
@@ -93,14 +94,27 @@ export async function POST(request: Request) {
     );
   }
 
-  const rateLimit = await checkRateLimit(
-    request,
-    {
-      namespace: "expense_deductibility_evaluate",
-      limit: 60,
-      windowMs: 10 * 60_000,
-    },
-  );
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
+  if (!user) {
+    return json(
+      { error: "Inicia sesión para usar esta función." },
+      { status: 401 },
+    );
+  }
+  if (!hasPrivatePreviewAccess(user.email)) {
+    return json(
+      { error: "El Consultor fiscal no está disponible." },
+      { status: 404 },
+    );
+  }
+
+  const rateLimit = await checkRateLimit(request, {
+    namespace: "expense_deductibility_evaluate",
+    limit: 60,
+    windowMs: 10 * 60_000,
+  });
   if (!rateLimit.allowed) {
     const response = rateLimitExceededResponse(rateLimit);
     for (const [key, value] of Object.entries(NO_STORE_HEADERS)) {
@@ -142,26 +156,12 @@ export async function POST(request: Request) {
     }
 
     if (
-      request.headers.get(AI_CONSENT_HEADER) !==
-      AI_PROCESSING_CONSENT_VERSION
+      request.headers.get(AI_CONSENT_HEADER) !== AI_PROCESSING_CONSENT_VERSION
     ) {
       return json({
         data: localWithWarning(
           localResult,
           "El fallback de IA no se ejecutó porque falta un consentimiento vigente.",
-        ),
-      });
-    }
-
-    const user = await getUserFromBearer(
-      request.headers.get("authorization"),
-      { requireEmailConfirmed: true },
-    );
-    if (!user) {
-      return json({
-        data: localWithWarning(
-          localResult,
-          "El fallback de IA requiere una sesión autenticada; se conserva el resultado local.",
         ),
       });
     }

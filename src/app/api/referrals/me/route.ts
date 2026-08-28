@@ -7,6 +7,7 @@ import {
 } from "@/lib/billing/referrals";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -30,6 +31,9 @@ export async function GET(request: Request) {
   });
   if (!user) {
     return privateJson({ error: "No autorizado" }, 401);
+  }
+  if (!hasPrivatePreviewAccess(user.email)) {
+    return privateJson({ error: "La función no está disponible." }, 404);
   }
   const rateLimit = await checkRateLimit(
     request,

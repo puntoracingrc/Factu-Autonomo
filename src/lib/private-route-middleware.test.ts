@@ -1,9 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1,
-  isPublicAeatOfficialIndexablePathV1,
-} from "@/lib/fiscal-models/model-pages/official-content/indexable-paths.v1";
+import { PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1 } from "@/lib/fiscal-models/model-pages/official-content/indexable-paths.v1";
 import { PUBLIC_AEAT_MODEL_REVIEW_PATHS_V1 } from "@/lib/fiscal-models/model-pages/public-review-route-manifest.v1";
 import { middleware } from "@/middleware";
 
@@ -105,7 +102,7 @@ describe("private route middleware", () => {
     expect(production.status).toBe(404);
   });
 
-  it("publica únicamente el índice y las 229 rutas literales informativas", () => {
+  it("mantiene disponibles pero no indexables el índice y las 229 rutas literales", () => {
     expect(PUBLIC_AEAT_MODEL_REVIEW_PATHS_V1).toHaveLength(229);
 
     for (const enabled of ["false", "true"]) {
@@ -126,15 +123,13 @@ describe("private route middleware", () => {
           "no-store, max-age=0",
         );
         expect(response.headers.get("X-Robots-Tag"), caseLabel).toBe(
-          isPublicAeatOfficialIndexablePathV1(pathname)
-            ? null
-            : "noindex, nofollow, noarchive",
+          "noindex, nofollow, noarchive",
         );
       }
     }
   });
 
-  it("retira noindex únicamente del índice y las 229 fichas contrastadas", () => {
+  it("conserva noindex también en el índice y las 229 fichas contrastadas", () => {
     expect(PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1).toHaveLength(230);
     for (const pathname of PUBLIC_AEAT_OFFICIAL_INDEXABLE_PATHS_V1) {
       const response = middleware(
@@ -144,7 +139,9 @@ describe("private route middleware", () => {
       expect(response.headers.get("Cache-Control"), pathname).toBe(
         "no-store, max-age=0",
       );
-      expect(response.headers.get("X-Robots-Tag"), pathname).toBeNull();
+      expect(response.headers.get("X-Robots-Tag"), pathname).toBe(
+        "noindex, nofollow, noarchive",
+      );
     }
     for (const pathname of [
       "/consultor-fiscal/modelos/999",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
   AEAT_FISCAL_CALENDAR_OFFICIAL_SOURCE,
   FISCAL_CALENDAR_TIME_ZONE,
@@ -15,6 +16,7 @@ import { resolveFiscalCalendarModelPageLinkServer } from "@/lib/fiscal-calendar/
 import { collectFiscalCalendarModelPageLinks } from "@/lib/fiscal-calendar/model-reference-links";
 import { getFiscalCalendarService } from "@/lib/fiscal-calendar/service";
 import type { FiscalCalendarResponseData } from "@/lib/fiscal-calendar/types";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -87,11 +89,31 @@ export async function GET(request: Request) {
     );
   }
 
-  const rateLimit = await checkRateLimit(request, {
-    namespace: "fiscal_calendar_events",
-    limit: 120,
-    windowMs: 5 * 60_000,
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
   });
+  if (!user) {
+    return json(
+      { error: "Inicia sesión para usar esta función." },
+      { status: 401 },
+    );
+  }
+  if (!hasPrivatePreviewAccess(user.email)) {
+    return json(
+      { error: "El calendario fiscal no está disponible." },
+      { status: 404 },
+    );
+  }
+
+  const rateLimit = await checkRateLimit(
+    request,
+    {
+      namespace: "fiscal_calendar_events",
+      limit: 120,
+      windowMs: 5 * 60_000,
+    },
+    user.id,
+  );
   if (!rateLimit.allowed) {
     const response = rateLimitExceededResponse(rateLimit);
     for (const [key, value] of Object.entries(NO_STORE_HEADERS)) {

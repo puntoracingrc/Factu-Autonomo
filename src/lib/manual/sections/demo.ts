@@ -6,7 +6,7 @@ export const demoSection: ManualSection = {
   summary: "Prueba el producto con datos ficticios antes de crear cuenta.",
   order: 2,
   intro: [
-    "La demo es un sandbox separado: sirve para tocar facturas, clientes, gastos, productos e impuestos sin usar tus datos reales ni sincronizar nada con la nube.",
+    "La demo es un sandbox separado: sirve para tocar facturas, clientes, gastos y productos sin usar tus datos reales ni sincronizar nada con la nube.",
   ],
   steps: [
     {
@@ -22,7 +22,7 @@ export const demoSection: ManualSection = {
       title: "2. Seguir la ruta recomendada",
       paragraphs: [
         "En el Panel de demo aparece **Prueba el producto en 3 minutos** con una ruta sugerida.",
-        "La ruta te lleva a mirar una factura pendiente, crear una factura desde cero escribiendo un cliente nuevo dentro del documento, convertir un presupuesto, registrar un gasto ficticio y revisar impuestos orientativos.",
+        "La ruta te lleva a mirar una factura pendiente, crear una factura desde cero escribiendo un cliente nuevo dentro del documento, convertir un presupuesto y registrar un gasto ficticio.",
         "Puedes saltar a cualquier paso. Si te pierdes, pulsa **Volver al tour** en el aviso superior.",
       ],
     },

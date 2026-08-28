@@ -49,7 +49,7 @@ describe("POST /api/fiscal-notifications/support", () => {
   beforeEach(() => {
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "owner-user",
-      email: "owner@example.com",
+      email: "persianasalmar@gmail.com",
     } as Awaited<ReturnType<typeof getUserFromBearer>>);
     vi.mocked(isEmailConfigured).mockReturnValue(true);
     vi.mocked(checkRateLimit).mockResolvedValue({
@@ -113,7 +113,7 @@ describe("POST /api/fiscal-notifications/support", () => {
 
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "owner-user",
-      email: "owner@example.com",
+      email: "persianasalmar@gmail.com",
     } as Awaited<ReturnType<typeof getUserFromBearer>>);
     vi.mocked(checkRateLimit).mockResolvedValue({
       allowed: false,
@@ -127,9 +127,25 @@ describe("POST /api/fiscal-notifications/support", () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
+  it("no acepta casos de una cuenta fuera de la preview", async () => {
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "other-user",
+      email: "usuario@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await POST(request(report));
+
+    expect(response.status).toBe(404);
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it("rechaza campos extra y cuerpos grandes antes de enviar", async () => {
     const extra = await POST(request({ ...report, rawText: "dato privado" }));
-    const oversized = await POST(request({ ...report, message: "x".repeat(9_000) }));
+    const oversized = await POST(
+      request({ ...report, message: "x".repeat(9_000) }),
+    );
 
     expect(extra.status).toBe(400);
     expect(oversized.status).toBe(413);

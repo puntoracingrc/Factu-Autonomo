@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import { normalizeTaxProductEvent } from "@/lib/tax-diagnostic-insights/contracts";
 import { persistTaxProductEvent } from "@/lib/tax-diagnostic-insights/server-store";
 import {
@@ -11,9 +12,17 @@ import { readTextBody } from "@/lib/server/request-body";
 const MAX_EVENT_BYTES = 12 * 1024;
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"));
+  const user = await getUserFromBearer(request.headers.get("authorization"), {
+    requireEmailConfirmed: true,
+  });
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  if (!hasPrivatePreviewAccess(user.email)) {
+    return NextResponse.json(
+      { error: "La función no está disponible." },
+      { status: 404 },
+    );
   }
 
   const rateLimit = await checkRateLimit(
@@ -43,6 +52,11 @@ export async function POST(request: Request) {
 
   // Product analytics is deliberately best-effort: its storage must never
   // block a fiscal diagnosis, and the response never exposes store errors.
-  const persisted = await persistTaxProductEvent(event, user.id).catch(() => false);
-  return NextResponse.json({ ok: persisted }, { status: persisted ? 200 : 202 });
+  const persisted = await persistTaxProductEvent(event, user.id).catch(
+    () => false,
+  );
+  return NextResponse.json(
+    { ok: persisted },
+    { status: persisted ? 200 : 202 },
+  );
 }

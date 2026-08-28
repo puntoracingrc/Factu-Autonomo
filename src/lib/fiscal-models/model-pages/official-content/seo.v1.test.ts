@@ -237,36 +237,33 @@ const OFFICIAL_CODES = [
 ];
 
 describe("AEAT model official-content SEO", () => {
-  it("publishes only the completed model pages in the sitemap", () => {
+  it("keeps every model page out of the public sitemap", () => {
     const urls = sitemap().map((entry) => entry.url);
-    expect(urls).toContain(`${SITE_URL}/consultor-fiscal/modelos`);
     expect(
       urls.filter((url) =>
-        url.startsWith(`${SITE_URL}/consultor-fiscal/modelos/`),
+        url.startsWith(`${SITE_URL}/consultor-fiscal/modelos`),
       ),
-    ).toEqual(
-      OFFICIAL_CODES.map(
-        (code) => `${SITE_URL}/consultor-fiscal/modelos/${code}`,
-      ),
-    );
-    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/191`);
-    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/999`);
+    ).toEqual([]);
+    for (const code of OFFICIAL_CODES) {
+      expect(urls).not.toContain(
+        `${SITE_URL}/consultor-fiscal/modelos/${code}`,
+      );
+    }
   });
 
-  it("allows the public Modelos prefix while retaining the Consultor block", () => {
+  it("keeps the complete Modelos tree disallowed for crawlers", () => {
     const metadata = robots();
     const rule = Array.isArray(metadata.rules)
       ? metadata.rules[0]
       : metadata.rules;
-    expect(rule.allow).toEqual(
-      expect.arrayContaining(["/", "/consultor-fiscal/modelos"]),
-    );
+    expect(rule.allow).toEqual(expect.arrayContaining(["/"]));
+    expect(rule.allow).not.toContain("/consultor-fiscal/modelos");
     expect(rule.disallow).toEqual(
       expect.arrayContaining(["/consultor-fiscal"]),
     );
   });
 
-  it("indexes completed pages and keeps structural-only pages noindex", () => {
+  it("keeps catalog and detail metadata noindex while preserving canonicals", () => {
     const catalogPage = readFileSync(
       new URL(
         "../../../../app/consultor-fiscal/modelos/page.tsx",
@@ -284,15 +281,15 @@ describe("AEAT model official-content SEO", () => {
     expect(catalogPage).toContain(
       'alternates: { canonical: "/consultor-fiscal/modelos" }',
     );
-    expect(catalogPage).toContain("index: true");
-    expect(catalogPage).toContain("follow: true");
+    expect(catalogPage).toContain("index: false");
+    expect(catalogPage).toContain("follow: false");
+    expect(catalogPage).toContain("noarchive: true");
     expect(detailPage).toContain(
       'officialContent.status === "OFFICIAL_INFORMATION"',
     );
     expect(detailPage).toContain("canonical: result.data.href");
-    expect(detailPage).toContain("? { index: true, follow: true }");
     expect(detailPage).toContain(
-      ": { index: false, follow: false, noarchive: true }",
+      "robots: { index: false, follow: false, noarchive: true }",
     );
   });
 });

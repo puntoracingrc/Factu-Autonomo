@@ -21,8 +21,9 @@ export const metadata: Metadata = {
     type: "website",
   },
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
+    noarchive: true,
   },
 };
 
@@ -38,9 +39,8 @@ export default async function FiscalModelCatalogPage({
   if (catalog.status === "BLOCKED") notFound();
   const result = searchPublicAeatModelReviewPagesV2(requestSearchParams);
   if (result.status === "BLOCKED") notFound();
-  const calendarContext = resolvePublicAeatModelCalendarCatalogContextV1(
-    requestSearchParams,
-  );
+  const calendarContext =
+    resolvePublicAeatModelCalendarCatalogContextV1(requestSearchParams);
   const officialContents = listPublicAeatOfficialModelContentsV1();
   if (officialContents.status === "BLOCKED") notFound();
 

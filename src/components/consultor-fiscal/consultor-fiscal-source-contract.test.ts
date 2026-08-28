@@ -83,12 +83,15 @@ describe("superficie visible de Consultor fiscal", () => {
     expect(fiscalProfile).toContain("Importar certificado censal");
     expect(fiscalProfile).toContain("Rellenar manualmente");
     expect(fiscalProfile).toContain("Continuar sin completar");
-    expect(analyzer).toContain("También quiero calcular cuánto podría deducirme");
+    expect(analyzer).toContain(
+      "También quiero calcular cuánto podría deducirme",
+    );
     expect(sharedField).toContain("<label");
     expect(analyzer).toContain("md:grid-cols-2");
     expect(analyzer).toContain("contextNote=");
-    expect(consentNotice.match(/contextNote \? <p>\{contextNote\}<\/p>/g))
-      .toHaveLength(1);
+    expect(
+      consentNotice.match(/contextNote \? <p>\{contextNote\}<\/p>/g),
+    ).toHaveLength(1);
     expect(analyzer).toContain('<option value="">Entrada manual</option>');
     expect(fiscalProfile).toContain(
       '<option value="UNKNOWN">No lo sé todavía</option>',
@@ -115,7 +118,9 @@ describe("superficie visible de Consultor fiscal", () => {
     expect(questions).toContain("Volver a los datos del gasto");
     expect(questions).toContain('type="button"');
     expect(questions).toContain("aria-busy={loading}");
-    expect(questions.match(/disabled=\{loading\}/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(
+      questions.match(/disabled=\{loading\}/g)?.length,
+    ).toBeGreaterThanOrEqual(5);
   });
 
   it("presenta estados, IRPF e IVA separados y mantiene la aplicación bloqueada", () => {
@@ -139,7 +144,9 @@ describe("superficie visible de Consultor fiscal", () => {
     expect(result).toMatch(
       /<button[\s\S]*?type="button"[\s\S]*?disabled[\s\S]*?Aplicar propuesta \(próximamente\)/,
     );
-    expect(result).toContain("Debes revisar y confirmar expresamente el resultado");
+    expect(result).toContain(
+      "Debes revisar y confirmar expresamente el resultado",
+    );
     expect(result).toContain("Esta fase no crea");
     expect(result).toContain("Propuesta de IA pendiente de revisión");
     expect(result).toContain("Revisión humana obligatoria");
@@ -186,10 +193,7 @@ describe("navegación, ayuda y perímetro privado", () => {
       ),
     ).toBe(false);
     expect(
-      findActiveAppNavItem(
-        "/consultor-fiscal/analisis",
-        APP_NAV_ITEMS,
-      )?.href,
+      findActiveAppNavItem("/consultor-fiscal/analisis", APP_NAV_ITEMS)?.href,
     ).toBe("/consultor-fiscal/diagnostico");
   });
 
@@ -235,9 +239,7 @@ describe("navegación, ayuda y perímetro privado", () => {
 });
 
 describe("contratos estáticos de servidor y seguridad", () => {
-  const route = source(
-    "../../app/api/expense-deductibility/evaluate/route.ts",
-  );
+  const route = source("../../app/api/expense-deductibility/evaluate/route.ts");
   const analyzer = source("./ExpenseDeductibilityAnalyzer.tsx");
   const fiscalProfile = source("./FiscalProfileSetupCard.tsx");
   const taxEngine = productionTypeScriptUnder("../../lib/tax-engine/");
@@ -245,14 +247,18 @@ describe("contratos estáticos de servidor y seguridad", () => {
   it("mantiene el endpoint acotado, limitado, privado y con error interno saneado", () => {
     const rateLimitIndex = route.indexOf("checkRateLimit(");
     const bodyReadIndex = route.indexOf("readJsonBody(request");
-    const localEngineIndex = route.indexOf("const localResult = evaluateExpense(");
+    const localEngineIndex = route.indexOf(
+      "const localResult = evaluateExpense(",
+    );
     const authIndex = route.indexOf("const user = await getUserFromBearer(");
     const providerIndex = route.indexOf("runFiscalAiFallbackAfterLocal({");
 
-    expect(route.match(/export async function (GET|POST|PUT|PATCH|DELETE)/g)).toEqual(
-      ["export async function POST"],
-    );
+    expect(
+      route.match(/export async function (GET|POST|PUT|PATCH|DELETE)/g),
+    ).toEqual(["export async function POST"]);
     expect(rateLimitIndex).toBeGreaterThan(-1);
+    expect(authIndex).toBeGreaterThan(-1);
+    expect(rateLimitIndex).toBeGreaterThan(authIndex);
     expect(bodyReadIndex).toBeGreaterThan(rateLimitIndex);
     expect(route).toContain('namespace: "expense_deductibility_evaluate"');
     expect(route).toContain("limit: 60");
@@ -261,21 +267,20 @@ describe("contratos estáticos de servidor y seguridad", () => {
     expect(route).toContain('"X-Robots-Tag": "noindex, nofollow, noarchive"');
     expect(route).toContain("parseEvaluationRequest(body.data)");
     expect(localEngineIndex).toBeGreaterThan(bodyReadIndex);
-    expect(authIndex).toBeGreaterThan(localEngineIndex);
-    expect(providerIndex).toBeGreaterThan(authIndex);
+    expect(providerIndex).toBeGreaterThan(localEngineIndex);
     expect(route).toContain("getUserFromBearer");
     expect(route).toContain('namespace: "expense_deductibility_ai_fallback"');
     expect(route).toContain("AI_PROCESSING_CONSENT_VERSION");
-    expect(route).toContain('console.error("expense_deductibility_evaluation_failed")');
+    expect(route).toContain(
+      'console.error("expense_deductibility_evaluation_failed")',
+    );
     expect(route).not.toContain("console.error(error");
     expect(route).not.toContain("tenantId");
   });
 
   it("adapta el gasto canónico, llama solo al endpoint local y no escribe entidades", () => {
     expect(analyzer.match(/\bfetch\s*\(/g)).toHaveLength(1);
-    expect(analyzer).toContain(
-      'fetch("/api/expense-deductibility/evaluate"',
-    );
+    expect(analyzer).toContain('fetch("/api/expense-deductibility/evaluate"');
     expect(analyzer).not.toMatch(
       /\b(?:addExpense|updateExpense|localStorage|sessionStorage|tenantId|userId|OPENAI_API_KEY)\b/,
     );
@@ -283,12 +288,14 @@ describe("contratos estáticos de servidor y seguridad", () => {
     expect(analyzer).toContain("headers.Authorization");
     expect(analyzer).toContain("X-AI-Consent-Version");
     expect(analyzer).toContain("new AbortController()");
-    expect(analyzer).toContain("let allowAiFallback = false");
     expect(analyzer).toContain(
-      "La autenticación del fallback nunca debe impedir el motor local",
+      "const allowAiFallback = aiFallbackEnabled && aiConsent.accepted",
     );
+    expect(analyzer).toContain("Inicia sesión para usar el Consultor fiscal.");
     expect(analyzer).not.toMatch(/api\.openai\.com|\/v1\/responses/);
-    expect(analyzer).toContain('import { useAppStore } from "@/context/AppStore"');
+    expect(analyzer).toContain(
+      'import { useAppStore } from "@/context/AppStore"',
+    );
     expect(analyzer).toContain("adaptExistingExpenseForEvaluation");
     expect(analyzer).toContain("selectedExpenseId");
     expect(analyzer).toContain("data.profile.vatExempt");

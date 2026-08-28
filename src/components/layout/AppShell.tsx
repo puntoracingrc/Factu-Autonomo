@@ -46,8 +46,9 @@ import {
 import { isDemoWorkspaceMode } from "@/lib/demo-workspace";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
-  APP_NAV_ITEMS,
+  appNavItemsForEmail,
   isAppNavItemActive,
+  type AppNavItem,
 } from "@/components/layout/app-navigation";
 import {
   APP_NAVIGATION_PREFETCH_DELAY_MS,
@@ -63,6 +64,7 @@ import {
   applyResolvedAppTheme,
   cacheAppThemePreference,
 } from "@/lib/app-theme-bootstrap";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 import {
   readDashboardVisualCache,
   type DashboardVisualCacheItem,
@@ -154,7 +156,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const prefetchedNavigationHrefsRef = useRef(new Set<string>());
   const navigationPrefetchTimersRef = useRef(new Map<string, number>());
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
-  const appNavItems = APP_NAV_ITEMS;
+  const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
+  const appNavItems = appNavItemsForEmail(user?.email);
   visualCacheDataRef.current = data;
   const selectedPathname = pendingNavigation?.href ?? pathname;
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
@@ -171,8 +174,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? "Comprobando sesión"
     : data.profile.name.trim() || user?.email || "Cuenta";
   const hasAppSessionContext = Boolean(user) || workspaceLoading;
+  const configuredBrandHref = appStartPageHref(appPreferences.startPage);
   const brandHref = hasAppSessionContext
-    ? appStartPageHref(appPreferences.startPage)
+    ? configuredBrandHref === "/impuestos" && !privatePreviewAccess
+      ? "/"
+      : configuredBrandHref
     : "/inicio";
   const brandAriaLabel = hasAppSessionContext
     ? "Ir a la pantalla inicial"
@@ -768,6 +774,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {workspaceLoading ? (
             <AppStartupMainContent
               pathname={pathname}
+              appNavItems={appNavItems}
               dashboardVisualCache={dashboardVisualCache}
               listVisualCache={listVisualCache}
             />
@@ -859,15 +866,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function AppStartupMainContent({
   pathname,
+  appNavItems,
   dashboardVisualCache,
   listVisualCache,
 }: {
   pathname: string;
+  appNavItems: readonly AppNavItem[];
   dashboardVisualCache: DashboardVisualCacheSnapshot | null;
   listVisualCache: Record<ListVisualCacheKind, ListVisualCacheSnapshot | null>;
 }) {
   const currentSection =
-    APP_NAV_ITEMS.find(({ href, activeBase }) =>
+    appNavItems.find(({ href, activeBase }) =>
       isAppNavItemActive(pathname, href, activeBase),
     ) ??
     (pathname === "/"

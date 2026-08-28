@@ -14,6 +14,7 @@ import {
 } from "@/lib/server/rate-limit";
 import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
 
 export const runtime = "nodejs";
 
@@ -33,6 +34,12 @@ export async function POST(request: Request) {
     return privateJson(
       { ok: false, error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE },
       { status: 401 },
+    );
+  }
+  if (!hasPrivatePreviewAccess(user.email)) {
+    return privateJson(
+      { ok: false, error: "El Consultor fiscal no está disponible." },
+      { status: 404 },
     );
   }
 

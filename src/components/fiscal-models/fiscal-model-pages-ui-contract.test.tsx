@@ -452,7 +452,8 @@ describe("fiscal model structural review pages UI contract", () => {
       "resolvePublicAeatModelCalendarCatalogContextV1",
     );
     expect(indexPage).toContain("notFound()");
-    expect(indexPage).toContain("index: true");
+    expect(indexPage).toContain("index: false");
+    expect(indexPage).toContain("noarchive: true");
 
     expect(detailPage).toContain("params: Promise<{ codigo: string }>");
     expect(detailPage).toContain("export const dynamicParams = false");
@@ -464,6 +465,8 @@ describe("fiscal model structural review pages UI contract", () => {
     );
     expect(detailPage).toContain("catalog.data.length !== 229");
     expect(detailPage).toContain('if (result.status === "BLOCKED") notFound()');
+    expect(detailPage).toContain("index: false");
+    expect(detailPage).toContain("noarchive: true");
     expect(detailPage).not.toMatch(/\/modelos\/\$\{/);
   });
 

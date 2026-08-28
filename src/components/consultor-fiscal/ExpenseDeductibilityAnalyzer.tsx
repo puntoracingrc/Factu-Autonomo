@@ -414,27 +414,19 @@ export function ExpenseDeductibilityAnalyzer({
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      let allowAiFallback = false;
-      if (
-        aiFallbackEnabled &&
-        aiConsent.accepted
-      ) {
-        try {
-          const { getSupabaseClientAsync } = await import(
-            "@/lib/supabase/client"
-          );
-          const supabase = await getSupabaseClientAsync();
-          const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
-            data: { session: null },
-          };
-          const token = sessionData.session?.access_token;
-          headers["X-AI-Consent-Version"] = AI_PROCESSING_CONSENT_VERSION;
-          if (token) headers.Authorization = `Bearer ${token}`;
-          allowAiFallback = true;
-        } catch {
-          // La autenticación del fallback nunca debe impedir el motor local.
-          allowAiFallback = false;
-        }
+      const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+      const supabase = await getSupabaseClientAsync();
+      const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
+        data: { session: null },
+      };
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        throw new Error("Inicia sesión para usar el Consultor fiscal.");
+      }
+      headers.Authorization = `Bearer ${token}`;
+      const allowAiFallback = aiFallbackEnabled && aiConsent.accepted;
+      if (allowAiFallback) {
+        headers["X-AI-Consent-Version"] = AI_PROCESSING_CONSENT_VERSION;
       }
       if (controller.signal.aborted) return;
       const response = await fetch("/api/expense-deductibility/evaluate", {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   APP_NAV_ITEMS,
+  appNavItemsForEmail,
   findActiveAppNavItem,
   isAppNavItemActive,
   MOBILE_MORE_NAV_ITEMS,
@@ -12,12 +13,8 @@ describe("app navigation", () => {
   it("keeps suppliers between expenses and products in every menu", () => {
     const hrefs = APP_NAV_ITEMS.map((item) => item.href);
 
-    expect(hrefs.indexOf("/proveedores")).toBe(
-      hrefs.indexOf("/gastos") + 1,
-    );
-    expect(hrefs.indexOf("/productos")).toBe(
-      hrefs.indexOf("/proveedores") + 1,
-    );
+    expect(hrefs.indexOf("/proveedores")).toBe(hrefs.indexOf("/gastos") + 1);
+    expect(hrefs.indexOf("/productos")).toBe(hrefs.indexOf("/proveedores") + 1);
   });
 
   it("limits the persistent mobile bar to four priority destinations", () => {
@@ -73,12 +70,12 @@ describe("app navigation", () => {
 
   it("keeps the private Partner destination out of every menu", () => {
     expect(APP_NAV_ITEMS.some((item) => item.href === "/partners")).toBe(false);
-    expect(MOBILE_PRIMARY_NAV_ITEMS.some((item) => item.href === "/partners")).toBe(
-      false,
-    );
-    expect(MOBILE_MORE_NAV_ITEMS.some((item) => item.href === "/partners")).toBe(
-      false,
-    );
+    expect(
+      MOBILE_PRIMARY_NAV_ITEMS.some((item) => item.href === "/partners"),
+    ).toBe(false);
+    expect(
+      MOBILE_MORE_NAV_ITEMS.some((item) => item.href === "/partners"),
+    ).toBe(false);
   });
 
   it("shows Affiliates in the desktop menu and mobile More menu", () => {
@@ -99,6 +96,20 @@ describe("app navigation", () => {
     );
   });
 
+  it("hides private previews from normal accounts and keeps them for owner accounts", () => {
+    const publicHrefs = appNavItemsForEmail("usuario@example.com").map(
+      (item) => item.href,
+    );
+    expect(publicHrefs).not.toContain("/impuestos");
+    expect(publicHrefs).not.toContain("/afiliados");
+    expect(
+      publicHrefs.some((href) => href.startsWith("/consultor-fiscal")),
+    ).toBe(false);
+
+    expect(appNavItemsForEmail("persianasalmar@gmail.com")).toBe(APP_NAV_ITEMS);
+    expect(appNavItemsForEmail("puntoracingrc@gmail.com")).toBe(APP_NAV_ITEMS);
+  });
+
   it("abre Asesoría fiscal en el configurador cuando está habilitado", () => {
     expect(
       APP_NAV_ITEMS.find(
@@ -110,16 +121,11 @@ describe("app navigation", () => {
       activeBase: "/consultor-fiscal",
     });
     expect(
-      findActiveAppNavItem(
-        "/consultor-fiscal/calendario",
-        APP_NAV_ITEMS,
-      )?.href,
+      findActiveAppNavItem("/consultor-fiscal/calendario", APP_NAV_ITEMS)?.href,
     ).toBe("/consultor-fiscal/diagnostico");
     expect(
-      findActiveAppNavItem(
-        "/consultor-fiscal/notificaciones",
-        APP_NAV_ITEMS,
-      )?.href,
+      findActiveAppNavItem("/consultor-fiscal/notificaciones", APP_NAV_ITEMS)
+        ?.href,
     ).toBe("/consultor-fiscal/diagnostico");
   });
 });

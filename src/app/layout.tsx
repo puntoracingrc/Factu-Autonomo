@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     template: `%s | ${APP_BRAND_NAME}`,
   },
   description:
-    "Programa sencillo de facturación para autónomos: facturas, presupuestos, recibos, gastos e impuestos orientativos en un solo sitio.",
+    "Programa sencillo de facturación para autónomos: facturas, presupuestos, recibos, clientes y gastos en un solo sitio.",
   manifest: "/manifest.json",
   keywords: [
     "facturación autónomos",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: APP_BRAND_NAME,
     description:
-      "Facturación sencilla para autónomos: documentos, gastos e impuestos orientativos sin hojas de cálculo.",
+      "Facturación sencilla para autónomos: documentos, clientes y gastos sin hojas de cálculo.",
     url: appUrl,
     siteName: APP_BRAND_NAME,
     locale: "es_ES",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: APP_BRAND_NAME,
     description:
-      "Facturas, gastos e impuestos orientativos para autónomos y pequeños negocios.",
+      "Facturas, presupuestos, clientes y gastos para autónomos y pequeños negocios.",
   },
   icons: {
     icon: [
