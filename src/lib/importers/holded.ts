@@ -355,6 +355,25 @@ function xmlEntities(value: string): string {
     .replace(/&amp;/g, "&");
 }
 
+function stripXmlMarkup(value: string): string {
+  let result = "";
+  let markupDepth = 0;
+
+  for (const character of value) {
+    if (character === "<") {
+      markupDepth += 1;
+      continue;
+    }
+    if (character === ">" && markupDepth > 0) {
+      markupDepth -= 1;
+      continue;
+    }
+    if (markupDepth === 0) result += character;
+  }
+
+  return result;
+}
+
 function columnIndexFromCellRef(ref: string): number {
   const letters = ref.match(/^[A-Z]+/i)?.[0]?.toUpperCase() ?? "A";
   return [...letters].reduce((sum, char) => sum * 26 + char.charCodeAt(0) - 64, 0) - 1;
@@ -377,7 +396,9 @@ function extractTagText(xml: string, tag: string): string[] {
   const values: string[] = [];
   const tagName = `(?:[\\w.-]+:)?${tag}`;
   const pattern = new RegExp(`<${tagName}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tagName}>`, "g");
-  for (const match of xml.matchAll(pattern)) values.push(xmlEntities(match[1].replace(/<[^>]+>/g, "")));
+  for (const match of xml.matchAll(pattern)) {
+    values.push(xmlEntities(stripXmlMarkup(match[1])));
+  }
   return values;
 }
 

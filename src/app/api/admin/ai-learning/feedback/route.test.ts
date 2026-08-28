@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getAdminAiLearningAccessFromRequest } from "@/lib/admin/server-access";
 import { persistAiLearningEvent } from "@/lib/ai-learning-store";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/admin/server-access", () => ({
+  getAdminAiLearningAccessFromRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/ai-learning-store", () => ({
@@ -52,10 +52,12 @@ describe("POST /api/admin/ai-learning/feedback", () => {
   });
 
   it("rechaza cuentas no autorizadas", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-client",
-      email: "cliente@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getAdminAiLearningAccessFromRequest).mockResolvedValue({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Cuenta no autorizada" }), {
+        status: 403,
+      }) as never,
+    });
 
     const response = await POST(request({ original: payload(), corrected: payload() }));
 
@@ -64,10 +66,13 @@ describe("POST /api/admin/ai-learning/feedback", () => {
   });
 
   it("guarda aprendizaje limpio para cuenta autorizada", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-empresa",
-      email: "persianasalmar@gmail.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getAdminAiLearningAccessFromRequest).mockResolvedValue({
+      ok: true,
+      user: {
+        id: "user-empresa",
+        email: "persianasalmar@gmail.com",
+      } as never,
+    });
     vi.mocked(persistAiLearningEvent).mockResolvedValue(true);
 
     const response = await POST(request({ original: payload(), corrected: payload() }));

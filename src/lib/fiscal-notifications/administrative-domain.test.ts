@@ -493,6 +493,28 @@ describe("administrative domain projection", () => {
     expect(JSON.stringify(result)).not.toContain(marker);
   });
 
+  it("valida rutas internas largas en tiempo lineal y rechaza índices mal formados", () => {
+    const valid = validProjection();
+    const validIssues = valid.validationIssues as Record<string, unknown>[];
+    validIssues[0]!.path = `moneyFacts${"[0]".repeat(100)}.amountCents`;
+
+    expect(validateAdministrativeDomainProjection(valid, OWNER, DOCUMENT).valid)
+      .toBe(true);
+
+    const malformed = validProjection();
+    const malformedIssues = malformed.validationIssues as Record<string, unknown>[];
+    malformedIssues[0]!.path = "moneyFacts[[0]].amountCents";
+
+    expect(
+      validateAdministrativeDomainProjection(malformed, OWNER, DOCUMENT).issues,
+    ).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_VALUE",
+        path: "validationIssues[0].path",
+      }),
+    );
+  });
+
   it("rejects sparse and decorated projection arrays", () => {
     const decorated = validProjection();
     const roles = decorated.roleAssertions as Array<Record<string, unknown>> & {

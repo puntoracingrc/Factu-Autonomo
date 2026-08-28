@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { getOrCreateReferralCode, summarizeReferralStats } from "./referrals";
+import {
+  generateReferralCodeValue,
+  getOrCreateReferralCode,
+  summarizeReferralStats,
+} from "./referrals";
 import {
   buildReferralShareUrl,
   normalizeReferralCode,
@@ -13,6 +17,14 @@ describe("referral codes", () => {
 
   it("limpia y pone mayúsculas", () => {
     expect(normalizeReferralCode(" abc-12xy ")).toBe("ABC12XY");
+  });
+
+  it("genera códigos criptográficos dentro del alfabeto permitido", () => {
+    const codes = Array.from({ length: 100 }, () => generateReferralCodeValue());
+
+    expect(codes.every((code) => /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/.test(code)))
+      .toBe(true);
+    expect(new Set(codes).size).toBeGreaterThan(95);
   });
 
   it("abre el registro con el codigo de invitacion", () => {

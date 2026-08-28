@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomInt } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { PLANS, type PlanId } from "./plans";
@@ -12,10 +12,9 @@ export {
 
 export function generateReferralCodeValue(length = 8): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = randomBytes(length);
   let code = "";
   for (let i = 0; i < length; i++) {
-    code += alphabet[bytes[i]! % alphabet.length];
+    code += alphabet[randomInt(alphabet.length)];
   }
   return code;
 }

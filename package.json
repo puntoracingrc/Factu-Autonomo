@@ -374,7 +374,7 @@
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.17.0",
     "mdb-reader": "^3.2.0",
-    "next": "^15.5.20",
+    "next": "^15.5.24",
     "pdfjs-dist": "^4.10.38",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
@@ -397,7 +397,7 @@
     "@types/uuid": "^10.0.0",
     "csv-parse": "^6.1.0",
     "eslint": "^9",
-    "eslint-config-next": "^15.5.20",
+    "eslint-config-next": "^15.5.24",
     "playwright": "^1.61.1",
     "pngjs": "^7.0.0",
     "tailwindcss": "^4",
@@ -405,7 +405,8 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
-    "dompurify": "3.4.11",
-    "postcss": "8.5.15"
+    "dompurify": "3.4.14",
+    "postcss": "8.5.26",
+    "sharp": "0.35.4"
   }
 }

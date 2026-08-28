@@ -292,6 +292,16 @@ describe("Google Drive backup", () => {
     );
   });
 
+  it("mantiene el token de Drive solo en memoria", () => {
+    const storage = createMemoryStorage();
+    vi.stubGlobal("sessionStorage", storage);
+
+    cacheDriveAccessToken("temporary-access-token", 3600);
+
+    expect(hasUsableDriveToken()).toBe(true);
+    expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
   it("descarta destinos externos manipulados en el retorno de Drive", () => {
     const storage = createMemoryStorage();
     const state = "state-safe-return";

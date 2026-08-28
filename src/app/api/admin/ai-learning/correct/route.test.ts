@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getAdminAiLearningAccessFromRequest } from "@/lib/admin/server-access";
 import {
   correctExpenseScanPayloadWithInstruction,
   isExpenseScanCorrectionConfigured,
 } from "@/lib/expense-scan/correction";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/admin/server-access", () => ({
+  getAdminAiLearningAccessFromRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/expense-scan/correction", async (importOriginal) => {
@@ -53,10 +53,12 @@ describe("POST /api/admin/ai-learning/correct", () => {
   });
 
   it("rechaza cuentas no autorizadas", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-client",
-      email: "cliente@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getAdminAiLearningAccessFromRequest).mockResolvedValue({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Cuenta no autorizada" }), {
+        status: 403,
+      }) as never,
+    });
 
     const response = await POST(
       request({ original: payload(), instruction: "corrige unidad" }),
@@ -70,10 +72,10 @@ describe("POST /api/admin/ai-learning/correct", () => {
       ...payload(),
       expense: { ...payload().expense, description: "Material corregido" },
     };
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-test",
-      email: "puntoracingrc@gmail.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getAdminAiLearningAccessFromRequest).mockResolvedValue({
+      ok: true,
+      user: { id: "user-test", email: "puntoracingrc@gmail.com" } as never,
+    });
     vi.mocked(isExpenseScanCorrectionConfigured).mockReturnValue(true);
     vi.mocked(correctExpenseScanPayloadWithInstruction).mockResolvedValue({
       data: corrected,

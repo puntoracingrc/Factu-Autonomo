@@ -97,8 +97,6 @@ type OperationsSection = Exclude<
   "usuarios" | "partners" | "promociones" | "limites" | "aprendizaje"
 >;
 
-const ADMIN_MFA_UI_ENABLED = false;
-
 interface AdminCapabilitiesResponse {
   fullAdmin?: boolean;
   adminEmailAuthorized?: boolean;
@@ -1851,7 +1849,7 @@ function UserAdminCard({
 
       <UserRestorePanel user={user} />
       <AdminUserRecoveryToolsPanel userId={user.id} />
-      {ADMIN_MFA_UI_ENABLED && <UserMfaRecoveryPanel user={user} />}
+      <UserMfaRecoveryPanel user={user} />
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
         <label className="space-y-1 text-sm font-bold text-slate-700">
@@ -4209,7 +4207,9 @@ function AdminMfaPanel({
   onChanged: () => void;
 }) {
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<"idle" | "enroll" | "verify">("idle");
+  const [busy, setBusy] = useState<"idle" | "enroll" | "verify" | "remove">(
+    "idle",
+  );
   const [factors, setFactors] = useState<AdminMfaFactor[]>([]);
   const [currentLevel, setCurrentLevel] = useState<string | null>(
     adminMfa.currentLevel ?? null,
@@ -4260,10 +4260,17 @@ function AdminMfaPanel({
   const verifiedTotp = factors.find(
     (factor) => factor.factor_type === "totp" && factor.status === "verified",
   );
+  const pendingTotp = factors.filter(
+    (factor) => factor.factor_type === "totp" && factor.status !== "verified",
+  );
   const satisfied = currentLevel === "aal2" || adminMfa.satisfied === true;
   const required = adminMfa.required === true;
 
   const startEnrollment = async () => {
+    if (pendingTotp.length > 0) {
+      setError("Retira primero la configuración TOTP pendiente.");
+      return;
+    }
     setBusy("enroll");
     setError(null);
     setMessage(null);
@@ -4293,8 +4300,8 @@ function AdminMfaPanel({
   };
 
   const verifyFactor = async (factorId: string) => {
-    const cleanCode = code.trim().replace(/\s+/g, "");
-    if (!cleanCode) {
+    const cleanCode = code.replace(/\D/g, "");
+    if (!/^\d{6}$/.test(cleanCode)) {
       setError("Introduce el código de 6 dígitos.");
       return;
     }
@@ -4332,6 +4339,32 @@ function AdminMfaPanel({
     setMessage("Verificación en dos pasos activa en esta sesión.");
     await loadMfa();
     onChanged();
+    setBusy("idle");
+  };
+
+  const removePendingFactor = async (factorId: string) => {
+    setBusy("remove");
+    setError(null);
+    setMessage(null);
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) {
+      setError("Supabase no está disponible en este entorno.");
+      setBusy("idle");
+      return;
+    }
+
+    const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+      factorId,
+    });
+    if (unenrollError) {
+      setError(unenrollError.message);
+      setBusy("idle");
+      return;
+    }
+
+    if (enrollment?.factorId === factorId) setEnrollment(null);
+    setMessage("Configuración pendiente retirada. Ya puedes preparar un TOTP nuevo.");
+    await loadMfa();
     setBusy("idle");
   };
 
@@ -4398,7 +4431,28 @@ function AdminMfaPanel({
         </div>
       )}
 
-      {!loading && !verifiedTotp && !enrollment && (
+      {!loading && !verifiedTotp && pendingTotp.length > 0 && !enrollment && (
+        <div className="mt-4 space-y-3 rounded-lg border border-amber-200 bg-white p-4">
+          <p className="text-sm text-slate-700">
+            Hay una configuración TOTP sin terminar. Retírala para evitar que
+            bloquee un alta nueva.
+          </p>
+          {pendingTotp.map((factor) => (
+            <Button
+              key={factor.id}
+              type="button"
+              variant="secondary"
+              onClick={() => removePendingFactor(factor.id)}
+              disabled={busy !== "idle"}
+            >
+              <Trash2 className="h-4 w-4" />
+              Retirar configuración pendiente
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {!loading && !verifiedTotp && pendingTotp.length === 0 && !enrollment && (
         <div className="mt-4">
           <Button
             type="button"
@@ -4665,9 +4719,7 @@ export default function AdminPage() {
         </Card>
       )}
 
-      {ADMIN_MFA_UI_ENABLED &&
-        capabilities?.adminEmailAuthorized &&
-        capabilities.adminMfa && (
+      {capabilities?.adminMfa?.required && (
         <AdminMfaPanel
           adminMfa={capabilities.adminMfa}
           onChanged={() => setCapabilitiesRefreshKey((value) => value + 1)}

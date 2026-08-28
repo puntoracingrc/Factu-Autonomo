@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "./route";
 import { isAdminUser } from "@/lib/admin/access";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { EMPTY_DATA } from "@/lib/types";
 
@@ -10,7 +10,7 @@ vi.mock("@/lib/admin/access", () => ({
 }));
 
 vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+  getUserSessionFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -19,17 +19,11 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 const params = { params: Promise.resolve({ userId: "user-1" }) };
 
-function jwtWithPayload(payload: Record<string, unknown>) {
-  const encode = (value: unknown) =>
-    Buffer.from(JSON.stringify(value)).toString("base64url");
-  return `${encode({ alg: "none" })}.${encode(payload)}.signature`;
-}
-
-function request(body?: unknown, aal = "aal2") {
+function request(body?: unknown) {
   return new Request("http://localhost/api/admin/users/user-1/restore-points", {
     method: body ? "POST" : "GET",
     headers: {
-      Authorization: `Bearer ${jwtWithPayload({ aal })}`,
+      Authorization: "Bearer verified-token",
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -54,10 +48,11 @@ function asyncBuilder(result: unknown) {
 
 describe("admin user restore points route", () => {
   beforeEach(() => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "admin-1",
-      email: "admin@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getUserSessionFromBearer).mockResolvedValue({
+      user: { id: "admin-1", email: "admin@example.com" },
+      sessionId: "22222222-2222-4222-8222-222222222222",
+      aal: "aal2",
+    } as Awaited<ReturnType<typeof getUserSessionFromBearer>>);
     vi.mocked(isAdminUser).mockReturnValue(true);
   });
 
@@ -84,7 +79,7 @@ describe("admin user restore points route", () => {
     } as never);
 
     const response = await POST(
-      request({ action: "restore", restorePointId: "restore-1" }, "aal1"),
+      request({ action: "restore", restorePointId: "restore-1" }),
       params,
     );
     const body = await response.json();
@@ -134,14 +129,11 @@ describe("admin user restore points route", () => {
     } as never);
 
     const response = await POST(
-      request(
-        {
-          action: "create",
-          label: "Copia soporte admin",
-          reason: "Diagnóstico sintético",
-        },
-        "aal1",
-      ),
+      request({
+        action: "create",
+        label: "Copia soporte admin",
+        reason: "Diagnóstico sintético",
+      }),
       params,
     );
     const body = await response.json();

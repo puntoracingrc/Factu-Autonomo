@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "./route";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isAdminUser } from "@/lib/admin/access";
 import { sendEmail } from "@/lib/email/send";
 
 vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+  getUserSessionFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -26,17 +26,11 @@ vi.mock("@/lib/email/send", () => ({
   sendEmail: vi.fn(),
 }));
 
-function jwtWithPayload(payload: Record<string, unknown>) {
-  const encode = (value: unknown) =>
-    Buffer.from(JSON.stringify(value)).toString("base64url");
-  return `${encode({ alg: "none" })}.${encode(payload)}.signature`;
-}
-
-function request(method = "GET", body?: unknown, aal = "aal2") {
+function request(method = "GET", body?: unknown) {
   return new Request("http://localhost/api/admin/users/user-1/mfa", {
     method,
     headers: {
-      Authorization: `Bearer ${jwtWithPayload({ aal })}`,
+      Authorization: "Bearer verified-token",
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -92,10 +86,11 @@ function tableMock(options: {
 describe("admin user MFA recovery route", () => {
   beforeEach(() => {
     vi.stubEnv("SERVER_RATE_LIMIT_SALT", "test-salt");
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "admin-1",
-      email: "admin@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getUserSessionFromBearer).mockResolvedValue({
+      user: { id: "admin-1", email: "admin@example.com" },
+      sessionId: "22222222-2222-4222-8222-222222222222",
+      aal: "aal2",
+    } as Awaited<ReturnType<typeof getUserSessionFromBearer>>);
     vi.mocked(isAdminUser).mockReturnValue(true);
     vi.mocked(sendEmail).mockResolvedValue({ ok: true, id: "email-1" });
   });
@@ -107,7 +102,7 @@ describe("admin user MFA recovery route", () => {
 
   it("requiere una sesion incluida en la allowlist admin", async () => {
     vi.mocked(isAdminUser).mockReturnValue(false);
-    const response = await GET(request("GET", undefined, "aal1"), params());
+    const response = await GET(request(), params());
 
     expect(response.status).toBe(403);
     expect(getSupabaseAdmin).not.toHaveBeenCalled();

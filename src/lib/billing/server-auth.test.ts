@@ -32,6 +32,7 @@ describe("server bearer session auth", () => {
         claims: {
           sub: "11111111-1111-4111-8111-111111111111",
           session_id: "22222222-2222-4222-8222-222222222222",
+          aal: "aal1",
         },
       },
       error: null,
@@ -46,6 +47,7 @@ describe("server bearer session auth", () => {
     ).resolves.toMatchObject({
       user: { id: "11111111-1111-4111-8111-111111111111" },
       sessionId: "22222222-2222-4222-8222-222222222222",
+      aal: "aal1",
     });
   });
 
@@ -55,6 +57,7 @@ describe("server bearer session auth", () => {
         claims: {
           sub: "33333333-3333-4333-8333-333333333333",
           session_id: "22222222-2222-4222-8222-222222222222",
+          aal: "aal1",
         },
       },
       error: null,
@@ -71,6 +74,23 @@ describe("server bearer session auth", () => {
         claims: {
           sub: "11111111-1111-4111-8111-111111111111",
           session_id: "not-a-session",
+          aal: "aal1",
+        },
+      },
+      error: null,
+    });
+
+    await expect(
+      getUserSessionFromBearer("Bearer verified-token"),
+    ).resolves.toBeNull();
+  });
+
+  it("fails closed when verified claims do not declare a supported AAL", async () => {
+    getClaims.mockResolvedValueOnce({
+      data: {
+        claims: {
+          sub: "11111111-1111-4111-8111-111111111111",
+          session_id: "22222222-2222-4222-8222-222222222222",
         },
       },
       error: null,
