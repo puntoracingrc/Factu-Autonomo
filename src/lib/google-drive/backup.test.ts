@@ -261,7 +261,7 @@ describe("Google Drive backup", () => {
     expect(url.searchParams.get("prompt")).toBe("consent");
   });
 
-  it("recuerda un retorno interno al iniciar Drive desde los primeros pasos", () => {
+  it("recuerda un retorno interno al iniciar Drive desde los primeros pasos", async () => {
     const storage = createMemoryStorage();
     const assign = vi.fn();
 
@@ -273,20 +273,21 @@ describe("Google Drive backup", () => {
       },
     });
 
-    expect(
+    await expect(
       startGoogleDriveBackupRedirect({
         clientId: "google-client-id",
         frequency: "daily",
         returnPath: "/",
       }),
-    ).toEqual({ ok: true });
+    ).resolves.toEqual({ ok: true });
 
     const pending = JSON.parse(
       storage.getItem(DRIVE_BACKUP_PENDING_KEY) ?? "null",
-    ) as { returnPath?: string; state?: string };
+    ) as { returnPath?: string; state?: string; stateDigest?: string };
 
     expect(pending.returnPath).toBe("/");
-    expect(pending.state).toBeTruthy();
+    expect(pending.state).toBeUndefined();
+    expect(pending.stateDigest).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(assign).toHaveBeenCalledWith(
       expect.stringContaining("https://accounts.google.com/o/oauth2/v2/auth"),
     );
@@ -302,24 +303,37 @@ describe("Google Drive backup", () => {
     expect(storage.setItem).not.toHaveBeenCalled();
   });
 
-  it("descarta destinos externos manipulados en el retorno de Drive", () => {
+  it("descarta destinos externos manipulados en el retorno de Drive", async () => {
     const storage = createMemoryStorage();
-    const state = "state-safe-return";
+    const assign = vi.fn();
 
+    vi.stubGlobal("sessionStorage", storage);
+    vi.stubGlobal("window", {
+      location: {
+        origin: "https://facturacion-autonomos.app",
+        assign,
+      },
+    });
+
+    await startGoogleDriveBackupRedirect({
+      clientId: "google-client-id",
+      frequency: "daily",
+    });
+
+    const authorizationUrl = new URL(assign.mock.calls[0]?.[0] as string);
+    const state = authorizationUrl.searchParams.get("state") ?? "";
+    const pending = JSON.parse(
+      storage.getItem(DRIVE_BACKUP_PENDING_KEY) ?? "null",
+    ) as Record<string, unknown>;
     storage.setItem(
       DRIVE_BACKUP_PENDING_KEY,
-      JSON.stringify({
-        state,
-        frequency: "daily",
-        requestedAt: new Date().toISOString(),
-        returnPath: "https://evil.example",
-      }),
+      JSON.stringify({ ...pending, returnPath: "https://evil.example" }),
     );
-    vi.stubGlobal("sessionStorage", storage);
-    vi.stubGlobal("window", {});
 
-    expect(loadPendingDriveBackupRequest(state)).toMatchObject({
-      state,
+    await expect(
+      loadPendingDriveBackupRequest("oauth-state-manipulated"),
+    ).resolves.toBeNull();
+    await expect(loadPendingDriveBackupRequest(state)).resolves.toMatchObject({
       frequency: "daily",
       returnPath: undefined,
     });

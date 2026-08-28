@@ -244,7 +244,7 @@ export function GoogleDriveBackupCard({
     ],
   );
 
-  const startDriveConnection = useCallback(() => {
+  const startDriveConnection = useCallback(async () => {
     if (!driveAccountReady) {
       setFeedback({
         tone: "error",
@@ -275,7 +275,7 @@ export function GoogleDriveBackupCard({
       message: "Te llevamos a Google para dar permiso y volver a Factu.",
     });
 
-    const result = startGoogleDriveBackupRedirect({
+    const result = await startGoogleDriveBackupRedirect({
       clientId,
       frequency: settings.frequency,
       returnPath,

@@ -167,7 +167,6 @@ export function setStoredRentabilidadRealHoursSettings(
   if (storageAvailable()) {
     const serialized = JSON.stringify(normalized);
     // Local-first calculation inputs are business preferences, not credentials.
-    // codeql[js/clear-text-storage-of-sensitive-data]
     localStorage.setItem(HOURS_SETTINGS_STORAGE_KEY, serialized);
   }
   return normalized;

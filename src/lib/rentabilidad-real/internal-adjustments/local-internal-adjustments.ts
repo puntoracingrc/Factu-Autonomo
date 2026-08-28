@@ -64,7 +64,6 @@ export function setStoredInternalAdjustments(
   if (storageAvailable()) {
     const serialized = JSON.stringify(normalized);
     // Local-first profitability inputs are business data, not authentication secrets.
-    // codeql[js/clear-text-storage-of-sensitive-data]
     localStorage.setItem(INTERNAL_ADJUSTMENTS_STORAGE_KEY, serialized);
   }
   return normalized;

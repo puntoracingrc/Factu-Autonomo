@@ -38,7 +38,7 @@ export interface DriveBackupSettings {
 }
 
 export interface PendingDriveBackupRequest {
-  state: string;
+  stateDigest: string;
   frequency: DriveBackupFrequency;
   requestedAt: string;
   returnPath?: DriveBackupReturnPath;
@@ -204,25 +204,25 @@ function normalizePendingDriveBackupRequest(
   raw: unknown,
 ): PendingDriveBackupRequest | null {
   if (!isRecord(raw)) return null;
-  const state = safeString(raw.state);
+  const stateDigest = safeString(raw.stateDigest);
   const requestedAt = safeString(raw.requestedAt);
-  if (!state || !requestedAt) return null;
+  if (!stateDigest || !requestedAt) return null;
 
   const requestedTime = Date.parse(requestedAt);
   if (!Number.isFinite(requestedTime)) return null;
   if (Date.now() - requestedTime > DRIVE_BACKUP_PENDING_MAX_AGE_MS) return null;
 
   return {
-    state,
+    stateDigest,
     frequency: normalizeFrequency(raw.frequency),
     requestedAt,
     returnPath: normalizeDriveBackupReturnPath(raw.returnPath),
   };
 }
 
-export function loadPendingDriveBackupRequest(
+export async function loadPendingDriveBackupRequest(
   expectedState?: string,
-): PendingDriveBackupRequest | null {
+): Promise<PendingDriveBackupRequest | null> {
   if (typeof window === "undefined") return null;
 
   try {
@@ -230,7 +230,10 @@ export function loadPendingDriveBackupRequest(
       JSON.parse(sessionStorage.getItem(DRIVE_BACKUP_PENDING_KEY) ?? "null"),
     );
     if (!pending) return null;
-    if (expectedState && pending.state !== expectedState) return null;
+    if (expectedState) {
+      const expectedDigest = await hashOauthState(expectedState);
+      if (!expectedDigest || pending.stateDigest !== expectedDigest) return null;
+    }
     return pending;
   } catch {
     return null;
@@ -259,6 +262,24 @@ function createOauthState(): string | null {
   return null;
 }
 
+async function hashOauthState(state: string): Promise<string | null> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return null;
+
+  try {
+    const digest = await subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(state),
+    );
+    const hex = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+    return `sha256:${hex}`;
+  } catch {
+    return null;
+  }
+}
+
 export function buildGoogleDriveAuthorizationUrl(input: {
   clientId: string;
   redirectUri: string;
@@ -276,11 +297,11 @@ export function buildGoogleDriveAuthorizationUrl(input: {
   return url.toString();
 }
 
-export function startGoogleDriveBackupRedirect(input: {
+export async function startGoogleDriveBackupRedirect(input: {
   clientId: string;
   frequency: DriveBackupFrequency;
   returnPath?: DriveBackupReturnPath;
-}): { ok: true } | { ok: false; error: string } {
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   if (typeof window === "undefined") {
     return { ok: false, error: "Google Drive solo funciona en el navegador." };
   }
@@ -298,14 +319,20 @@ export function startGoogleDriveBackupRedirect(input: {
     };
   }
 
+  const stateDigest = await hashOauthState(state);
+  if (!stateDigest) {
+    return {
+      ok: false,
+      error: "Este navegador no permite iniciar Google Drive de forma segura.",
+    };
+  }
+
   const pending: PendingDriveBackupRequest = {
-    state,
+    stateDigest,
     frequency: input.frequency,
     requestedAt: new Date().toISOString(),
     returnPath: input.returnPath,
   };
-  // OAuth state is a short-lived CSRF nonce, not an access token or credential.
-  // codeql[js/clear-text-storage-of-sensitive-data]
   sessionStorage.setItem(DRIVE_BACKUP_PENDING_KEY, JSON.stringify(pending));
 
   const redirectUri = `${window.location.origin}${DRIVE_BACKUP_CALLBACK_PATH}`;
@@ -313,7 +340,7 @@ export function startGoogleDriveBackupRedirect(input: {
     buildGoogleDriveAuthorizationUrl({
       clientId,
       redirectUri,
-      state: pending.state,
+      state,
     }),
   );
 
