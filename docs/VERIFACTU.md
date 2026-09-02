@@ -5,6 +5,7 @@
 - Registro encadenado (huella SHA-256 **spec AEAT v0.1.2**) por factura emitida
 - QR tributario en PDF según especificación AEAT
 - XML `RegFactuSistemaFacturacion` con `RegistroAlta` / `RegistroAnulacion`
+- Validación estructural offline contra los XSD oficiales fijados por SHA-256
 - API `/api/verifactu/register` (con cuenta Supabase)
 - Transporte SOAP/mTLS preparado para pruebas AEAT con certificado del obligado
 - Estado del borrador de declaración en `/legal/declaracion-responsable`; el borrador interno no es válido ni se publica
@@ -80,7 +81,10 @@ Estos campos son necesarios para enviar a AEAT el identificador del registro ant
 | `VERIFACTU_CERT_P12_BASE64` | Solo remisión real | Certificado P12 en base64 |
 | `VERIFACTU_CERT_PASSWORD` | Solo remisión real | Contraseña del P12 |
 
-Sin certificado o con `VERIFACTU_AEAT_SUBMIT=false`, la app genera registros en **modo pruebas simulado** (QR apunta a `prewww2.aeat.es`) sin enviar a AEAT.
+La remisión a AEAT continúa cerrada por código aunque se configure un
+certificado. Los XSD se validan offline, pero todavía faltan las garantías de
+identidad cuenta-certificado, persistencia atómica e idempotencia antes de
+abrir el transporte.
 
 ### Estado de envío fail-closed
 
@@ -96,7 +100,9 @@ por `/api/verifactu/register` sea propiedad exclusiva del servidor
 
 ## Preflight de prueba AEAT
 
-Antes de activar un certificado real, la prueba automatizada `src/lib/verifactu/clean-invoice-preflight.test.ts` cubre el caso mínimo:
+Antes de activar un certificado real, las pruebas
+`src/lib/verifactu/xml-official-xsd.test.ts` y
+`src/lib/verifactu/clean-invoice-preflight.test.ts` cubren:
 
 - emisor con NIF español;
 - cliente con NIF español;
@@ -106,6 +112,8 @@ Antes de activar un certificado real, la prueba automatizada `src/lib/verifactu/
 - XML `RegFactuSistemaFacturacion`;
 - sobre SOAP;
 - bloqueo explícito si `VERIFACTU_AEAT_SUBMIT=true` pero falta certificado.
+- validación offline de altas, encadenamiento, exención, rectificativas y
+  anulaciones contra los XSD oficiales.
 
 Cuando exista certificado `.p12` / `.pfx`, la primera prueba manual debe usar una factura igual de simple y el entorno `test`.
 

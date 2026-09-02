@@ -1,1 +1,3 @@
 *.pdf binary
+test/fixtures/verifactu-official-artifacts/**/*.xsd binary
+test/fixtures/verifactu-official-artifacts/**/*.wsdl binary

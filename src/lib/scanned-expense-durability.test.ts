@@ -40,6 +40,8 @@ function draft(): Omit<Expense, "id" | "createdAt"> {
 
 describe("scanned expense durable transition", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
     const store = new Map<string, string>();
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => store.get(key) ?? null,
@@ -51,6 +53,7 @@ describe("scanned expense durable transition", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

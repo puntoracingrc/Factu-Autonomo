@@ -10,6 +10,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:verifactu-official-xsd": "vitest run src/lib/verifactu/official-xsd-validator.test.ts src/lib/verifactu/xml-official-xsd.test.ts",
     "tax:insights:weekly": "node scripts/tax-diagnostic-insights-weekly.mjs",
     "tax:year:prepare": "node scripts/tax-year-maintenance.mjs prepare",
     "tax:year:validate": "node scripts/tax-year-maintenance.mjs validate",
@@ -402,7 +403,8 @@
     "pngjs": "^7.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "xmllint-wasm": "5.3.0"
   },
   "overrides": {
     "dompurify": "3.4.14",
