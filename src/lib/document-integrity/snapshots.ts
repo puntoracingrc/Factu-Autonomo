@@ -268,7 +268,14 @@ function cloneIssuer(issuer: IssuerSnapshot): IssuerSnapshot {
 function cloneRectification(
   rectification: RectificationInfo | undefined,
 ): RectificationInfo | undefined {
-  return rectification ? { ...rectification } : undefined;
+  return rectification
+    ? {
+        ...rectification,
+        ...(rectification.originalAmounts
+          ? { originalAmounts: { ...rectification.originalAmounts } }
+          : {}),
+      }
+    : undefined;
 }
 
 function cloneVerifactu(
@@ -586,7 +593,20 @@ function isDocumentSnapshotSemanticallyValid(
         typeof snapshot.rectification.reason !== "string" ||
         !(["anulacion", "correccion"] as const).includes(
           snapshot.rectification.type,
-        ))
+        ) ||
+        (snapshot.rectification.originalAmounts !== undefined &&
+          (!Number.isFinite(
+            snapshot.rectification.originalAmounts.taxableBase,
+          ) ||
+            !Number.isFinite(
+              snapshot.rectification.originalAmounts.vatAmount,
+            ) ||
+            (snapshot.rectification.originalAmounts
+              .equivalenceSurchargeAmount !== undefined &&
+              !Number.isFinite(
+                snapshot.rectification.originalAmounts
+                  .equivalenceSurchargeAmount,
+              )))))
     ) {
       return false;
     }

@@ -10,6 +10,18 @@ import {
 import { formatQrAmount, formatQrDate, normalizeIssuerNif } from "./qr";
 import type { VerifactuRecordType } from "./types";
 
+export interface VerifactuXmlSoftwareIdentity {
+  developerName: string;
+  developerNif: string;
+  softwareName: string;
+  softwareId: string;
+  softwareVersion: string;
+  installationId: string;
+  exclusiveVerifactu: boolean;
+  multiTaxpayerSupport: boolean;
+  multipleTaxpayers: boolean;
+}
+
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -146,19 +158,85 @@ function buildEncadenamiento(input: {
         </sum1:Encadenamiento>`;
 }
 
-function buildSistemaInformatico(): string {
+function defaultSoftwareIdentity(): VerifactuXmlSoftwareIdentity {
+  return {
+    developerName: VERIFACTU_SOFTWARE.developerName,
+    developerNif: VERIFACTU_SOFTWARE.developerNif,
+    softwareName: VERIFACTU_SOFTWARE.softwareName,
+    softwareId: VERIFACTU_SOFTWARE.softwareId,
+    softwareVersion: VERIFACTU_SOFTWARE.softwareVersion,
+    installationId: VERIFACTU_SOFTWARE.installationId,
+    exclusiveVerifactu: false,
+    multiTaxpayerSupport: true,
+    multipleTaxpayers: true,
+  };
+}
+
+function yesNo(value: boolean): "S" | "N" {
+  return value ? "S" : "N";
+}
+
+function buildSistemaInformatico(
+  software: VerifactuXmlSoftwareIdentity,
+): string {
   return `
         <sum1:SistemaInformatico>
-          <sum1:NombreRazon>${escapeXml(VERIFACTU_SOFTWARE.developerName)}</sum1:NombreRazon>
-          <sum1:NIF>${escapeXml(VERIFACTU_SOFTWARE.developerNif)}</sum1:NIF>
-          <sum1:NombreSistemaInformatico>${escapeXml(compactText(VERIFACTU_SOFTWARE.softwareName, 30))}</sum1:NombreSistemaInformatico>
-          <sum1:IdSistemaInformatico>${escapeXml(compactText(VERIFACTU_SOFTWARE.softwareId, 2))}</sum1:IdSistemaInformatico>
-          <sum1:Version>${escapeXml(compactText(VERIFACTU_SOFTWARE.softwareVersion, 50))}</sum1:Version>
-          <sum1:NumeroInstalacion>${escapeXml(compactText(VERIFACTU_SOFTWARE.installationId, 100))}</sum1:NumeroInstalacion>
-          <sum1:TipoUsoPosibleSoloVerifactu>N</sum1:TipoUsoPosibleSoloVerifactu>
-          <sum1:TipoUsoPosibleMultiOT>S</sum1:TipoUsoPosibleMultiOT>
-          <sum1:IndicadorMultiplesOT>S</sum1:IndicadorMultiplesOT>
+          <sum1:NombreRazon>${escapeXml(compactText(software.developerName, 120))}</sum1:NombreRazon>
+          <sum1:NIF>${escapeXml(software.developerNif.trim().toUpperCase().replace(/\s/g, ""))}</sum1:NIF>
+          <sum1:NombreSistemaInformatico>${escapeXml(compactText(software.softwareName, 30))}</sum1:NombreSistemaInformatico>
+          <sum1:IdSistemaInformatico>${escapeXml(compactText(software.softwareId, 2))}</sum1:IdSistemaInformatico>
+          <sum1:Version>${escapeXml(compactText(software.softwareVersion, 50))}</sum1:Version>
+          <sum1:NumeroInstalacion>${escapeXml(compactText(software.installationId, 100))}</sum1:NumeroInstalacion>
+          <sum1:TipoUsoPosibleSoloVerifactu>${yesNo(software.exclusiveVerifactu)}</sum1:TipoUsoPosibleSoloVerifactu>
+          <sum1:TipoUsoPosibleMultiOT>${yesNo(software.multiTaxpayerSupport)}</sum1:TipoUsoPosibleMultiOT>
+          <sum1:IndicadorMultiplesOT>${yesNo(software.multipleTaxpayers)}</sum1:IndicadorMultiplesOT>
         </sum1:SistemaInformatico>`;
+}
+
+function buildRectificationReference(
+  doc: Document,
+  issuerNif: string,
+): string {
+  const rectification =
+    doc.documentSnapshot?.rectification ?? doc.rectification;
+  if (!rectification) return "";
+
+  const rectificationMethod =
+    rectification.type === "correccion" ? "S" : "I";
+  let replacementAmounts = "";
+  if (rectification.type === "correccion") {
+    const amounts = rectification.originalAmounts;
+    if (
+      !amounts ||
+      !Number.isFinite(amounts.taxableBase) ||
+      !Number.isFinite(amounts.vatAmount) ||
+      (amounts.equivalenceSurchargeAmount !== undefined &&
+        !Number.isFinite(amounts.equivalenceSurchargeAmount))
+    ) {
+      throw new Error(
+        "La rectificativa sustitutiva necesita la base y la cuota originales.",
+      );
+    }
+    const surcharge =
+      amounts.equivalenceSurchargeAmount === undefined
+        ? ""
+        : `\n          <sum1:CuotaRecargoRectificado>${escapeXml(formatQrAmount(amounts.equivalenceSurchargeAmount))}</sum1:CuotaRecargoRectificado>`;
+    replacementAmounts = `
+        <sum1:ImporteRectificacion>
+          <sum1:BaseRectificada>${escapeXml(formatQrAmount(amounts.taxableBase))}</sum1:BaseRectificada>
+          <sum1:CuotaRectificada>${escapeXml(formatQrAmount(amounts.vatAmount))}</sum1:CuotaRectificada>${surcharge}
+        </sum1:ImporteRectificacion>`;
+  }
+
+  return `
+        <sum1:TipoRectificativa>${rectificationMethod}</sum1:TipoRectificativa>
+        <sum1:FacturasRectificadas>
+          <sum1:IDFacturaRectificada>
+            <sum1:IDEmisorFactura>${escapeXml(issuerNif)}</sum1:IDEmisorFactura>
+            <sum1:NumSerieFactura>${escapeXml(rectification.originalNumber)}</sum1:NumSerieFactura>
+            <sum1:FechaExpedicionFactura>${escapeXml(formatQrDate(rectification.originalDate))}</sum1:FechaExpedicionFactura>
+          </sum1:IDFacturaRectificada>
+        </sum1:FacturasRectificadas>${replacementAmounts}`;
 }
 
 function buildCabecera(input: { issuerName: string; issuerNif: string }): string {
@@ -191,6 +269,7 @@ export function buildRegistroFacturacionXml(input: {
   previousFechaExpedicion?: string;
   recordTimestamp: string;
   vatExempt: boolean;
+  software?: VerifactuXmlSoftwareIdentity;
 }): string {
   const nif = normalizeIssuerNif(input.issuerNif);
   const fecha = formatQrDate(input.fecha);
@@ -203,7 +282,9 @@ export function buildRegistroFacturacionXml(input: {
     previousNumSerie: input.previousNumSerie,
     previousFechaExpedicion: input.previousFechaExpedicion,
   });
-  const sistemaInformatico = buildSistemaInformatico();
+  const sistemaInformatico = buildSistemaInformatico(
+    input.software ?? defaultSoftwareIdentity(),
+  );
   const cabecera = buildCabecera({
     issuerName: nombreEmisor,
     issuerNif: nif,
@@ -241,7 +322,7 @@ ${cabecera}
           <sum1:FechaExpedicionFactura>${escapeXml(fecha)}</sum1:FechaExpedicionFactura>
         </sum1:IDFactura>
         <sum1:NombreRazonEmisor>${escapeXml(nombreEmisor)}</sum1:NombreRazonEmisor>
-        <sum1:TipoFactura>${escapeXml(input.tipoFactura)}</sum1:TipoFactura>
+        <sum1:TipoFactura>${escapeXml(input.tipoFactura)}</sum1:TipoFactura>${buildRectificationReference(input.doc, nif)}
         <sum1:DescripcionOperacion>${escapeXml(documentDescription(input.doc))}</sum1:DescripcionOperacion>${buildDestinatarios(input.doc)}${buildDetalleDesglose({
           doc: input.doc,
           vatExempt: input.vatExempt,

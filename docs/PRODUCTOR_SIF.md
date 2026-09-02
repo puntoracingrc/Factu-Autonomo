@@ -98,8 +98,9 @@ exclusivamente del servidor (`AUD-P1-15`).
 | Encabezado emisor congelado al emitir | ✅ Implementado |
 | Sin borrado de facturas emitidas | ✅ Implementado |
 | Verificación in situ | ✅ Parcial (falta NIF real en prod) |
-| XML registro según XSD AEAT | ⚠️ Aproximado; falta alineación XSD completa |
-| Remisión real a AEAT | ⚠️ Simulada sin certificado |
+| XML registro según XSD AEAT | ✅ Validación estructural offline con artefactos fijados por SHA-256 |
+| Reglas semánticas AEAT | ⚠️ Pendientes de cerrar antes del canario oficial |
+| Remisión real a AEAT | ⛔ Preparada pero bloqueada por código |
 | Registro de eventos | ❌ Pendiente |
 | Comprobación de cadena bajo demanda | ✅ En Configuración → Veri*Factu |
 
@@ -110,7 +111,8 @@ Detalle técnico: `docs/VERIFACTU.md`.
 - [ ] Configurar **todas** las variables de productor (no dejar `PENDIENTE-NIF`)
 - [ ] Emitir factura de prueba y validar QR en https://prewww2.aeat.es
 - [ ] Revisar el borrador interno (campos a–l) sin publicarlo como válido
-- [ ] (Opcional) Certificado FNMT o sello + remisión en prewww10
+- [ ] Certificado del obligado + remisión controlada en preproducción, después
+  de cerrar las garantías de servidor
 - [ ] Asesoría fiscal si vendes a terceros (responsabilidad art. 201.bis LGT)
 
 ### 6. Comercialización
@@ -151,4 +153,4 @@ No hay sello previo. La conformidad se demuestra con:
 3. Tests `npm test` en verde (incl. vectores huella AEAT)
 4. QR validado en preproducción AEAT
 5. Textos legales (`/legal/terminos`, `/legal/privacidad`) revisados con asesoría
-6. Plan de cierre de gaps (eventos, remisión real, XSD)
+6. Plan de cierre de gaps (reglas semánticas, eventos y remisión real)

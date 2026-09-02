@@ -2,44 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildVerifactuSoapEnvelope,
   parseAeatSubmitResponse,
-  submitRegistroToAeat,
+  submitRegistroToAeatPreproduction,
 } from "./aeat-submit";
 
 describe("aeat submit", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
-  });
-
-  it("no simula éxito cuando el transporte real está desactivado", async () => {
-    const result = await submitRegistroToAeat({
-      xml: "<sum:RegFactuSistemaFacturacion/>",
-      environment: "test",
-    });
-    expect(result.ok).toBe(false);
-    expect(result.rawResponse).toBe("SIMULATED_TEST_MODE_DISABLED");
-  });
-
-  it("reports missing certificate when real send is enabled", async () => {
-    vi.stubEnv("VERIFACTU_AEAT_SUBMIT", "true");
-
-    const result = await submitRegistroToAeat({
-      xml: "<sum:RegFactuSistemaFacturacion/>",
-      environment: "test",
-    });
-
-    expect(result.ok).toBe(false);
-    expect(result.rawResponse).toBe("AEAT_CERTIFICATE_NOT_CONFIGURED");
-  });
-
-  it("does not simulate success for production without real transport", async () => {
-    const result = await submitRegistroToAeat({
-      xml: "<sum:RegFactuSistemaFacturacion/>",
-      environment: "production",
-    });
-
-    expect(result.ok).toBe(false);
-    expect(result.rawResponse).toBe("REAL_AEAT_TRANSPORT_NOT_ENABLED");
   });
 
   it("wraps the registry payload in the official SOAP envelope", () => {
@@ -70,6 +39,7 @@ describe("aeat submit", () => {
     });
 
     expect(result.ok).toBe(true);
+    expect(result.outcome).toBe("accepted");
     expect(result.csv).toBe("TESTCSV123");
     expect(result.estadoRegistro).toBe("Correcta");
   });
@@ -101,5 +71,99 @@ describe("aeat submit", () => {
         parseAeatSubmitResponse({ statusCode: 200, rawResponse }).ok,
       ).toBe(false);
     }
+  });
+
+  it("reconoce el estado oficial AceptadoConErrores sin convertirlo en éxito limpio", () => {
+    const result = parseAeatSubmitResponse({
+      statusCode: 200,
+      rawResponse:
+        "<EstadoEnvio>ParcialmenteCorrecto</EstadoEnvio><EstadoRegistro>AceptadoConErrores</EstadoRegistro><CSV>CSV-CON-ERRORES</CSV>",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.outcome).toBe("accepted_with_errors");
+    expect(result.csv).toBe("CSV-CON-ERRORES");
+  });
+
+  it("recupera un envío ambiguo cuando AEAT confirma el registro duplicado", () => {
+    const result = parseAeatSubmitResponse({
+      statusCode: 200,
+      rawResponse: `
+        <RespuestaRegFactuSistemaFacturacion>
+          <CSV>CSV-DUPLICADO</CSV>
+          <EstadoEnvio>ParcialmenteCorrecto</EstadoEnvio>
+          <RespuestaLinea>
+            <EstadoRegistro>Incorrecto</EstadoRegistro>
+            <CodigoErrorRegistro>3000</CodigoErrorRegistro>
+            <RegistroDuplicado>
+              <EstadoRegistroDuplicado>Correcta</EstadoRegistroDuplicado>
+            </RegistroDuplicado>
+          </RespuestaLinea>
+        </RespuestaRegFactuSistemaFacturacion>`,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.outcome).toBe("accepted_duplicate");
+    expect(result.duplicateState).toBe("Correcta");
+  });
+
+  it("no convierte en aceptación limpia un duplicado aceptado con errores", () => {
+    const result = parseAeatSubmitResponse({
+      statusCode: 200,
+      rawResponse: `
+        <RespuestaRegFactuSistemaFacturacion>
+          <CSV>CSV-DUPLICADO-CON-ERRORES</CSV>
+          <EstadoEnvio>ParcialmenteCorrecto</EstadoEnvio>
+          <RespuestaLinea>
+            <EstadoRegistro>Incorrecto</EstadoRegistro>
+            <RegistroDuplicado>
+              <EstadoRegistroDuplicado>AceptadaConErrores</EstadoRegistroDuplicado>
+            </RegistroDuplicado>
+          </RespuestaLinea>
+        </RespuestaRegFactuSistemaFacturacion>`,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.outcome).toBe("accepted_with_errors");
+    expect(result.duplicateState).toBe("AceptadaConErrores");
+  });
+
+  it("clasifica como desconocida una respuesta sin señal AEAT", () => {
+    const result = parseAeatSubmitResponse({
+      statusCode: 502,
+      rawResponse: "<html>gateway timeout</html>",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.outcome).toBe("delivery_unknown");
+  });
+
+  it("solo permite el host oficial acorde al canal en preproducción", async () => {
+    const certificate = {
+      p12Base64: Buffer.from("synthetic").toString("base64"),
+      password: "synthetic",
+    };
+    const blocked = await submitRegistroToAeatPreproduction({
+      xml: "<sum:RegFactuSistemaFacturacion/>",
+      certificate,
+      certificateChannel: "personal",
+      endpointUrl: "https://example.com/collect",
+    });
+    expect(blocked.outcome).toBe("not_sent");
+
+    const post = vi.fn().mockResolvedValue({
+      statusCode: 200,
+      rawResponse:
+        "<CSV>TEST</CSV><EstadoEnvio>Correcto</EstadoEnvio><EstadoRegistro>Correcta</EstadoRegistro>",
+    });
+    const accepted = await submitRegistroToAeatPreproduction({
+      xml: "<sum:RegFactuSistemaFacturacion/>",
+      certificate,
+      certificateChannel: "personal",
+      post,
+    });
+    expect(accepted.outcome).toBe("accepted");
+    expect(post).toHaveBeenCalledWith(
+      expect.objectContaining({ endpointUrl: expect.stringContaining("prewww1.aeat.es") }),
+    );
   });
 });

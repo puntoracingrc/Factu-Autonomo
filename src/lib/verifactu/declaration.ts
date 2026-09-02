@@ -95,7 +95,7 @@ function buildComplianceAnnexNotes(): string {
     "Remisión a AEAT: servicio desactivado; no se envían datos, no se genera QR tributario y no se acredita aceptación.",
     "El envío real requiere certificado .p12/.pfx, variables de servidor y prueba oficial en entorno AEAT test.",
     "Comprobación de cadena de huellas bajo demanda en Ajustes → Veri*Factu.",
-    "Pendiente: registro de eventos completo, validación XSD estricta y aceptación oficial de pruebas AEAT.",
+    "Validación estructural XSD oficial disponible offline. Pendientes: reglas semánticas completas, registro de eventos y aceptación en pruebas AEAT.",
   ].join(" ");
 }
 

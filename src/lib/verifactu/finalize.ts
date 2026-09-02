@@ -96,9 +96,7 @@ export async function finalizeVerifactuDocument(input: {
   }
 
   const server = await submitVerifactuToServer({
-    doc: canonicalDocument,
-    profile: canonicalProfile,
-    chain: input.chain ?? null,
+    localDocumentId: canonicalDocument.id,
     authToken: token,
   });
 
@@ -127,7 +125,8 @@ export async function finalizeVerifactuDocument(input: {
     "SERVER_NOT_CONFIRMED",
     server?.aeatOk && !server.persisted
       ? "AEAT respondió, pero el servidor no confirmó la persistencia completa del registro y su cadena. No se ha marcado como registrado localmente."
-      : server?.verifactu?.errorMessage ||
+      : server?.errorMessage ||
+        server?.verifactu?.errorMessage ||
         "El servidor no confirmó el registro Veri*Factu. El documento no se ha marcado como registrado.",
   );
 }

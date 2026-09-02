@@ -170,6 +170,20 @@ const billingQuotaMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const verifactuCertificateMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260902182313_verifactu_certificate_bindings.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const centralVerifactuLedgerMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260902183813_verifactu_central_submission_ledger.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -227,6 +241,15 @@ const billingQuotaServiceOnlyTables = [
   "billing_quota_entitlements",
   "billing_quota_pack_purchases",
 ] as const;
+const verifactuCertificateServiceTables = [
+  "verifactu_certificate_bindings",
+  "verifactu_certificate_binding_audit",
+] as const;
+const centralVerifactuServiceReadOnlyTables = [
+  "central_verifactu_chain_state",
+  "central_verifactu_records",
+  "central_verifactu_transport_attempts",
+] as const;
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -255,6 +278,8 @@ const classifiedTables = new Set([
   ...serviceReadOnlyTables,
   ...serviceLimitedWriteTables,
   ...billingQuotaServiceOnlyTables,
+  ...verifactuCertificateServiceTables,
+  ...centralVerifactuServiceReadOnlyTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -592,6 +617,47 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         new RegExp(
           `grant\\s+[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
           "i",
+        ),
+      );
+    }
+  });
+
+  it("keeps certificate bindings and AEAT attempts server-only", () => {
+    for (const table of verifactuCertificateServiceTables) {
+      expect(verifactuCertificateMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(verifactuCertificateMigrationSource).toMatch(
+        new RegExp(
+          `revoke all on table public\\.${escapedTable(table)}[\\s\\S]*?from public, anon, authenticated`,
+          "i",
+        ),
+      );
+      expect(verifactuCertificateMigrationSource).not.toMatch(
+        new RegExp(
+          `grant\\s+[^;]*public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
+          "iu",
+        ),
+      );
+    }
+
+    for (const table of centralVerifactuServiceReadOnlyTables) {
+      expect(centralVerifactuLedgerMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(centralVerifactuLedgerMigrationSource).toMatch(
+        new RegExp(
+          `revoke all on table public\\.${escapedTable(table)}[\\s\\S]*?from public, anon, authenticated, service_role`,
+          "i",
+        ),
+      );
+      expect(centralVerifactuLedgerMigrationSource).toContain(
+        `grant select on table public.${table} to service_role`,
+      );
+      expect(centralVerifactuLedgerMigrationSource).not.toMatch(
+        new RegExp(
+          `grant\\s+(?:all|insert|update|delete|truncate)[^;]*public\\.${escapedTable(table)}[^;]*to\\s+service_role`,
+          "iu",
         ),
       );
     }

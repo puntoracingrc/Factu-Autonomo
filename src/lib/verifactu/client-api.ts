@@ -1,54 +1,74 @@
-import type { BusinessProfile, Document, VerifactuChainState } from "../types";
+import {
+  CLOUD_DEVICE_TOKEN_HEADER,
+  getLocalCloudDeviceToken,
+} from "../cloud/device-token";
+import type { Document, VerifactuChainState } from "../types";
 
 export interface VerifactuServerRegisterResponse {
-  verifactu: Document["verifactu"];
-  chain: VerifactuChainState;
-  persisted: boolean;
-  aeatOk: boolean;
-  duplicate?: boolean;
+  ok: boolean;
+  status:
+    | "accepted"
+    | "accepted_duplicate"
+    | "already_accepted"
+    | "in_progress"
+    | "accepted_with_errors"
+    | "rejected"
+    | "delivery_unknown";
+  recordId: string;
+  fullNumber: string;
+  csv?: string;
+  qrUrl?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  // Legacy fields remain optional while the public UI is deliberately closed.
+  verifactu?: Document["verifactu"];
+  chain?: VerifactuChainState;
+  persisted?: boolean;
+  aeatOk?: boolean;
 }
 
 const VERIFACTU_REGISTER_TIMEOUT_MS = 20_000;
 
 export async function submitVerifactuToServer(input: {
-  doc: Document;
-  profile: BusinessProfile;
-  chain?: VerifactuChainState | null;
+  localDocumentId: string;
   authToken?: string | null;
+  dependencies?: {
+    fetchImpl?: typeof fetch;
+    getDeviceToken?: () => string | null;
+  };
 }): Promise<VerifactuServerRegisterResponse | null> {
   if (!input.authToken) return null;
+  const readDeviceToken =
+    input.dependencies?.getDeviceToken ?? getLocalCloudDeviceToken;
+  const deviceToken = readDeviceToken();
+  if (!deviceToken) return null;
 
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(
+  const timeoutId = globalThis.setTimeout(
     () => controller.abort(),
     VERIFACTU_REGISTER_TIMEOUT_MS,
   );
 
   try {
-    const response = await fetch("/api/verifactu/register", {
+    const response = await (input.dependencies?.fetchImpl ?? fetch)(
+      "/api/verifactu/register",
+      {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${input.authToken}`,
+        [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },
-      body: JSON.stringify({
-        document: input.doc,
-        profile: {
-          name: input.profile.name,
-          nif: input.profile.nif,
-          vatExempt: input.profile.vatExempt,
-          verifactu: input.profile.verifactu,
-        },
-        chain: input.chain ?? null,
-      }),
+      body: JSON.stringify({ localDocumentId: input.localDocumentId }),
       signal: controller.signal,
-    });
+      },
+    );
 
     if (!response.ok) return null;
     return (await response.json()) as VerifactuServerRegisterResponse;
   } catch {
     return null;
   } finally {
-    window.clearTimeout(timeoutId);
+    globalThis.clearTimeout(timeoutId);
   }
 }
