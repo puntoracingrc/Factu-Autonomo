@@ -635,27 +635,22 @@ DocumentForm.handleSave()
     ├─► attachIssuerSnapshot() — congela datos emisor
     │
     ├─► finalizeVerifactuDocument()
-    │       │
-    │       ├─ ¿needsVerifactuRegistration? → NO → fin
-    │       │
-    │       ├─ ¿Token Supabase? → POST /api/verifactu/register
-    │       │       ├─ OK → guarda verifactu + cadena del servidor
-    │       │       └─ Fallo → registro local (fallback silencioso)
-    │       │
-    │       └─ Sin token → registro local únicamente
+    │       ├─ La interfaz pública permanece cerrada
+    │       └─ La prueba aprobada usa POST /api/verifactu/register
+    │           con solo localDocumentId, sesión y dispositivo
     │
     └─► finishDocumentSave() — toast, listado, PDF opcional
 ```
 
 ### 6.3 Registro local vs servidor
 
-| Aspecto | Local (navegador) | Servidor (`/api/verifactu/register`) |
-|---------|-------------------|--------------------------------------|
-| Requisito | Siempre disponible | Usuario autenticado en Supabase |
-| Cadena de huellas | `AppData.verifactuChain` | Tabla `verifactu_chain_state` (prioritaria si hay sesión) |
-| Remisión AEAT | Nunca; modo simulado local | Intento real si `VERIFACTU_AEAT_SUBMIT=true` + certificado |
-| CSV | No se genera CSV real | Real de AEAT si remisión OK |
-| Persistencia | localStorage | Supabase (`verifactu_records`) |
+| Aspecto | Navegador | Servidor (`/api/verifactu/register`) |
+|---------|-----------|--------------------------------------|
+| Petición | Solo ID del documento central | Recupera factura e identidad por usuario |
+| Cadena de huellas | No es autoridad | Ledger central transaccional por usuario + NIF |
+| Certificado | Nunca accesible | Sobre AES-GCM en bucket privado y vínculo por NIF |
+| Remisión AEAT | Nunca | Solo preproducción, una allowlist exacta y kill switch |
+| Resultado ambiguo | No inventa éxito | Conserva intento y reenvía exactamente el mismo XML |
 
 ### 6.4 Algoritmo de huella (AEAT spec v0.1.2)
 
@@ -683,10 +678,11 @@ Cada registro encadena con el anterior (`previousHash` → `lastHash` en cadena)
 ### 6.6 XML y remisión AEAT
 
 - XML generado: `buildRegistroFacturacionXml()` (`src/lib/verifactu/xml.ts`)
-- Remisión: `submitRegistroToAeat()` (`src/lib/verifactu/aeat-submit.ts`)
+- Remisión: `submitRegistroToAeatPreproduction()` (`src/lib/verifactu/aeat-submit.ts`)
 - XML base: `RegFactuSistemaFacturacion` con `RegistroAlta` / `RegistroAnulacion`
 - Transporte: SOAP sobre mTLS con certificado `.p12` / `.pfx` en servidor
-- Estado operativo: por defecto funciona en modo simulado; el envío real queda bloqueado hasta configurar certificado, `VERIFACTU_AEAT_SUBMIT=true` y validar una prueba oficial en entorno AEAT test.
+- Estado operativo: cerrado por defecto; solo admite el host oficial de
+  preproducción correspondiente al canal del certificado.
 
 ### 6.7 Configuración del productor SIF (despliegue)
 
@@ -708,19 +704,19 @@ Estado visible en Configuración → «Verificación in situ (SIF)» via `getPro
 
 | Situación | Comportamiento |
 |-----------|----------------|
-| Error al calcular huella | Alerta al usuario; documento **ya guardado** sin `verifactu` |
-| Servidor no disponible | Fallback silencioso a registro local |
-| Remisión AEAT fallida | `status: failed`; registro persistido igualmente |
-| Documento ya tiene `verifactu` | No reintenta (incluso si `failed`) |
-| Multidispositivo | Cadena local y servidor pueden divergir; no hay sync automático de cadena |
+| Petición sin sesión/dispositivo | Rechazo antes de leer el documento |
+| Documento fuera de la allowlist | No se envía |
+| XML que no valida contra XSD | No se crea el intento de transporte |
+| Timeout o respuesta ambigua | `delivery_unknown`; conserva y reintenta el XML exacto |
+| Respuesta duplicada | Usa el estado previo devuelto por AEAT; no inventa aceptación |
+| Certificado de otro NIF, caducado o rotado | Rechazo antes del envío |
 
 **Aspectos no implementados o WIP:**
 
-- Registro de eventos SIF completo
-- Validación XSD estricta del XML
+- Atestación autenticada servidor-cliente y apertura de la interfaz pública
 - Prueba oficial AEAT test con certificado real
 - `RegistroAnulacion` AEAT desde UI (rectificativas usan alta R1/R4)
-- Reintento automático de registros fallidos
+- Operador/worker automático para reintentos `delivery_unknown`
 - Modo dual VERI\*Factu + no-VERI\*Factu certificado
 
 ---
@@ -789,7 +785,7 @@ Los escaneos extra se acreditan en `ai_credit_units` y `scan_credits` (compatibi
 | `/api/referrals/me` | GET | Código de invitación y estadísticas del usuario |
 | `/api/referrals/redeem` | POST | Canjear código de invitación (Bearer) |
 | `/api/webhooks/stripe` | POST | Eventos Stripe |
-| `/api/verifactu/register` | POST | Registro Veri\*Factu + AEAT |
+| `/api/verifactu/register` | POST | Prueba AEAT preproducción: sesión + dispositivo + ID central; allowlist de un usuario/documento |
 | `/api/verifactu/status` | GET | Bearer verificado; contrato fail-closed `submissionMode: "unknown"`, sin inferir ni exponer entorno o configuración |
 | `/api/verifactu/declaration` | GET | Contención `404 draft_not_published`; no publica el borrador interno |
 | `/api/email/welcome` | POST | Bearer con email confirmado; destinatario derivado en servidor, claim distribuido e `Idempotency-Key` de Resend con reintento ambiguo acotado |
@@ -797,10 +793,10 @@ Los escaneos extra se acreditan en `ai_credit_units` y `scan_credits` (compatibi
 
 Autenticación en rutas protegidas: Bearer JWT Supabase (`getUserFromBearer`).
 
-La confirmación pública de un modo de envío real queda bloqueada hasta que el
-entorno usado por `/api/verifactu/register` sea propiedad exclusiva del
-servidor (`AUD-P1-15`). La interfaz distingue carga, estado no verificado y
-fallo; ninguno de esos estados se convierte por defecto en modo simulado.
+La confirmación pública de un modo de envío real sigue bloqueada hasta superar
+la prueba con certificado y añadir atestación autenticada servidor-cliente. La
+interfaz distingue carga, estado no verificado y fallo; ninguno se convierte
+por defecto en aceptación o modo simulado.
 
 ---
 

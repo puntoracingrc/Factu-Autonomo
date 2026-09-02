@@ -2,9 +2,15 @@ import {
   LOCKED_DELETE_MESSAGE,
   canPhysicallyDeleteDocument,
 } from "./document-integrity/deletion";
-import { lineMoneyAmounts } from "./calculations";
+import { lineMoneyAmounts, roundMoneySymmetric } from "./calculations";
 import { hasLegacyImportProtectionClaim } from "./document-integrity/legacy-import-attestation";
-import type { Document, LineItem, RectificationType } from "./types";
+import { documentAmounts } from "./vat-regime";
+import type {
+  Document,
+  LineItem,
+  RectificationOriginalAmounts,
+  RectificationType,
+} from "./types";
 
 export type DeleteWarningLevel = "simple" | "legal" | "legal_strict";
 
@@ -142,6 +148,19 @@ export function cloneItemsForCorreccion(items: LineItem[]): LineItem[] {
     grossUnitPrice: item.grossUnitPrice,
     ivaPercent: item.ivaPercent,
   }));
+}
+
+export function rectificationOriginalAmounts(
+  original: Document,
+  vatExempt: boolean,
+): RectificationOriginalAmounts {
+  const frozen = original.documentSnapshot?.taxSummary;
+  const amounts = frozen ?? documentAmounts(original, vatExempt);
+
+  return {
+    taxableBase: roundMoneySymmetric(amounts.subtotal),
+    vatAmount: roundMoneySymmetric(amounts.iva),
+  };
 }
 
 export function rectificationLineDisplayTotal(

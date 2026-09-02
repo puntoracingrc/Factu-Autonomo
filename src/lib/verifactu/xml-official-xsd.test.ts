@@ -206,6 +206,10 @@ describe("Factu registration XML against official AEAT XSD", () => {
         originalDate: baseDocument.date,
         reason: "Correccion sintetica",
         type: "correccion",
+        originalAmounts: {
+          taxableBase: 100,
+          vatAmount: 21,
+        },
       },
     };
     const xml = buildXml({
@@ -216,7 +220,28 @@ describe("Factu registration XML against official AEAT XSD", () => {
     });
 
     expect(xml).toContain("<sum1:TipoRectificativa>S</sum1:TipoRectificativa>");
+    expect(xml).toContain("<sum1:BaseRectificada>100.00</sum1:BaseRectificada>");
+    expect(xml).toContain("<sum1:CuotaRectificada>21.00</sum1:CuotaRectificada>");
     await expectOfficiallyStructured(xml);
+  });
+
+  it("fails closed when a substitutive rectification lacks original amounts", () => {
+    const doc: Document = {
+      ...baseDocument,
+      id: "synthetic-rectification-without-original-amounts",
+      number: "FR-2026-0003",
+      rectification: {
+        originalDocumentId: baseDocument.id,
+        originalNumber: baseDocument.number,
+        originalDate: baseDocument.date,
+        reason: "Correccion sintetica incompleta",
+        type: "correccion",
+      },
+    };
+
+    expect(() => buildXml({ doc, tipoFactura: "R4" })).toThrow(
+      "La rectificativa sustitutiva necesita la base y la cuota originales.",
+    );
   });
 
   it("accepts an AEAT registration cancellation record", async () => {

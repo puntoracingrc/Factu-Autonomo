@@ -97,12 +97,20 @@ export type DocumentAcceptanceStatus =
 
 export type RectificationType = "anulacion" | "correccion";
 
+export interface RectificationOriginalAmounts {
+  taxableBase: number;
+  vatAmount: number;
+  equivalenceSurchargeAmount?: number;
+}
+
 export interface RectificationInfo {
   originalDocumentId: string;
   originalNumber: string;
   originalDate: string;
   reason: string;
   type: RectificationType;
+  /** Importes sustituidos exigidos por AEAT cuando `type` es `correccion`. */
+  originalAmounts?: RectificationOriginalAmounts;
 }
 
 export interface LineItem {

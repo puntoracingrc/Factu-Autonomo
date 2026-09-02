@@ -203,6 +203,30 @@ function buildRectificationReference(
 
   const rectificationMethod =
     rectification.type === "correccion" ? "S" : "I";
+  let replacementAmounts = "";
+  if (rectification.type === "correccion") {
+    const amounts = rectification.originalAmounts;
+    if (
+      !amounts ||
+      !Number.isFinite(amounts.taxableBase) ||
+      !Number.isFinite(amounts.vatAmount) ||
+      (amounts.equivalenceSurchargeAmount !== undefined &&
+        !Number.isFinite(amounts.equivalenceSurchargeAmount))
+    ) {
+      throw new Error(
+        "La rectificativa sustitutiva necesita la base y la cuota originales.",
+      );
+    }
+    const surcharge =
+      amounts.equivalenceSurchargeAmount === undefined
+        ? ""
+        : `\n          <sum1:CuotaRecargoRectificado>${escapeXml(formatQrAmount(amounts.equivalenceSurchargeAmount))}</sum1:CuotaRecargoRectificado>`;
+    replacementAmounts = `
+        <sum1:ImporteRectificacion>
+          <sum1:BaseRectificada>${escapeXml(formatQrAmount(amounts.taxableBase))}</sum1:BaseRectificada>
+          <sum1:CuotaRectificada>${escapeXml(formatQrAmount(amounts.vatAmount))}</sum1:CuotaRectificada>${surcharge}
+        </sum1:ImporteRectificacion>`;
+  }
 
   return `
         <sum1:TipoRectificativa>${rectificationMethod}</sum1:TipoRectificativa>
@@ -212,7 +236,7 @@ function buildRectificationReference(
             <sum1:NumSerieFactura>${escapeXml(rectification.originalNumber)}</sum1:NumSerieFactura>
             <sum1:FechaExpedicionFactura>${escapeXml(formatQrDate(rectification.originalDate))}</sum1:FechaExpedicionFactura>
           </sum1:IDFacturaRectificada>
-        </sum1:FacturasRectificadas>`;
+        </sum1:FacturasRectificadas>${replacementAmounts}`;
 }
 
 function buildCabecera(input: { issuerName: string; issuerNif: string }): string {

@@ -1,4 +1,3 @@
-import type { VerifactuEnvironment } from "./types";
 import {
   AEAT_VERIFACTU_SOAP_PATH,
   AEAT_WS_HOSTS,
@@ -12,54 +11,82 @@ export interface VerifactuCertificateConfig {
   password: string;
 }
 
-export function getServerVerifactuEnvironment(): VerifactuEnvironment {
-  return process.env.VERIFACTU_ENVIRONMENT === "production"
-    ? "production"
-    : "test";
-}
-
-export function getAeatCertificateChannel(): AeatCertificateChannel {
-  return process.env.VERIFACTU_AEAT_CERT_CHANNEL === "sello"
-    ? "sello"
-    : "personal";
-}
-
-export function getAeatEndpointUrl(
-  environment: VerifactuEnvironment,
+export function getOfficialAeatEndpointUrl(
+  environment: "test" | "production",
+  channel: AeatCertificateChannel,
 ): string {
-  const override = process.env.VERIFACTU_AEAT_ENDPOINT_URL?.trim();
-  if (override) return override;
-
   const hosts =
-    getAeatCertificateChannel() === "sello"
-      ? AEAT_WS_HOSTS
-      : AEAT_WS_PERSONAL_CERT_HOSTS;
+    channel === "sello" ? AEAT_WS_HOSTS : AEAT_WS_PERSONAL_CERT_HOSTS;
   return `${hosts[environment]}${AEAT_VERIFACTU_SOAP_PATH}`;
 }
 
-export function getVerifactuCertificateConfig():
-  | VerifactuCertificateConfig
-  | null {
-  const p12Base64 = process.env.VERIFACTU_CERT_P12_BASE64?.trim();
-  const password = process.env.VERIFACTU_CERT_PASSWORD ?? "";
-  if (!p12Base64 || !password) return null;
-  return { p12Base64, password };
+export function isOfficialAeatPreproductionEndpoint(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === "prewww1.aeat.es" ||
+        url.hostname === "prewww10.aeat.es") &&
+      url.pathname === AEAT_VERIFACTU_SOAP_PATH &&
+      !url.search &&
+      !url.hash &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
 }
 
-export function isAeatSubmitConfigured(): boolean {
-  return (
-    process.env.VERIFACTU_AEAT_SUBMIT === "true" &&
-    getVerifactuCertificateConfig() !== null
+export type VerifactuPreproductionActivationReason =
+  | "enabled_for_exact_scope"
+  | "kill_switch"
+  | "disabled"
+  | "environment_not_test"
+  | "scope_not_minimal"
+  | "user_not_allowed"
+  | "document_not_allowed";
+
+export function evaluateVerifactuPreproductionActivation(input: {
+  userId: string;
+  localDocumentId: string;
+  env?: Record<string, string | undefined>;
+}): { enabled: boolean; reason: VerifactuPreproductionActivationReason } {
+  const env = input.env ?? process.env;
+  if (env.VERIFACTU_AEAT_PREPRODUCTION_KILL_SWITCH === "true") {
+    return { enabled: false, reason: "kill_switch" };
+  }
+  if (env.VERIFACTU_AEAT_PREPRODUCTION_ENABLED !== "true") {
+    return { enabled: false, reason: "disabled" };
+  }
+  if (env.VERIFACTU_ENVIRONMENT !== "test") {
+    return { enabled: false, reason: "environment_not_test" };
+  }
+
+  const allowedUsers = new Set(
+    (env.VERIFACTU_AEAT_PREPRODUCTION_USER_IDS ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
   );
-}
+  if (allowedUsers.size !== 1) {
+    return { enabled: false, reason: "scope_not_minimal" };
+  }
+  if (!allowedUsers.has(input.userId.trim().toLowerCase())) {
+    return { enabled: false, reason: "user_not_allowed" };
+  }
 
-/**
- * Interruptor de contención. No se expone el registro público si falta el
- * transporte mTLS real o la habilitación operativa deliberada del servidor.
- */
-export function isVerifactuRegistrationApiEnabled(): boolean {
-  // Contención deliberada: faltan vinculación usuario↔NIF/certificado,
-  // persistencia transaccional de registro+cadena e idempotencia por identidad
-  // fiscal. Ninguna variable de entorno puede saltarse esas garantías.
-  return false;
+  const allowedDocuments = new Set(
+    (env.VERIFACTU_AEAT_PREPRODUCTION_DOCUMENT_IDS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  if (allowedDocuments.size !== 1) {
+    return { enabled: false, reason: "scope_not_minimal" };
+  }
+  if (!allowedDocuments.has(input.localDocumentId.trim())) {
+    return { enabled: false, reason: "document_not_allowed" };
+  }
+  return { enabled: true, reason: "enabled_for_exact_scope" };
 }

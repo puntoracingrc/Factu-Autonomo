@@ -93,23 +93,27 @@ Si algo falla, dímelo y lo corregimos en código.
 
 ## Fase 5 — Tú + código: remisión real AEAT
 
-> La interfaz no confirma ningún modo real de envío mientras el entorno de
-> `/api/verifactu/register` no sea propiedad exclusiva del servidor
-> (`AUD-P1-15`). Hasta cerrar ese bloqueo, `/api/verifactu/status` responde
-> únicamente `submissionMode: "unknown"`.
+> La interfaz pública sigue cerrada. La primera apertura será una sola factura
+> central, de un solo usuario, exclusivamente contra preproducción AEAT.
 
 **Tú:**
 
-- [ ] Certificado FNMT o sello de empresa → P12
-- [ ] `VERIFACTU_CERT_P12_BASE64`, `VERIFACTU_CERT_PASSWORD`
-- [ ] `VERIFACTU_AEAT_SUBMIT=true`, `VERIFACTU_ENVIRONMENT=test`
-- [ ] `VERIFACTU_AEAT_CERT_CHANNEL=personal` para la opción A
+- [ ] Entregar el certificado FNMT o sello mediante un archivo local seguro,
+      nunca por chat, Git ni variable P12 global
+- [ ] Aprobar una única factura sintética/controlada con identidad central test
+- [ ] Ejecutar la prueba y volver a activar inmediatamente el interruptor de
+      emergencia
 
 **Código:**
 
 - [x] mTLS con certificado en servidor
 - [x] XML base oficial `RegFactuSistemaFacturacion`
-- [ ] Registro de eventos completo
+- [x] Importes exigidos para rectificativas sustitutivas
+- [x] Certificado cifrado y vinculado a usuario + NIF + entorno test
+- [x] Ledger transaccional, leases y reintento del XML exacto ante ambigüedad
+- [x] Ruta autenticada que solo acepta el ID del documento central
+- [ ] Aplicar las migraciones y ejecutar la prueba mínima contra AEAT
+- [ ] Atestación servidor-cliente y apertura pública posterior
 
 ---
 

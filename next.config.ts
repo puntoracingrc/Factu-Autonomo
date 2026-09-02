@@ -45,6 +45,11 @@ const appNoIndexRoutes = [
 ];
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/verifactu/register": [
+      "./test/fixtures/verifactu-official-artifacts/**/*",
+    ],
+  },
   eslint: {
     ignoreDuringBuilds: isVercelBuild,
   },

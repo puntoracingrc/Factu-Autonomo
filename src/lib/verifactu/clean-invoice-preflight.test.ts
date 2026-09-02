@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { BusinessProfile, Document } from "../types";
 import { DEFAULT_PROFILE } from "../types";
 import { issueDocument } from "../document-integrity";
-import { submitRegistroToAeat } from "./aeat-submit";
 import { registerDocumentVerifactu } from "./register";
 
 const cleanProfile: BusinessProfile = {
@@ -33,10 +32,6 @@ const cleanInvoice: Document = issueDocument({
 }, cleanProfile, "2026-06-28T10:00:00.000Z");
 
 describe("verifactu clean invoice preflight", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it("no fabrica un registro ni XML de envío desde el cliente", async () => {
     const result = await registerDocumentVerifactu({
       doc: cleanInvoice,
@@ -45,17 +40,5 @@ describe("verifactu clean invoice preflight", () => {
     });
 
     expect(result).toBeNull();
-  });
-
-  it("does not attempt a real AEAT send when the certificate is still missing", async () => {
-    vi.stubEnv("VERIFACTU_AEAT_SUBMIT", "true");
-
-    const aeat = await submitRegistroToAeat({
-      xml: "<registro-prueba />",
-      environment: "test",
-    });
-
-    expect(aeat.ok).toBe(false);
-    expect(aeat.rawResponse).toBe("AEAT_CERTIFICATE_NOT_CONFIGURED");
   });
 });

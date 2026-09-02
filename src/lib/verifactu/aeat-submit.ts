@@ -1,22 +1,32 @@
 import * as https from "node:https";
 import {
-  getAeatEndpointUrl,
-  getServerVerifactuEnvironment,
-  getVerifactuCertificateConfig,
-  isAeatSubmitConfigured,
+  getOfficialAeatEndpointUrl,
+  isOfficialAeatPreproductionEndpoint,
+  type AeatCertificateChannel,
   type VerifactuCertificateConfig,
 } from "./config";
 import { AEAT_VERIFACTU_NAMESPACES } from "./constants";
-import type { VerifactuEnvironment } from "./types";
 import { stripXmlDeclaration } from "./xml";
 
 const AEAT_SUBMIT_TIMEOUT_MS = 30_000;
+const AEAT_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+
+export type AeatSubmitOutcome =
+  | "accepted"
+  | "accepted_with_errors"
+  | "accepted_duplicate"
+  | "rejected"
+  | "delivery_unknown"
+  | "not_sent";
 
 export interface AeatSubmitResult {
   ok: boolean;
+  outcome: AeatSubmitOutcome;
+  httpStatus?: number;
   csv?: string;
   estadoEnvio?: string;
   estadoRegistro?: string;
+  duplicateState?: string;
   errorCode?: string;
   errorMessage?: string;
   rawResponse?: string;
@@ -72,6 +82,10 @@ export function parseAeatSubmitResponse(input: {
   const csv = readXmlTag(input.rawResponse, "CSV");
   const estadoEnvio = readXmlTag(input.rawResponse, "EstadoEnvio");
   const estadoRegistro = readXmlTag(input.rawResponse, "EstadoRegistro");
+  const duplicateState = readXmlTag(
+    input.rawResponse,
+    "EstadoRegistroDuplicado",
+  );
   const fault = readXmlTag(input.rawResponse, "faultstring");
   const errorCode =
     readXmlTag(input.rawResponse, "CodigoErrorRegistro") ??
@@ -83,19 +97,62 @@ export function parseAeatSubmitResponse(input: {
 
   const normalizedEnvio = normalizeStatus(estadoEnvio);
   const normalizedRegistro = normalizeStatus(estadoRegistro);
+  const normalizedDuplicate = normalizeStatus(duplicateState);
   const envioOk =
     normalizedEnvio === "correcto" || normalizedEnvio === "correcta";
+  const envioAccepted =
+    envioOk || normalizedEnvio === "parcialmentecorrecto";
   const registroOk =
     normalizedRegistro === "correcta" ||
     normalizedRegistro === "correcto";
+  const registroAcceptedWithErrors = [
+    "aceptadoconerrores",
+    "aceptadaconerrores",
+  ].includes(normalizedRegistro);
+  const duplicateConfirmsCleanPriorRecord = [
+    "correcta",
+    "correcto",
+    "anulada",
+    "anulado",
+  ].includes(normalizedDuplicate);
+  const duplicateConfirmsPriorRecordWithErrors = [
+    "aceptadaconerrores",
+    "aceptadoconerrores",
+  ].includes(normalizedDuplicate);
   const httpOk = input.statusCode >= 200 && input.statusCode < 300;
-  const hasPositiveAeatStatus = Boolean(normalizedRegistro && csv);
+  const acceptedDuplicate =
+    httpOk &&
+    Boolean(csv) &&
+    envioAccepted &&
+    duplicateConfirmsCleanPriorRecord;
+  const acceptedWithErrors =
+    httpOk &&
+    Boolean(csv) &&
+    envioAccepted &&
+    (registroAcceptedWithErrors || duplicateConfirmsPriorRecordWithErrors);
+  const accepted =
+    httpOk && Boolean(csv) && envioOk && registroOk && !fault;
+  const hasDefinitiveAeatResponse = Boolean(
+    fault || normalizedEnvio || normalizedRegistro || errorCode || errorMessage,
+  );
+  const outcome: AeatSubmitOutcome = acceptedDuplicate
+    ? "accepted_duplicate"
+    : accepted
+      ? "accepted"
+      : acceptedWithErrors
+        ? "accepted_with_errors"
+        : hasDefinitiveAeatResponse
+          ? "rejected"
+          : "delivery_unknown";
 
   return {
-    ok: httpOk && hasPositiveAeatStatus && envioOk && registroOk && !fault,
+    ok: outcome === "accepted" || outcome === "accepted_duplicate",
+    outcome,
+    httpStatus: input.statusCode,
     ...(csv ? { csv } : {}),
     ...(estadoEnvio ? { estadoEnvio } : {}),
     ...(estadoRegistro ? { estadoRegistro } : {}),
+    ...(duplicateState ? { duplicateState } : {}),
     ...(errorCode ? { errorCode } : {}),
     ...(errorMessage ? { errorMessage } : {}),
     rawResponse: input.rawResponse,
@@ -110,13 +167,21 @@ export async function postSoapWithMutualTls(input: {
 }): Promise<SoapPostResult> {
   const url = new URL(input.endpointUrl);
   const body = Buffer.from(input.envelope, "utf8");
+  const pfx = Buffer.from(input.certificate.p12Base64, "base64");
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (action: () => void) => {
+      if (settled) return;
+      settled = true;
+      pfx.fill(0);
+      action();
+    };
     const request = https.request(
       url,
       {
         method: "POST",
-        pfx: Buffer.from(input.certificate.p12Base64, "base64"),
+        pfx,
         passphrase: input.certificate.password,
         headers: {
           Accept: "text/xml",
@@ -127,92 +192,85 @@ export async function postSoapWithMutualTls(input: {
       },
       (response) => {
         const chunks: Buffer[] = [];
-        response.on("data", (chunk: Buffer) => chunks.push(chunk));
-        response.on("end", () => {
-          resolve({
-            statusCode: response.statusCode ?? 0,
-            rawResponse: Buffer.concat(chunks).toString("utf8"),
-          });
+        let receivedBytes = 0;
+        response.on("data", (chunk: Buffer) => {
+          receivedBytes += chunk.byteLength;
+          if (receivedBytes > AEAT_MAX_RESPONSE_BYTES) {
+            response.destroy(new Error("AEAT_RESPONSE_TOO_LARGE"));
+            return;
+          }
+          chunks.push(chunk);
         });
+        response.on("end", () => {
+          finish(() =>
+            resolve({
+              statusCode: response.statusCode ?? 0,
+              rawResponse: Buffer.concat(chunks).toString("utf8"),
+            }),
+          );
+        });
+        response.on("error", (error) => finish(() => reject(error)));
       },
     );
 
     request.setTimeout(input.timeoutMs ?? AEAT_SUBMIT_TIMEOUT_MS, () => {
       request.destroy(new Error("Tiempo de espera agotado con AEAT"));
     });
-    request.on("error", reject);
+    request.on("error", (error) => finish(() => reject(error)));
     request.write(body);
     request.end();
   });
 }
 
-export async function submitRegistroToAeat(input: {
+export async function submitRegistroToAeatPreproduction(input: {
   xml: string;
-  environment?: VerifactuEnvironment;
+  certificate: VerifactuCertificateConfig;
+  certificateChannel: AeatCertificateChannel;
+  endpointUrl?: string;
+  timeoutMs?: number;
+  post?: typeof postSoapWithMutualTls;
 }): Promise<AeatSubmitResult> {
-  const environment = input.environment ?? getServerVerifactuEnvironment();
-  const wantsRealSubmit = process.env.VERIFACTU_AEAT_SUBMIT === "true";
-  const certificate = getVerifactuCertificateConfig();
-
-  if (!isAeatSubmitConfigured()) {
-    if (wantsRealSubmit && !certificate) {
-      return {
-        ok: false,
-        errorMessage:
-          "Envío AEAT activado, pero falta el certificado .p12/.pfx o su contraseña.",
-        rawResponse: "AEAT_CERTIFICATE_NOT_CONFIGURED",
-      };
-    }
-
-    if (environment !== "test") {
-      return {
-        ok: false,
-        errorMessage:
-          "Producción AEAT no configurada. Usa el entorno de pruebas.",
-        rawResponse: "REAL_AEAT_TRANSPORT_NOT_ENABLED",
-      };
-    }
-
+  const endpointUrl =
+    input.endpointUrl ??
+    getOfficialAeatEndpointUrl("test", input.certificateChannel);
+  if (
+    endpointUrl !==
+      getOfficialAeatEndpointUrl("test", input.certificateChannel) ||
+    !isOfficialAeatPreproductionEndpoint(endpointUrl)
+  ) {
     return {
       ok: false,
-      errorMessage:
-        "El transporte AEAT real no está configurado; no se simula un registro aceptado.",
-      rawResponse: "SIMULATED_TEST_MODE_DISABLED",
-    };
-  }
-
-  if (!certificate) {
-    return {
-      ok: false,
-      errorMessage:
-        "Envío AEAT activado, pero falta el certificado .p12/.pfx o su contraseña.",
-      rawResponse: "AEAT_CERTIFICATE_NOT_CONFIGURED",
+      outcome: "not_sent",
+      errorCode: "INVALID_AEAT_PREPRODUCTION_ENDPOINT",
+      errorMessage: "El destino AEAT de preproducción no es válido.",
     };
   }
 
   try {
-    const envelope = buildVerifactuSoapEnvelope(input.xml);
-    const response = await postSoapWithMutualTls({
-      endpointUrl: getAeatEndpointUrl(environment),
-      envelope,
-      certificate,
+    const response = await (input.post ?? postSoapWithMutualTls)({
+      endpointUrl,
+      envelope: buildVerifactuSoapEnvelope(input.xml),
+      certificate: input.certificate,
+      timeoutMs: input.timeoutMs,
     });
     const parsed = parseAeatSubmitResponse(response);
     if (!parsed.ok && !parsed.errorMessage) {
       return {
         ...parsed,
-        errorMessage: `AEAT devolvió HTTP ${response.statusCode}.`,
+        errorMessage:
+          parsed.outcome === "delivery_unknown"
+            ? "AEAT respondió sin un resultado verificable. El envío queda pendiente de confirmación."
+            : `AEAT devolvió HTTP ${response.statusCode}.`,
       };
     }
     return parsed;
-  } catch (error) {
+  } catch {
     return {
       ok: false,
+      outcome: "delivery_unknown",
+      errorCode: "AEAT_TRANSPORT_ERROR",
       errorMessage:
-        error instanceof Error
-          ? error.message
-          : "No se pudo conectar con AEAT.",
-      rawResponse: "AEAT_TRANSPORT_ERROR",
+        "No se pudo confirmar la respuesta de AEAT. Se conservará el mismo registro para reintentarlo.",
     };
   }
 }

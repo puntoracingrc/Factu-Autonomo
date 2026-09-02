@@ -64,6 +64,7 @@ import {
   cloneItemsForCorreccion,
   itemsForAnulacion,
   rectificationLineDisplayTotal,
+  rectificationOriginalAmounts,
   rectificationTextDefaults,
   rectificationTypeLabel,
 } from "@/lib/rectificativas";
@@ -330,6 +331,14 @@ export function RectificativaForm({
         originalDate: original.date,
         reason: finalReason,
         type: rectType,
+        ...(rectType === "correccion"
+          ? {
+              originalAmounts: rectificationOriginalAmounts(
+                original,
+                vatExempt,
+              ),
+            }
+          : {}),
       },
     };
   }
