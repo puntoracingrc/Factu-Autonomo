@@ -2,9 +2,12 @@ import { gunzipSync, strFromU8 } from "fflate";
 
 import { writePersistedAppDataCache } from "../lib/persisted-app-data-cache";
 import { buildPersistedAppDerivedCache } from "../lib/persisted-app-derived-cache-builder";
+import { writePersistedAppEntityShadow } from "../lib/persisted-app-entity-shadow";
 import { normalizeLoadedData } from "../lib/storage";
 
 const COMPRESSED_STORAGE_PREFIX = "factu-gzip-v1:";
+const ENTITY_SHADOW_ENABLED =
+  process.env.NEXT_PUBLIC_ENTITY_SHADOW_ENABLED === "true";
 
 interface CacheWorkerRequest {
   storageKey: string;
@@ -13,6 +16,12 @@ interface CacheWorkerRequest {
 
 interface CacheWorkerResponse {
   ok: boolean;
+  entityShadow: {
+    written: boolean;
+    verified: boolean;
+    upserted: number;
+    deleted: number;
+  };
 }
 
 function base64ToBytes(value: string): Uint8Array {
@@ -42,9 +51,37 @@ self.onmessage = (event: MessageEvent<CacheWorkerRequest>) => {
         normalized,
         derived,
       );
-      self.postMessage({ ok: written } satisfies CacheWorkerResponse);
+      const entityShadow = ENTITY_SHADOW_ENABLED
+        ? await writePersistedAppEntityShadow(
+            event.data.storageKey,
+            event.data.raw,
+            normalized,
+          )
+        : {
+            written: false,
+            upserted: 0,
+            deleted: 0,
+            verification: undefined,
+          };
+      self.postMessage({
+        ok: written,
+        entityShadow: {
+          written: entityShadow.written,
+          verified: entityShadow.verification?.matches === true,
+          upserted: entityShadow.upserted,
+          deleted: entityShadow.deleted,
+        },
+      } satisfies CacheWorkerResponse);
     } catch {
-      self.postMessage({ ok: false } satisfies CacheWorkerResponse);
+      self.postMessage({
+        ok: false,
+        entityShadow: {
+          written: false,
+          verified: false,
+          upserted: 0,
+          deleted: 0,
+        },
+      } satisfies CacheWorkerResponse);
     }
   })();
 };
