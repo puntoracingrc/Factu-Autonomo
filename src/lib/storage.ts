@@ -1597,6 +1597,69 @@ export async function loadDataPreferPersistentCache(
 }
 
 /**
+ * Variante sin escrituras durables para controles previos al montaje del
+ * workspace. Usa la copia normalizada solo si coincide con clave y raw exactos.
+ */
+export async function readPersistedDataSnapshotPreferPersistentCache(
+  options: {
+    storageKey?: string;
+    readCache?: typeof readPersistedAppDataCache;
+    onCacheMissLoaded?: (storageKey: string, raw: string | null) => void;
+  } = {},
+): Promise<AppData | null> {
+  if (typeof window === "undefined") return null;
+
+  let storage: Storage;
+  let storageKey: string;
+  let raw: string | null;
+  try {
+    storage = localStorage;
+    storageKey = currentStorageKey(options.storageKey);
+    raw = storage.getItem(storageKey);
+  } catch {
+    return readPersistedDataSnapshot(options.storageKey);
+  }
+
+  const memoryCache = matchingPersistedSnapshotCache(
+    storage,
+    storageKey,
+    raw,
+  );
+  const memorySnapshot = cachedNormalizedSnapshot(memoryCache);
+  if (memorySnapshot) return memorySnapshot;
+
+  if (raw !== null) {
+    const persistentSnapshot = await (
+      options.readCache ?? readPersistedAppDataCache
+    )(storageKey, raw);
+    if (persistentSnapshot) {
+      try {
+        if (storage.getItem(storageKey) === raw) {
+          rememberPersistedSnapshot(storage, storageKey, raw, {
+            normalized: persistentSnapshot,
+            equivalentData: persistentSnapshot,
+          });
+          return persistentSnapshot;
+        }
+      } catch {
+        return readPersistedDataSnapshot(options.storageKey);
+      }
+    }
+  }
+
+  const loaded = readPersistedDataSnapshot(options.storageKey);
+  if (!loaded) return null;
+  try {
+    const currentKey = currentStorageKey(options.storageKey);
+    const currentRaw = localStorage.getItem(currentKey);
+    options.onCacheMissLoaded?.(currentKey, currentRaw);
+  } catch {
+    // La copia normalizada es opcional; el estado durable no se modifica.
+  }
+  return loaded;
+}
+
+/**
  * Lee el estado durable actual sin escribir normalizaciones en localStorage.
  * Permite recuperar una precondición obsoleta cuando el dominio de negocio
  * sigue intacto y solo cambiaron metadatos de sincronización.

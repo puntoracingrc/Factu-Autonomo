@@ -18,6 +18,7 @@ import {
   loadDataPreferPersistentCache,
   normalizeLoadedData,
   readPersistedDataSnapshot,
+  readPersistedDataSnapshotPreferPersistentCache,
   saveData,
 } from "./storage";
 import {
@@ -518,6 +519,44 @@ describe("storage", () => {
     const loaded = await loadDataPreferPersistentCache({ readCache });
 
     expect(loaded.profile.name).toBe("Cambio de otra pestaña");
+  });
+
+  it("usa la copia normalizada para una lectura durable previa sin reescribir localStorage", async () => {
+    const raw = JSON.stringify(sampleData());
+    localStorage.setItem(STORAGE_KEY, raw);
+    const cached = normalizeLoadedData(sampleData());
+    const readCache = vi.fn().mockResolvedValue(cached);
+    const refresh = vi.fn();
+    const setItem = vi.spyOn(localStorage, "setItem");
+    setItem.mockClear();
+
+    const loaded = await readPersistedDataSnapshotPreferPersistentCache({
+      readCache,
+      onCacheMissLoaded: refresh,
+    });
+
+    expect(readCache).toHaveBeenCalledWith(STORAGE_KEY, raw);
+    expect(loaded).toBe(cached);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("prepara la copia normalizada tras una lectura durable sin cache", async () => {
+    const raw = JSON.stringify(sampleData());
+    localStorage.setItem(STORAGE_KEY, raw);
+    const readCache = vi.fn().mockResolvedValue(null);
+    const refresh = vi.fn();
+    const setItem = vi.spyOn(localStorage, "setItem");
+    setItem.mockClear();
+
+    const loaded = await readPersistedDataSnapshotPreferPersistentCache({
+      readCache,
+      onCacheMissLoaded: refresh,
+    });
+
+    expect(loaded?.profile.name).toBe(sampleData().profile.name);
+    expect(refresh).toHaveBeenCalledWith(STORAGE_KEY, raw);
+    expect(setItem).not.toHaveBeenCalled();
   });
 
   it("rehidrata únicamente preferencias manuales de modelos válidas", () => {
