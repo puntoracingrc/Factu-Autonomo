@@ -9,9 +9,11 @@ import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { claimLegacyLocalCloudDeviceToken } from "@/lib/cloud/device-token";
 import {
   LEGACY_APP_DATA_STORAGE_KEY,
+  readPersistedDataSnapshotPreferPersistentCache,
   projectAppDataForPersistence,
   readPersistedDataSnapshot,
 } from "@/lib/storage";
+import { schedulePersistedAppDataCacheRefresh } from "@/lib/persisted-app-data-cache-refresh";
 import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
 import { legacyWorkspaceMatchesVerifiedOwner } from "@/lib/workspace-legacy-ownership";
@@ -113,15 +115,20 @@ export function WorkspaceStorageBoundary({
     setCurrentState({ status: "loading" });
     setConfirmed(false);
     try {
-      const legacyData = readPersistedDataSnapshot(
-        LEGACY_APP_DATA_STORAGE_KEY,
-      );
+      const legacyData =
+        await readPersistedDataSnapshotPreferPersistentCache({
+          storageKey: LEGACY_APP_DATA_STORAGE_KEY,
+          onCacheMissLoaded: schedulePersistedAppDataCacheRefresh,
+        });
       const legacyHasContent = Boolean(
         legacyData && hasWorkspaceContent(legacyData),
       );
       const guestScope = readExistingGuestWorkspaceScope(localStorage);
       const guestData = guestScope
-        ? readPersistedDataSnapshot(guestScope.storageKey)
+        ? await readPersistedDataSnapshotPreferPersistentCache({
+            storageKey: guestScope.storageKey,
+            onCacheMissLoaded: schedulePersistedAppDataCacheRefresh,
+          })
         : null;
       const guestHasContent = Boolean(
         guestData && hasWorkspaceContent(guestData),

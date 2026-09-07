@@ -36,13 +36,13 @@ self.onmessage = (event: MessageEvent<CacheWorkerRequest>) => {
     try {
       const normalized = normalizeLoadedData(parseStoredData(event.data.raw));
       const derived = buildPersistedAppDerivedCache(normalized);
-      await writePersistedAppDataCache(
+      const written = await writePersistedAppDataCache(
         event.data.storageKey,
         event.data.raw,
         normalized,
         derived,
       );
-      self.postMessage({ ok: true } satisfies CacheWorkerResponse);
+      self.postMessage({ ok: written } satisfies CacheWorkerResponse);
     } catch {
       self.postMessage({ ok: false } satisfies CacheWorkerResponse);
     }

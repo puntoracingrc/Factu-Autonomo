@@ -13,9 +13,12 @@ type IdleWindow = Window & {
   cancelIdleCallback?: (handle: number) => void;
 };
 
+export const PERSISTED_CACHE_REFRESH_QUIET_MS = 1_500;
+export const PERSISTED_CACHE_REFRESH_IDLE_TIMEOUT_MS = 5_000;
+
 const pendingRefreshes = new Map<
   string,
-  { generation: number; cancel: () => void }
+  { generation: number; raw: string; cancel: () => void }
 >();
 let refreshGeneration = 0;
 
@@ -42,12 +45,15 @@ export function schedulePersistedAppDataCacheRefresh(
   }
   if (raw === null) return;
 
-  pendingRefreshes.get(storageKey)?.cancel();
+  const pending = pendingRefreshes.get(storageKey);
+  if (pending?.raw === raw) return;
+  pending?.cancel();
   refreshGeneration += 1;
   const generation = refreshGeneration;
   const idleWindow = window as IdleWindow;
   let cancelled = false;
   let worker: Worker | null = null;
+  let idleHandle: number | null = null;
 
   const run = () => {
     if (cancelled) return;
@@ -77,24 +83,28 @@ export function schedulePersistedAppDataCacheRefresh(
     worker.postMessage({ storageKey, raw });
   };
 
-  let cancel: () => void;
-  if (idleWindow.requestIdleCallback) {
-    const handle = idleWindow.requestIdleCallback(run, { timeout: 2_000 });
-    cancel = () => {
-      cancelled = true;
-      idleWindow.cancelIdleCallback?.(handle);
-      worker?.terminate();
-      worker = null;
-    };
-  } else {
-    const handle = setTimeout(run, 100);
-    cancel = () => {
-      cancelled = true;
-      clearTimeout(handle);
-      worker?.terminate();
-      worker = null;
-    };
-  }
+  const quietHandle = window.setTimeout(() => {
+    if (cancelled) return;
+    if (pendingRefreshes.get(storageKey)?.generation !== generation) return;
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(run, {
+        timeout: PERSISTED_CACHE_REFRESH_IDLE_TIMEOUT_MS,
+      });
+      return;
+    }
+    run();
+  }, PERSISTED_CACHE_REFRESH_QUIET_MS);
 
-  pendingRefreshes.set(storageKey, { generation, cancel });
+  const cancel = () => {
+    cancelled = true;
+    window.clearTimeout(quietHandle);
+    if (idleHandle !== null) {
+      idleWindow.cancelIdleCallback?.(idleHandle);
+      idleHandle = null;
+    }
+    worker?.terminate();
+    worker = null;
+  };
+
+  pendingRefreshes.set(storageKey, { generation, raw, cancel });
 }
