@@ -214,7 +214,7 @@ describe("documentWithCurrentCustomerContact", () => {
     expect(hydrated.client.phone).toBeUndefined();
   });
 
-  it("no pisa un contacto válido que ya esté congelado en el documento", () => {
+  it("usa el email actual del cliente aunque el documento conserve otro válido", () => {
     const hydrated = documentWithCurrentCustomerContact(
       {
         ...doc,
@@ -227,8 +227,39 @@ describe("documentWithCurrentCustomerContact", () => {
       customers,
     );
 
-    expect(hydrated.client.email).toBe("snapshot@example.com");
+    expect(hydrated.client.email).toBe("jordi@example.com");
     expect(hydrated.client.phone).toBe("+34 600 111 222");
+  });
+
+  it("no reutiliza el email antiguo si se eliminó de la ficha actual", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        client: {
+          ...doc.client,
+          email: "obsolete@example.com",
+        },
+      },
+      [{ ...customers[0], email: undefined }],
+    );
+
+    expect(hydrated.client.email).toBeUndefined();
+  });
+
+  it("conserva el único email disponible en un documento sin cliente identificable", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        customerId: undefined,
+        client: {
+          name: "Cliente histórico sin ficha",
+          email: "legacy@example.com",
+        },
+      },
+      customers,
+    );
+
+    expect(hydrated.client.email).toBe("legacy@example.com");
   });
 
   it("no actualiza nombre, NIF ni dirección fiscal desde la ficha viva", () => {

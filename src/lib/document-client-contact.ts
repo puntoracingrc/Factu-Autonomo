@@ -220,22 +220,25 @@ export function documentWithCurrentCustomerContact(
   doc: Document,
   customers: Customer[],
 ): Document {
-  if (hasUsableEmail(doc.client.email) && hasUsablePhone(doc.client.phone)) {
-    return doc;
-  }
-
   const lookup = getDocumentCustomerLookup(customers);
   const migrated = doc.customerId
     ? lookup.byReferenceId.get(doc.customerId) ?? null
     : null;
   const matchingCustomers = matchingCustomersForDocument(doc, lookup);
-  if (!migrated && matchingCustomers.length === 0) return doc;
+  const hasCurrentCustomer = Boolean(migrated || matchingCustomers.length > 0);
 
-  const email = hasUsableEmail(doc.client.email)
-    ? doc.client.email
-    : hasUsableEmail(migrated?.email)
-      ? migrated?.email
-      : uniqueMatchingContact(matchingCustomers, "email");
+  // Email is a live contact channel, not part of the immutable fiscal snapshot.
+  // Once the customer can be identified, never fall back to an obsolete address
+  // stored in an older document.
+  const currentEmail = hasUsableEmail(migrated?.email)
+    ? migrated?.email
+    : uniqueMatchingContact(matchingCustomers, "email");
+
+  const email = hasCurrentCustomer
+    ? currentEmail
+    : hasUsableEmail(doc.client.email)
+      ? doc.client.email
+      : undefined;
   const phone = hasUsablePhone(doc.client.phone)
     ? doc.client.phone
     : hasUsablePhone(migrated?.phone)
