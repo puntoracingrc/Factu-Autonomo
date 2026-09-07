@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import {
+  cloudDeviceTokenStorageKey,
+} from "@/lib/cloud/device-token";
+import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
+import {
   registerCurrentCloudDevice,
   recoverRevokedCloudDeviceAfterFreshSignIn,
   releaseCurrentCloudDeviceSession,
@@ -12,11 +16,13 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 describe("cloud device client", () => {
+  const USER_ID = "cloud-device-user-0001";
   const values = new Map<string, string>();
 
   beforeEach(() => {
     values.clear();
-    values.set("factura-autonomo-cloud-device-token-v1", "x".repeat(64));
+    setActiveWorkspaceOwnerScope(USER_ID);
+    values.set(cloudDeviceTokenStorageKey(USER_ID), "x".repeat(64));
     vi.stubGlobal("localStorage", {
       getItem: vi.fn((key: string) => values.get(key) ?? null),
       setItem: vi.fn((key: string, value: string) => values.set(key, value)),
@@ -25,13 +31,19 @@ describe("cloud device client", () => {
     vi.mocked(getSupabaseClientAsync).mockResolvedValue({
       auth: {
         getSession: vi.fn().mockResolvedValue({
-          data: { session: { access_token: "test-access-token" } },
+          data: {
+            session: {
+              access_token: "test-access-token",
+              user: { id: USER_ID },
+            },
+          },
         }),
       },
     } as never);
   });
 
   afterEach(() => {
+    setActiveWorkspaceOwnerScope(null);
     vi.resetAllMocks();
     vi.unstubAllGlobals();
   });
@@ -49,9 +61,7 @@ describe("cloud device client", () => {
     const result = await retireCurrentCloudDevice();
 
     expect(result.error).toBeUndefined();
-    expect(
-      values.get("factura-autonomo-cloud-device-token-v1"),
-    ).toBeUndefined();
+    expect(values.get(cloudDeviceTokenStorageKey(USER_ID))).toBeUndefined();
   });
 
   it("keeps the token when the server cannot release the slot", async () => {
@@ -73,7 +83,7 @@ describe("cloud device client", () => {
     const result = await retireCurrentCloudDevice();
 
     expect(result.error).toBe("No se pudo retirar");
-    expect(values.get("factura-autonomo-cloud-device-token-v1")).toBe(
+    expect(values.get(cloudDeviceTokenStorageKey(USER_ID))).toBe(
       "x".repeat(64),
     );
   });
@@ -88,7 +98,7 @@ describe("cloud device client", () => {
       "/api/cloud/devices/session",
       expect.objectContaining({ method: "DELETE", keepalive: true }),
     );
-    expect(values.get("factura-autonomo-cloud-device-token-v1")).toBe(
+    expect(values.get(cloudDeviceTokenStorageKey(USER_ID))).toBe(
       "x".repeat(64),
     );
   });
@@ -185,7 +195,7 @@ describe("cloud device client", () => {
 
     expect(result.allowed).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(values.get("factura-autonomo-cloud-device-token-v1")).toBe(
+    expect(values.get(cloudDeviceTokenStorageKey(USER_ID))).toBe(
       "00000000-0000-4000-8000-000000000001.00000000-0000-4000-8000-000000000002",
     );
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
@@ -205,7 +215,7 @@ describe("cloud device client", () => {
     await recoverRevokedCloudDeviceAfterFreshSignIn();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(values.get("factura-autonomo-cloud-device-token-v1")).toBe(
+    expect(values.get(cloudDeviceTokenStorageKey(USER_ID))).toBe(
       "x".repeat(64),
     );
   });

@@ -112,9 +112,9 @@ import {
   type ReceiptGenerationCommandResult,
 } from "@/lib/receipt-generation-command";
 import {
-  inspectPersistedData,
+  inspectPersistedData as inspectPersistedDataWithoutWorkspace,
   loadDataPreferPersistentCache,
-  readPersistedDataSnapshot,
+  readPersistedDataSnapshot as readPersistedDataSnapshotWithoutWorkspace,
   saveData as saveDataWithoutPersistentCacheRefresh,
   touchAppData,
   type SaveDataOptions,
@@ -242,6 +242,7 @@ import type { DurableFiscalNotificationDocumentDeletionResultV1 } from "@/lib/fi
 import type { DurableDeleteAllFiscalNotificationDocumentsResultV1 } from "@/lib/fiscal-notifications/delete-all-documents-command.v1";
 import type { DurableFiscalNotificationEmptyHistoryRepairResultV1 } from "@/lib/fiscal-notifications/empty-history-repair.v1";
 import { reportAppError } from "@/lib/monitoring/client";
+import { isActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -949,18 +950,58 @@ function assertDocumentEmissionValid(
   }
 }
 
-function saveData(
+function saveDataWithPersistentCacheRefresh(
   data: AppData,
   options: SaveDataOptions = {},
 ): SaveDataResult {
   const result = saveDataWithoutPersistentCacheRefresh(data, options);
   if (result.status === "applied") {
-    schedulePersistedAppDataCacheRefresh();
+    schedulePersistedAppDataCacheRefresh(options.storageKey);
   }
   return result;
 }
 
-export function AppStoreProvider({ children }: { children: React.ReactNode }) {
+export function AppStoreProvider({
+  children,
+  ownerScope,
+  storageKey,
+}: {
+  children: React.ReactNode;
+  ownerScope?: string;
+  storageKey?: string;
+}) {
+  const workspaceIsActive = useCallback(
+    () => !ownerScope || isActiveWorkspaceOwnerScope(ownerScope),
+    [ownerScope],
+  );
+  const saveData = useCallback(
+    (next: AppData, options: SaveDataOptions = {}) => {
+      if (!workspaceIsActive()) {
+        return { status: "blocked", reason: "stale_precondition" } as const;
+      }
+      return saveDataWithPersistentCacheRefresh(next, {
+        ...options,
+        storageKey,
+      });
+    },
+    [storageKey, workspaceIsActive],
+  );
+  const inspectPersistedData = useCallback(
+    (expected: AppData) => {
+      if (!workspaceIsActive()) {
+        return { status: "blocked", reason: "stale_precondition" } as const;
+      }
+      return inspectPersistedDataWithoutWorkspace(expected, { storageKey });
+    },
+    [storageKey, workspaceIsActive],
+  );
+  const readPersistedDataSnapshot = useCallback(
+    () =>
+      workspaceIsActive()
+        ? readPersistedDataSnapshotWithoutWorkspace(storageKey)
+        : null,
+    [storageKey, workspaceIsActive],
+  );
   const initialWriteBlock = useRef<AppWriteBlock | null>(
     initialCloudSyncWriteBlock(),
   );
@@ -984,6 +1025,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       updater: AppData | ((prev: AppData) => AppData),
       options?: AppDataUpdateOptions,
     ) => {
+      if (!workspaceIsActive()) return dataRef.current;
       if (durableStorageBaselineRef.current.status === "indeterminate") {
         return dataRef.current;
       }
@@ -1003,7 +1045,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       setData(resolved);
       return resolved;
     },
-    [],
+    [workspaceIsActive],
   );
 
   const blockedDurableResult = useCallback(
@@ -1071,7 +1113,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       setData(result.data);
       return result;
     },
-    [blockedDurableResult],
+    [
+      blockedDurableResult,
+      inspectPersistedData,
+      readPersistedDataSnapshot,
+      saveData,
+    ],
   );
 
   const commitLatestDurableAppData = useCallback(
@@ -1101,7 +1148,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       setData(result.data);
       return result;
     },
-    [blockedDurableResult],
+    [blockedDurableResult, saveData],
   );
 
   const commitPreparedAppDataDurably = useCallback(
@@ -1116,9 +1163,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void loadDataPreferPersistentCache({
+      storageKey,
       onCacheMissLoaded: schedulePersistedAppDataCacheRefresh,
     }).then((persisted) => {
-      if (cancelled) return;
+      if (cancelled || !workspaceIsActive()) return;
       durableStorageBaselineRef.current = { status: "known", data: persisted };
       lastKnownDurableDataRef.current = persisted;
       const loaded = syncRecurringExpenses(persisted);
@@ -1129,7 +1177,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [storageKey, workspaceIsActive]);
 
   useEffect(() => {
     if (!ready) return;
@@ -1156,10 +1204,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       data,
       result,
     );
-  }, [data, ready]);
+  }, [data, ready, saveData]);
 
   const replaceData = useCallback(
     (next: AppData, options?: ReplaceDataOptions) => {
+      if (!workspaceIsActive()) return;
       if (durableStorageBaselineRef.current.status === "indeterminate") {
         return;
       }
@@ -1179,7 +1228,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
       setAppData(next, { skipDirty: false });
     },
-    [setAppData],
+    [saveData, setAppData, workspaceIsActive],
   );
 
   const getCurrentData = useCallback(() => dataRef.current, []);
@@ -1351,7 +1400,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reportFiscalNotificationStructuredReviewSaveFailure(result);
       return result;
     },
-    [blockedSaveResult],
+    [blockedSaveResult, readPersistedDataSnapshot, saveData],
   );
 
   const archiveFiscalNotificationOriginal = useCallback(
@@ -1423,7 +1472,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
       return result;
     },
-    [blockedSaveResult],
+    [blockedSaveResult, readPersistedDataSnapshot, saveData],
   );
 
   const deleteAllFiscalNotificationDocuments = useCallback(
@@ -1479,7 +1528,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
       return result;
     },
-    [blockedSaveResult],
+    [blockedSaveResult, readPersistedDataSnapshot, saveData],
   );
 
   const repairFiscalNotificationEmptyHistory = useCallback(
@@ -1509,6 +1558,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     ): Promise<
       AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>
     > => {
+      if (!workspaceIsActive()) {
+        return { status: "blocked", reason: "stale_precondition" };
+      }
       const {
         buildCentralInvoiceAuthorityEventsAppDataTransition,
         pullCentralInvoiceAuthorityEventsForAppData,
@@ -1544,6 +1596,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
         const pulled = await pullCentralInvoiceAuthorityEventsForAppData({
           data: baseline,
+          expectedOwnerScope: ownerScope,
           limit: options.limit,
           receivedAt: options.receivedAt,
           replayFromStartWhenNoActiveInvoices:
@@ -1560,7 +1613,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         );
       });
     },
-    [commitDurableAppData],
+    [
+      commitDurableAppData,
+      inspectPersistedData,
+      ownerScope,
+      readPersistedDataSnapshot,
+      workspaceIsActive,
+    ],
   );
 
   const pullCentralBusinessEvents = useCallback(
@@ -1615,7 +1674,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         },
       );
     },
-    [commitDurableAppData],
+    [commitDurableAppData, inspectPersistedData, readPersistedDataSnapshot],
   );
 
   const syncCentralBusinessEvents = useCallback(
@@ -1826,7 +1885,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         },
       );
     },
-    [commitDurableAppData],
+    [commitDurableAppData, inspectPersistedData, readPersistedDataSnapshot],
   );
 
   const retireLegacyPendingChangesAfterCentralAdoption = useCallback(
@@ -2283,6 +2342,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       invoiceId: string,
       quoteDocumentId: string | null,
     ): Promise<boolean> => {
+      if (!workspaceIsActive()) return false;
       if (
         durableStorageBaselineRef.current.status === "indeterminate" ||
         writeBlockRef.current
@@ -2340,18 +2400,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       try {
         const { setCentralInvoiceQuoteFromBrowser } =
           await import("@/lib/central-invoice-authority/relationship-client");
-        const result = await setCentralInvoiceQuoteFromBrowser({
-          idempotencyKey: centralRelationshipIdempotencyKey(
-            invoice,
+        const result = await setCentralInvoiceQuoteFromBrowser(
+          {
+            idempotencyKey: centralRelationshipIdempotencyKey(
+              invoice,
+              quoteDocumentId,
+            ),
+            documentRef: {
+              serverDocumentId: link.serverDocumentId,
+              identityId: link.identityId,
+              expectedVersion: link.documentVersion,
+            },
             quoteDocumentId,
-          ),
-          documentRef: {
-            serverDocumentId: link.serverDocumentId,
-            identityId: link.identityId,
-            expectedVersion: link.documentVersion,
           },
-          quoteDocumentId,
-        });
+          { expectedOwnerScope: ownerScope },
+        );
         if (!result.ok) {
           void reportAppError({
             severity: "warning",
@@ -2428,7 +2491,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [setAppData],
+    [ownerScope, setAppData, workspaceIsActive],
   );
 
   const unlinkDocumentQuote = useCallback(
@@ -2524,6 +2587,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const syncCentralInvoiceCollectionStatus = useCallback(
     async (doc: Document | null | undefined): Promise<boolean> => {
+      if (!workspaceIsActive()) return false;
       if (!isCentralInvoiceCollectionSyncCandidate(doc)) return false;
       const link = doc.centralInvoiceAuthority;
       const localDocumentId = doc.id;
@@ -2531,18 +2595,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       try {
         const { updateCentralInvoiceCollectionFromBrowser } =
           await import("@/lib/central-invoice-authority/collection-client");
-        const result = await updateCentralInvoiceCollectionFromBrowser({
-          idempotencyKey: centralCollectionIdempotencyKey(doc),
-          documentRef: {
-            serverDocumentId: link.serverDocumentId,
-            identityId: link.identityId,
-            expectedVersion: link.documentVersion,
+        const result = await updateCentralInvoiceCollectionFromBrowser(
+          {
+            idempotencyKey: centralCollectionIdempotencyKey(doc),
+            documentRef: {
+              serverDocumentId: link.serverDocumentId,
+              identityId: link.identityId,
+              expectedVersion: link.documentVersion,
+            },
+            status: doc.status,
+            paymentStatus: doc.paymentStatus,
+            paidAt: doc.paidAt ?? null,
+            documentPayload: centralCollectionPayload(doc),
           },
-          status: doc.status,
-          paymentStatus: doc.paymentStatus,
-          paidAt: doc.paidAt ?? null,
-          documentPayload: centralCollectionPayload(doc),
-        });
+          { expectedOwnerScope: ownerScope },
+        );
         if (!result.ok) {
           void reportAppError({
             severity: "warning",
@@ -2613,7 +2680,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [setAppData],
+    [ownerScope, setAppData, workspaceIsActive],
   );
 
   const markAsCollected = useCallback(

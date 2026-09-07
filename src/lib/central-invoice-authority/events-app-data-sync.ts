@@ -18,6 +18,7 @@ export const CENTRAL_INVOICE_AUTHORITY_EVENTS_APP_DATA_SYNC =
 
 export interface CentralInvoiceAuthorityEventsAppDataPullInput {
   data: AppData;
+  expectedOwnerScope?: string | null;
   limit?: number | null;
   receivedAt?: string;
   replayFromStartWhenNoActiveInvoices?: boolean;
@@ -102,6 +103,7 @@ export async function pullCentralInvoiceAuthorityEventsForAppData(
     {
       documents: input.data.documents,
       profile: input.data.profile,
+      expectedOwnerScope: input.expectedOwnerScope,
       cursor: replayFromStart
         ? null
         : (input.data.centralInvoiceAuthorityEventsSync?.cursor ?? null),

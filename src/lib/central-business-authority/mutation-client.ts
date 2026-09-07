@@ -4,7 +4,10 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 
 import type {
   CentralBusinessEntityType,
@@ -49,13 +52,7 @@ export interface CentralBusinessMutationClientDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
-}
-
-async function defaultAccessToken() {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  expectedOwnerScope?: string | null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -120,8 +117,12 @@ export async function mutateCentralBusinessFromBrowser(
   input: CentralBusinessBrowserMutationInput,
   dependencies: CentralBusinessMutationClientDependencies = {},
 ): Promise<CentralBusinessBrowserMutationResult> {
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
   const accessToken = await (
-    dependencies.getAccessToken ?? defaultAccessToken
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope))
   )();
   if (!accessToken) {
     return failure({
@@ -132,7 +133,9 @@ export async function mutateCentralBusinessFromBrowser(
     });
   }
   const deviceToken = (
-    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
+    dependencies.getDeviceToken ??
+    (() =>
+      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
   )();
   if (!deviceToken) {
     return failure({

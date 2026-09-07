@@ -140,7 +140,9 @@ export function CentralBusinessAutomaticBootstrap() {
     }
 
     async function run(): Promise<AutomaticBootstrapRunResult> {
-      const status = await fetchCentralBusinessAuthorityStatusFromBrowser();
+      const status = await fetchCentralBusinessAuthorityStatusFromBrowser({
+        expectedOwnerScope: ownerScope,
+      });
       if (
         !status.ok ||
         !status.activation.appliesToUser ||
@@ -157,8 +159,10 @@ export function CentralBusinessAutomaticBootstrap() {
         buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData());
       const snapshotSignature =
         centralBusinessBootstrapSnapshotSignature(snapshot);
-      const previewResult =
-        await previewCentralBusinessBootstrapFromBrowser(snapshot);
+      const previewResult = await previewCentralBusinessBootstrapFromBrowser(
+        snapshot,
+        { expectedOwnerScope: ownerScope },
+      );
       if (!previewResult.ok) {
         return previewResult.status === 409 ? "manual_review" : "retry";
       }
@@ -167,11 +171,14 @@ export function CentralBusinessAutomaticBootstrap() {
       if (disposition === "manual_review") return "manual_review";
 
       if (disposition === "commit") {
-        const result = await commitCentralBusinessBootstrapFromBrowser({
-          entities: snapshot,
-          preview: previewResult.preview,
-          idempotencyKey: await bootstrapIdempotencyKey(snapshotSignature),
-        });
+        const result = await commitCentralBusinessBootstrapFromBrowser(
+          {
+            entities: snapshot,
+            preview: previewResult.preview,
+            idempotencyKey: await bootstrapIdempotencyKey(snapshotSignature),
+          },
+          { expectedOwnerScope: ownerScope },
+        );
         if (!result.ok) return "retry";
       }
 
@@ -196,8 +203,10 @@ export function CentralBusinessAutomaticBootstrap() {
       if (confirmationSync !== "ok") return confirmationSync;
       const verifiedSnapshot =
         buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData());
-      const verified =
-        await previewCentralBusinessBootstrapFromBrowser(verifiedSnapshot);
+      const verified = await previewCentralBusinessBootstrapFromBrowser(
+        verifiedSnapshot,
+        { expectedOwnerScope: ownerScope },
+      );
       if (!verified.ok) {
         return verified.status === 409 ? "manual_review" : "retry";
       }

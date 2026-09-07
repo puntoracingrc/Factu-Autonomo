@@ -3,9 +3,16 @@ import type {
   RentabilidadRealPriceSimulatorMode,
   RentabilidadRealPriceSimulatorObjectiveType,
 } from "./types";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 const PRICE_SIMULATOR_SETTINGS_STORAGE_KEY =
   "fa_rentabilidad_real_price_simulator_settings";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(
+    PRICE_SIMULATOR_SETTINGS_STORAGE_KEY,
+  );
+}
 
 export type RentabilidadRealPriceSimulatorSourceMode = "manual" | "document";
 
@@ -147,7 +154,7 @@ export function getStoredRentabilidadRealPriceSimulatorSettings(): RentabilidadR
   }
 
   try {
-    const raw = localStorage.getItem(PRICE_SIMULATOR_SETTINGS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return DEFAULT_RENTABILIDAD_REAL_PRICE_SIMULATOR_SETTINGS;
     return normalizeSettings(
       JSON.parse(raw) as Partial<RentabilidadRealPriceSimulatorSettings>,
@@ -163,7 +170,7 @@ export function setStoredRentabilidadRealPriceSimulatorSettings(
   const normalized = normalizeSettings(settings);
   if (storageAvailable()) {
     localStorage.setItem(
-      PRICE_SIMULATOR_SETTINGS_STORAGE_KEY,
+      storageKey(),
       JSON.stringify(normalized),
     );
   }
@@ -172,5 +179,5 @@ export function setStoredRentabilidadRealPriceSimulatorSettings(
 
 export function clearRentabilidadRealPriceSimulatorSettingsForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(PRICE_SIMULATOR_SETTINGS_STORAGE_KEY);
+  localStorage.removeItem(storageKey());
 }

@@ -9,7 +9,6 @@ import {
   resetDemoWorkspaceData,
   setDemoWorkspaceMode,
 } from "@/lib/demo-workspace";
-import { loadData } from "@/lib/storage";
 
 export function DemoModeBanner() {
   const router = useRouter();
@@ -20,7 +19,6 @@ export function DemoModeBanner() {
 
   function leaveDemo(nextPath = "/") {
     setDemoWorkspaceMode(false);
-    replaceData(loadData(), { fromRemote: true });
     router.push(nextPath);
   }
 

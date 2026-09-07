@@ -27,7 +27,7 @@ function stableJson(
     .join(",")}}`;
 }
 
-async function payloadHash(
+export async function centralBusinessBootstrapEntityContentHash(
   payload: CentralBusinessBootstrapBrowserEntity["payload"],
 ) {
   const digest = await globalThis.crypto.subtle.digest(
@@ -88,7 +88,9 @@ export async function recordCentralBusinessBootstrapCheckpoint(input: {
         entityType: entity.entityType,
         entityId: entity.entityId,
         version,
-        contentHash: await payloadHash(entity.payload),
+        contentHash: await centralBusinessBootstrapEntityContentHash(
+          entity.payload,
+        ),
       };
     }),
   );

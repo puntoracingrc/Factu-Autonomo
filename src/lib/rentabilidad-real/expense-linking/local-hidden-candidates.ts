@@ -1,5 +1,13 @@
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
+
 const HIDDEN_EXPENSE_CANDIDATES_STORAGE_KEY =
   "fa_rentabilidad_real_hidden_expense_candidates";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(
+    HIDDEN_EXPENSE_CANDIDATES_STORAGE_KEY,
+  );
+}
 
 interface RentabilidadRealLocalStorageLike {
   getItem(key: string): string | null;
@@ -46,7 +54,7 @@ function readHiddenExpenseCandidates(
   if (!targetStorage) return {};
 
   try {
-    const raw = targetStorage.getItem(HIDDEN_EXPENSE_CANDIDATES_STORAGE_KEY);
+    const raw = targetStorage.getItem(storageKey());
     return normalizeHiddenExpenseCandidates(raw ? JSON.parse(raw) : null);
   } catch {
     return {};
@@ -61,12 +69,12 @@ function writeHiddenExpenseCandidates(
   if (!targetStorage) return;
 
   if (Object.keys(value).length === 0) {
-    targetStorage.removeItem(HIDDEN_EXPENSE_CANDIDATES_STORAGE_KEY);
+    targetStorage.removeItem(storageKey());
     return;
   }
 
   targetStorage.setItem(
-    HIDDEN_EXPENSE_CANDIDATES_STORAGE_KEY,
+    storageKey(),
     JSON.stringify(value),
   );
 }
@@ -134,5 +142,5 @@ export function clearHiddenExpenseCandidatesForTests(
   storage?: RentabilidadRealLocalStorageLike,
 ): void {
   const targetStorage = getLocalStorage(storage);
-  targetStorage?.removeItem(HIDDEN_EXPENSE_CANDIDATES_STORAGE_KEY);
+  targetStorage?.removeItem(storageKey());
 }

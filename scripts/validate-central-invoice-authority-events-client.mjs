@@ -15,12 +15,15 @@ function runBin(bin, args) {
 
 const marker = "CENTRAL_INVOICE_AUTHORITY_EVENTS_CLIENT_V1";
 const client = read("src/lib/central-invoice-authority/events-client.ts");
+const activeWorkspaceSession = read(
+  "src/lib/cloud/active-workspace-session.ts",
+);
 const test = read("src/lib/central-invoice-authority/events-client.test.ts");
 const doc = read(
   "docs/architecture/central-invoice-authority-events-client-v1.md",
 );
 const packageJson = JSON.parse(read("package.json"));
-const body = `${client}\n${test}\n${doc}`;
+const body = `${client}\n${activeWorkspaceSession}\n${test}\n${doc}`;
 
 for (const required of [
   marker,
@@ -31,7 +34,12 @@ for (const required of [
   "cache: \"no-store\"",
   "CLOUD_DEVICE_TOKEN_HEADER",
   "getLocalCloudDeviceToken",
+  "captureActiveWorkspaceOwnerScope",
+  "getActiveWorkspaceAccessToken",
+  "expectedOwnerScope",
   "getSupabaseClientAsync",
+  "session.user.id !== ownerScope",
+  "isActiveWorkspaceOwnerScope",
   "CENTRAL_INVOICE_AUTHORITY_EVENTS_ROUTE_V1",
   "CENTRAL_INVOICE_AUTHORITY_EVENTS_RPC_ADAPTER_V1",
   "nextCursor",
@@ -51,6 +59,7 @@ for (const forbidden of [
   /\bemittedSnapshot\b/,
   /\bemitted_snapshot\b/,
   /\blocalStorage\.setItem\b/,
+  /getSupabaseClientAsync/,
 ]) {
   assert.doesNotMatch(client, forbidden, `Forbidden events client coupling: ${forbidden}`);
 }

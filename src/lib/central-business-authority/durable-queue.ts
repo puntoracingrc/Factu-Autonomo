@@ -14,6 +14,7 @@ import type {
   CentralBusinessEntityType,
   CentralBusinessJson,
 } from "./mutation-command";
+import { isActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 export const CENTRAL_BUSINESS_DURABLE_QUEUE =
   "CENTRAL_BUSINESS_DURABLE_QUEUE_V1";
@@ -742,13 +743,27 @@ export async function drainCentralBusinessDurableQueue(input: {
   mutateBatch?: (
     mutations: CentralBusinessBrowserBatchMutationInput[],
   ) => Promise<CentralBusinessBrowserBatchMutationResult>;
+  isOwnerActive?: (ownerScope: string) => boolean;
   now?: () => string;
 }): Promise<CentralBusinessDrainResult> {
   const storage = resolveStorage(input.storage);
   let state = loadCentralBusinessDurableQueue(input.ownerScope, storage);
   let processed = 0;
+  const isOwnerActive =
+    input.isOwnerActive ??
+    ((ownerScope: string) =>
+      typeof window === "undefined" ||
+      isActiveWorkspaceOwnerScope(ownerScope));
 
   while (state.operations.length > 0) {
+    if (!isOwnerActive(input.ownerScope)) {
+      return {
+        processed,
+        remaining: state.operations.length,
+        stoppedBy: "retryable",
+        state,
+      };
+    }
     const current = state.operations[0];
     const group = current.batchId
       ? state.operations.slice(0, current.batchSize)
@@ -795,6 +810,7 @@ export async function drainCentralBusinessDurableQueue(input: {
         state,
       };
     }
+    const stateBeforeAttempt = state;
     const lastAttemptAt = (input.now ?? (() => new Date().toISOString()))();
     const attempted = group.map(
       (operation): CentralBusinessQueuedOperation => ({
@@ -827,6 +843,15 @@ export async function drainCentralBusinessDurableQueue(input: {
               conflict: false,
             }
         : await input.mutate(attempted[0].input);
+    if (!isOwnerActive(input.ownerScope)) {
+      state = persistState(stateBeforeAttempt, storage);
+      return {
+        processed,
+        remaining: state.operations.length,
+        stoppedBy: "retryable",
+        state,
+      };
+    }
     if (result.ok) {
       const confirmations =
         "operations" in result

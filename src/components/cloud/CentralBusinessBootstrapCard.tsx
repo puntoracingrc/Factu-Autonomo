@@ -133,7 +133,9 @@ export function CentralBusinessBootstrapCard() {
     }
     let cancelled = false;
     setCheckingStatus(true);
-    void fetchCentralBusinessAuthorityStatusFromBrowser()
+    void fetchCentralBusinessAuthorityStatusFromBrowser({
+      expectedOwnerScope: ownerScope,
+    })
       .then((result) => {
         if (!cancelled) setStatus(result.ok ? result : null);
       })
@@ -308,8 +310,10 @@ export function CentralBusinessBootstrapCard() {
       const entities = buildCentralBusinessBootstrapBrowserSnapshot(
         getCurrentData(),
       );
-      const result =
-        await previewCentralBusinessBootstrapFromBrowser(entities);
+      const result = await previewCentralBusinessBootstrapFromBrowser(
+        entities,
+        { expectedOwnerScope: activeOwnerScope },
+      );
       if (!result.ok) {
         setNotice({
           tone: result.status === 409 ? "warning" : "error",
@@ -408,8 +412,10 @@ export function CentralBusinessBootstrapCard() {
 
       const restoredEntities =
         buildCentralBusinessBootstrapBrowserSnapshot(getCurrentData());
-      const verified =
-        await previewCentralBusinessBootstrapFromBrowser(restoredEntities);
+      const verified = await previewCentralBusinessBootstrapFromBrowser(
+        restoredEntities,
+        { expectedOwnerScope: activeOwnerScope },
+      );
       if (!verified.ok) {
         resetPreview();
         setNotice({
@@ -511,11 +517,14 @@ export function CentralBusinessBootstrapCard() {
         return;
       }
 
-      const result = await commitCentralBusinessBootstrapFromBrowser({
-        entities: snapshot,
-        preview,
-        idempotencyKey,
-      });
+      const result = await commitCentralBusinessBootstrapFromBrowser(
+        {
+          entities: snapshot,
+          preview,
+          idempotencyKey,
+        },
+        { expectedOwnerScope: activeOwnerScope },
+      );
       if (!result.ok) {
         if (result.code === "BOOTSTRAP_PREVIEW_STALE") resetPreview();
         setNotice({

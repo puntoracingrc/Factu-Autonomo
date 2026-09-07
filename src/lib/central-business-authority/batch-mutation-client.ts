@@ -4,7 +4,10 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 
 import type {
   CentralBusinessEntityType,
@@ -55,13 +58,7 @@ export interface CentralBusinessBatchMutationClientDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
-}
-
-async function defaultAccessToken() {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  expectedOwnerScope?: string | null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -148,8 +145,12 @@ export async function mutateCentralBusinessBatchFromBrowser(
       message: `El lote central debe contener entre 1 y ${CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS} operaciones.`,
     });
   }
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
   const accessToken = await (
-    dependencies.getAccessToken ?? defaultAccessToken
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope))
   )();
   if (!accessToken) {
     return failure({
@@ -160,7 +161,9 @@ export async function mutateCentralBusinessBatchFromBrowser(
     });
   }
   const deviceToken = (
-    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
+    dependencies.getDeviceToken ??
+    (() =>
+      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
   )();
   if (!deviceToken) {
     return failure({

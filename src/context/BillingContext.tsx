@@ -31,6 +31,7 @@ import {
   type BillingQuotaSource,
 } from "@/lib/billing/quotas";
 import { ensureFreeSubscription } from "@/lib/billing/repository";
+import { getActiveWorkspaceAccessToken } from "@/lib/cloud/active-workspace-session";
 import {
   resolveEffectivePlan,
   trialDaysRemaining,
@@ -146,12 +147,8 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
   const trialDaysLeft = trialDaysRemaining(subscription);
 
   const getAccessToken = useCallback(async () => {
-    const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
-    const supabase = await getSupabaseClientAsync();
-    if (!supabase) return null;
-    const { data: sessionData } = await supabase.auth.getSession();
-    return sessionData.session?.access_token ?? null;
-  }, []);
+    return getActiveWorkspaceAccessToken(user?.id);
+  }, [user?.id]);
 
   const quotaReconciliation = useMemo(() => {
     if (!ready) return null;

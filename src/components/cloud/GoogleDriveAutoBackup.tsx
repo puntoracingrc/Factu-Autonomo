@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
   DRIVE_BACKUP_SETTINGS_EVENT,
-  DRIVE_BACKUP_SETTINGS_KEY,
   buildDriveBackupSignature,
+  driveBackupSettingsStorageKey,
   hasUsableDriveToken,
   loadDriveBackupSettings,
   restoreDriveAccessToken,
@@ -21,15 +22,19 @@ import {
   isGoogleDriveBackupEnabled,
 } from "@/lib/google-drive/config";
 import { runExclusiveDriveBackup } from "@/lib/google-drive/operation";
+import { isActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 const AUTO_BACKUP_RETRY_MS = 30_000;
 
 export function GoogleDriveAutoBackup() {
   const { data, ready } = useAppStore();
   const { user, emailConfirmed } = useCloudSync();
+  const workspace = useWorkspaceStorage();
+  const ownerScope = workspace.ownerScope;
   const clientId = getGoogleDriveClientId();
   const driveConfigured = isGoogleDriveBackupEnabled();
   const driveAccountReady = Boolean(user && emailConfirmed);
+  const settingsStorageKey = driveBackupSettingsStorageKey(ownerScope);
   const [hydrated, setHydrated] = useState(false);
   const [settings, setSettings] = useState<DriveBackupSettings>(
     DEFAULT_DRIVE_BACKUP_SETTINGS,
@@ -43,12 +48,12 @@ export function GoogleDriveAutoBackup() {
 
   useEffect(() => {
     function syncSettings() {
-      setSettings(loadDriveBackupSettings());
+      setSettings(loadDriveBackupSettings(ownerScope));
       setHydrated(true);
     }
 
     function syncSettingsFromStorage(event: StorageEvent) {
-      if (event.key === DRIVE_BACKUP_SETTINGS_KEY) syncSettings();
+      if (event.key === settingsStorageKey) syncSettings();
     }
 
     syncSettings();
@@ -59,7 +64,7 @@ export function GoogleDriveAutoBackup() {
       window.removeEventListener(DRIVE_BACKUP_SETTINGS_EVENT, syncSettings);
       window.removeEventListener("storage", syncSettingsFromStorage);
     };
-  }, []);
+  }, [ownerScope, settingsStorageKey]);
 
   useEffect(
     () => () => {
@@ -71,12 +76,12 @@ export function GoogleDriveAutoBackup() {
   useEffect(() => {
     if (!ready || !hydrated || !driveConfigured || !driveAccountReady) return;
     if (!settings.enabled || restoreAttemptedRef.current) return;
-    if (hasUsableDriveToken()) return;
+    if (hasUsableDriveToken(ownerScope)) return;
 
     restoreAttemptedRef.current = true;
     let cancelled = false;
 
-    void restoreDriveAccessToken(clientId).then((result) => {
+    void restoreDriveAccessToken(clientId, ownerScope).then((result) => {
       if (!cancelled && result.ok) refreshTokenState((value) => value + 1);
     });
 
@@ -90,6 +95,7 @@ export function GoogleDriveAutoBackup() {
     hydrated,
     ready,
     settings.enabled,
+    ownerScope,
   ]);
 
   useEffect(() => {
@@ -98,19 +104,20 @@ export function GoogleDriveAutoBackup() {
 
     const decision = shouldRunAutomaticDriveBackup(settings, data);
     if (!decision.due) return;
-    if (!hasUsableDriveToken()) return;
+    if (!hasUsableDriveToken(ownerScope)) return;
     if (scheduledSignatureRef.current === decision.signature) return;
 
     scheduledSignatureRef.current = decision.signature;
 
     const timer = window.setTimeout(async () => {
-      const currentSettings = loadDriveBackupSettings();
+      if (!isActiveWorkspaceOwnerScope(ownerScope)) return;
+      const currentSettings = loadDriveBackupSettings(ownerScope);
       const currentDecision = shouldRunAutomaticDriveBackup(
         currentSettings,
         data,
       );
 
-      if (!currentDecision.due || !hasUsableDriveToken()) {
+      if (!currentDecision.due || !hasUsableDriveToken(ownerScope)) {
         scheduledSignatureRef.current = null;
         return;
       }
@@ -121,10 +128,13 @@ export function GoogleDriveAutoBackup() {
           clientId,
           prompt: "",
           automatic: true,
+          expectedOwnerScope: ownerScope,
         }),
       );
       runningRef.current = false;
       scheduledSignatureRef.current = null;
+
+      if (!isActiveWorkspaceOwnerScope(ownerScope)) return;
 
       if (!execution.started || !execution.value.ok) {
         if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
@@ -146,16 +156,19 @@ export function GoogleDriveAutoBackup() {
         buildDriveBackupSignature(data, currentSettings.frequency) ||
         result.exportedAt;
 
-      saveDriveBackupSettings({
-        ...currentSettings,
-        enabled: true,
-        lastBackupAt: result.exportedAt,
-        lastFileId: result.fileId,
-        lastFileName: result.fileName,
-        lastWebViewLink: result.webViewLink,
-        lastFolderWebViewLink: result.folderWebViewLink,
-        lastAutoSignature: signature,
-      });
+      saveDriveBackupSettings(
+        {
+          ...currentSettings,
+          enabled: true,
+          lastBackupAt: result.exportedAt,
+          lastFileId: result.fileId,
+          lastFileName: result.fileName,
+          lastWebViewLink: result.webViewLink,
+          lastFolderWebViewLink: result.folderWebViewLink,
+          lastAutoSignature: signature,
+        },
+        ownerScope,
+      );
     }, 5000);
 
     return () => {
@@ -174,6 +187,7 @@ export function GoogleDriveAutoBackup() {
     clientId,
     tokenRevision,
     retryRevision,
+    ownerScope,
   ]);
 
   return null;

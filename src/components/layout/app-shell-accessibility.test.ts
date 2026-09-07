@@ -9,6 +9,10 @@ const layoutSource = readFileSync(
   new URL("../../app/layout.tsx", import.meta.url),
   "utf8",
 );
+const appProvidersSource = readFileSync(
+  new URL("../AppProviders.tsx", import.meta.url),
+  "utf8",
+);
 const documentFormSource = readFileSync(
   new URL("../forms/DocumentForm.tsx", import.meta.url),
   "utf8",
@@ -73,7 +77,8 @@ describe("AppShell accessibility contracts", () => {
   });
 
   it("keeps the quick calculator and post-it available globally", () => {
-    expect(layoutSource).toContain("<QuickToolsProvider>");
+    expect(layoutSource).toContain("<AppProviders>");
+    expect(appProvidersSource).toContain("<QuickToolsProvider>");
     expect(appShellSource).toContain("<QuickToolsLauncher />");
     expect(appShellSource).toContain("<QuickToolsLauncher compact />");
     expect(quickToolsLauncherSource).toContain(

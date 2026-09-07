@@ -5,6 +5,11 @@ import {
 } from "@/lib/security/data-access-events";
 import { createProtectedBackupArtifact } from "@/lib/security/protected-backup";
 import type { AppData } from "@/lib/types";
+import {
+  getActiveWorkspaceOwnerScope,
+  isActiveWorkspaceOwnerScope,
+  workspaceScopedBrowserStorageKey,
+} from "@/lib/workspace-owner-runtime";
 
 export const DRIVE_BACKUP_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const DRIVE_BACKUP_FOLDER_NAME = "Factu - copias de seguridad";
@@ -134,15 +139,36 @@ const GOOGLE_IDENTITY_SCRIPT_ID = "google-identity-services";
 const DRIVE_FILE_FIELDS = "id,name,webViewLink";
 const DRIVE_BACKUP_PENDING_MAX_AGE_MS = 30 * 60 * 1000;
 const DRIVE_FETCH_TIMEOUT_MS = 30_000;
+const LEGACY_DRIVE_ACCESS_TOKEN_SESSION_KEY =
+  "factura-autonomo-drive-access-token";
 
 let scriptPromise: Promise<void> | null = null;
-let cachedToken: { accessToken: string; expiresAt: number } | null = null;
+let cachedToken: {
+  accessToken: string;
+  expiresAt: number;
+  ownerScope: string | null;
+} | null = null;
 
 export const DEFAULT_DRIVE_BACKUP_SETTINGS: DriveBackupSettings = {
   enabled: false,
   frequency: "manual",
   archiveExpenseOriginals: false,
 };
+
+export function driveBackupSettingsStorageKey(
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
+): string {
+  return workspaceScopedBrowserStorageKey(
+    DRIVE_BACKUP_SETTINGS_KEY,
+    ownerScope,
+  );
+}
+
+export function driveBackupPendingStorageKey(
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
+): string {
+  return workspaceScopedBrowserStorageKey(DRIVE_BACKUP_PENDING_KEY, ownerScope);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -182,21 +208,32 @@ export function normalizeDriveBackupSettings(
   };
 }
 
-export function loadDriveBackupSettings(): DriveBackupSettings {
+export function loadDriveBackupSettings(
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
+): DriveBackupSettings {
   if (typeof window === "undefined") return DEFAULT_DRIVE_BACKUP_SETTINGS;
 
   try {
     return normalizeDriveBackupSettings(
-      JSON.parse(localStorage.getItem(DRIVE_BACKUP_SETTINGS_KEY) ?? "null"),
+      JSON.parse(
+        localStorage.getItem(driveBackupSettingsStorageKey(ownerScope)) ??
+          "null",
+      ),
     );
   } catch {
     return DEFAULT_DRIVE_BACKUP_SETTINGS;
   }
 }
 
-export function saveDriveBackupSettings(settings: DriveBackupSettings): void {
+export function saveDriveBackupSettings(
+  settings: DriveBackupSettings,
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
+): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(DRIVE_BACKUP_SETTINGS_KEY, JSON.stringify(settings));
+  localStorage.setItem(
+    driveBackupSettingsStorageKey(ownerScope),
+    JSON.stringify(settings),
+  );
   window.dispatchEvent(new Event(DRIVE_BACKUP_SETTINGS_EVENT));
 }
 
@@ -222,16 +259,22 @@ function normalizePendingDriveBackupRequest(
 
 export async function loadPendingDriveBackupRequest(
   expectedState?: string,
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
 ): Promise<PendingDriveBackupRequest | null> {
   if (typeof window === "undefined") return null;
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) return null;
 
   try {
     const pending = normalizePendingDriveBackupRequest(
-      JSON.parse(sessionStorage.getItem(DRIVE_BACKUP_PENDING_KEY) ?? "null"),
+      JSON.parse(
+        sessionStorage.getItem(driveBackupPendingStorageKey(ownerScope)) ??
+          "null",
+      ),
     );
     if (!pending) return null;
     if (expectedState) {
       const expectedDigest = await hashOauthState(expectedState);
+      if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) return null;
       if (!expectedDigest || pending.stateDigest !== expectedDigest) return null;
     }
     return pending;
@@ -240,9 +283,11 @@ export async function loadPendingDriveBackupRequest(
   }
 }
 
-export function clearPendingDriveBackupRequest(): void {
+export function clearPendingDriveBackupRequest(
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
+): void {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem(DRIVE_BACKUP_PENDING_KEY);
+  sessionStorage.removeItem(driveBackupPendingStorageKey(ownerScope));
 }
 
 function createOauthState(): string | null {
@@ -301,12 +346,20 @@ export async function startGoogleDriveBackupRedirect(input: {
   clientId: string;
   frequency: DriveBackupFrequency;
   returnPath?: DriveBackupReturnPath;
+  ownerScope?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (typeof window === "undefined") {
     return { ok: false, error: "Google Drive solo funciona en el navegador." };
   }
 
   const clientId = input.clientId.trim();
+  const ownerScope =
+    input.ownerScope === undefined
+      ? getActiveWorkspaceOwnerScope()
+      : input.ownerScope;
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) {
+    return { ok: false, error: "La cuenta ha cambiado. Vuelve a intentarlo." };
+  }
   if (!clientId) {
     return { ok: false, error: "Google Drive no está configurado." };
   }
@@ -326,6 +379,9 @@ export async function startGoogleDriveBackupRedirect(input: {
       error: "Este navegador no permite iniciar Google Drive de forma segura.",
     };
   }
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) {
+    return { ok: false, error: "La cuenta ha cambiado. Vuelve a intentarlo." };
+  }
 
   const pending: PendingDriveBackupRequest = {
     stateDigest,
@@ -333,7 +389,10 @@ export async function startGoogleDriveBackupRedirect(input: {
     requestedAt: new Date().toISOString(),
     returnPath: input.returnPath,
   };
-  sessionStorage.setItem(DRIVE_BACKUP_PENDING_KEY, JSON.stringify(pending));
+  sessionStorage.setItem(
+    driveBackupPendingStorageKey(ownerScope),
+    JSON.stringify(pending),
+  );
 
   const redirectUri = `${window.location.origin}${DRIVE_BACKUP_CALLBACK_PATH}`;
   window.location.assign(
@@ -445,22 +504,36 @@ export function shouldRunAutomaticDriveBackup(
 export function cacheDriveAccessToken(
   accessToken: string,
   expiresIn = 3600,
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
 ): void {
   const cleanToken = accessToken.trim();
   if (!cleanToken) return;
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) return;
 
   cachedToken = {
     accessToken: cleanToken,
     expiresAt: Date.now() + expiresIn * 1000,
+    ownerScope,
   };
 }
 
 export function clearDriveAccessToken(): void {
   cachedToken = null;
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(LEGACY_DRIVE_ACCESS_TOKEN_SESSION_KEY);
+    }
+  } catch {
+    // El token actual ya se ha retirado de memoria.
+  }
 }
 
-function getCachedToken(): string | null {
+function getCachedToken(
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
+): string | null {
   if (!cachedToken) return null;
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) return null;
+  if (cachedToken.ownerScope !== ownerScope) return null;
   if (cachedToken.expiresAt - Date.now() < 60_000) {
     clearDriveAccessToken();
     return null;
@@ -468,14 +541,17 @@ function getCachedToken(): string | null {
   return cachedToken.accessToken;
 }
 
-export function hasUsableDriveToken(): boolean {
-  return Boolean(getCachedToken());
+export function hasUsableDriveToken(
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
+): boolean {
+  return Boolean(getCachedToken(ownerScope));
 }
 
 export async function restoreDriveAccessToken(
   clientId: string,
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
 ): Promise<DriveBackupTokenRestoreResult> {
-  if (hasUsableDriveToken()) return { ok: true };
+  if (hasUsableDriveToken(ownerScope)) return { ok: true };
 
   const cleanClientId = clientId.trim();
   if (!cleanClientId) {
@@ -483,7 +559,7 @@ export async function restoreDriveAccessToken(
   }
 
   try {
-    await requestDriveAccessToken(cleanClientId, "");
+    await requestDriveAccessToken(cleanClientId, "", ownerScope);
     return { ok: true };
   } catch (error) {
     return {
@@ -535,11 +611,15 @@ function loadGoogleIdentityServices(): Promise<void> {
 export async function requestDriveAccessToken(
   clientId: string,
   prompt: "consent" | "" = "",
+  ownerScope: string | null = getActiveWorkspaceOwnerScope(),
 ): Promise<string> {
-  const existing = getCachedToken();
+  const existing = getCachedToken(ownerScope);
   if (existing) return existing;
 
   await loadGoogleIdentityServices();
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) {
+    throw new Error("La cuenta cambió antes de autorizar Google Drive.");
+  }
   const oauth2 = window.google?.accounts?.oauth2;
   if (!oauth2)
     throw new Error("Google Drive no está disponible en este navegador.");
@@ -550,6 +630,14 @@ export async function requestDriveAccessToken(
       scope: DRIVE_BACKUP_SCOPE,
       include_granted_scopes: true,
       callback: (response) => {
+        if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) {
+          reject(
+            new Error(
+              "La cuenta cambió durante la autorización de Google Drive.",
+            ),
+          );
+          return;
+        }
         if (response.error) {
           reject(
             new Error(
@@ -564,7 +652,11 @@ export async function requestDriveAccessToken(
           return;
         }
 
-        cacheDriveAccessToken(response.access_token, response.expires_in);
+        cacheDriveAccessToken(
+          response.access_token,
+          response.expires_in,
+          ownerScope,
+        );
         resolve(response.access_token);
       },
       error_callback: () => {
@@ -827,6 +919,7 @@ export async function uploadAppBackupToGoogleDrive(
     prompt?: "consent" | "";
     now?: () => Date;
     automatic?: boolean;
+    expectedOwnerScope?: string | null;
   },
 ): Promise<DriveBackupUploadResult> {
   try {
@@ -837,6 +930,7 @@ export async function uploadAppBackupToGoogleDrive(
     const accessToken = await requestDriveAccessToken(
       options.clientId,
       options.prompt ?? "",
+      options.expectedOwnerScope,
     );
     return await uploadAppBackupToGoogleDriveWithAccessToken(
       data,

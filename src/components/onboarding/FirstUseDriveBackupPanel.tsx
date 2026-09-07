@@ -8,7 +8,7 @@ import { useBilling } from "@/context/BillingContext";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
   DRIVE_BACKUP_SETTINGS_EVENT,
-  DRIVE_BACKUP_SETTINGS_KEY,
+  driveBackupSettingsStorageKey,
   loadDriveBackupSettings,
   saveDriveBackupSettings,
   type DriveBackupSettings,
@@ -24,6 +24,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
   const cloudSyncEnabled = limits.cloudSync;
   const driveConfigured = isGoogleDriveBackupEnabled();
   const dismissedStorageKey = firstUseDriveDismissedStorageKey(userId);
+  const driveSettingsStorageKey = driveBackupSettingsStorageKey(userId);
   const [settings, setSettings] = useState<DriveBackupSettings>(
     DEFAULT_DRIVE_BACKUP_SETTINGS,
   );
@@ -33,7 +34,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
 
   useEffect(() => {
     function syncDriveState() {
-      setSettings(loadDriveBackupSettings());
+      setSettings(loadDriveBackupSettings(userId));
       try {
         setDismissed(
           window.localStorage.getItem(dismissedStorageKey) === "1",
@@ -46,7 +47,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
 
     function syncDriveStateFromStorage(event: StorageEvent) {
       if (
-        event.key === DRIVE_BACKUP_SETTINGS_KEY ||
+        event.key === driveSettingsStorageKey ||
         event.key === dismissedStorageKey
       ) {
         syncDriveState();
@@ -61,7 +62,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
       window.removeEventListener(DRIVE_BACKUP_SETTINGS_EVENT, syncDriveState);
       window.removeEventListener("storage", syncDriveStateFromStorage);
     };
-  }, [dismissedStorageKey]);
+  }, [dismissedStorageKey, driveSettingsStorageKey, userId]);
 
   function dismissDriveSuggestion() {
     setDismissed(true);
@@ -75,7 +76,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
   function openDriveConfiguration() {
     if (settings.frequency === "manual") {
       const nextSettings = { ...settings, frequency: "daily" as const };
-      saveDriveBackupSettings(nextSettings);
+      saveDriveBackupSettings(nextSettings, userId);
       setSettings(nextSettings);
     }
     setExpanded(true);

@@ -1,9 +1,18 @@
 import { roundMoney } from "@/lib/calculations";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 const COST_ALLOCATIONS_STORAGE_KEY =
   "fa_rentabilidad_real_work_expense_cost_allocations";
 const LINE_EXCLUSIONS_STORAGE_KEY =
   "fa_rentabilidad_real_work_expense_line_exclusions";
+
+function allocationsStorageKey(): string {
+  return workspaceScopedBrowserStorageKey(COST_ALLOCATIONS_STORAGE_KEY);
+}
+
+function exclusionsStorageKey(): string {
+  return workspaceScopedBrowserStorageKey(LINE_EXCLUSIONS_STORAGE_KEY);
+}
 
 interface RentabilidadRealLocalStorageLike {
   getItem(key: string): string | null;
@@ -69,7 +78,7 @@ function readAllocations(
   if (!targetStorage) return {};
 
   try {
-    const raw = targetStorage.getItem(COST_ALLOCATIONS_STORAGE_KEY);
+    const raw = targetStorage.getItem(allocationsStorageKey());
     return normalizeAllocations(raw ? JSON.parse(raw) : null);
   } catch {
     return {};
@@ -84,11 +93,11 @@ function writeAllocations(
   if (!targetStorage) return;
 
   if (Object.keys(value).length === 0) {
-    targetStorage.removeItem(COST_ALLOCATIONS_STORAGE_KEY);
+    targetStorage.removeItem(allocationsStorageKey());
     return;
   }
 
-  targetStorage.setItem(COST_ALLOCATIONS_STORAGE_KEY, JSON.stringify(value));
+  targetStorage.setItem(allocationsStorageKey(), JSON.stringify(value));
 }
 
 function readLineExclusions(
@@ -98,7 +107,7 @@ function readLineExclusions(
   if (!targetStorage) return {};
 
   try {
-    const raw = targetStorage.getItem(LINE_EXCLUSIONS_STORAGE_KEY);
+    const raw = targetStorage.getItem(exclusionsStorageKey());
     const parsed = raw ? JSON.parse(raw) : null;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
 
@@ -143,11 +152,11 @@ function writeLineExclusions(
   if (!targetStorage) return;
 
   if (Object.keys(value).length === 0) {
-    targetStorage.removeItem(LINE_EXCLUSIONS_STORAGE_KEY);
+    targetStorage.removeItem(exclusionsStorageKey());
     return;
   }
 
-  targetStorage.setItem(LINE_EXCLUSIONS_STORAGE_KEY, JSON.stringify(value));
+  targetStorage.setItem(exclusionsStorageKey(), JSON.stringify(value));
 }
 
 export function getExpenseCostAllocationsForWork(
@@ -260,6 +269,6 @@ export function clearExpenseCostAllocationsForTests(
   storage?: RentabilidadRealLocalStorageLike,
 ): void {
   const targetStorage = getLocalStorage(storage);
-  targetStorage?.removeItem(COST_ALLOCATIONS_STORAGE_KEY);
-  targetStorage?.removeItem(LINE_EXCLUSIONS_STORAGE_KEY);
+  targetStorage?.removeItem(allocationsStorageKey());
+  targetStorage?.removeItem(exclusionsStorageKey());
 }

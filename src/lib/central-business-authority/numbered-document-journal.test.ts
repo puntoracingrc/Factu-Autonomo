@@ -88,6 +88,30 @@ function confirmation(
 }
 
 describe("central business numbered document journal", () => {
+  it("no solicita numeración si la sesión ya pertenece a otra cuenta", async () => {
+    const storage = new MemoryStorage();
+    const mutate = vi.fn();
+    enqueueCentralBusinessNumberedDocumentCreate({
+      ownerScope,
+      operationId,
+      command: command(),
+      storage,
+    });
+
+    const result = await drainCentralBusinessNumberedDocumentJournal({
+      ownerScope,
+      storage,
+      mutate,
+      isOwnerActive: () => false,
+    });
+
+    expect(result).toMatchObject({
+      status: "retryable",
+      operation: { status: "pending", attemptCount: 0 },
+    });
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
   it("persiste y relee la intencion antes de permitir su envio", () => {
     const storage = new MemoryStorage();
     const first = enqueueCentralBusinessNumberedDocumentCreate({

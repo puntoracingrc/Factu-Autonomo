@@ -454,6 +454,7 @@ export function RectificativaForm({
         ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
             publicFormCanaryEnabled: centralCanaryEnabled,
             publicFormCanaryUserId: centralPlanGate.centralUserId,
+            expectedOwnerScope: centralPlanGate.centralUserId,
           })
         : null;
 
@@ -466,6 +467,7 @@ export function RectificativaForm({
           const imported =
             await importCentralInvoiceAuthorityHistoricalOriginalFromBrowser(
               centralOriginal,
+              { expectedOwnerScope: centralPlanGate.centralUserId },
             );
           if (!imported.ok) {
             setSaveAction("idle");
@@ -510,15 +512,20 @@ export function RectificativaForm({
         const centralSave = await runCentralInvoiceAuthorityClientOperation(
           async () => {
             const seriesPreflight =
-              await preflightCentralInvoiceAuthorityFormSeries({
-                data: getCurrentData(),
-                profile: historicalProfile,
-                request: centralRequest,
-              });
+              await preflightCentralInvoiceAuthorityFormSeries(
+                {
+                  data: getCurrentData(),
+                  profile: historicalProfile,
+                  request: centralRequest,
+                },
+                { expectedOwnerScope: centralPlanGate.centralUserId },
+              );
             if (!seriesPreflight.ok) return seriesPreflight;
 
             const centralResult =
-              await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
+              await issueCentralInvoiceAuthorityFromBrowser(centralRequest, {
+                expectedOwnerScope: centralPlanGate.centralUserId,
+              });
 
             if (!centralResult.ok) return centralResult;
             try {

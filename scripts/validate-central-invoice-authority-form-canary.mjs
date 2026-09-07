@@ -15,9 +15,15 @@ function runBin(bin, args) {
 
 const marker = "CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_CLIENT_V1";
 const client = read("src/lib/central-invoice-authority/form-canary-client.ts");
+const activeWorkspaceSession = read(
+  "src/lib/cloud/active-workspace-session.ts",
+);
 const store = read("src/context/AppStore.tsx");
-const doc = read("docs/architecture/central-invoice-authority-form-canary-bridge-v1.md");
+const doc = read(
+  "docs/architecture/central-invoice-authority-form-canary-bridge-v1.md",
+);
 const packageJson = JSON.parse(read("package.json"));
+const clientContract = `${client}\n${activeWorkspaceSession}\n${doc}`;
 
 for (const required of [
   marker,
@@ -25,7 +31,12 @@ for (const required of [
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS",
   "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS",
   "fetchCentralInvoiceAuthorityStatusFromBrowser",
+  "captureActiveWorkspaceOwnerScope",
+  "getActiveWorkspaceAccessToken",
+  "expectedOwnerScope",
   "getSupabaseClientAsync",
+  "session.user.id !== ownerScope",
+  "isActiveWorkspaceOwnerScope",
   "getLocalCloudDeviceToken",
   "CLOUD_DEVICE_TOKEN_HEADER",
   "/api/central-invoice-authority/status",
@@ -33,8 +44,17 @@ for (const required of [
   "CENTRAL_AUTHORITY_PREFLIGHT_BLOCKED",
   "CENTRAL_AUTHORITY_INVALID_RESPONSE",
 ]) {
-  assert.match(`${client}\n${doc}`, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(
+    clientContract,
+    new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
 }
+
+assert.doesNotMatch(
+  client,
+  /getSupabaseClientAsync/,
+  "the form client must use the owner-bound session helper",
+);
 
 assert.ok(
   client.indexOf("fetchCentralInvoiceAuthorityStatusFromBrowser") <

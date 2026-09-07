@@ -34,6 +34,7 @@ export type CentralInvoiceAuthorityFormSeriesPreflightResult =
     };
 
 export interface CentralInvoiceAuthorityFormSeriesPreflightDependencies {
+  expectedOwnerScope?: string | null;
   reconcile?: (
     summaries: CentralInvoiceAuthorityAccountSeriesSummary[],
   ) => Promise<CentralInvoiceAuthorityAccountSeriesReconciliationClientResult>;
@@ -111,10 +112,12 @@ export async function preflightCentralInvoiceAuthorityFormSeries(
     );
   }
 
-  const reconcile =
-    dependencies.reconcile ??
-    reconcileCentralInvoiceAuthorityAccountSeriesFromBrowser;
-  const result = await reconcile([summary]);
+  const result = dependencies.reconcile
+    ? await dependencies.reconcile([summary])
+    : await reconcileCentralInvoiceAuthorityAccountSeriesFromBrowser(
+        [summary],
+        { expectedOwnerScope: dependencies.expectedOwnerScope },
+      );
   if (!result.ok) return result;
 
   const reconciliation = result.results[0];

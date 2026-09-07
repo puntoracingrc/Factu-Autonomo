@@ -4,7 +4,10 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 import type { AppData } from "@/lib/types";
 
 import { centralBusinessReceiptServerPayload } from "./central-receipt-materialization";
@@ -95,6 +98,7 @@ export interface CentralBusinessBootstrapClientDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
+  expectedOwnerScope?: string | null;
 }
 
 const ENTITY_TYPES = new Set<CentralBusinessBootstrapBrowserEntityType>([
@@ -219,13 +223,6 @@ export function centralBusinessBootstrapSnapshotSignature(
   return JSON.stringify(entities);
 }
 
-async function defaultAccessToken() {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
-}
-
 function failure(
   status: number,
   code: string,
@@ -342,12 +339,18 @@ function errorMessage(code: string): string {
 async function authHeaders(
   dependencies: CentralBusinessBootstrapClientDependencies,
 ): Promise<Headers | null> {
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
   const accessToken = await (
-    dependencies.getAccessToken ?? defaultAccessToken
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope))
   )();
   if (!accessToken) return null;
   const deviceToken = (
-    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
+    dependencies.getDeviceToken ??
+    (() =>
+      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
   )();
   if (!deviceToken) return null;
   return new Headers({

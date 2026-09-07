@@ -1,4 +1,5 @@
 import type { RentabilidadRealDocumentAnalysisModeFilter } from "@/lib/rentabilidad-real/document-analysis-modes";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 import type {
   RentabilidadRealReportFixedCostAllocationMode,
   RentabilidadRealReportPeriod,
@@ -7,6 +8,10 @@ import type {
 } from "./types";
 
 const REPORT_SETTINGS_STORAGE_KEY = "fa_rentabilidad_real_report_settings";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(REPORT_SETTINGS_STORAGE_KEY);
+}
 
 export const DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS: RentabilidadRealReportSettings =
   {
@@ -107,7 +112,7 @@ export function getStoredRentabilidadRealReportSettings(): RentabilidadRealRepor
   if (!storageAvailable()) return DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS;
 
   try {
-    const raw = localStorage.getItem(REPORT_SETTINGS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return DEFAULT_RENTABILIDAD_REAL_REPORT_SETTINGS;
     return normalizeSettings(
       JSON.parse(raw) as Partial<RentabilidadRealReportSettings>,
@@ -122,12 +127,12 @@ export function setStoredRentabilidadRealReportSettings(
 ): RentabilidadRealReportSettings {
   const normalized = normalizeSettings(settings);
   if (storageAvailable()) {
-    localStorage.setItem(REPORT_SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
+    localStorage.setItem(storageKey(), JSON.stringify(normalized));
   }
   return normalized;
 }
 
 export function clearRentabilidadRealReportSettingsForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(REPORT_SETTINGS_STORAGE_KEY);
+  localStorage.removeItem(storageKey());
 }

@@ -5,6 +5,7 @@ import type {
   CentralBusinessNumberedDocumentBrowserResult,
   CentralBusinessNumberedDocumentCreateBrowserResult,
 } from "./numbered-document-client";
+import { isActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 export const CENTRAL_BUSINESS_NUMBERED_DOCUMENT_JOURNAL =
   "CENTRAL_BUSINESS_NUMBERED_DOCUMENT_JOURNAL_V1";
@@ -451,6 +452,7 @@ export async function drainCentralBusinessNumberedDocumentJournal(input: {
     command: CentralBusinessNumberedDocumentCreateInput,
   ) => Promise<CentralBusinessNumberedDocumentBrowserResult>;
   storage?: CentralBusinessNumberedDocumentJournalStorage;
+  isOwnerActive?: (ownerScope: string) => boolean;
   now?: () => string;
 }): Promise<CentralBusinessNumberedDocumentJournalDrainResult> {
   const storage = resolveStorage(input.storage);
@@ -460,6 +462,14 @@ export async function drainCentralBusinessNumberedDocumentJournal(input: {
   );
   const current = state.operations[0];
   if (!current) return { status: "empty", state };
+  const isOwnerActive =
+    input.isOwnerActive ??
+    ((ownerScope: string) =>
+      typeof window === "undefined" ||
+      isActiveWorkspaceOwnerScope(ownerScope));
+  if (!isOwnerActive(input.ownerScope)) {
+    return { status: "retryable", operation: current, state };
+  }
   if (
     current.status === "confirmed" &&
     current.confirmation &&
@@ -492,6 +502,16 @@ export async function drainCentralBusinessNumberedDocumentJournal(input: {
     storage,
   );
   const result = await input.mutate(attempted.input);
+  if (!isOwnerActive(input.ownerScope)) {
+    state = persistState(
+      {
+        ...state,
+        operations: [current, ...state.operations.slice(1)],
+      },
+      storage,
+    );
+    return { status: "retryable", operation: current, state };
+  }
   if (result.ok && result.result.action === "create") {
     if (!validConfirmation(result.result, attempted.input)) {
       const blocked: CentralBusinessNumberedDocumentJournalOperation = {

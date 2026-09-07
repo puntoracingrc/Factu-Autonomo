@@ -12,9 +12,19 @@ import type {
   ProductPeriodSummary,
 } from "./product-period-summary";
 import type { AppData, Document, Expense } from "./types";
+import { workspaceScopedBrowserStorageKey } from "./workspace-owner-runtime";
 
 export const DASHBOARD_VISUAL_CACHE_KEY =
   "factu.dashboard.visual-cache.v1";
+
+export function dashboardVisualCacheStorageKey(
+  ownerScope?: string | null,
+): string {
+  return workspaceScopedBrowserStorageKey(
+    DASHBOARD_VISUAL_CACHE_KEY,
+    ownerScope,
+  );
+}
 
 export const DASHBOARD_VISUAL_CACHE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -94,11 +104,14 @@ export function buildDashboardVisualCacheSnapshot(
 export function readDashboardVisualCache(
   storage: Pick<Storage, "getItem"> | undefined = browserLocalStorage(),
   now = Date.now(),
+  ownerScope?: string | null,
 ): DashboardVisualCacheSnapshot | null {
   if (!storage) return null;
 
   try {
-    const raw = storage.getItem(DASHBOARD_VISUAL_CACHE_KEY);
+    const raw = storage.getItem(
+      dashboardVisualCacheStorageKey(ownerScope),
+    );
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
@@ -117,11 +130,15 @@ export function readDashboardVisualCache(
 export function writeDashboardVisualCache(
   snapshot: DashboardVisualCacheSnapshot,
   storage: Pick<Storage, "setItem"> | undefined = browserLocalStorage(),
+  ownerScope?: string | null,
 ): boolean {
   if (!storage) return false;
 
   try {
-    storage.setItem(DASHBOARD_VISUAL_CACHE_KEY, JSON.stringify(snapshot));
+    storage.setItem(
+      dashboardVisualCacheStorageKey(ownerScope),
+      JSON.stringify(snapshot),
+    );
     return true;
   } catch {
     return false;

@@ -6,6 +6,7 @@ import {
   saveDocumentSessionDraft,
   type DocumentSessionFormStateDraft,
 } from "./document-session-draft";
+import { setActiveWorkspaceOwnerScope } from "./workspace-owner-runtime";
 
 function installSessionStorageStub() {
   const store = new Map<string, string>();
@@ -25,9 +26,11 @@ function installSessionStorageStub() {
 describe("document session draft", () => {
   beforeEach(() => {
     installSessionStorageStub();
+    setActiveWorkspaceOwnerScope("owner-account-a");
   });
 
   afterEach(() => {
+    setActiveWorkspaceOwnerScope(null);
     vi.unstubAllGlobals();
   });
 
@@ -85,6 +88,23 @@ describe("document session draft", () => {
     clearDocumentSessionDraft("recibo");
 
     expect(getDocumentSessionDraft("recibo")).toBeNull();
+  });
+
+  it("no expone el borrador de una cuenta al cambiar de sesión", () => {
+    expect(
+      saveDocumentSessionDraft(
+        "factura",
+        formDraft({ clientForm: { firstName: "Cliente privado A" } }),
+      ),
+    ).toBe(true);
+
+    setActiveWorkspaceOwnerScope("owner-account-b");
+    expect(getDocumentSessionDraft("factura")).toBeNull();
+
+    setActiveWorkspaceOwnerScope("owner-account-a");
+    expect(getDocumentSessionDraft("factura")).toMatchObject({
+      form: { clientForm: { firstName: "Cliente privado A" } },
+    });
   });
 });
 

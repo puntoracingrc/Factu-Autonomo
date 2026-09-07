@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, HardDrive, Loader2 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
 import {
   buildDriveBackupSignature,
@@ -18,7 +19,8 @@ import {
   type DriveBackupReturnPath,
 } from "@/lib/google-drive/backup";
 import { runExclusiveDriveBackup } from "@/lib/google-drive/operation";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import { getActiveWorkspaceAccessToken } from "@/lib/cloud/active-workspace-session";
+import { isActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 type CallbackStatus =
   | { state: "working"; message: string }
@@ -57,10 +59,9 @@ function googleErrorMessage(
 async function exchangeCodeForAccessToken(input: {
   code: string;
   redirectUri: string;
+  ownerScope: string;
 }): Promise<{ accessToken: string; expiresIn: number }> {
-  const supabase = await getSupabaseClientAsync();
-  const { data } = supabase ? await supabase.auth.getSession() : { data: null };
-  const accessToken = data?.session?.access_token;
+  const accessToken = await getActiveWorkspaceAccessToken(input.ownerScope);
   if (!accessToken) {
     throw new Error(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
   }
@@ -71,7 +72,7 @@ async function exchangeCodeForAccessToken(input: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ code: input.code, redirectUri: input.redirectUri }),
   });
   const payload = (await response.json()) as TokenExchangeResponse;
 
@@ -89,6 +90,9 @@ async function exchangeCodeForAccessToken(input: {
 
 export default function GoogleDriveCallbackPage() {
   const { data, ready } = useAppStore();
+  const workspace = useWorkspaceStorage();
+  const ownerScope =
+    workspace.kind === "user" ? workspace.ownerScope : null;
   const handledRef = useRef(false);
   const [status, setStatus] = useState<CallbackStatus>({
     state: "working",
@@ -101,18 +105,34 @@ export default function GoogleDriveCallbackPage() {
 
     async function completeDriveBackup() {
       let returnPath: DriveBackupReturnPath | undefined;
+      if (!ownerScope) {
+        setStatus({
+          state: "error",
+          message: "Inicia sesión con la cuenta que conectó Google Drive.",
+        });
+        return;
+      }
+      const ensureOwnerIsActive = () => {
+        if (!isActiveWorkspaceOwnerScope(ownerScope)) {
+          throw new Error(
+            "La cuenta cambió durante la conexión con Google Drive.",
+          );
+        }
+      };
 
       try {
+        ensureOwnerIsActive();
         const params = new URLSearchParams(window.location.search);
         const googleError = params.get("error")?.trim();
         const state = params.get("state")?.trim() ?? "";
         const pending = state
-          ? await loadPendingDriveBackupRequest(state)
+          ? await loadPendingDriveBackupRequest(state, ownerScope)
           : null;
+        ensureOwnerIsActive();
         returnPath = pending?.returnPath;
 
         if (googleError) {
-          clearPendingDriveBackupRequest();
+          clearPendingDriveBackupRequest(ownerScope);
           setStatus({
             state: "error",
             message: googleErrorMessage(googleError, returnPath),
@@ -139,12 +159,22 @@ export default function GoogleDriveCallbackPage() {
         });
 
         const redirectUri = `${window.location.origin}${DRIVE_BACKUP_CALLBACK_PATH}`;
-        const token = await exchangeCodeForAccessToken({ code, redirectUri });
-        cacheDriveAccessToken(token.accessToken, token.expiresIn);
+        const token = await exchangeCodeForAccessToken({
+          code,
+          redirectUri,
+          ownerScope,
+        });
+        ensureOwnerIsActive();
+        cacheDriveAccessToken(
+          token.accessToken,
+          token.expiresIn,
+          ownerScope,
+        );
 
         const execution = await runExclusiveDriveBackup(() =>
           uploadAppBackupToGoogleDriveWithAccessToken(data, token.accessToken),
         );
+        ensureOwnerIsActive();
         if (!execution.started) {
           throw new Error(
             "Ya hay una copia de Drive en curso. Vuelve a intentarlo desde Cuenta.",
@@ -156,23 +186,26 @@ export default function GoogleDriveCallbackPage() {
           throw new Error(result.error);
         }
 
-        const currentSettings = loadDriveBackupSettings();
+        const currentSettings = loadDriveBackupSettings(ownerScope);
         const signature =
           buildDriveBackupSignature(data, pending.frequency) ||
           result.exportedAt;
 
-        saveDriveBackupSettings({
-          ...currentSettings,
-          enabled: true,
-          frequency: pending.frequency,
-          lastBackupAt: result.exportedAt,
-          lastFileId: result.fileId,
-          lastFileName: result.fileName,
-          lastWebViewLink: result.webViewLink,
-          lastFolderWebViewLink: result.folderWebViewLink,
-          lastAutoSignature: signature,
-        });
-        clearPendingDriveBackupRequest();
+        saveDriveBackupSettings(
+          {
+            ...currentSettings,
+            enabled: true,
+            frequency: pending.frequency,
+            lastBackupAt: result.exportedAt,
+            lastFileId: result.fileId,
+            lastFileName: result.fileName,
+            lastWebViewLink: result.webViewLink,
+            lastFolderWebViewLink: result.folderWebViewLink,
+            lastAutoSignature: signature,
+          },
+          ownerScope,
+        );
+        clearPendingDriveBackupRequest(ownerScope);
 
         if (pending.returnPath) {
           window.location.replace(pending.returnPath);
@@ -187,7 +220,7 @@ export default function GoogleDriveCallbackPage() {
           folderWebViewLink: result.folderWebViewLink,
         });
       } catch (error) {
-        clearPendingDriveBackupRequest();
+        clearPendingDriveBackupRequest(ownerScope);
         setStatus({
           state: "error",
           message:
@@ -200,7 +233,7 @@ export default function GoogleDriveCallbackPage() {
     }
 
     void completeDriveBackup();
-  }, [data, ready]);
+  }, [data, ownerScope, ready]);
 
   const icon =
     status.state === "success" ? (

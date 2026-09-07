@@ -127,7 +127,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
   };
 }
 
-const STORAGE_KEY = "factura-autonomo-data";
+export const LEGACY_APP_DATA_STORAGE_KEY = "factura-autonomo-data";
 const COMPRESSED_STORAGE_PREFIX = "factu-gzip-v1:";
 const STORAGE_COMPRESSION_THRESHOLD = 750_000;
 
@@ -308,8 +308,13 @@ function parseStoredData(raw: string): unknown {
   return JSON.parse(serialized);
 }
 
-function currentStorageKey(): string {
-  return isDemoWorkspaceMode() ? DEMO_WORKSPACE_STORAGE_KEY : STORAGE_KEY;
+function currentStorageKey(storageKey?: string): string {
+  return (
+    storageKey ??
+    (isDemoWorkspaceMode()
+      ? DEMO_WORKSPACE_STORAGE_KEY
+      : LEGACY_APP_DATA_STORAGE_KEY)
+  );
 }
 
 function matchingPersistedSnapshotCache(
@@ -1461,14 +1466,14 @@ function normalizedDemoWorkspaceData(): AppData {
   });
 }
 
-export function loadData(): AppData {
+export function loadData(storageKeyOverride?: string): AppData {
   if (typeof window === "undefined") return EMPTY_DATA;
   let storage: Storage;
   let storageKey: string;
   let raw: string | null;
   try {
     storage = localStorage;
-    storageKey = currentStorageKey();
+    storageKey = currentStorageKey(storageKeyOverride);
     raw = storage.getItem(storageKey);
   } catch {
     return isDemoWorkspaceMode() ? normalizedDemoWorkspaceData() : EMPTY_DATA;
@@ -1499,7 +1504,7 @@ export function loadData(): AppData {
         },
       ],
     };
-    saveData(quarantined);
+    saveData(quarantined, { storageKey: storageKeyOverride });
     return quarantined;
   }
   const parsed = parsedResult.value;
@@ -1511,7 +1516,7 @@ export function loadData(): AppData {
       equivalentData: cached?.equivalentData ?? normalized,
     });
     if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-      saveData(normalized);
+      saveData(normalized, { storageKey: storageKeyOverride });
     }
     return normalized;
   } catch {
@@ -1525,13 +1530,14 @@ export function loadData(): AppData {
         },
       ],
     };
-    saveData(quarantined);
+    saveData(quarantined, { storageKey: storageKeyOverride });
     return quarantined;
   }
 }
 
 export async function loadDataPreferPersistentCache(
   options: {
+    storageKey?: string;
     readCache?: typeof readPersistedAppDataCache;
     onCacheMissLoaded?: (storageKey: string, raw: string | null) => void;
   } = {},
@@ -1543,10 +1549,10 @@ export async function loadDataPreferPersistentCache(
   let raw: string | null;
   try {
     storage = localStorage;
-    storageKey = currentStorageKey();
+    storageKey = currentStorageKey(options.storageKey);
     raw = storage.getItem(storageKey);
   } catch {
-    return loadData();
+    return loadData(options.storageKey);
   }
 
   const memoryCache = matchingPersistedSnapshotCache(
@@ -1574,14 +1580,14 @@ export async function loadDataPreferPersistentCache(
           return persistentSnapshot;
         }
       } catch {
-        return loadData();
+        return loadData(options.storageKey);
       }
     }
   }
 
-  const loaded = loadData();
+  const loaded = loadData(options.storageKey);
   try {
-    const currentKey = currentStorageKey();
+    const currentKey = currentStorageKey(options.storageKey);
     const currentRaw = localStorage.getItem(currentKey);
     options.onCacheMissLoaded?.(currentKey, currentRaw);
   } catch {
@@ -1595,11 +1601,13 @@ export async function loadDataPreferPersistentCache(
  * Permite recuperar una precondición obsoleta cuando el dominio de negocio
  * sigue intacto y solo cambiaron metadatos de sincronización.
  */
-export function readPersistedDataSnapshot(): AppData | null {
+export function readPersistedDataSnapshot(
+  storageKeyOverride?: string,
+): AppData | null {
   if (typeof window === "undefined") return null;
   try {
     const storage = localStorage;
-    const storageKey = currentStorageKey();
+    const storageKey = currentStorageKey(storageKeyOverride);
     const raw = storage.getItem(storageKey);
     const cached = matchingPersistedSnapshotCache(storage, storageKey, raw);
     const cachedNormalized = cachedNormalizedSnapshot(cached);
@@ -1743,6 +1751,8 @@ export type SaveDataResult =
 
 export interface SaveDataOptions {
   expected?: AppData;
+  /** Clave durable resuelta por el limite de espacio de trabajo. */
+  storageKey?: string;
   /**
    * Los comandos fiscales ya parten de un snapshot durable verificado y su
    * envelope puede necesitar esa base para conservar la genealogia. Evita la
@@ -1779,14 +1789,17 @@ function fiscalProjectionFailureReason(
  * almacenamiento obsoleta tras un fallo anterior; una divergencia real sigue
  * siendo fail-closed.
  */
-export function inspectPersistedData(expected: AppData): SaveDataResult {
+export function inspectPersistedData(
+  expected: AppData,
+  options: Pick<SaveDataOptions, "storageKey"> = {},
+): SaveDataResult {
   if (typeof window === "undefined") {
     return { status: "blocked", reason: "storage_unavailable" };
   }
 
   try {
     const storage = localStorage;
-    const storageKey = currentStorageKey();
+    const storageKey = currentStorageKey(options.storageKey);
     const raw = storage.getItem(storageKey);
     return storedRawMatchesExpected(raw, expected, storageKey, storage)
       ? { status: "applied" }
@@ -1920,7 +1933,7 @@ export function saveData(
   let beforeRaw: string | null;
   try {
     storage = localStorage;
-    storageKey = currentStorageKey();
+    storageKey = currentStorageKey(options.storageKey);
     beforeRaw = storage.getItem(storageKey);
   } catch {
     return { status: "blocked", reason: "storage_unavailable" };
@@ -2061,7 +2074,10 @@ export function saveData(
   return { status: "blocked", reason: "verification_failed" };
 }
 
-export function clearPersistedAppData(expected: AppData): SaveDataResult {
+export function clearPersistedAppData(
+  expected: AppData,
+  options: Pick<SaveDataOptions, "storageKey"> = {},
+): SaveDataResult {
   if (typeof window === "undefined") {
     return { status: "blocked", reason: "storage_unavailable" };
   }
@@ -2071,7 +2087,7 @@ export function clearPersistedAppData(expected: AppData): SaveDataResult {
   let beforeRaw: string | null;
   try {
     storage = localStorage;
-    storageKey = currentStorageKey();
+    storageKey = currentStorageKey(options.storageKey);
     beforeRaw = storage.getItem(storageKey);
   } catch {
     return { status: "blocked", reason: "storage_unavailable" };

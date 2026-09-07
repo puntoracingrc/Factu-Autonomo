@@ -324,6 +324,7 @@ async function synchronizeInvoiceAuthority(
 
 async function ensureCentralSourceInvoice(input: {
   invoiceId: string;
+  ownerScope: string;
   dependencies: CentralReceiptCreateCanaryDependencies;
 }): Promise<{ ok: true; invoice: Document } | { ok: false; error: string }> {
   let invoice = input.dependencies
@@ -336,10 +337,12 @@ async function ensureCentralSourceInvoice(input: {
     return { ok: true, invoice };
   }
 
-  const imported = await (
-    input.dependencies.importHistoricalOriginal ??
-    importCentralInvoiceAuthorityHistoricalOriginalFromBrowser
-  )(invoice);
+  const imported = input.dependencies.importHistoricalOriginal
+    ? await input.dependencies.importHistoricalOriginal(invoice)
+    : await importCentralInvoiceAuthorityHistoricalOriginalFromBrowser(
+        invoice,
+        { expectedOwnerScope: input.ownerScope },
+      );
   if (!imported.ok) return { ok: false, error: imported.message };
   if (!(await synchronizeInvoiceAuthority(input.dependencies))) {
     return {
@@ -423,6 +426,7 @@ export async function createReceiptWithCentralCanary(input: {
     }
     const centralSource = await ensureCentralSourceInvoice({
       invoiceId: input.invoiceId,
+      ownerScope,
       dependencies,
     });
     if (!centralSource.ok) return centralSource;

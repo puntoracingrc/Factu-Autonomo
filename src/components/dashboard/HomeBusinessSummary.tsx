@@ -41,6 +41,7 @@ import {
 import { documentAmounts, isVatExempt } from "@/lib/vat-regime";
 import { expenseTotals } from "@/lib/expenses";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import type { AppData, Document, Expense } from "@/lib/types";
 
 interface HomeBusinessSummaryProps {
@@ -66,6 +67,7 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
   const [expanded, setExpanded] = useState(true);
   const [cacheUpdateDetected, setCacheUpdateDetected] = useState(false);
   const [recentBlocksReady, setRecentBlocksReady] = useState(false);
+  const workspace = useWorkspaceStorage();
   const demoMode = useDemoWorkspaceMode();
   const [period, setPeriod] = useState<ProductPeriodSelection>(() => ({
     ...getDefaultProductPeriod(),
@@ -102,7 +104,11 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
   useEffect(() => {
     if (demoMode || !recentSummary) return;
 
-    const previous = readDashboardVisualCache();
+    const previous = readDashboardVisualCache(
+      undefined,
+      undefined,
+      workspace.ownerScope,
+    );
     const next = buildDashboardVisualCacheSnapshot(
       data,
       period,
@@ -110,7 +116,7 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
       recentSummary,
     );
     const changed = hasDashboardVisualCacheChanges(previous, next);
-    writeDashboardVisualCache(next);
+    writeDashboardVisualCache(next, undefined, workspace.ownerScope);
 
     if (!changed) return;
     setCacheUpdateDetected(true);
@@ -119,7 +125,14 @@ export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
     }, 3500);
 
     return () => window.clearTimeout(timeout);
-  }, [data, demoMode, period, periodSummary, recentSummary]);
+  }, [
+    data,
+    demoMode,
+    period,
+    periodSummary,
+    recentSummary,
+    workspace.ownerScope,
+  ]);
 
   function updatePeriod(patch: Partial<ProductPeriodSelection>) {
     setPeriod((current) => ({ ...current, ...patch }));

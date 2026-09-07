@@ -1394,6 +1394,10 @@ describe("MVP usability polish", () => {
       new URL("../app/layout.tsx", import.meta.url),
       "utf8",
     );
+    const appProvidersSource = readFileSync(
+      new URL("../components/AppProviders.tsx", import.meta.url),
+      "utf8",
+    );
     const appShellSource = readFileSync(
       new URL("../components/layout/AppShell.tsx", import.meta.url),
       "utf8",
@@ -1433,7 +1437,8 @@ describe("MVP usability polish", () => {
     ).toEqual(
       expect.arrayContaining(["/", "/facturas/nuevo", "/gastos", "/cuenta"]),
     );
-    expect(layoutSource).toContain("RegisterServiceWorker");
+    expect(layoutSource).toContain("<AppProviders>");
+    expect(appProvidersSource).toContain("<RegisterServiceWorker />");
     expect(appShellSource).toContain("/brand/app-icon.png");
     expect(appShellSource).toContain("object-contain");
     expect(appShellSource).not.toContain("object-cover");

@@ -1852,6 +1852,7 @@ export function DocumentForm({
       ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
           publicFormCanaryEnabled: centralCanaryEnabled,
           publicFormCanaryUserId: centralPlanGate.centralUserId,
+          expectedOwnerScope: centralPlanGate.centralUserId,
         })
       : null;
 
@@ -1869,15 +1870,20 @@ export function DocumentForm({
       const centralSave = await runCentralInvoiceAuthorityClientOperation(
         async () => {
           const seriesPreflight =
-            await preflightCentralInvoiceAuthorityFormSeries({
-              data,
-              profile: effectiveDocumentProfile,
-              request: centralRequest,
-            });
+            await preflightCentralInvoiceAuthorityFormSeries(
+              {
+                data,
+                profile: effectiveDocumentProfile,
+                request: centralRequest,
+              },
+              { expectedOwnerScope: centralPlanGate.centralUserId },
+            );
           if (!seriesPreflight.ok) return seriesPreflight;
 
           const centralResult =
-            await issueCentralInvoiceAuthorityFromBrowser(centralRequest);
+            await issueCentralInvoiceAuthorityFromBrowser(centralRequest, {
+              expectedOwnerScope: centralPlanGate.centralUserId,
+            });
 
           if (!centralResult.ok) return centralResult;
           try {

@@ -1,13 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
-import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
-import { QuickToolsProvider } from "@/components/documents/QuickToolsProvider";
-import { AppErrorMonitor } from "@/components/monitoring/AppErrorMonitor";
-import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
-import { AppStoreProvider } from "@/context/AppStore";
-import { BillingProvider } from "@/context/BillingContext";
-import { CentralAuthorityPlanGateProvider } from "@/hooks/useCentralAuthorityPlanGate";
-import { CloudSyncProvider } from "@/context/CloudSyncContext";
+import { AppProviders } from "@/components/AppProviders";
 import { APP_BRAND_NAME } from "@/lib/brand";
 import {
   APP_THEME_BOOTSTRAP_SCRIPT,
@@ -102,19 +95,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full bg-slate-100 font-sans text-slate-900 antialiased">
-        <AppStoreProvider>
-          <CloudSyncProvider>
-            <BillingProvider>
-              <CentralAuthorityPlanGateProvider>
-                <QuickToolsProvider>
-                  <ConditionalAppShell>{children}</ConditionalAppShell>
-                </QuickToolsProvider>
-                <AppErrorMonitor />
-                <RegisterServiceWorker />
-              </CentralAuthorityPlanGateProvider>
-            </BillingProvider>
-          </CloudSyncProvider>
-        </AppStoreProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

@@ -27,6 +27,9 @@ function excludes(source, pattern, label) {
 
 const marker = "CENTRAL_INVOICE_AUTHORITY_STATUS_CLIENT_V1";
 const client = read("src/lib/central-invoice-authority/status-client.ts");
+const activeWorkspaceSession = read(
+  "src/lib/cloud/active-workspace-session.ts",
+);
 const clientTest = read("src/lib/central-invoice-authority/status-client.test.ts");
 const component = read("src/components/cloud/CentralInvoiceAuthorityStatusCard.tsx");
 const presentation = read(
@@ -40,7 +43,7 @@ const doc = read(
   "docs/architecture/central-invoice-authority-status-client-ui-v1.md",
 );
 const packageJson = JSON.parse(read("package.json"));
-const body = `${client}\n${clientTest}\n${component}\n${presentation}\n${componentTest}\n${accountPage}\n${doc}`;
+const body = `${client}\n${activeWorkspaceSession}\n${clientTest}\n${component}\n${presentation}\n${componentTest}\n${accountPage}\n${doc}`;
 
 for (const required of [
   marker,
@@ -51,7 +54,12 @@ for (const required of [
   "cache: \"no-store\"",
   "CLOUD_DEVICE_TOKEN_HEADER",
   "getLocalCloudDeviceToken",
+  "captureActiveWorkspaceOwnerScope",
+  "getActiveWorkspaceAccessToken",
+  "expectedOwnerScope",
   "getSupabaseClientAsync",
+  "session.user.id !== ownerScope",
+  "isActiveWorkspaceOwnerScope",
   "CENTRAL_INVOICE_AUTHORITY_STATUS_ROUTE_V1",
   "CENTRAL_INVOICE_AUTHORITY_STATUS_READINESS_V1",
   "noBusinessRows: true",
@@ -79,6 +87,7 @@ for (const forbidden of [
   /\bdocumentPayload\b/,
   /\bemittedSnapshot\b/,
   /setInterval/,
+  /getSupabaseClientAsync/,
 ]) {
   excludes(client, forbidden, "status client");
   excludes(component, forbidden, "status card");

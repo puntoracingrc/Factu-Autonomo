@@ -11,12 +11,17 @@ import {
   documentProductSaleUnitPriceInfo,
   type DocumentProductSalePriceSource,
 } from "./document-product-suggestions";
+import { workspaceScopedBrowserStorageKey } from "./workspace-owner-runtime";
 
 const PRODUCT_DOCUMENT_DRAFT_KEY = "factu:product-document-draft:v1";
 const DOCUMENT_PRODUCT_RETURN_KEY = "factu:document-product-return:v1";
 const DOCUMENT_PRODUCT_PICK_REQUEST_KEY = "factu:document-product-pick:v1";
 const DOCUMENT_PRODUCT_PICKED_LINE_KEY =
   "factu:document-product-picked-line:v1";
+
+function sessionKey(baseKey: string): string {
+  return workspaceScopedBrowserStorageKey(baseKey);
+}
 
 export interface ProductDocumentDraftLine {
   productKey: string;
@@ -173,7 +178,7 @@ export function saveProductDocumentDraft(
       lines,
     };
     window.sessionStorage.setItem(
-      PRODUCT_DOCUMENT_DRAFT_KEY,
+      sessionKey(PRODUCT_DOCUMENT_DRAFT_KEY),
       JSON.stringify(draft),
     );
     return true;
@@ -188,7 +193,7 @@ export function saveDocumentProductReturnDraft(
   if (typeof window === "undefined") return false;
   try {
     window.sessionStorage.setItem(
-      DOCUMENT_PRODUCT_RETURN_KEY,
+      sessionKey(DOCUMENT_PRODUCT_RETURN_KEY),
       JSON.stringify(draft),
     );
     return true;
@@ -202,8 +207,9 @@ export function consumeDocumentProductReturnDraft(
 ): DocumentProductReturnDraft | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(DOCUMENT_PRODUCT_RETURN_KEY);
-    window.sessionStorage.removeItem(DOCUMENT_PRODUCT_RETURN_KEY);
+    const key = sessionKey(DOCUMENT_PRODUCT_RETURN_KEY);
+    const raw = window.sessionStorage.getItem(key);
+    window.sessionStorage.removeItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DocumentProductReturnDraft;
     if (
@@ -227,7 +233,7 @@ export function saveDocumentProductPickRequest(
   if (typeof window === "undefined") return false;
   try {
     window.sessionStorage.setItem(
-      DOCUMENT_PRODUCT_PICK_REQUEST_KEY,
+      sessionKey(DOCUMENT_PRODUCT_PICK_REQUEST_KEY),
       JSON.stringify(request),
     );
     return true;
@@ -240,7 +246,7 @@ export function getDocumentProductPickRequest(): DocumentProductPickRequest | nu
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(
-      DOCUMENT_PRODUCT_PICK_REQUEST_KEY,
+      sessionKey(DOCUMENT_PRODUCT_PICK_REQUEST_KEY),
     );
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DocumentProductPickRequest;
@@ -260,7 +266,7 @@ export function getDocumentProductPickRequest(): DocumentProductPickRequest | nu
 export function clearDocumentProductPickRequest(): void {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.removeItem(DOCUMENT_PRODUCT_PICK_REQUEST_KEY);
+    window.sessionStorage.removeItem(sessionKey(DOCUMENT_PRODUCT_PICK_REQUEST_KEY));
   } catch {
     // Ignore private browsing storage errors.
   }
@@ -272,7 +278,7 @@ export function saveDocumentProductPickedLine(
   if (typeof window === "undefined") return false;
   try {
     window.sessionStorage.setItem(
-      DOCUMENT_PRODUCT_PICKED_LINE_KEY,
+      sessionKey(DOCUMENT_PRODUCT_PICKED_LINE_KEY),
       JSON.stringify(selection),
     );
     return true;
@@ -286,8 +292,9 @@ export function consumeDocumentProductPickedLine(
 ): DocumentProductPickedLine | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(DOCUMENT_PRODUCT_PICKED_LINE_KEY);
-    window.sessionStorage.removeItem(DOCUMENT_PRODUCT_PICKED_LINE_KEY);
+    const key = sessionKey(DOCUMENT_PRODUCT_PICKED_LINE_KEY);
+    const raw = window.sessionStorage.getItem(key);
+    window.sessionStorage.removeItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DocumentProductPickedLine;
     if (
@@ -321,8 +328,9 @@ export function productSummaryToPickedLine(
 export function consumeProductDocumentDraft(): ProductDocumentDraft | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(PRODUCT_DOCUMENT_DRAFT_KEY);
-    window.sessionStorage.removeItem(PRODUCT_DOCUMENT_DRAFT_KEY);
+    const key = sessionKey(PRODUCT_DOCUMENT_DRAFT_KEY);
+    const raw = window.sessionStorage.getItem(key);
+    window.sessionStorage.removeItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ProductDocumentDraft;
     if (

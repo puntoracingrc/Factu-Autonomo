@@ -81,7 +81,10 @@ describe("central business bootstrap account card", () => {
     expect(component).toContain("preview && pendingChangeCount > 0");
     expect(component).toContain("pendingChangeCount > 0");
     expect(component).toContain(
-      "previewCentralBusinessBootstrapFromBrowser(restoredEntities)",
+      "previewCentralBusinessBootstrapFromBrowser(\n        restoredEntities,",
+    );
+    expect(component).toContain(
+      "{ expectedOwnerScope: activeOwnerScope }",
     );
     expect(component).toContain("syncAllCentralInvoiceEvents");
     expect(component).toContain("syncCentralInvoiceAuthorityEvents");

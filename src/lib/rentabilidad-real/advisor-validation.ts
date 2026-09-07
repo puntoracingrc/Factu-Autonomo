@@ -1,4 +1,5 @@
 import { getRentabilidadRealProductById } from "./catalog";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 import type {
   RentabilidadRealProductId,
   RentabilidadRealScoringResult,
@@ -9,6 +10,18 @@ const ADVISOR_VALIDATION_STATUS_STORAGE_KEY =
   "fa_rentabilidad_real_advisor_validation_status";
 const ADVISOR_VALIDATION_NOTICE_STORAGE_KEY =
   "fa_rentabilidad_real_advisor_validation_notice";
+
+function advisorStatusStorageKey(): string {
+  return workspaceScopedBrowserStorageKey(
+    ADVISOR_VALIDATION_STATUS_STORAGE_KEY,
+  );
+}
+
+function advisorNoticeStorageKey(): string {
+  return workspaceScopedBrowserStorageKey(
+    ADVISOR_VALIDATION_NOTICE_STORAGE_KEY,
+  );
+}
 
 export type RentabilidadRealAdvisorValidationStatus =
   | "not_started"
@@ -31,7 +44,7 @@ function sessionStorageAvailable(): boolean {
 
 export function getStoredRentabilidadRealAdvisorValidationStatus(): RentabilidadRealAdvisorValidationStatus {
   if (!storageAvailable()) return "not_started";
-  const value = localStorage.getItem(ADVISOR_VALIDATION_STATUS_STORAGE_KEY);
+  const value = localStorage.getItem(advisorStatusStorageKey());
   if (
     value === "pending_review" ||
     value === "validated" ||
@@ -47,10 +60,10 @@ export function setStoredRentabilidadRealAdvisorValidationStatus(
 ): void {
   if (!storageAvailable()) return;
   if (status === "not_started") {
-    localStorage.removeItem(ADVISOR_VALIDATION_STATUS_STORAGE_KEY);
+    localStorage.removeItem(advisorStatusStorageKey());
     return;
   }
-  localStorage.setItem(ADVISOR_VALIDATION_STATUS_STORAGE_KEY, status);
+  localStorage.setItem(advisorStatusStorageKey(), status);
 }
 
 export function shouldShowAdvisorValidationAction(
@@ -64,23 +77,23 @@ export function markRentabilidadRealAdvisorValidationNotice(
 ): void {
   if (!sessionStorageAvailable()) return;
   if (status !== "validated" && status !== "corrected") return;
-  sessionStorage.setItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY, status);
+  sessionStorage.setItem(advisorNoticeStorageKey(), status);
 }
 
 export function consumeRentabilidadRealAdvisorValidationNotice():
   | RentabilidadRealAdvisorValidationStatus
   | null {
   if (!sessionStorageAvailable()) return null;
-  const value = sessionStorage.getItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY);
-  sessionStorage.removeItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY);
+  const value = sessionStorage.getItem(advisorNoticeStorageKey());
+  sessionStorage.removeItem(advisorNoticeStorageKey());
   return value === "validated" || value === "corrected" ? value : null;
 }
 
 export function clearRentabilidadRealAdvisorValidationForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(ADVISOR_VALIDATION_STATUS_STORAGE_KEY);
+  localStorage.removeItem(advisorStatusStorageKey());
   if (sessionStorageAvailable()) {
-    sessionStorage.removeItem(ADVISOR_VALIDATION_NOTICE_STORAGE_KEY);
+    sessionStorage.removeItem(advisorNoticeStorageKey());
   }
 }
 

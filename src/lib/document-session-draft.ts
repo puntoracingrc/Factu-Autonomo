@@ -1,5 +1,6 @@
 import type { DocumentType } from "./types";
 import type { DocumentProductFormStateDraft } from "./product-document-draft";
+import { workspaceScopedBrowserStorageKey } from "./workspace-owner-runtime";
 
 const DOCUMENT_SESSION_DRAFT_PREFIX = "factu:document-session-draft:v1:";
 
@@ -19,7 +20,9 @@ function storage(): Storage | null {
 }
 
 function documentSessionDraftKey(documentType: DocumentType): string {
-  return `${DOCUMENT_SESSION_DRAFT_PREFIX}${documentType}`;
+  return workspaceScopedBrowserStorageKey(
+    `${DOCUMENT_SESSION_DRAFT_PREFIX}${documentType}`,
+  );
 }
 
 function hasText(value: unknown): boolean {

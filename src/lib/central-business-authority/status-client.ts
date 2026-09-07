@@ -4,7 +4,10 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 
 export const CENTRAL_BUSINESS_AUTHORITY_STATUS_CLIENT =
   "CENTRAL_BUSINESS_AUTHORITY_STATUS_CLIENT_V1";
@@ -60,6 +63,7 @@ export interface CentralBusinessAuthorityStatusClientDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
+  expectedOwnerScope?: string | null;
 }
 
 const MODES: readonly Mode[] = ["off", "shadow", "canary", "required"];
@@ -75,13 +79,6 @@ function oneOf<T extends string>(
   values: readonly T[],
 ): value is T {
   return typeof value === "string" && values.includes(value as T);
-}
-
-async function defaultAccessToken() {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
 }
 
 function failure(
@@ -182,8 +179,12 @@ function parse(payload: unknown): CentralBusinessAuthorityBrowserStatus | null {
 export async function fetchCentralBusinessAuthorityStatusFromBrowser(
   dependencies: CentralBusinessAuthorityStatusClientDependencies = {},
 ): Promise<CentralBusinessAuthorityStatusResult> {
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
   const accessToken = await (
-    dependencies.getAccessToken ?? defaultAccessToken
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope))
   )();
   if (!accessToken) {
     return failure(
@@ -193,7 +194,9 @@ export async function fetchCentralBusinessAuthorityStatusFromBrowser(
     );
   }
   const deviceToken = (
-    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
+    dependencies.getDeviceToken ??
+    (() =>
+      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
   )();
   if (!deviceToken) {
     return failure(

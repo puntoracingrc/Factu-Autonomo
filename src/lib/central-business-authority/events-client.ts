@@ -4,7 +4,10 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 
 import type {
   CentralBusinessEntityType,
@@ -49,6 +52,7 @@ export interface CentralBusinessEventsClientDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
+  expectedOwnerScope?: string | null;
 }
 
 const TYPES = new Set<CentralBusinessEntityType>([
@@ -62,13 +66,6 @@ const TYPES = new Set<CentralBusinessEntityType>([
   "receipt",
   "profile",
 ]);
-
-async function defaultAccessToken() {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
-}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -157,8 +154,12 @@ export async function pullCentralBusinessEventsFromBrowser(
     Number.isInteger(input.limit) && (input.limit ?? 0) > 0
       ? Math.min(input.limit ?? 100, 500)
       : 100;
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
   const accessToken = await (
-    dependencies.getAccessToken ?? defaultAccessToken
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope))
   )();
   if (!accessToken) {
     return failure(
@@ -168,7 +169,9 @@ export async function pullCentralBusinessEventsFromBrowser(
     );
   }
   const deviceToken = (
-    dependencies.getDeviceToken ?? getOrCreateLocalCloudDeviceToken
+    dependencies.getDeviceToken ??
+    (() =>
+      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
   )();
   if (!deviceToken) {
     return failure(
