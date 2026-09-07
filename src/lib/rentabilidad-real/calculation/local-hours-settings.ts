@@ -174,7 +174,7 @@ export function setStoredRentabilidadRealHoursSettings(
     // This local-first calculator intentionally persists its offline draft on
     // the user's device. The account-scoped key prevents cross-account reuse;
     // this is not an authentication secret or server-side credential.
-    // lgtm[js/clear-text-storage-of-sensitive-data]
+    // codeql[js/clear-text-storage-of-sensitive-data]
     localStorage.setItem(storageKey(), serialized);
   }
   return normalized;
