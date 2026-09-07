@@ -5,8 +5,11 @@ import {
   getLocalCloudDeviceToken,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 import { notifyCloudDeviceReactivated } from "@/lib/cloud/device-events";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
 export interface CloudDeviceApiPayload {
   plan: string;
@@ -19,20 +22,30 @@ export interface CloudDeviceApiPayload {
   error?: string;
 }
 
-async function authToken(): Promise<string | null> {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+interface CloudDeviceCredentials {
+  ownerScope: string;
+  accessToken: string;
+  deviceToken: string;
 }
 
-async function cloudDeviceHeaders(): Promise<HeadersInit | null> {
-  const token = await authToken();
-  if (!token) return null;
+async function cloudDeviceCredentials(
+  expectedOwnerScope?: string | null,
+): Promise<CloudDeviceCredentials | null> {
+  const ownerScope = captureActiveWorkspaceOwnerScope(expectedOwnerScope);
+  if (!ownerScope) return null;
+  const accessToken = await getActiveWorkspaceAccessToken(ownerScope);
+  if (!accessToken) return null;
+  const deviceToken = getOrCreateLocalCloudDeviceToken(ownerScope);
+  return { ownerScope, accessToken, deviceToken };
+}
+
+function cloudDeviceHeaders(
+  credentials: CloudDeviceCredentials,
+): HeadersInit {
   return {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${credentials.accessToken}`,
     "Content-Type": "application/json",
-    [CLOUD_DEVICE_TOKEN_HEADER]: getOrCreateLocalCloudDeviceToken(),
+    [CLOUD_DEVICE_TOKEN_HEADER]: credentials.deviceToken,
   };
 }
 
@@ -73,10 +86,13 @@ export async function registerCurrentCloudDevice(
   options: {
     markSynced?: boolean;
     notifyReactivated?: boolean;
+    expectedOwnerScope?: string | null;
   } = {},
 ): Promise<CloudDeviceApiPayload> {
-  const headers = await cloudDeviceHeaders();
-  if (!headers) {
+  const credentials = await cloudDeviceCredentials(
+    options.expectedOwnerScope,
+  );
+  if (!credentials) {
     return {
       plan: "free",
       limit: 0,
@@ -87,7 +103,7 @@ export async function registerCurrentCloudDevice(
   }
   const result = await requestCloudDevices("/api/cloud/devices", {
     method: "POST",
-    headers,
+    headers: cloudDeviceHeaders(credentials),
     body: JSON.stringify({
       markSynced: options.markSynced === true,
     }),
@@ -105,17 +121,22 @@ export async function registerCurrentCloudDevice(
 export async function recoverRevokedCloudDeviceAfterFreshSignIn(): Promise<
   CloudDeviceApiPayload
 > {
-  const current = await registerCurrentCloudDevice();
+  const ownerScope = captureActiveWorkspaceOwnerScope();
+  const current = await registerCurrentCloudDevice({
+    expectedOwnerScope: ownerScope,
+  });
   if (current.reason !== "device_revoked") return current;
 
-  forgetLocalCloudDeviceToken();
-  const replacement = await registerCurrentCloudDevice();
+  forgetLocalCloudDeviceToken(ownerScope);
+  const replacement = await registerCurrentCloudDevice({
+    expectedOwnerScope: ownerScope,
+  });
   return replacement;
 }
 
 export async function listCloudDevices(): Promise<CloudDeviceApiPayload> {
-  const headers = await cloudDeviceHeaders();
-  if (!headers) {
+  const credentials = await cloudDeviceCredentials();
+  if (!credentials) {
     return {
       plan: "free",
       limit: 0,
@@ -123,14 +144,16 @@ export async function listCloudDevices(): Promise<CloudDeviceApiPayload> {
       error: "Inicia sesion para ver tus dispositivos.",
     };
   }
-  return requestCloudDevices("/api/cloud/devices", { headers });
+  return requestCloudDevices("/api/cloud/devices", {
+    headers: cloudDeviceHeaders(credentials),
+  });
 }
 
 export async function revokeCloudDevice(
   deviceId: string,
 ): Promise<CloudDeviceApiPayload> {
-  const headers = await cloudDeviceHeaders();
-  if (!headers) {
+  const credentials = await cloudDeviceCredentials();
+  if (!credentials) {
     return {
       plan: "free",
       limit: 0,
@@ -140,13 +163,15 @@ export async function revokeCloudDevice(
   }
   return requestCloudDevices(`/api/cloud/devices/${deviceId}`, {
     method: "DELETE",
-    headers,
+    headers: cloudDeviceHeaders(credentials),
   });
 }
 
-export async function retireCurrentCloudDevice(): Promise<CloudDeviceApiPayload> {
-  const headers = await cloudDeviceHeaders();
-  if (!headers) {
+export async function retireCurrentCloudDevice(
+  expectedOwnerScope?: string | null,
+): Promise<CloudDeviceApiPayload> {
+  const credentials = await cloudDeviceCredentials(expectedOwnerScope);
+  if (!credentials) {
     return {
       plan: "free",
       limit: 0,
@@ -156,15 +181,19 @@ export async function retireCurrentCloudDevice(): Promise<CloudDeviceApiPayload>
   }
   const result = await requestCloudDevices("/api/cloud/devices", {
     method: "DELETE",
-    headers,
+    headers: cloudDeviceHeaders(credentials),
   });
-  if (!result.error) forgetLocalCloudDeviceToken();
+  if (!result.error) forgetLocalCloudDeviceToken(credentials.ownerScope);
   return result;
 }
 
-export async function releaseCurrentCloudDeviceSession(): Promise<boolean> {
-  const token = await authToken();
-  const deviceToken = getLocalCloudDeviceToken();
+export async function releaseCurrentCloudDeviceSession(
+  expectedOwnerScope?: string | null,
+): Promise<boolean> {
+  const ownerScope = captureActiveWorkspaceOwnerScope(expectedOwnerScope);
+  if (!ownerScope) return true;
+  const token = await getActiveWorkspaceAccessToken(ownerScope);
+  const deviceToken = getLocalCloudDeviceToken(ownerScope);
   if (!token || !deviceToken) return true;
 
   try {

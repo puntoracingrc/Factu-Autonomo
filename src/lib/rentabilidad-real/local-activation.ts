@@ -6,6 +6,7 @@ import {
   isRentabilidadRealCalculationModeProductId,
 } from "./catalog";
 import { buildRentabilidadRealSwitchImpact } from "./module-switching";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 import type {
   RentabilidadRealActivationDecision,
   RentabilidadRealCapabilityKey,
@@ -16,6 +17,10 @@ import type {
 } from "./types";
 
 const ACTIVE_PRODUCTS_STORAGE_KEY = "fa_rentabilidad_real_active_products";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(ACTIVE_PRODUCTS_STORAGE_KEY);
+}
 
 export const EMPTY_RENTABILIDAD_REAL_USAGE_SUMMARY: RentabilidadRealUsageSummary =
   {
@@ -137,7 +142,7 @@ export function getStoredRentabilidadRealActiveProducts(): RentabilidadRealProdu
   if (!storageAvailable()) return [];
 
   try {
-    const raw = localStorage.getItem(ACTIVE_PRODUCTS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -152,14 +157,14 @@ export function setStoredRentabilidadRealActiveProducts(
 ): RentabilidadRealProductId[] {
   const normalized = normalizeActiveProducts(productIds);
   if (storageAvailable()) {
-    localStorage.setItem(ACTIVE_PRODUCTS_STORAGE_KEY, JSON.stringify(normalized));
+    localStorage.setItem(storageKey(), JSON.stringify(normalized));
   }
   return normalized;
 }
 
 export function clearRentabilidadRealLocalActivationForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(ACTIVE_PRODUCTS_STORAGE_KEY);
+  localStorage.removeItem(storageKey());
 }
 
 export function planActivateRentabilidadRealProduct(

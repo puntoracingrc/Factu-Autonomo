@@ -1,5 +1,11 @@
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
+
 const PRODUCT_CATALOG_EDIT_REQUEST_KEY =
   "factu:product-catalog-edit-request:v1";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(PRODUCT_CATALOG_EDIT_REQUEST_KEY);
+}
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -17,18 +23,18 @@ export function saveProductCatalogEditRequest(
 ): boolean {
   const key = productKey.trim();
   if (!storage || !key) return false;
-  storage.setItem(PRODUCT_CATALOG_EDIT_REQUEST_KEY, key);
+  storage.setItem(storageKey(), key);
   return true;
 }
 
 export function getProductCatalogEditRequest(
   storage: StorageLike | null = browserStorage(),
 ): string | null {
-  return storage?.getItem(PRODUCT_CATALOG_EDIT_REQUEST_KEY)?.trim() || null;
+  return storage?.getItem(storageKey())?.trim() || null;
 }
 
 export function clearProductCatalogEditRequest(
   storage: StorageLike | null = browserStorage(),
 ): void {
-  storage?.removeItem(PRODUCT_CATALOG_EDIT_REQUEST_KEY);
+  storage?.removeItem(storageKey());
 }

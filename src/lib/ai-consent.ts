@@ -1,5 +1,11 @@
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
+
 export const AI_PROCESSING_CONSENT_VERSION = "2026-07-12";
 export const AI_PROCESSING_CONSENT_KEY = "factura-autonomo-ai-consent";
+
+function consentStorageKey(): string {
+  return workspaceScopedBrowserStorageKey(AI_PROCESSING_CONSENT_KEY);
+}
 
 interface AiConsentRecord {
   version: string;
@@ -22,7 +28,7 @@ export function hasAiProcessingConsent(storage?: StorageLike): boolean {
   if (!target) return false;
 
   try {
-    const raw = target.getItem(AI_PROCESSING_CONSENT_KEY);
+    const raw = target.getItem(consentStorageKey());
     if (!raw) return false;
     const parsed = JSON.parse(raw) as Partial<AiConsentRecord>;
     return parsed.version === AI_PROCESSING_CONSENT_VERSION;
@@ -41,7 +47,7 @@ export function saveAiProcessingConsent(
   };
   const target = storageOrNull(storage);
   if (target) {
-    target.setItem(AI_PROCESSING_CONSENT_KEY, JSON.stringify(record));
+    target.setItem(consentStorageKey(), JSON.stringify(record));
   }
   return record;
 }

@@ -30,6 +30,7 @@ import {
 } from "./backup";
 import { createBackupPayload } from "@/lib/backup";
 import { DEFAULT_PROFILE, type AppData } from "@/lib/types";
+import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 const NOW = new Date("2026-06-29T12:00:00.000Z");
 
@@ -158,6 +159,7 @@ describe("Google Drive backup", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     clearDriveAccessToken();
+    setActiveWorkspaceOwnerScope(null);
   });
 
   it("normaliza ajustes locales sin aceptar valores raros", () => {
@@ -301,6 +303,37 @@ describe("Google Drive backup", () => {
 
     expect(hasUsableDriveToken()).toBe(true);
     expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("retira el token de sesión obsoleto al cambiar de cuenta", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "factura-autonomo-drive-access-token",
+      "legacy-access-token",
+    );
+    vi.stubGlobal("sessionStorage", storage);
+
+    clearDriveAccessToken();
+
+    expect(
+      storage.getItem("factura-autonomo-drive-access-token"),
+    ).toBeNull();
+  });
+
+  it("no reutiliza el token de Drive al cambiar de cuenta", () => {
+    setActiveWorkspaceOwnerScope("drive-owner-account-a");
+    cacheDriveAccessToken(
+      "account-a-access-token",
+      3600,
+      "drive-owner-account-a",
+    );
+
+    expect(hasUsableDriveToken("drive-owner-account-a")).toBe(true);
+
+    setActiveWorkspaceOwnerScope("drive-owner-account-b");
+
+    expect(hasUsableDriveToken("drive-owner-account-b")).toBe(false);
+    expect(hasUsableDriveToken("drive-owner-account-a")).toBe(false);
   });
 
   it("descarta destinos externos manipulados en el retorno de Drive", async () => {

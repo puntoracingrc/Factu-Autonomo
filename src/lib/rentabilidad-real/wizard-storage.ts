@@ -11,6 +11,7 @@ import type {
   RentabilidadRealScoringResult,
   RentabilidadRealWizardAnswers,
 } from "./types";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 const WIZARD_ANSWERS_STORAGE_KEY = "fa_rentabilidad_real_wizard_answers";
 const LAST_SCORING_STORAGE_KEY = "fa_rentabilidad_real_last_scoring";
@@ -23,7 +24,7 @@ function readJson<T>(key: string): T | null {
   if (!storageAvailable()) return null;
 
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(workspaceScopedBrowserStorageKey(key));
     return raw ? (JSON.parse(raw) as T) : null;
   } catch {
     return null;
@@ -32,7 +33,10 @@ function readJson<T>(key: string): T | null {
 
 function writeJson<T>(key: string, value: T): void {
   if (!storageAvailable()) return;
-  localStorage.setItem(key, JSON.stringify(value));
+  localStorage.setItem(
+    workspaceScopedBrowserStorageKey(key),
+    JSON.stringify(value),
+  );
 }
 
 function productIdsFromStoredResult(
@@ -126,6 +130,10 @@ export function setStoredRentabilidadRealLastScoringResult(
 
 export function clearRentabilidadRealWizardStorageForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(WIZARD_ANSWERS_STORAGE_KEY);
-  localStorage.removeItem(LAST_SCORING_STORAGE_KEY);
+  localStorage.removeItem(
+    workspaceScopedBrowserStorageKey(WIZARD_ANSWERS_STORAGE_KEY),
+  );
+  localStorage.removeItem(
+    workspaceScopedBrowserStorageKey(LAST_SCORING_STORAGE_KEY),
+  );
 }

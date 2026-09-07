@@ -105,7 +105,7 @@ for (const internalCopy of [
 const resolverStart = client.indexOf(
   "export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser",
 );
-const resolverEnd = client.indexOf("async function defaultAccessToken", resolverStart);
+const resolverEnd = client.indexOf("function isObject", resolverStart);
 assert.ok(resolverStart >= 0, "Missing central authority form policy resolver");
 assert.ok(resolverEnd > resolverStart, "Cannot isolate central authority resolver");
 const resolver = client.slice(resolverStart, resolverEnd);

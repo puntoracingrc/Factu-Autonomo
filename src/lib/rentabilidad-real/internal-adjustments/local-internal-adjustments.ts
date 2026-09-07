@@ -6,9 +6,14 @@ import type {
   CreateInternalProfitabilityAdjustmentInput,
   InternalProfitabilityAdjustment,
 } from "./types";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 const INTERNAL_ADJUSTMENTS_STORAGE_KEY =
   "fa_rentabilidad_real_internal_adjustments";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(INTERNAL_ADJUSTMENTS_STORAGE_KEY);
+}
 
 function storageAvailable(): boolean {
   return typeof localStorage !== "undefined";
@@ -49,7 +54,7 @@ export function getStoredInternalAdjustments(): InternalProfitabilityAdjustment[
   if (!storageAvailable()) return [];
 
   try {
-    const raw = localStorage.getItem(INTERNAL_ADJUSTMENTS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return [];
     return normalizeStoredAdjustments(JSON.parse(raw) as unknown);
   } catch {
@@ -64,7 +69,7 @@ export function setStoredInternalAdjustments(
   if (storageAvailable()) {
     const serialized = JSON.stringify(normalized);
     // Local-first profitability inputs are business data, not authentication secrets.
-    localStorage.setItem(INTERNAL_ADJUSTMENTS_STORAGE_KEY, serialized);
+    localStorage.setItem(storageKey(), serialized);
   }
   return normalized;
 }
@@ -108,5 +113,5 @@ export function getInternalAdjustmentsForSource(
 
 export function clearInternalAdjustmentsForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(INTERNAL_ADJUSTMENTS_STORAGE_KEY);
+  localStorage.removeItem(storageKey());
 }

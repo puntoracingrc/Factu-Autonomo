@@ -83,6 +83,35 @@ function event(
 }
 
 describe("central business durable queue", () => {
+  it("no envia la cola de una cuenta después de cambiar de sesión", async () => {
+    const storage = new MemoryStorage();
+    const mutate = vi.fn();
+    enqueueCentralBusinessOperation({
+      ownerScope,
+      operationId: mutation.idempotencyKey,
+      mutation,
+      storage,
+    });
+
+    const result = await drainCentralBusinessDurableQueue({
+      ownerScope,
+      storage,
+      mutate,
+      isOwnerActive: () => false,
+    });
+
+    expect(result).toMatchObject({
+      processed: 0,
+      remaining: 1,
+      stoppedBy: "retryable",
+    });
+    expect(mutate).not.toHaveBeenCalled();
+    expect(result.state.operations[0]).toMatchObject({
+      status: "pending",
+      attemptCount: 0,
+    });
+  });
+
   it("ancla versiones verificadas sin adelantar el cursor de eventos", () => {
     const storage = new MemoryStorage();
     const result = recordCentralBusinessEntityVersionCheckpoint({

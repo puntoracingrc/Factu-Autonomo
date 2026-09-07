@@ -10,7 +10,6 @@ import {
   resetDemoWorkspaceData,
   setDemoWorkspaceMode,
 } from "@/lib/demo-workspace";
-import { loadData } from "@/lib/storage";
 
 export default function DemoPage() {
   const router = useRouter();
@@ -22,7 +21,6 @@ export default function DemoPage() {
 
     if (user) {
       setDemoWorkspaceMode(false);
-      replaceData(loadData(), { fromRemote: true });
       router.replace("/");
       return;
     }

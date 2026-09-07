@@ -1,7 +1,12 @@
 import type { RentabilidadRealFixedCostAllocationMethod } from "./types";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 const CALCULATION_SETTINGS_STORAGE_KEY =
   "fa_rentabilidad_real_work_calculation_settings";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(CALCULATION_SETTINGS_STORAGE_KEY);
+}
 
 export interface RentabilidadRealCalculationSettings {
   fixedCostAllocationMethod: RentabilidadRealFixedCostAllocationMethod;
@@ -65,7 +70,7 @@ export function getStoredRentabilidadRealCalculationSettings(): RentabilidadReal
   }
 
   try {
-    const raw = localStorage.getItem(CALCULATION_SETTINGS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return DEFAULT_RENTABILIDAD_REAL_CALCULATION_SETTINGS;
     return normalizeSettings(JSON.parse(raw) as Partial<RentabilidadRealCalculationSettings>);
   } catch {
@@ -79,7 +84,7 @@ export function setStoredRentabilidadRealCalculationSettings(
   const normalized = normalizeSettings(settings);
   if (storageAvailable()) {
     localStorage.setItem(
-      CALCULATION_SETTINGS_STORAGE_KEY,
+      storageKey(),
       JSON.stringify(normalized),
     );
   }
@@ -88,5 +93,5 @@ export function setStoredRentabilidadRealCalculationSettings(
 
 export function clearRentabilidadRealCalculationSettingsForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(CALCULATION_SETTINGS_STORAGE_KEY);
+  localStorage.removeItem(storageKey());
 }

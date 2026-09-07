@@ -25,9 +25,11 @@ const CENTRAL_WRITE_HOOKS = [
 describe("central authority client plan gate wiring", () => {
   it("mounts a single shared provider at the application root", () => {
     const layout = source("../../app/layout.tsx");
+    const providers = source("../../components/AppProviders.tsx");
     const gate = source("../../hooks/useCentralAuthorityPlanGate.ts");
 
-    expect(layout).toContain("<CentralAuthorityPlanGateProvider>");
+    expect(layout).toContain("<AppProviders>");
+    expect(providers).toContain("<CentralAuthorityPlanGateProvider>");
     expect(gate).toContain("CentralAuthorityPlanGateContext.Provider");
     expect(gate).toContain("useContext(CentralAuthorityPlanGateContext)");
   });

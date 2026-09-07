@@ -4,7 +4,10 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 
 export const CENTRAL_INVOICE_AUTHORITY_RELATIONSHIP_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_RELATIONSHIP_CLIENT_V1";
@@ -52,13 +55,7 @@ export interface CentralInvoiceAuthorityRelationshipDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
-}
-
-async function defaultAccessToken(): Promise<string | null> {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  expectedOwnerScope?: string | null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -121,11 +118,16 @@ export async function setCentralInvoiceQuoteFromBrowser(
   input: CentralInvoiceAuthorityRelationshipUpdateRequest,
   dependencies: CentralInvoiceAuthorityRelationshipDependencies = {},
 ): Promise<CentralInvoiceAuthorityRelationshipResult> {
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
   const accessToken = await (
-    dependencies.getAccessToken ?? defaultAccessToken
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope))
   )();
   const deviceToken = (
-    dependencies.getDeviceToken ?? getLocalCloudDeviceToken
+    dependencies.getDeviceToken ??
+    (() => (ownerScope ? getLocalCloudDeviceToken(ownerScope) : null))
   )();
   if (!accessToken || !deviceToken) {
     return errorResult(

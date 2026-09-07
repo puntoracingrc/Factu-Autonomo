@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CLOUD_DEVICE_TOKEN_STORAGE_KEY } from "@/lib/cloud/device-token";
+import { cloudDeviceTokenStorageKey } from "@/lib/cloud/device-token";
+import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 import { pullCentralBusinessEventsFromBrowser } from "./events-client";
 
 const event = {
@@ -19,6 +20,7 @@ const event = {
 
 describe("central business events client", () => {
   afterEach(() => {
+    setActiveWorkspaceOwnerScope(null);
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -57,6 +59,8 @@ describe("central business events client", () => {
   });
 
   it("crea un token local de dispositivo antes de recibir eventos centrales", async () => {
+    const ownerScope = "owner-account-a";
+    setActiveWorkspaceOwnerScope(ownerScope);
     const storage = new Map<string, string>();
     const randomUUID = vi
       .fn()
@@ -89,6 +93,7 @@ describe("central business events client", () => {
       {
         fetchImpl,
         getAccessToken: async () => "access-token",
+        expectedOwnerScope: ownerScope,
       },
     );
 
@@ -98,7 +103,7 @@ describe("central business events client", () => {
     expect(headers.get("X-Factu-Device-Token")).toBe(
       "11111111-1111-4111-8111-111111111111.22222222-2222-4222-8222-222222222222",
     );
-    expect(storage.get(CLOUD_DEVICE_TOKEN_STORAGE_KEY)).toBe(
+    expect(storage.get(cloudDeviceTokenStorageKey(ownerScope))).toBe(
       headers.get("X-Factu-Device-Token"),
     );
   });

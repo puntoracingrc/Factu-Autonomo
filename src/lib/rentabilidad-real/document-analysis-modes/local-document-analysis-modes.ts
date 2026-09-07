@@ -6,9 +6,14 @@ import {
   RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODE_LABELS,
   RENTABILIDAD_REAL_DOCUMENT_ANALYSIS_MODES,
 } from "./types";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 const DOCUMENT_ANALYSIS_MODES_STORAGE_KEY =
   "fa_rentabilidad_real_document_analysis_modes_v1";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(DOCUMENT_ANALYSIS_MODES_STORAGE_KEY);
+}
 
 function storageAvailable(): boolean {
   return typeof localStorage !== "undefined";
@@ -47,7 +52,7 @@ export function getStoredDocumentAnalysisModes(): RentabilidadRealDocumentAnalys
   if (!storageAvailable()) return {};
 
   try {
-    const raw = localStorage.getItem(DOCUMENT_ANALYSIS_MODES_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return {};
     return normalizeModes(JSON.parse(raw));
   } catch {
@@ -61,7 +66,7 @@ export function setStoredDocumentAnalysisModes(
   const normalized = normalizeModes(modes);
   if (storageAvailable()) {
     localStorage.setItem(
-      DOCUMENT_ANALYSIS_MODES_STORAGE_KEY,
+      storageKey(),
       JSON.stringify(normalized),
     );
   }
@@ -97,7 +102,7 @@ export function removeDocumentAnalysisMode(
 
 export function clearDocumentAnalysisModesForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(DOCUMENT_ANALYSIS_MODES_STORAGE_KEY);
+  localStorage.removeItem(storageKey());
 }
 
 export function getDocumentAnalysisModeLabel(

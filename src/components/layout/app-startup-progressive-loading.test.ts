@@ -70,16 +70,14 @@ describe("app startup progressive loading", () => {
     expect(appShellSource).toContain('pathname === "/gastos"');
     expect(appShellSource).toContain('pathname === "/proveedores"');
     expect(appShellSource).toContain('pathname === "/productos"');
-    expect(appShellSource).toContain(
-      "const [initialDemoMode] = useState(() => isDemoWorkspaceMode())",
-    );
     expect(listCacheInitializer).toContain(
       ">(() => emptyListVisualCacheSnapshots())",
     );
     expect(listCacheInitializer).not.toContain("readListVisualCacheSnapshots");
     expect(appShellSource).toContain(
-      'authReady || demoMode || initialDemoMode ? (user?.id ?? "local") : null',
+      "const visualCacheScope = `${workspace.kind}:${workspace.ownerScope}`",
     );
+    expect(appShellSource).toContain("const workspace = useWorkspaceStorage()");
     expect(appShellSource).toContain("if (!visualCacheScope)");
     expect(appShellSource).toContain(
       "buildListVisualCacheSnapshot(cacheData, kind)",

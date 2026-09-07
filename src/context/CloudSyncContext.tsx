@@ -11,6 +11,8 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { useAppStore } from "@/context/AppStore";
+import { useCloudAuth } from "@/context/CloudAuthContext";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import {
   getAuthCallbackUrl,
@@ -29,7 +31,7 @@ import {
   retireCurrentCloudDevice,
 } from "@/lib/cloud/device-client";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
-import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
+import { isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   EMAIL_CONFIRMATION_REQUIRED_MESSAGE,
@@ -37,8 +39,8 @@ import {
 } from "@/lib/auth/email-confirmation";
 import { validateNewAccountPassword } from "@/lib/auth/password-policy";
 import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
-import { clearPersistedAppData, loadData } from "@/lib/storage";
-import { EMPTY_DATA, type AppData } from "@/lib/types";
+import { clearPersistedAppData } from "@/lib/storage";
+import type { AppData } from "@/lib/types";
 import { clearSecondaryDeviceData } from "@/lib/security/device-data-clear";
 import { readProtectedBackupFile } from "@/lib/security/protected-backup";
 import {
@@ -46,6 +48,7 @@ import {
   WELCOME_MAX_CLIENT_RETRIES,
   welcomeRetryDelayMs,
 } from "@/lib/email/welcome-client-retry";
+import { isActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 export type SyncStatus =
   "disabled" | "offline" | "idle" | "pending" | "syncing" | "synced" | "error";
@@ -100,11 +103,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     syncCentralInvoiceAuthorityEvents,
     syncFiscalNotificationsWorkspace,
   } = useAppStore();
+  const {
+    cloudEnabled,
+    authReady,
+    user,
+    email,
+    setEmail,
+    setAuthenticatedUser,
+    signOutAuthSession,
+  } = useCloudAuth();
+  const workspace = useWorkspaceStorage();
   const demoMode = useDemoWorkspaceMode();
-  const cloudEnabled = isCloudEnabled();
-  const [authReady, setAuthReady] = useState(!cloudEnabled);
-  const [user, setUser] = useState<User | null>(null);
-  const [email, setEmail] = useState("");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     cloudEnabled ? "idle" : "disabled",
   );
@@ -140,55 +149,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!cloudEnabled) {
-      setAuthReady(true);
-      return;
-    }
-    let unsubscribe: (() => void) | undefined;
-    let cancelled = false;
-
-    void getSupabaseClientAsync().then((supabase) => {
-      if (cancelled) return;
-      if (!supabase) {
-        setAuthReady(true);
-        return;
-      }
-      void supabase.auth
-        .getUser()
-        .then(({ data: authData }) => {
-          if (cancelled) return;
-          setUser(authData.user);
-          if (authData.user?.email) setEmail(authData.user.email);
-        })
-        .finally(() => {
-          if (!cancelled) setAuthReady(true);
-        });
-      const { data: listener } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          if (cancelled) return;
-          setAuthReady(true);
-          setUser(session?.user ?? null);
-          if (session?.user?.email) setEmail(session.user.email);
-        },
-      );
-      unsubscribe = () => listener.subscription.unsubscribe();
-    });
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-    };
-  }, [cloudEnabled]);
-
-  useEffect(() => {
     if (!user || !emailConfirmed || demoMode) {
       setCloudAccessAllowed(null);
       return;
     }
     let cancelled = false;
+    const ownerScope = user.id;
     void canUseCloudForUser(user.id)
       .then(async (cloudAccess) => {
-        if (cancelled) return;
+        if (cancelled || !isActiveWorkspaceOwnerScope(ownerScope)) return;
         setCloudAccessAllowed(cloudAccess.allowed);
         if (!cloudAccess.allowed) {
           setSyncStatus("idle");
@@ -200,8 +169,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
         const result = await registerCurrentCloudDevice({
           notifyReactivated: false,
+          expectedOwnerScope: ownerScope,
         });
-        if (cancelled || (!result.error && result.allowed !== false)) return;
+        if (
+          cancelled ||
+          !isActiveWorkspaceOwnerScope(ownerScope) ||
+          (!result.error && result.allowed !== false)
+        ) {
+          return;
+        }
         setSyncStatus("error");
         setSyncMessage(
           result.message ??
@@ -210,7 +186,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         );
       })
       .catch((error) => {
-        if (cancelled) return;
+        if (cancelled || !isActiveWorkspaceOwnerScope(ownerScope)) return;
         setCloudAccessAllowed(null);
         setSyncStatus("error");
         setSyncMessage(
@@ -227,16 +203,24 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!demoMode || !ready || !user) return;
     setDemoWorkspaceMode(false);
-    replaceData(loadData(), { fromRemote: true });
     setSyncMessage(
       "Demo cerrada al iniciar sesion. Ya estas en tu espacio real.",
     );
-  }, [demoMode, ready, replaceData, user]);
+  }, [demoMode, ready, user]);
 
   const syncNow = useCallback(
     async (freshLocalData?: AppData): Promise<boolean> => {
       void freshLocalData;
       if (demoMode || !user || !emailConfirmed) return false;
+      const ownerScope = user.id;
+      const ensureOwnerIsActive = () => {
+        if (!isActiveWorkspaceOwnerScope(ownerScope)) {
+          throw new Error(
+            "La cuenta cambió durante la sincronización. No se mezcló ningún dato.",
+          );
+        }
+      };
+      ensureOwnerIsActive();
       if (!navigator.onLine) {
         setSyncStatus("offline");
         setSyncMessage(
@@ -249,7 +233,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("syncing");
       setSyncMessage("Comprobando el servidor central...");
       try {
-        const cloudAccess = await canUseCloudForUser(user.id);
+        const cloudAccess = await canUseCloudForUser(ownerScope);
+        ensureOwnerIsActive();
         setCloudAccessAllowed(cloudAccess.allowed);
         if (!cloudAccess.allowed) {
           setSyncStatus("idle");
@@ -261,7 +246,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
         const device = await registerCurrentCloudDevice({
           notifyReactivated: false,
+          expectedOwnerScope: ownerScope,
         });
+        ensureOwnerIsActive();
         if (device.error || device.allowed === false) {
           throw new Error(
             device.message ??
@@ -271,9 +258,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
 
         for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
-          const business = await syncCentralBusinessEvents(user.id, {
+          const business = await syncCentralBusinessEvents(ownerScope, {
             limit: BUSINESS_EVENT_LIMIT,
           });
+          ensureOwnerIsActive();
           if (!business.ok) throw new Error(business.message);
           if (!business.hasMore) break;
           if (page === MAX_SYNC_PAGES - 1) {
@@ -288,6 +276,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             getCurrentData(),
             { limit: INVOICE_EVENT_LIMIT },
           );
+          ensureOwnerIsActive();
           if (invoices.status !== "applied") {
             throw new Error(
               "No se pudo confirmar la lectura de facturas centrales.",
@@ -307,7 +296,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        const fiscalWorkspace = await syncFiscalNotificationsWorkspace(user.id);
+        const fiscalWorkspace =
+          await syncFiscalNotificationsWorkspace(ownerScope);
+        ensureOwnerIsActive();
         if (!fiscalWorkspace.ok) {
           throw new Error(fiscalWorkspace.message);
         }
@@ -315,7 +306,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         await registerCurrentCloudDevice({
           markSynced: true,
           notifyReactivated: false,
+          expectedOwnerScope: ownerScope,
         });
+        ensureOwnerIsActive();
         setSyncStatus("synced");
         setSyncMessage("Servidor central comprobado.");
         return true;
@@ -390,7 +383,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) return { ok: false, error: error.message };
-      if (result.session?.user) setUser(result.session.user);
+      if (result.session?.user) setAuthenticatedUser(result.session.user);
       const needsEmailConfirmation = Boolean(result.user && !result.session);
       setSyncMessage(
         needsEmailConfirmation
@@ -403,7 +396,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         needsEmailConfirmation,
       };
     },
-    [email],
+    [email, setAuthenticatedUser],
   );
 
   const signIn = useCallback(
@@ -411,12 +404,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       const supabase = await getSupabaseClientAsync();
       if (!supabase) return "La nube no esta configurada en este servidor";
       if (!email.trim()) return "Introduce tu email";
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: result, error } = await supabase.auth.signInWithPassword({
         email,
         password,
         ...(captchaToken ? { options: { captchaToken } } : {}),
       });
       if (error) return error.message;
+      if (result.user) setAuthenticatedUser(result.user);
       const device = await recoverRevokedCloudDeviceAfterFreshSignIn();
       setSyncMessage(
         device.allowed === false || device.error
@@ -427,7 +421,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       );
       return null;
     },
-    [email],
+    [email, setAuthenticatedUser],
   );
 
   const requestPasswordReset = useCallback(
@@ -487,26 +481,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const finishSignedOutSession = useCallback(
     (message: string) => {
-      setUser(null);
+      setAuthenticatedUser(null);
       setSyncMessage(message);
       setSyncStatus(cloudEnabled ? "idle" : "disabled");
     },
-    [cloudEnabled],
+    [cloudEnabled, setAuthenticatedUser],
   );
 
   const signOut = useCallback(async () => {
-    const supabase = await getSupabaseClientAsync();
-    if (supabase) {
-      await releaseCurrentCloudDeviceSession();
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        setSyncStatus("error");
-        setSyncMessage(error.message);
-        return;
-      }
+    if (user && !isActiveWorkspaceOwnerScope(user.id)) return;
+    await releaseCurrentCloudDeviceSession(user?.id);
+    if (user && !isActiveWorkspaceOwnerScope(user.id)) return;
+    const error = await signOutAuthSession();
+    if (error) {
+      setSyncStatus("error");
+      setSyncMessage(error);
+      return;
     }
     finishSignedOutSession("Sesion cerrada");
-  }, [finishSignedOutSession]);
+  }, [finishSignedOutSession, signOutAuthSession, user]);
 
   const signOutAndClearDevice = useCallback(async (): Promise<
     string | null
@@ -514,27 +507,41 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     if (!user) return "No hay una sesion iniciada.";
     if (demoMode) return "Sal de la demo antes de borrar este dispositivo.";
     if (!emailConfirmed) return EMAIL_CONFIRMATION_REQUIRED_MESSAGE;
+    const ownerScope = user.id;
+    const ownerStillActive = () =>
+      isActiveWorkspaceOwnerScope(ownerScope);
+    if (!ownerStillActive()) {
+      return "La cuenta ha cambiado. No se borro ningun dato local.";
+    }
     const cloudAccess = await canUseCloudForUser(user.id);
+    if (!ownerStillActive()) {
+      return "La cuenta ha cambiado. No se borro ningun dato local.";
+    }
     if (cloudAccess.allowed && !(await syncNow())) {
       return "No se pudo confirmar el servidor central. No se borro ningun dato local.";
     }
+    if (!ownerStillActive()) {
+      return "La cuenta ha cambiado. No se borro ningun dato local.";
+    }
     if (cloudAccess.allowed) {
-      const retired = await retireCurrentCloudDevice();
+      const retired = await retireCurrentCloudDevice(ownerScope);
       if (retired.error) return retired.error;
     }
+    if (!ownerStillActive()) {
+      return "La cuenta ha cambiado. No se borro ningun dato local.";
+    }
     const expected = getCurrentData();
-    const supabase = await getSupabaseClientAsync();
-    if (!supabase) return "La nube no esta disponible en este momento.";
-    const { error } = await supabase.auth.signOut();
-    if (error) return error.message;
+    const signOutError = await signOutAuthSession();
+    if (signOutError) return signOutError;
     finishSignedOutSession("Sesion cerrada de forma segura");
-    const cleared = clearPersistedAppData(expected);
+    const cleared = clearPersistedAppData(expected, {
+      storageKey: workspace.storageKey,
+    });
     if (cleared.status !== "applied") {
       return "La sesion se cerro, pero el navegador no confirmo el borrado local.";
     }
     clearDriveAccessToken();
-    const secondary = clearSecondaryDeviceData(user.id);
-    replaceData({ ...EMPTY_DATA }, { fromRemote: true });
+    const secondary = clearSecondaryDeviceData(ownerScope);
     return secondary.ok
       ? null
       : "Los datos principales se borraron, pero quedaron ajustes locales por revisar.";
@@ -543,9 +550,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     emailConfirmed,
     finishSignedOutSession,
     getCurrentData,
-    replaceData,
     syncNow,
+    signOutAuthSession,
     user,
+    workspace.storageKey,
   ]);
 
   const importBackup = useCallback(
@@ -689,6 +697,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncMessage,
       syncNow,
       syncStatus,
+      setEmail,
       updatePassword,
       user,
     ],

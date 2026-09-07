@@ -31,6 +31,7 @@ import { ReferralRedeemOnLogin } from "@/components/referrals/ReferralRedeemOnLo
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { FactuOccasionalHost } from "@/components/factu/FactuOccasionalHost";
 import { FactuWidget } from "@/components/factu/FactuWidget";
 import { FactuHelpButton } from "@/components/manual/FactuHelpButton";
@@ -43,7 +44,6 @@ import {
   appStartPageHref,
   normalizeAppPreferences,
 } from "@/lib/app-preferences";
-import { isDemoWorkspaceMode } from "@/lib/demo-workspace";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   appNavItemsForEmail,
@@ -136,6 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data, ready, writeBlock } = useAppStore();
+  const workspace = useWorkspaceStorage();
   const { authReady, user } = useCloudSync();
   const { isPro, billingEnabled, plan } = useBilling();
   const demoMode = useDemoWorkspaceMode();
@@ -144,7 +145,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     useState<PendingAppNavigation | null>(null);
   const [dashboardVisualCache, setDashboardVisualCache] =
     useState<DashboardVisualCacheSnapshot | null>(null);
-  const [initialDemoMode] = useState(() => isDemoWorkspaceMode());
   const [listVisualCache, setListVisualCache] = useState<
     Record<ListVisualCacheKind, ListVisualCacheSnapshot | null>
   >(() => emptyListVisualCacheSnapshots());
@@ -168,8 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !demoMode && !factuDismissed && shouldShowFactuWidget(pathname);
   const showFactu = baseShowFactu && !writeBlock;
   const workspaceLoading = !ready || !authReady;
-  const visualCacheScope =
-    authReady || demoMode || initialDemoMode ? (user?.id ?? "local") : null;
+  const visualCacheScope = `${workspace.kind}:${workspace.ownerScope}`;
   const accountLabel = workspaceLoading
     ? "Comprobando sesión"
     : data.profile.name.trim() || user?.email || "Cuenta";
@@ -246,8 +245,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setDashboardVisualCache(readDashboardVisualCache());
-  }, []);
+    setDashboardVisualCache(
+      readDashboardVisualCache(undefined, undefined, workspace.ownerScope),
+    );
+  }, [workspace.ownerScope]);
 
   useEffect(() => {
     if (!visualCacheScope) {

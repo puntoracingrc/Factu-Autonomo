@@ -1212,12 +1212,15 @@ export async function syncCentralBusinessEventsIntoAppData(
         input.ownerScope,
         dependencies.storage,
       );
-      const pulled = await (
-        dependencies.pull ?? pullCentralBusinessEventsFromBrowser
-      )({
+      const pullInput = {
         afterSequence: state.lastAppliedEventSequence,
         limit,
-      });
+      };
+      const pulled = dependencies.pull
+        ? await dependencies.pull(pullInput)
+        : await pullCentralBusinessEventsFromBrowser(pullInput, {
+            expectedOwnerScope: input.ownerScope,
+          });
       if (!pulled.ok) {
         return failed(
           pulled.code,
@@ -1387,7 +1390,12 @@ export async function adoptCentralBusinessEventsFromServerIntoAppData(
 
       const verifyContentHash =
         dependencies.verifyContentHash ?? verifyCentralBusinessEventContentHash;
-      const pull = dependencies.pull ?? pullCentralBusinessEventsFromBrowser;
+      const pull = dependencies.pull
+        ? dependencies.pull
+        : (pullInput: { afterSequence: number; limit: number }) =>
+            pullCentralBusinessEventsFromBrowser(pullInput, {
+              expectedOwnerScope: input.ownerScope,
+            });
       let expected = dependencies.getCurrentData();
       let workingData = clearCentralBusinessLocalProjection(expected);
       let pulledCount = 0;

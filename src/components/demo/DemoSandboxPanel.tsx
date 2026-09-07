@@ -24,7 +24,6 @@ import {
   setDemoWorkspaceMode,
 } from "@/lib/demo-workspace";
 import { documentDetailPath } from "@/lib/document-links";
-import { loadData } from "@/lib/storage";
 
 const demoTourSteps = [
   {
@@ -126,7 +125,6 @@ export function DemoSandboxPanel() {
 
   function createRealAccount() {
     setDemoWorkspaceMode(false);
-    replaceData(loadData(), { fromRemote: true });
     router.push("/cuenta?modo=crear#inicio-sesion");
   }
 

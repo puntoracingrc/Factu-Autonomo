@@ -3,6 +3,7 @@ import {
   formatFiscalCalendarEventDate,
 } from "./dates";
 import type { FiscalCalendarEvent } from "./types";
+import { workspaceScopedBrowserStorageKey } from "../workspace-owner-runtime";
 
 export const FISCAL_CALENDAR_REMINDER_STORAGE_KEY =
   "factu:fiscal-calendar:reminder-draft:v1" as const;
@@ -15,6 +16,12 @@ const MAX_SERIALIZED_BYTES = 2_048;
 const MAX_TEXT_CODE_POINTS = 600;
 const MAX_TITLE_CODE_POINTS = 360;
 const EXACT_KEYS = ["createdAt", "origin", "schemaVersion", "text"] as const;
+
+function reminderDraftStorageKey(): string {
+  return workspaceScopedBrowserStorageKey(
+    FISCAL_CALENDAR_REMINDER_STORAGE_KEY,
+  );
+}
 
 export interface FiscalCalendarReminderDraftV1 {
   schemaVersion: 1;
@@ -168,7 +175,7 @@ export function storeFiscalCalendarReminderDraft(
     return { ok: false, reason: "INVALID_DRAFT" };
   }
   try {
-    storage.setItem(FISCAL_CALENDAR_REMINDER_STORAGE_KEY, serialized);
+    storage.setItem(reminderDraftStorageKey(), serialized);
     return { ok: true };
   } catch {
     return { ok: false, reason: "STORAGE_UNAVAILABLE" };
@@ -181,9 +188,10 @@ export function consumeFiscalCalendarReminderDraft(
 ): ConsumeFiscalCalendarReminderDraftResult {
   let raw: string | null;
   try {
-    raw = storage.getItem(FISCAL_CALENDAR_REMINDER_STORAGE_KEY);
+    const storageKey = reminderDraftStorageKey();
+    raw = storage.getItem(storageKey);
     if (raw !== null) {
-      storage.removeItem(FISCAL_CALENDAR_REMINDER_STORAGE_KEY);
+      storage.removeItem(storageKey);
     }
   } catch {
     return { ok: false, reason: "STORAGE_UNAVAILABLE" };

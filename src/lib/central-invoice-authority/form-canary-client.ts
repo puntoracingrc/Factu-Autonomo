@@ -4,9 +4,16 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { DocumentKind } from "@/lib/types";
+import {
+  isActiveWorkspaceOwnerScope,
+  workspaceScopedBrowserStorageKey,
+} from "@/lib/workspace-owner-runtime";
 
 import {
   fetchCentralInvoiceAuthorityStatusFromBrowser,
@@ -24,6 +31,13 @@ export const CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY =
   "factu:central-invoice-authority:form-last-known-guard:v1";
 export const CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS_PUBLIC_FLAG =
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS";
+
+function lastKnownFormGuardStorageKey(ownerScope: string | null): string {
+  return workspaceScopedBrowserStorageKey(
+    CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY,
+    ownerScope,
+  );
+}
 
 const UUID_V4_LIKE_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -93,6 +107,7 @@ export interface CentralInvoiceAuthorityFormIssueDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
+  expectedOwnerScope?: string | null;
 }
 
 export type CentralInvoiceAuthorityFormIssuePolicyReason =
@@ -267,10 +282,11 @@ function getBrowserStorage(): Pick<Storage, "getItem" | "setItem"> | undefined {
 
 function readLastKnownCentralAuthorityFormGuard(
   storage: Pick<Storage, "getItem" | "setItem"> | undefined,
+  ownerScope: string | null,
 ): CentralInvoiceAuthorityFormLastKnownGuard | null {
   if (!storage) return null;
   try {
-    const raw = storage.getItem(CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY);
+    const raw = storage.getItem(lastKnownFormGuardStorageKey(ownerScope));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<CentralInvoiceAuthorityFormLastKnownGuard>;
     if (
@@ -296,6 +312,7 @@ function rememberCentralAuthorityFormGuard(
   storage: Pick<Storage, "getItem" | "setItem"> | undefined,
   reason: CentralInvoiceAuthorityFormLastKnownGuardReason,
   now: () => Date,
+  ownerScope: string | null,
 ): void {
   if (!storage) return;
   try {
@@ -305,7 +322,7 @@ function rememberCentralAuthorityFormGuard(
       reason,
     };
     storage.setItem(
-      CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD_KEY,
+      lastKnownFormGuardStorageKey(ownerScope),
       JSON.stringify(payload),
     );
   } catch {
@@ -316,10 +333,16 @@ function rememberCentralAuthorityFormGuard(
 export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
   dependencies: CentralInvoiceAuthorityFormIssuePolicyDependencies = {},
 ): Promise<CentralInvoiceAuthorityFormIssuePolicyDecision> {
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
   const env = dependencies.env;
   const storage = dependencies.storage ?? getBrowserStorage();
   const now = dependencies.now ?? (() => new Date());
-  const lastKnownGuard = readLastKnownCentralAuthorityFormGuard(storage);
+  const lastKnownGuard = readLastKnownCentralAuthorityFormGuard(
+    storage,
+    ownerScope,
+  );
   const publicCanaryEnabled =
     isCentralInvoiceAuthorityFormCanaryEnabledForUser({
       env,
@@ -331,7 +354,17 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
     isCentralInvoiceAuthorityFormRequiredEnabled(env);
 
   if (publicRequiredEnabled) {
-    rememberCentralAuthorityFormGuard(storage, "public_form_required", now);
+    if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) {
+      return localPolicy("status_unavailable", {
+        statusError: workspaceAccountChangedStatusError(),
+      });
+    }
+    rememberCentralAuthorityFormGuard(
+      storage,
+      "public_form_required",
+      now,
+      ownerScope,
+    );
     return enabledPolicy("public_form_required");
   }
 
@@ -339,25 +372,46 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
     fetchImpl: dependencies.fetchImpl,
     getAccessToken: dependencies.getAccessToken,
     getDeviceToken: dependencies.getDeviceToken,
+    expectedOwnerScope: dependencies.expectedOwnerScope,
   });
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) {
+    return localPolicy("status_unavailable", {
+      statusError: workspaceAccountChangedStatusError(),
+    });
+  }
   if (!status.ok) {
     if (lastKnownGuard) return enabledPolicy("last_known_central_authority");
     return localPolicy("status_unavailable", { statusError: status });
   }
   if (lastKnownGuard) return enabledPolicy("last_known_central_authority", status);
   if (status.activation.requestedMode === "required") {
-    rememberCentralAuthorityFormGuard(storage, "server_required", now);
+    rememberCentralAuthorityFormGuard(
+      storage,
+      "server_required",
+      now,
+      ownerScope,
+    );
     return enabledPolicy("server_required", status);
   }
   if (publicCanaryEnabled) {
     if (status.summary.fiscalWritesPossible) {
-      rememberCentralAuthorityFormGuard(storage, "server_fiscal_writes_possible", now);
+      rememberCentralAuthorityFormGuard(
+        storage,
+        "server_fiscal_writes_possible",
+        now,
+        ownerScope,
+      );
       return enabledPolicy("public_form_canary", status);
     }
     return localPolicy("public_canary_not_ready", { status });
   }
   if (status.summary.fiscalWritesPossible) {
-    rememberCentralAuthorityFormGuard(storage, "server_fiscal_writes_possible", now);
+    rememberCentralAuthorityFormGuard(
+      storage,
+      "server_fiscal_writes_possible",
+      now,
+      ownerScope,
+    );
     return enabledPolicy("server_fiscal_writes_possible", status);
   }
   if (
@@ -369,15 +423,16 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
   return localPolicy("central_not_requested", { status });
 }
 
-async function defaultAccessToken(): Promise<string | null> {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
-}
-
-function defaultDeviceToken(): string | null {
-  return getLocalCloudDeviceToken();
+function workspaceAccountChangedStatusError(): Extract<
+  CentralInvoiceAuthorityStatusResult,
+  { ok: false }
+> {
+  return {
+    ok: false,
+    status: 409,
+    code: "WORKSPACE_ACCOUNT_CHANGED",
+    message: "La cuenta cambió durante la comprobación central.",
+  };
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -449,8 +504,22 @@ export async function issueCentralInvoiceAuthorityFromBrowser(
   input: CentralInvoiceAuthorityFormIssueRequest,
   dependencies: CentralInvoiceAuthorityFormIssueDependencies = {},
 ): Promise<CentralInvoiceAuthorityFormIssueResult> {
-  const getAccessToken = dependencies.getAccessToken ?? defaultAccessToken;
-  const getDeviceToken = dependencies.getDeviceToken ?? defaultDeviceToken;
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
+  if (dependencies.expectedOwnerScope?.trim() && !ownerScope) {
+    return errorResult(
+      401,
+      "CENTRAL_AUTHORITY_SESSION_REQUIRED",
+      "La cuenta cambió antes de emitir. No se ha enviado la factura.",
+    );
+  }
+  const getAccessToken =
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope));
+  const getDeviceToken =
+    dependencies.getDeviceToken ??
+    (() => (ownerScope ? getLocalCloudDeviceToken(ownerScope) : null));
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const accessToken = await getAccessToken();
   const deviceToken = getDeviceToken();
@@ -467,7 +536,15 @@ export async function issueCentralInvoiceAuthorityFromBrowser(
     fetchImpl,
     getAccessToken: async () => accessToken,
     getDeviceToken: () => deviceToken,
+    expectedOwnerScope: ownerScope,
   });
+  if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) {
+    return errorResult(
+      409,
+      "WORKSPACE_ACCOUNT_CHANGED",
+      "La cuenta cambió durante la comprobación. No se ha enviado la factura.",
+    );
+  }
   if (!status.ok) {
     return errorResult(status.status, status.code, status.message);
   }

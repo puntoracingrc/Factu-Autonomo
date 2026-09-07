@@ -61,6 +61,7 @@ export function CentralInvoiceAuthorityAccountReconciliationCard() {
       const result = await runCentralInvoiceAuthorityClientOperation(() =>
         reconcileCentralInvoiceAuthorityAccountSeriesFromBrowser(
           inventory.summaries,
+          { expectedOwnerScope: user?.id },
         ),
       );
       setNotice(describeCentralInvoiceAuthorityAccountReconciliation(result));

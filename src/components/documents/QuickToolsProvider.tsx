@@ -15,6 +15,8 @@ import {
   QUICK_POST_IT_SESSION_KEY,
   type QuickPostItSession,
 } from "./quick-post-it-session";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 interface QuickToolsContextValue {
   calculatorOpen: boolean;
@@ -33,6 +35,11 @@ const EMPTY_POST_IT_SESSION: QuickPostItSession = {
 type QuickToolId = "calculator" | "post-it";
 
 export function QuickToolsProvider({ children }: { children: ReactNode }) {
+  const workspace = useWorkspaceStorage();
+  const postItStorageKey = workspaceScopedBrowserStorageKey(
+    QUICK_POST_IT_SESSION_KEY,
+    workspace.ownerScope,
+  );
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<QuickToolId | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -43,32 +50,32 @@ export function QuickToolsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const restored = parseQuickPostItSession(
-        window.sessionStorage.getItem(QUICK_POST_IT_SESSION_KEY),
+        window.sessionStorage.getItem(postItStorageKey),
       );
       if (restored) setPostItSession(restored);
     } catch {
       // The note still works in memory when browser session storage is unavailable.
     }
     setHydrated(true);
-  }, []);
+  }, [postItStorageKey]);
 
   useEffect(() => {
     if (!hydrated) return;
 
     try {
       if (!postItSession.open) {
-        window.sessionStorage.removeItem(QUICK_POST_IT_SESSION_KEY);
+        window.sessionStorage.removeItem(postItStorageKey);
         return;
       }
 
       window.sessionStorage.setItem(
-        QUICK_POST_IT_SESSION_KEY,
+        postItStorageKey,
         JSON.stringify(postItSession),
       );
     } catch {
       // Keep the in-memory note usable even if persistence is blocked.
     }
-  }, [hydrated, postItSession]);
+  }, [hydrated, postItSession, postItStorageKey]);
 
   const value = useMemo<QuickToolsContextValue>(
     () => ({

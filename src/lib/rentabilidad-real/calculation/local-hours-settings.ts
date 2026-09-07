@@ -4,9 +4,14 @@ import type {
   RentabilidadRealHoursSourceType,
   RentabilidadRealManualDirectCost,
 } from "./types";
+import { workspaceScopedBrowserStorageKey } from "@/lib/workspace-owner-runtime";
 
 const HOURS_SETTINGS_STORAGE_KEY =
   "fa_rentabilidad_real_hours_calculation_settings";
+
+function storageKey(): string {
+  return workspaceScopedBrowserStorageKey(HOURS_SETTINGS_STORAGE_KEY);
+}
 const DEFAULT_MANUAL_PROJECT_ID = "hours_manual_project";
 
 export interface RentabilidadRealHoursCalculationSettings {
@@ -150,7 +155,7 @@ export function getStoredRentabilidadRealHoursSettings(): RentabilidadRealHoursC
   if (!storageAvailable()) return DEFAULT_RENTABILIDAD_REAL_HOURS_SETTINGS;
 
   try {
-    const raw = localStorage.getItem(HOURS_SETTINGS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return DEFAULT_RENTABILIDAD_REAL_HOURS_SETTINGS;
     return normalizeSettings(
       JSON.parse(raw) as Partial<RentabilidadRealHoursCalculationSettings>,
@@ -167,12 +172,12 @@ export function setStoredRentabilidadRealHoursSettings(
   if (storageAvailable()) {
     const serialized = JSON.stringify(normalized);
     // Local-first calculation inputs are business preferences, not credentials.
-    localStorage.setItem(HOURS_SETTINGS_STORAGE_KEY, serialized);
+    localStorage.setItem(storageKey(), serialized);
   }
   return normalized;
 }
 
 export function clearRentabilidadRealHoursSettingsForTests(): void {
   if (!storageAvailable()) return;
-  localStorage.removeItem(HOURS_SETTINGS_STORAGE_KEY);
+  localStorage.removeItem(storageKey());
 }

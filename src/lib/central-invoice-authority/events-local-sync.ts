@@ -25,6 +25,7 @@ export type CentralInvoiceAuthorityEventsLocalSyncPuller = (
 export interface CentralInvoiceAuthorityEventsLocalSyncInput {
   documents: Document[];
   profile: BusinessProfile;
+  expectedOwnerScope?: string | null;
   cursor?: CentralInvoiceAuthorityEventsCursor | null;
   limit?: number | null;
   receivedAt?: string;
@@ -88,9 +89,11 @@ export async function syncCentralInvoiceAuthorityPulledEventsIntoDocuments(
   input: CentralInvoiceAuthorityEventsLocalSyncInput,
   dependencies: CentralInvoiceAuthorityEventsLocalSyncDependencies = {},
 ): Promise<CentralInvoiceAuthorityEventsLocalSyncResult> {
-  const pullEvents =
-    dependencies.pullEvents ?? pullCentralInvoiceAuthorityEventsFromBrowser;
-  const pulled = await pullEvents(pullInput(input));
+  const pulled = dependencies.pullEvents
+    ? await dependencies.pullEvents(pullInput(input))
+    : await pullCentralInvoiceAuthorityEventsFromBrowser(pullInput(input), {
+        expectedOwnerScope: input.expectedOwnerScope,
+      });
   const currentCursor = previousCursor(input.cursor);
 
   if (!pulled.ok) {

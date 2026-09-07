@@ -1,4 +1,5 @@
 import type { UserReminder, UserReminderOrigin, UserReminderTarget } from "./types";
+import { workspaceScopedBrowserStorageKey } from "./workspace-owner-runtime";
 
 export const OFFICE_REMINDER_TEMPLATES = [
   {
@@ -28,6 +29,10 @@ export const OFFICE_REMINDER_TEMPLATES = [
 ] as const;
 
 const LAST_SEEN_KEY = "factu-reminders-last-seen";
+
+function lastSeenStorageKey(): string {
+  return workspaceScopedBrowserStorageKey(LAST_SEEN_KEY);
+}
 
 export function reminderTargetLabel(target: UserReminderTarget): string {
   return target === "office" ? "Para oficina" : "Personal";
@@ -69,12 +74,12 @@ export function normalizeUserReminder(
 
 export function readRemindersLastSeenAt(): string {
   if (typeof localStorage === "undefined") return "1970-01-01T00:00:00.000Z";
-  return localStorage.getItem(LAST_SEEN_KEY) ?? "1970-01-01T00:00:00.000Z";
+  return localStorage.getItem(lastSeenStorageKey()) ?? "1970-01-01T00:00:00.000Z";
 }
 
 export function markRemindersSeen(reference = new Date().toISOString()): void {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(LAST_SEEN_KEY, reference);
+  localStorage.setItem(lastSeenStorageKey(), reference);
 }
 
 export function countUnseenOfficeReminders(

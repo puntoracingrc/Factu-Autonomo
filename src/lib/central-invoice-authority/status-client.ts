@@ -4,7 +4,10 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import {
+  captureActiveWorkspaceOwnerScope,
+  getActiveWorkspaceAccessToken,
+} from "@/lib/cloud/active-workspace-session";
 
 export const CENTRAL_INVOICE_AUTHORITY_STATUS_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_STATUS_CLIENT_V1";
@@ -77,6 +80,7 @@ export interface CentralInvoiceAuthorityStatusClientDependencies {
   fetchImpl?: typeof fetch;
   getAccessToken?: () => Promise<string | null>;
   getDeviceToken?: () => string | null;
+  expectedOwnerScope?: string | null;
 }
 
 const MODES: readonly CentralInvoiceAuthorityStatusMode[] = [
@@ -94,17 +98,6 @@ const CHECK_STATUSES: readonly CentralInvoiceAuthorityStatusCheckStatus[] = [
   "ready",
   "blocked",
 ];
-
-async function defaultAccessToken(): Promise<string | null> {
-  const supabase = await getSupabaseClientAsync();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
-}
-
-function defaultDeviceToken(): string | null {
-  return getLocalCloudDeviceToken();
-}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -254,8 +247,15 @@ function parseStatusPayload(
 export async function fetchCentralInvoiceAuthorityStatusFromBrowser(
   dependencies: CentralInvoiceAuthorityStatusClientDependencies = {},
 ): Promise<CentralInvoiceAuthorityStatusResult> {
-  const getAccessToken = dependencies.getAccessToken ?? defaultAccessToken;
-  const getDeviceToken = dependencies.getDeviceToken ?? defaultDeviceToken;
+  const ownerScope = captureActiveWorkspaceOwnerScope(
+    dependencies.expectedOwnerScope,
+  );
+  const getAccessToken =
+    dependencies.getAccessToken ??
+    (() => getActiveWorkspaceAccessToken(ownerScope));
+  const getDeviceToken =
+    dependencies.getDeviceToken ??
+    (() => (ownerScope ? getLocalCloudDeviceToken(ownerScope) : null));
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const accessToken = await getAccessToken();
   const deviceToken = getDeviceToken();
