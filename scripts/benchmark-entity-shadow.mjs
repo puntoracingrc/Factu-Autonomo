@@ -4,6 +4,10 @@ import { chromium } from "playwright";
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3110";
 const EXPECT_ENTITY_SHADOW_DISABLED =
   process.env.EXPECT_ENTITY_SHADOW_DISABLED === "true";
+const EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED =
+  process.env.EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED === "true";
+const VERCEL_TRUSTED_OIDC_TOKEN =
+  process.env.VERCEL_TRUSTED_OIDC_TOKEN?.trim() || null;
 const CHROME_EXECUTABLE_PATH =
   process.env.CHROME_EXECUTABLE_PATH ??
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
@@ -196,6 +200,45 @@ async function readShadowSummary(page, storageKey = WORKSPACE_STORAGE_KEY) {
       };
     });
   }, storageKey);
+}
+
+async function waitForNormalizedCache(page, storageKey, timeoutMs = 15_000) {
+  const startedAt = performance.now();
+  while (performance.now() - startedAt < timeoutMs) {
+    const cacheCreated = await page.evaluate(async (workspaceStorageKey) => {
+      const databases = await indexedDB.databases();
+      const databaseInfo = databases.find(
+        (entry) => entry.name === "factura-autonomo-normalized-cache",
+      );
+      if (!databaseInfo) return false;
+
+      return new Promise((resolve) => {
+        const request = indexedDB.open(
+          "factura-autonomo-normalized-cache",
+          databaseInfo.version,
+        );
+        request.onerror = () => resolve(false);
+        request.onsuccess = () => {
+          const database = request.result;
+          const transaction = database.transaction("snapshots", "readonly");
+          const recordRequest = transaction
+            .objectStore("snapshots")
+            .get(`3:${workspaceStorageKey}`);
+          transaction.oncomplete = () => {
+            database.close();
+            resolve(recordRequest.result?.storageKey === workspaceStorageKey);
+          };
+          transaction.onerror = () => {
+            database.close();
+            resolve(false);
+          };
+        };
+      });
+    }, storageKey);
+    if (cacheCreated) return Math.round(performance.now() - startedAt);
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`normalized_cache_timeout:${storageKey}`);
 }
 
 async function waitForShadow(
@@ -398,7 +441,13 @@ async function main() {
     executablePath: CHROME_EXECUTABLE_PATH,
     headless: true,
   });
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    extraHTTPHeaders: VERCEL_TRUSTED_OIDC_TOKEN
+      ? {
+          "x-vercel-trusted-oidc-idp-token": VERCEL_TRUSTED_OIDC_TOKEN,
+        }
+      : undefined,
+  });
   const page = await context.newPage();
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -422,7 +471,7 @@ async function main() {
     const routes = {};
     routes.customersColdMs = await routeTiming(page, "/clientes", "Clientes");
     if (EXPECT_ENTITY_SHADOW_DISABLED) {
-      await page.waitForTimeout(4_000);
+      await waitForNormalizedCache(page, WORKSPACE_STORAGE_KEY);
       const databaseNames = await page.evaluate(async () =>
         (await indexedDB.databases()).map((database) => database.name),
       );
@@ -526,10 +575,13 @@ async function main() {
     );
     await page.goto(`${BASE_URL}/clientes`, { waitUntil: "domcontentloaded" });
     await page.getByText("Cuenta B Cliente 0", { exact: true }).waitFor();
-    const secondShadow = await waitForShadow(page, {
-      entityCount: 7,
-      storageKey: SECOND_WORKSPACE_STORAGE_KEY,
-    });
+    await waitForNormalizedCache(page, SECOND_WORKSPACE_STORAGE_KEY);
+    const secondShadow = EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED
+      ? await readShadowSummary(page, SECOND_WORKSPACE_STORAGE_KEY)
+      : await waitForShadow(page, {
+          entityCount: 7,
+          storageKey: SECOND_WORKSPACE_STORAGE_KEY,
+        });
     const firstShadowWhileSecondIsActive = await readShadowSummary(
       page,
       WORKSPACE_STORAGE_KEY,
@@ -548,6 +600,21 @@ async function main() {
       (storageKey) => localStorage.getItem(storageKey)?.length ?? 0,
       WORKSPACE_STORAGE_KEY,
     );
+    const accountSwitchIsolated =
+      (EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED
+        ? !secondShadow?.manifest && secondShadow?.entityCount === 0
+        : secondShadow?.entityCount === 7) &&
+      firstShadowWhileSecondIsActive.entityCount === 10_001 &&
+      firstShadowAfterReturn.entityCount === 10_001;
+    if (!accountSwitchIsolated) {
+      throw new Error(
+        `entity_shadow_account_isolation_failed:${JSON.stringify({
+          firstShadowWhileSecondIsActive,
+          firstShadowAfterReturn,
+          secondShadow,
+        })}`,
+      );
+    }
 
     process.stdout.write(
       `${JSON.stringify(
@@ -578,13 +645,11 @@ async function main() {
               upserted: repairedShadow.manifest.lastMutation.upserted,
             },
             accountSwitch: {
-              isolated:
-                secondShadow.entityCount === 7 &&
-                firstShadowWhileSecondIsActive.entityCount === 10_001 &&
-                firstShadowAfterReturn.entityCount === 10_001,
+              isolated: accountSwitchIsolated,
               firstWorkspaceEntities:
                 firstShadowAfterReturn.entityCount,
-              secondWorkspaceEntities: secondShadow.entityCount,
+              secondWorkspaceEntities: secondShadow?.entityCount ?? 0,
+              secondWorkspaceShadowCreated: Boolean(secondShadow?.manifest),
             },
           },
           pageErrors,

@@ -181,15 +181,16 @@ describe("persisted app entity shadow", () => {
     });
   });
 
-  it("permanece apagada salvo activacion explicita del entorno", () => {
+  it("pasa por la compuerta por cuenta antes de escribir", () => {
     const workerSource = readFileSync(
       new URL("../workers/persisted-app-data-cache.worker.ts", import.meta.url),
       "utf8",
     );
 
-    expect(workerSource).toContain("NEXT_PUBLIC_ENTITY_SHADOW_ENABLED");
-    expect(workerSource).toContain('=== "true"');
-    expect(workerSource.indexOf("ENTITY_SHADOW_ENABLED")).toBeLessThan(
+    expect(workerSource).toContain(
+      "evaluatePersistedAppEntityShadowCanary",
+    );
+    expect(workerSource.indexOf("entityShadowCanary.enabled")).toBeLessThan(
       workerSource.indexOf("writePersistedAppEntityShadow("),
     );
   });
