@@ -78,6 +78,7 @@ import {
   deletePersistedAppDataCache,
   readPersistedAppDataCache,
 } from "./persisted-app-data-cache";
+import { deletePersistedAppEntityShadow } from "./persisted-app-entity-shadow";
 
 type NormalizedCentralInvoiceAuthorityEventsSyncState = NonNullable<
   AppData["centralInvoiceAuthorityEventsSync"]
@@ -2172,6 +2173,7 @@ export function clearPersistedAppData(
     }
     persistedSnapshotCache = null;
     void deletePersistedAppDataCache(storageKey);
+    void deletePersistedAppEntityShadow(storageKey);
     return { status: "applied" };
   } catch {
     return { status: "indeterminate", reason: "storage_state_unknown" };
