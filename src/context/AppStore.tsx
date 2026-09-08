@@ -37,6 +37,10 @@ import type { CentralBusinessEntityType } from "@/lib/central-business-authority
 import type { CentralBusinessNumberedDocumentCreateBrowserResult } from "@/lib/central-business-authority/numbered-document-client";
 import type { CentralAdoptionLegacyQueueRetirementValue } from "@/lib/central-business-authority/legacy-queue-retirement";
 import {
+  mergeHistoricalWorkspaceArchive,
+  type HistoricalWorkspaceArchiveMergeSummary,
+} from "@/lib/workspace-history/archive";
+import {
   applyRecurringExpenseChangeToData,
   deleteExpenseFromData,
   deleteRecurringExpenseFromData,
@@ -549,6 +553,10 @@ interface AppStoreValue {
     expected: AppData,
     transition: AppDataTransition<T>,
   ) => AppDataDurabilityResult<T>;
+  mergeHistoricalWorkspaceArchiveDurably: (
+    expected: AppData,
+    archive: Parameters<typeof mergeHistoricalWorkspaceArchive>[1],
+  ) => AppDataDurabilityResult<HistoricalWorkspaceArchiveMergeSummary>;
   updateProfile: (profile: BusinessProfile) => void;
   updateProfileDurably: (
     profile: BusinessProfile,
@@ -1157,6 +1165,19 @@ export function AppStoreProvider({
       transition: AppDataTransition<T>,
     ): AppDataDurabilityResult<T> =>
       commitDurableAppData(expected, () => transition),
+    [commitDurableAppData],
+  );
+
+  const mergeHistoricalWorkspaceArchiveDurably = useCallback(
+    (
+      expected: AppData,
+      archive: Parameters<typeof mergeHistoricalWorkspaceArchive>[1],
+    ): AppDataDurabilityResult<HistoricalWorkspaceArchiveMergeSummary> =>
+      commitDurableAppData(
+        expected,
+        (previous) => mergeHistoricalWorkspaceArchive(previous, archive),
+        { trackLegacyChanges: false },
+      ),
     [commitDurableAppData],
   );
 
@@ -4139,6 +4160,7 @@ export function AppStoreProvider({
       retireLegacyPendingChangesAfterCentralAdoption,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
+      mergeHistoricalWorkspaceArchiveDurably,
       updateProfile,
       updateProfileDurably,
       addCentralBusinessNumberedDocumentDurably,
@@ -4235,6 +4257,7 @@ export function AppStoreProvider({
       retireLegacyPendingChangesAfterCentralAdoption,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
+      mergeHistoricalWorkspaceArchiveDurably,
       updateProfile,
       updateProfileDurably,
       addCentralBusinessNumberedDocumentDurably,

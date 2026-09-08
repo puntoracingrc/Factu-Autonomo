@@ -115,6 +115,7 @@ const expectedMethods: Record<string, string[]> = {
   "verifactu/register/route.ts": ["POST"],
   "verifactu/status/route.ts": ["GET"],
   "webhooks/stripe/route.ts": ["POST"],
+  "workspace-history/archive/route.ts": ["GET", "OPTIONS", "POST"],
 };
 
 const adminRoutes = [
@@ -200,6 +201,7 @@ const bearerRoutes = [
   "security/data-access-event/route.ts",
   "support/recovery-tools/route.ts",
   "verifactu/register/route.ts",
+  "workspace-history/archive/route.ts",
 ] as const;
 
 const publicConstrainedRoutes = [
@@ -283,6 +285,7 @@ const boundedBodyRoutes = [
   "security/data-access-event/route.ts",
   "verifactu/register/route.ts",
   "webhooks/stripe/route.ts",
+  "workspace-history/archive/route.ts",
 ] as const;
 
 function routeFiles(directory: string): string[] {

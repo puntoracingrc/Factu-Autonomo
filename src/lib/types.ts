@@ -1407,6 +1407,14 @@ export interface AppMeta {
   pendingChanges?: SyncChange[];
 }
 
+export interface HistoricalWorkspaceArchiveReceiptV1 {
+  schema: "CENTRAL_WORKSPACE_HISTORICAL_ARCHIVE_RECEIPT_V1";
+  archiveId: string;
+  manifestHash: string;
+  documentCount: number;
+  appliedAt: string;
+}
+
 export interface WorkspaceIntegrityQuarantineEntry {
   collection: string;
   index?: number;
@@ -1442,6 +1450,8 @@ export interface AppData {
   snapshotIntegrityVersion?: 1;
   /** Cursor y último resultado del pull de eventos de la autoridad central. */
   centralInvoiceAuthorityEventsSync?: CentralInvoiceAuthorityEventsSyncStateV1;
+  /** Archivo inmutable de facturas anteriores a la autoridad central aplicado localmente. */
+  historicalWorkspaceArchiveReceipt?: HistoricalWorkspaceArchiveReceiptV1;
   /** Datos persistidos no interpretables, conservados para recuperación manual. */
   workspaceIntegrityQuarantine?: WorkspaceIntegrityQuarantineEntry[];
   meta?: AppMeta;

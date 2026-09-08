@@ -29,6 +29,7 @@ import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PromoCodeRedeemer } from "@/components/promotions/PromoCodeRedeemer";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { DeviceStorageCard } from "@/components/settings/DeviceStorageCard";
+import { HistoricalInvoiceArchiveCard } from "@/components/settings/HistoricalInvoiceArchiveCard";
 import { SupportRecoveryToolsSection } from "@/components/settings/SupportRecoveryToolsSection";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -201,6 +202,7 @@ export default function CuentaPage() {
         Icon={HardDrive}
       >
         <GoogleDriveBackupCard />
+        <HistoricalInvoiceArchiveCard />
         <DeviceStorageCard />
 
         <div id="datos-privacidad" className="scroll-mt-24">

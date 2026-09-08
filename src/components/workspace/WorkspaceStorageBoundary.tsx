@@ -223,6 +223,15 @@ export function WorkspaceStorageBoundary({
   function startFromServer() {
     if (!review) return;
     if (
+      review.summary &&
+      review.summary.documents > 0 &&
+      !window.confirm(
+        `Esta opción apartará la copia local de ${review.summary.businessName} con ${review.summary.documents} documentos y reconstruirá este navegador desde el servidor. Las facturas anteriores a la migración pueden no estar aún en el servidor. Úsala solo si estos datos locales no pertenecen a la cuenta actual. ¿Continuar?`,
+      )
+    ) {
+      return;
+    }
+    if (
       !preserveWorkspaceStorageCandidate({
         ownerScope: review.resolution.scope.ownerScope,
         candidateStorageKey: review.resolution.candidateStorageKey,
@@ -326,12 +335,13 @@ export function WorkspaceStorageBoundary({
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 font-bold text-slate-800 hover:bg-slate-50"
             >
               <Database className="h-5 w-5" />
-              Usar la copia del servidor
+              Estos datos no son míos: usar servidor
             </button>
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-500">
-            Al usar el servidor, esta copia local se conserva aparte para una
-            posible recuperación y nunca se sube a la cuenta actual.
+            Usa el servidor solo cuando la copia mostrada no pertenezca a esta
+            cuenta. Se conservará aparte, pero el servidor puede no incluir aún
+            facturas anteriores a la migración central.
           </p>
           <button
             type="button"
