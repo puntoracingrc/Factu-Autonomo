@@ -3,11 +3,10 @@ import { gunzipSync, strFromU8 } from "fflate";
 import { writePersistedAppDataCache } from "../lib/persisted-app-data-cache";
 import { buildPersistedAppDerivedCache } from "../lib/persisted-app-derived-cache-builder";
 import { writePersistedAppEntityShadow } from "../lib/persisted-app-entity-shadow";
+import { evaluatePersistedAppEntityShadowCanary } from "../lib/persisted-app-entity-shadow-canary";
 import { normalizeLoadedData } from "../lib/storage";
 
 const COMPRESSED_STORAGE_PREFIX = "factu-gzip-v1:";
-const ENTITY_SHADOW_ENABLED =
-  process.env.NEXT_PUBLIC_ENTITY_SHADOW_ENABLED === "true";
 
 interface CacheWorkerRequest {
   storageKey: string;
@@ -51,7 +50,10 @@ self.onmessage = (event: MessageEvent<CacheWorkerRequest>) => {
         normalized,
         derived,
       );
-      const entityShadow = ENTITY_SHADOW_ENABLED
+      const entityShadowCanary = evaluatePersistedAppEntityShadowCanary(
+        event.data.storageKey,
+      );
+      const entityShadow = entityShadowCanary.enabled
         ? await writePersistedAppEntityShadow(
             event.data.storageKey,
             event.data.raw,
