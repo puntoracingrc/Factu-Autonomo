@@ -29,7 +29,10 @@ import type {
 import type { CentralInvoiceAuthorityCollectionUpdateIdentity } from "@/lib/central-invoice-authority/collection-client";
 import type { CentralInvoiceAuthorityRelationshipIdentity } from "@/lib/central-invoice-authority/relationship-client";
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "@/lib/central-invoice-authority/events-app-data-sync";
-import type { CentralBusinessEventsAppDataSyncResult } from "@/lib/central-business-authority/events-app-data-sync";
+import {
+  selectCentralBusinessEventsSyncBaseline,
+  type CentralBusinessEventsAppDataSyncResult,
+} from "@/lib/central-business-authority/events-app-data-sync";
 import type { CentralBusinessDrainResult } from "@/lib/central-business-authority/durable-queue";
 import type { CentralBusinessConflictRecoveryResult } from "@/lib/central-business-authority/conflict-recovery";
 import type { CentralBusinessEventReconciliationResult } from "@/lib/central-business-authority/event-reconciliation";
@@ -554,7 +557,6 @@ interface AppStoreValue {
     transition: AppDataTransition<T>,
   ) => AppDataDurabilityResult<T>;
   mergeHistoricalWorkspaceArchiveDurably: (
-    expected: AppData,
     archive: Parameters<typeof mergeHistoricalWorkspaceArchive>[1],
   ) => AppDataDurabilityResult<HistoricalWorkspaceArchiveMergeSummary>;
   updateProfile: (profile: BusinessProfile) => void;
@@ -1170,15 +1172,32 @@ export function AppStoreProvider({
 
   const mergeHistoricalWorkspaceArchiveDurably = useCallback(
     (
-      expected: AppData,
       archive: Parameters<typeof mergeHistoricalWorkspaceArchive>[1],
-    ): AppDataDurabilityResult<HistoricalWorkspaceArchiveMergeSummary> =>
-      commitDurableAppData(
-        expected,
+    ): AppDataDurabilityResult<HistoricalWorkspaceArchiveMergeSummary> => {
+      const memory = dataRef.current;
+      const baseline = selectCentralBusinessEventsSyncBaseline({
+        memory,
+        persisted: readPersistedDataSnapshot(),
+        persistedMatchesMemory:
+          inspectPersistedData(memory).status === "applied",
+      });
+      if (!baseline) {
+        return { status: "blocked", reason: "stale_precondition" };
+      }
+      if (baseline !== memory) {
+        durableStorageBaselineRef.current = { status: "known", data: baseline };
+        lastKnownDurableDataRef.current = baseline;
+        durablyPersistedDataRef.current = baseline;
+        dataRef.current = baseline;
+        setData(baseline);
+      }
+      return commitDurableAppData(
+        baseline,
         (previous) => mergeHistoricalWorkspaceArchive(previous, archive),
         { trackLegacyChanges: false },
-      ),
-    [commitDurableAppData],
+      );
+    },
+    [commitDurableAppData, inspectPersistedData, readPersistedDataSnapshot],
   );
 
   useEffect(() => {

@@ -125,6 +125,12 @@ export function workspaceServerAdoptionKey(ownerScope: string): string {
   return `${WORKSPACE_SERVER_ADOPTION_PREFIX}${encodedOwner(ownerScope)}`;
 }
 
+export function workspaceRecoveryStorageKeyPrefix(
+  ownerScope: string,
+): string {
+  return `${WORKSPACE_RECOVERY_PREFIX}${encodedOwner(ownerScope)}:`;
+}
+
 function randomGuestId(): string {
   const value = globalThis.crypto?.randomUUID?.();
   if (value) return value;
@@ -381,7 +387,7 @@ export function preserveWorkspaceStorageCandidate(input: {
     /[^0-9A-Za-z]/gu,
     "",
   );
-  const recoveryKey = `${WORKSPACE_RECOVERY_PREFIX}${encodedOwner(input.ownerScope)}:${stamp}`;
+  const recoveryKey = `${workspaceRecoveryStorageKeyPrefix(input.ownerScope)}${stamp}`;
   try {
     input.storage.setItem(recoveryKey, raw);
     return input.storage.getItem(recoveryKey) === raw ? recoveryKey : null;

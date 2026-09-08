@@ -6,7 +6,6 @@ import { EMPTY_DATA, type Document } from "@/lib/types";
 import {
   buildHistoricalWorkspaceArchive,
   hasLocallyCompleteHistoricalWorkspaceArchive,
-  HistoricalWorkspaceArchiveError,
   mergeHistoricalWorkspaceArchive,
   verifyHistoricalWorkspaceArchive,
 } from "./archive";
@@ -123,21 +122,59 @@ describe("historical workspace archive", () => {
     expect(merged.value.centralKept).toBe(1);
   });
 
-  it("rejects a changed local document instead of overwriting it", () => {
+  it("keeps a changed local document and still completes the recovery", () => {
     const source = normalized([invoice(1)]);
-    const manifest = buildHistoricalWorkspaceArchive(source.documents, ARCHIVE_ID);
+    const manifest = buildHistoricalWorkspaceArchive(
+      source.documents,
+      ARCHIVE_ID,
+    );
     const changed = normalized([
       { ...source.documents[0]!, notes: "Cambio posterior" },
     ]);
 
-    expect(() => mergeHistoricalWorkspaceArchive(changed, manifest)).toThrowError(
-      HistoricalWorkspaceArchiveError,
+    const merged = mergeHistoricalWorkspaceArchive(changed, manifest);
+
+    expect(merged.data.documents).toHaveLength(1);
+    expect(merged.data.documents[0]!.notes).toBe("Cambio posterior");
+    expect(merged.data.historicalWorkspaceArchiveReceipt).toMatchObject({
+      archiveId: ARCHIVE_ID,
+      documentCount: 1,
+    });
+    expect(merged.value).toMatchObject({
+      added: 0,
+      unchanged: 0,
+      centralKept: 0,
+      localKept: 1,
+    });
+  });
+
+  it("does not duplicate a local invoice with the same fiscal number", () => {
+    const source = normalized([invoice(1)]);
+    const manifest = buildHistoricalWorkspaceArchive(
+      source.documents,
+      ARCHIVE_ID,
     );
+    const local = normalized([
+      invoice(99, {
+        id: "local-other-id",
+        number: source.documents[0]!.number,
+        notes: "Version local conservada",
+      }),
+    ]);
+
+    const merged = mergeHistoricalWorkspaceArchive(local, manifest);
+
+    expect(merged.data.documents).toHaveLength(1);
+    expect(merged.data.documents[0]!.id).toBe("local-other-id");
+    expect(merged.value.localKept).toBe(1);
   });
 
   it("rejects a payload whose document hash was altered", () => {
     const source = normalized([invoice(1)]);
-    const manifest = buildHistoricalWorkspaceArchive(source.documents, ARCHIVE_ID);
+    const manifest = buildHistoricalWorkspaceArchive(
+      source.documents,
+      ARCHIVE_ID,
+    );
     const tampered = {
       ...manifest,
       documents: manifest.documents.map((entry) => ({

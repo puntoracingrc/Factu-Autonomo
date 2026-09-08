@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArchiveRestore, LogOut, RefreshCw } from "lucide-react";
+import { ArchiveRestore, RefreshCw } from "lucide-react";
 
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -9,20 +9,61 @@ import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import { registerCurrentCloudDevice } from "@/lib/cloud/device-client";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
+import { reportAppError } from "@/lib/monitoring/client";
 import {
   getHistoricalWorkspaceArchiveStatusFromBrowser,
   pullHistoricalWorkspaceArchiveFromBrowser,
 } from "@/lib/workspace-history/archive-client";
-import { hasLocallyCompleteHistoricalWorkspaceArchive } from "@/lib/workspace-history/archive";
+import {
+  hasLocallyCompleteHistoricalWorkspaceArchive,
+  type HistoricalWorkspaceArchiveManifest,
+} from "@/lib/workspace-history/archive";
+import { archiveAndReleaseWorkspaceLocalRecoveryCopies } from "@/lib/workspace-history/local-recovery-vault";
 import { workspaceRequiresServerAdoption } from "@/lib/workspace-storage";
+
+const MERGE_RETRY_DELAYS_MS = [0, 200, 600, 1_200] as const;
+const AUTOMATIC_RETRY_DELAYS_MS = [2_000, 5_000, 15_000] as const;
 
 type GateState =
   | { status: "checking"; phase: "checking" | "restoring" }
   | { status: "ready" }
   | { status: "error"; message: string };
 
+type CachedArchive = {
+  ownerScope: string;
+  archiveId: string;
+  manifestHash: string;
+  manifest: HistoricalWorkspaceArchiveManifest;
+};
+
+function wait(delayMs: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, delayMs));
+}
+
+function recoveryFailureMessage(reason: string | null): string {
+  if (reason === "quota_exceeded") {
+    return "Este dispositivo no tiene espacio local suficiente para completar ahora el histórico. Tus facturas siguen protegidas en el servidor.";
+  }
+  if (reason === "storage_unavailable") {
+    return "El navegador no permite guardar ahora la recuperación. Tus facturas siguen protegidas en el servidor.";
+  }
+  if (
+    reason === "stale_precondition" ||
+    reason === "storage_state_unknown" ||
+    reason === "verification_failed"
+  ) {
+    return "Este dispositivo está terminando otra actualización. Factu volverá a comprobar el histórico automáticamente.";
+  }
+  if (reason === "cloud_snapshot_incomplete") {
+    return "El dispositivo todavía está terminando de recibir la copia central. Factu continuará automáticamente cuando esté lista.";
+  }
+  return "No hemos podido completar todavía la recuperación automática. Tus facturas siguen protegidas en el servidor y el problema ha quedado registrado para soporte.";
+}
+
 function receiptMatches(
-  receipt: ReturnType<typeof useAppStore>["data"]["historicalWorkspaceArchiveReceipt"],
+  receipt: ReturnType<
+    typeof useAppStore
+  >["data"]["historicalWorkspaceArchiveReceipt"],
   archive: {
     archiveId: string;
     manifestHash: string;
@@ -31,9 +72,9 @@ function receiptMatches(
 ): boolean {
   return Boolean(
     receipt?.schema === "CENTRAL_WORKSPACE_HISTORICAL_ARCHIVE_RECEIPT_V1" &&
-      receipt.archiveId === archive.archiveId &&
-      receipt.manifestHash === archive.manifestHash &&
-      receipt.documentCount === archive.expectedDocumentCount,
+    receipt.archiveId === archive.archiveId &&
+    receipt.manifestHash === archive.manifestHash &&
+    receipt.documentCount === archive.expectedDocumentCount,
   );
 }
 
@@ -43,21 +84,17 @@ export function WorkspaceHistoricalArchiveGate({
   children: React.ReactNode;
 }) {
   const scope = useWorkspaceStorage();
-  const {
-    ready,
-    getCurrentData,
-    mergeHistoricalWorkspaceArchiveDurably,
-  } = useAppStore();
-  const {
-    user,
-    emailConfirmed,
-    requiresEmailConfirmation,
-    signOut,
-  } = useCloudSync();
+  const { ready, getCurrentData, mergeHistoricalWorkspaceArchiveDurably } =
+    useAppStore();
+  const { user, emailConfirmed, requiresEmailConfirmation } = useCloudSync();
   const sequenceRef = useRef(0);
   const mountedRef = useRef(false);
   const runningRef = useRef(false);
   const pendingWakeRef = useRef(false);
+  const retryTimerRef = useRef<number | null>(null);
+  const automaticRetryCountRef = useRef(0);
+  const cachedArchiveRef = useRef<CachedArchive | null>(null);
+  const lastReportedFailureRef = useRef<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [state, setState] = useState<GateState>({ status: "ready" });
 
@@ -67,6 +104,10 @@ export function WorkspaceHistoricalArchiveGate({
       return;
     }
     runningRef.current = true;
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
     const sequence = sequenceRef.current + 1;
     sequenceRef.current = sequence;
     const isCurrent = () => sequenceRef.current === sequence;
@@ -75,6 +116,9 @@ export function WorkspaceHistoricalArchiveGate({
     };
     let requiresServerAdoption = false;
     let archiveRecoveryRequired = false;
+    let failureReason: string | null = null;
+    let recoveryCopiesReleased = 0;
+    let recoveryCharactersReleased = 0;
     try {
       if (scope.kind !== "user") {
         setCurrentState({ status: "ready" });
@@ -111,6 +155,7 @@ export function WorkspaceHistoricalArchiveGate({
       });
       if (!isCurrent()) return;
       if (device.error || device.allowed === false) {
+        failureReason = "device_verification_failed";
         throw new Error(
           device.message ??
             device.error ??
@@ -124,6 +169,7 @@ export function WorkspaceHistoricalArchiveGate({
       if (!isCurrent()) return;
       if (!status.ok) {
         if (requiresServerAdoption) {
+          failureReason = status.code || "archive_status_failed";
           throw new Error(
             "No se pudo comprobar si el servidor conserva tus facturas anteriores. No se restaurará una copia incompleta.",
           );
@@ -140,7 +186,8 @@ export function WorkspaceHistoricalArchiveGate({
         receiptMatches(
           currentData.historicalWorkspaceArchiveReceipt,
           status.value,
-        ) && hasLocallyCompleteHistoricalWorkspaceArchive(currentData)
+        ) &&
+        hasLocallyCompleteHistoricalWorkspaceArchive(currentData)
       ) {
         setCurrentState({ status: "ready" });
         return;
@@ -148,36 +195,113 @@ export function WorkspaceHistoricalArchiveGate({
 
       archiveRecoveryRequired = true;
       setCurrentState({ status: "checking", phase: "restoring" });
-      const pulled = await pullHistoricalWorkspaceArchiveFromBrowser({
-        expectedOwnerScope: user.id,
-      });
-      if (!isCurrent()) return;
-      if (!pulled.ok || !pulled.value) {
-        throw new Error(
-          pulled.ok
-            ? "El servidor no devolvió la recuperación histórica confirmada."
-            : pulled.message,
-        );
+      const cached = cachedArchiveRef.current;
+      let manifest: HistoricalWorkspaceArchiveManifest;
+      if (
+        cached?.ownerScope === user.id &&
+        cached.archiveId === status.value.archiveId &&
+        cached.manifestHash === status.value.manifestHash
+      ) {
+        manifest = cached.manifest;
+      } else {
+        const pulled = await pullHistoricalWorkspaceArchiveFromBrowser({
+          expectedOwnerScope: user.id,
+        });
+        if (!isCurrent()) return;
+        if (!pulled.ok || !pulled.value) {
+          failureReason = pulled.ok
+            ? "archive_missing"
+            : pulled.code || "archive_pull_failed";
+          throw new Error(
+            pulled.ok
+              ? "El servidor no devolvió la recuperación histórica confirmada."
+              : pulled.message,
+          );
+        }
+        manifest = pulled.value;
+        cachedArchiveRef.current = {
+          ownerScope: user.id,
+          archiveId: status.value.archiveId,
+          manifestHash: status.value.manifestHash,
+          manifest,
+        };
       }
 
       let applied = false;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        const result = mergeHistoricalWorkspaceArchiveDurably(
-          getCurrentData(),
-          pulled.value,
-        );
+      let quotaRecoveryAttempted = false;
+      for (
+        let attempt = 0;
+        attempt < MERGE_RETRY_DELAYS_MS.length;
+        attempt += 1
+      ) {
+        const delayMs = MERGE_RETRY_DELAYS_MS[attempt]!;
+        if (delayMs > 0) await wait(delayMs);
+        if (!isCurrent()) return;
+
+        const result = mergeHistoricalWorkspaceArchiveDurably(manifest);
         if (result.status === "applied") {
           applied = true;
+          automaticRetryCountRef.current = 0;
+          lastReportedFailureRef.current = null;
+          if (result.value.localKept > 0) {
+            void reportAppError({
+              severity: "warning",
+              area: "sync",
+              code: "historical_archive_local_variants_preserved",
+              message:
+                "La recuperación histórica conservó variantes locales sin reemplazarlas.",
+              metadata: {
+                archiveDocumentCount: result.value.documentCount,
+                localVariantsKept: result.value.localKept,
+                centralDocumentsKept: result.value.centralKept,
+                documentsAdded: result.value.added,
+              },
+            });
+          }
           break;
         }
-        if (result.status !== "blocked" || result.reason !== "stale_precondition") {
+
+        failureReason = result.reason;
+        if (
+          result.status === "blocked" &&
+          result.reason === "quota_exceeded" &&
+          !quotaRecoveryAttempted
+        ) {
+          quotaRecoveryAttempted = true;
+          const released = await archiveAndReleaseWorkspaceLocalRecoveryCopies({
+            ownerScope: user.id,
+            activeStorageKey: scope.storageKey,
+            storage: localStorage,
+          });
+          if (!isCurrent()) return;
+          recoveryCopiesReleased += released.released;
+          recoveryCharactersReleased += released.releasedCharacters;
+          if (released.released > 0) continue;
+        }
+        if (
+          result.reason !== "stale_precondition" &&
+          result.reason !== "storage_state_unknown" &&
+          result.reason !== "verification_failed"
+        ) {
           break;
         }
       }
       if (!applied) {
-        throw new Error(
-          "La copia histórica no coincide con los datos de este dispositivo. No se ha reemplazado ninguna factura.",
-        );
+        throw new Error(recoveryFailureMessage(failureReason));
+      }
+      cachedArchiveRef.current = null;
+      if (recoveryCopiesReleased > 0) {
+        void reportAppError({
+          severity: "info",
+          area: "sync",
+          code: "historical_archive_storage_self_healed",
+          message:
+            "La recuperación histórica liberó una copia local redundante después de preservarla.",
+          metadata: {
+            recoveryCopiesReleased,
+            recoveryCharactersReleased,
+          },
+        });
       }
       setCurrentState({ status: "ready" });
     } catch (error) {
@@ -185,13 +309,46 @@ export function WorkspaceHistoricalArchiveGate({
         setCurrentState({ status: "ready" });
         return;
       }
+      const reportSignature = `${user?.id ?? "unknown"}:${failureReason ?? "unexpected"}`;
+      if (lastReportedFailureRef.current !== reportSignature) {
+        lastReportedFailureRef.current = reportSignature;
+        void reportAppError({
+          severity: "error",
+          area: "sync",
+          code: `historical_archive_restore_${failureReason ?? "unexpected"}`,
+          message:
+            "No se pudo completar la recuperación histórica del dispositivo.",
+          metadata: {
+            reason: failureReason ?? "unexpected",
+            localInvoiceCount: getCurrentData().documents.filter(
+              (document) => document.type === "factura",
+            ).length,
+            recoveryCopiesReleased,
+            recoveryCharactersReleased,
+          },
+        });
+      }
       setCurrentState({
         status: "error",
-        message:
-          error instanceof Error
+        message: failureReason
+          ? recoveryFailureMessage(failureReason)
+          : error instanceof Error
             ? error.message
             : "No se pudo recuperar el histórico de facturas.",
       });
+      if (
+        isCurrent() &&
+        navigator.onLine &&
+        automaticRetryCountRef.current < AUTOMATIC_RETRY_DELAYS_MS.length
+      ) {
+        const delayMs =
+          AUTOMATIC_RETRY_DELAYS_MS[automaticRetryCountRef.current]!;
+        automaticRetryCountRef.current += 1;
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          if (mountedRef.current) setRevision((value) => value + 1);
+        }, delayMs);
+      }
     } finally {
       runningRef.current = false;
       if (pendingWakeRef.current && mountedRef.current) {
@@ -221,6 +378,7 @@ export function WorkspaceHistoricalArchiveGate({
 
     function wake() {
       if (!navigator.onLine || document.visibilityState !== "visible") return;
+      automaticRetryCountRef.current = 0;
       if (runningRef.current) {
         pendingWakeRef.current = true;
         return;
@@ -237,6 +395,10 @@ export function WorkspaceHistoricalArchiveGate({
     return () => {
       mountedRef.current = false;
       pendingWakeRef.current = false;
+      if (retryTimerRef.current !== null) {
+        window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       window.removeEventListener("online", wake);
       window.removeEventListener("focus", wake);
       window.removeEventListener("pageshow", wake);
@@ -267,25 +429,26 @@ export function WorkspaceHistoricalArchiveGate({
               : "Estamos comprobando si este dispositivo necesita recuperar facturas anteriores al servidor central."
             : state.message}
         </p>
+        {state.status === "error" ? (
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">
+            No cierres sesión ni restaures nada. Factu volverá a intentarlo
+            automáticamente.
+          </p>
+        ) : null}
         {state.status === "checking" ? (
           <RefreshCw className="mx-auto mt-6 h-6 w-6 animate-spin text-blue-600" />
         ) : (
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          <div className="mt-6 flex justify-center">
             <button
               type="button"
-              onClick={() => setRevision((value) => value + 1)}
+              onClick={() => {
+                automaticRetryCountRef.current = 0;
+                setRevision((value) => value + 1);
+              }}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 font-bold text-white hover:bg-blue-700"
             >
               <RefreshCw className="h-5 w-5" />
-              Reintentar
-            </button>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 font-bold text-slate-700 hover:bg-slate-50"
-            >
-              <LogOut className="h-5 w-5" />
-              Cerrar sesión
+              Intentar ahora
             </button>
           </div>
         )}

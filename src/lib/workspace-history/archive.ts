@@ -36,6 +36,7 @@ export interface HistoricalWorkspaceArchiveMergeSummary {
   added: number;
   unchanged: number;
   centralKept: number;
+  localKept: number;
 }
 
 export class HistoricalWorkspaceArchiveError extends Error {
@@ -252,14 +253,13 @@ export function mergeHistoricalWorkspaceArchive(
 
   const documents = [...current.documents];
   const byId = new Map(documents.map((document, index) => [document.id, index]));
-  const centralByFiscalIdentity = new Map(
-    documents
-      .filter((document) => Boolean(document.centralInvoiceAuthority))
-      .map((document) => [fiscalIdentity(document), document] as const),
+  const byFiscalIdentity = new Map(
+    documents.map((document) => [fiscalIdentity(document), document] as const),
   );
   let added = 0;
   let unchanged = 0;
   let centralKept = 0;
+  let localKept = 0;
 
   for (const incoming of normalizedArchive) {
     const sameIdIndex = byId.get(incoming.id);
@@ -272,20 +272,21 @@ export function mergeHistoricalWorkspaceArchive(
       if (
         stableStringifySnapshot(existing) !== stableStringifySnapshot(incoming)
       ) {
-        throw new HistoricalWorkspaceArchiveError(
-          "LOCAL_DOCUMENT_CONFLICT",
-          `La factura local ${incoming.number} cambió y no se ha reemplazado.`,
-        );
+        localKept += 1;
+        continue;
       }
       unchanged += 1;
       continue;
     }
 
-    if (centralByFiscalIdentity.has(fiscalIdentity(incoming))) {
-      centralKept += 1;
+    const sameFiscalDocument = byFiscalIdentity.get(fiscalIdentity(incoming));
+    if (sameFiscalDocument) {
+      if (sameFiscalDocument.centralInvoiceAuthority) centralKept += 1;
+      else localKept += 1;
       continue;
     }
     byId.set(incoming.id, documents.length);
+    byFiscalIdentity.set(fiscalIdentity(incoming), incoming);
     documents.push(incoming);
     added += 1;
   }
@@ -332,6 +333,7 @@ export function mergeHistoricalWorkspaceArchive(
       added,
       unchanged,
       centralKept,
+      localKept,
     },
   };
 }
