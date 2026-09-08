@@ -84,8 +84,9 @@ async function credentials(
     (() => (ownerScope ? getLocalCloudDeviceToken(ownerScope) : null))
   )();
   if (!accessToken || !deviceToken) return null;
+  const fetchImpl = dependencies.fetchImpl ?? fetch;
   return {
-    fetchImpl: dependencies.fetchImpl ?? fetch,
+    fetchImpl: (input, init) => fetchImpl(input, init),
     accessToken,
     deviceToken,
   };
