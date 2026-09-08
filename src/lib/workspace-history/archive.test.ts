@@ -5,6 +5,7 @@ import { EMPTY_DATA, type Document } from "@/lib/types";
 
 import {
   buildHistoricalWorkspaceArchive,
+  hasLocallyCompleteHistoricalWorkspaceArchive,
   HistoricalWorkspaceArchiveError,
   mergeHistoricalWorkspaceArchive,
   verifyHistoricalWorkspaceArchive,
@@ -200,5 +201,30 @@ describe("historical workspace archive", () => {
         }),
       ]),
     );
+  });
+
+  it("does not count budgets or other records as restored historical invoices", () => {
+    const data = normalized([
+      invoice(1),
+      ...Array.from({ length: 10 }, (_, index) =>
+        invoice(index + 10, {
+          id: `budget-${index + 1}`,
+          number: `P-2026-${index + 1}`,
+          type: "presupuesto",
+        }),
+      ),
+    ]);
+    data.historicalWorkspaceArchiveReceipt = {
+      schema: "CENTRAL_WORKSPACE_HISTORICAL_ARCHIVE_RECEIPT_V1",
+      archiveId: ARCHIVE_ID,
+      manifestHash: `sha256:${"c".repeat(64)}`,
+      documentCount: 2,
+      appliedAt: "2026-09-08T12:00:00.000Z",
+    };
+
+    expect(hasLocallyCompleteHistoricalWorkspaceArchive(data)).toBe(false);
+
+    data.documents.push(invoice(2));
+    expect(hasLocallyCompleteHistoricalWorkspaceArchive(data)).toBe(true);
   });
 });

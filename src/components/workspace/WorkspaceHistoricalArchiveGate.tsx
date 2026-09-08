@@ -8,14 +8,16 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import { registerCurrentCloudDevice } from "@/lib/cloud/device-client";
+import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
   getHistoricalWorkspaceArchiveStatusFromBrowser,
   pullHistoricalWorkspaceArchiveFromBrowser,
 } from "@/lib/workspace-history/archive-client";
+import { hasLocallyCompleteHistoricalWorkspaceArchive } from "@/lib/workspace-history/archive";
 import { workspaceRequiresServerAdoption } from "@/lib/workspace-storage";
 
 type GateState =
-  | { status: "checking" }
+  | { status: "checking"; phase: "checking" | "restoring" }
   | { status: "ready" }
   | { status: "error"; message: string };
 
@@ -53,43 +55,50 @@ export function WorkspaceHistoricalArchiveGate({
     signOut,
   } = useCloudSync();
   const sequenceRef = useRef(0);
+  const mountedRef = useRef(false);
+  const runningRef = useRef(false);
+  const pendingWakeRef = useRef(false);
   const [revision, setRevision] = useState(0);
   const [state, setState] = useState<GateState>({ status: "ready" });
 
   const restore = useCallback(async () => {
+    if (runningRef.current) {
+      pendingWakeRef.current = true;
+      return;
+    }
+    runningRef.current = true;
     const sequence = sequenceRef.current + 1;
     sequenceRef.current = sequence;
     const isCurrent = () => sequenceRef.current === sequence;
     const setCurrentState = (next: GateState) => {
       if (isCurrent()) setState(next);
     };
-    if (scope.kind !== "user") {
-      setCurrentState({ status: "ready" });
-      return;
-    }
-    if (!ready || !user || user.id !== scope.ownerScope) return;
-    if (!emailConfirmed || requiresEmailConfirmation) {
-      setCurrentState({ status: "ready" });
-      return;
-    }
-
-    const requiresServerAdoption = workspaceRequiresServerAdoption(
-      scope.ownerScope,
-      localStorage,
-    );
-    const localData = getCurrentData();
-    if (
-      localData.historicalWorkspaceArchiveReceipt &&
-      localData.documents.length >=
-        localData.historicalWorkspaceArchiveReceipt.documentCount
-    ) {
-      setCurrentState({ status: "ready" });
-      return;
-    }
-    if (requiresServerAdoption) {
-      setCurrentState({ status: "checking" });
-    }
+    let requiresServerAdoption = false;
+    let archiveRecoveryRequired = false;
     try {
+      if (scope.kind !== "user") {
+        setCurrentState({ status: "ready" });
+        return;
+      }
+      if (!ready || !user || user.id !== scope.ownerScope) return;
+      if (!emailConfirmed || requiresEmailConfirmation) {
+        setCurrentState({ status: "ready" });
+        return;
+      }
+
+      requiresServerAdoption = workspaceRequiresServerAdoption(
+        scope.ownerScope,
+        localStorage,
+      );
+      const localData = getCurrentData();
+      if (hasLocallyCompleteHistoricalWorkspaceArchive(localData)) {
+        setCurrentState({ status: "ready" });
+        return;
+      }
+      if (requiresServerAdoption) {
+        setCurrentState({ status: "checking", phase: "checking" });
+      }
+
       const access = await canUseCloudForUser(user.id);
       if (!isCurrent()) return;
       if (!access.allowed) {
@@ -126,16 +135,19 @@ export function WorkspaceHistoricalArchiveGate({
         setCurrentState({ status: "ready" });
         return;
       }
+      const currentData = getCurrentData();
       if (
         receiptMatches(
-          getCurrentData().historicalWorkspaceArchiveReceipt,
+          currentData.historicalWorkspaceArchiveReceipt,
           status.value,
-        )
+        ) && hasLocallyCompleteHistoricalWorkspaceArchive(currentData)
       ) {
         setCurrentState({ status: "ready" });
         return;
       }
 
+      archiveRecoveryRequired = true;
+      setCurrentState({ status: "checking", phase: "restoring" });
       const pulled = await pullHistoricalWorkspaceArchiveFromBrowser({
         expectedOwnerScope: user.id,
       });
@@ -169,7 +181,7 @@ export function WorkspaceHistoricalArchiveGate({
       }
       setCurrentState({ status: "ready" });
     } catch (error) {
-      if (!requiresServerAdoption) {
+      if (!requiresServerAdoption && !archiveRecoveryRequired) {
         setCurrentState({ status: "ready" });
         return;
       }
@@ -180,6 +192,12 @@ export function WorkspaceHistoricalArchiveGate({
             ? error.message
             : "No se pudo recuperar el histórico de facturas.",
       });
+    } finally {
+      runningRef.current = false;
+      if (pendingWakeRef.current && mountedRef.current) {
+        pendingWakeRef.current = false;
+        setRevision((value) => value + 1);
+      }
     }
   }, [
     emailConfirmed,
@@ -198,6 +216,35 @@ export function WorkspaceHistoricalArchiveGate({
     };
   }, [restore, revision]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+
+    function wake() {
+      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      if (runningRef.current) {
+        pendingWakeRef.current = true;
+        return;
+      }
+      setRevision((value) => value + 1);
+    }
+
+    window.addEventListener("online", wake);
+    window.addEventListener("focus", wake);
+    window.addEventListener("pageshow", wake);
+    window.addEventListener(CLOUD_DEVICE_REACTIVATED_EVENT, wake);
+    document.addEventListener("visibilitychange", wake);
+
+    return () => {
+      mountedRef.current = false;
+      pendingWakeRef.current = false;
+      window.removeEventListener("online", wake);
+      window.removeEventListener("focus", wake);
+      window.removeEventListener("pageshow", wake);
+      window.removeEventListener(CLOUD_DEVICE_REACTIVATED_EVENT, wake);
+      document.removeEventListener("visibilitychange", wake);
+    };
+  }, []);
+
   if (state.status === "ready") return <>{children}</>;
 
   return (
@@ -208,12 +255,16 @@ export function WorkspaceHistoricalArchiveGate({
         </span>
         <h1 className="mt-4 text-xl font-black">
           {state.status === "checking"
-            ? "Comprobando tu histórico"
+            ? state.phase === "restoring"
+              ? "Recuperando tus facturas anteriores"
+              : "Comprobando tu histórico"
             : "Tus facturas siguen protegidas"}
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           {state.status === "checking"
-            ? "Estamos comprobando si este dispositivo necesita recuperar facturas anteriores al servidor central."
+            ? state.phase === "restoring"
+              ? "Estamos descargando la copia verificada del servidor para completar este dispositivo."
+              : "Estamos comprobando si este dispositivo necesita recuperar facturas anteriores al servidor central."
             : state.message}
         </p>
         {state.status === "checking" ? (

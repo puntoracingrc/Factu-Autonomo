@@ -118,6 +118,18 @@ export function historicalWorkspaceDocuments(
   );
 }
 
+export function hasLocallyCompleteHistoricalWorkspaceArchive(
+  data: Pick<AppData, "documents" | "historicalWorkspaceArchiveReceipt">,
+): boolean {
+  const receipt = data.historicalWorkspaceArchiveReceipt;
+  if (!receipt) return false;
+
+  const invoiceCount = data.documents.filter(
+    (document) => document.type === "factura",
+  ).length;
+  return invoiceCount >= receipt.documentCount;
+}
+
 export function buildHistoricalWorkspaceArchive(
   documents: readonly Document[],
   archiveId = crypto.randomUUID(),
