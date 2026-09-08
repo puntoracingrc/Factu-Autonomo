@@ -184,6 +184,13 @@ const centralVerifactuLedgerMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const centralWorkspaceHistoricalArchiveMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260908143000_central_workspace_historical_archive.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -250,6 +257,10 @@ const centralVerifactuServiceReadOnlyTables = [
   "central_verifactu_records",
   "central_verifactu_transport_attempts",
 ] as const;
+const centralWorkspaceHistoricalArchiveServiceOnlyTables = [
+  "central_workspace_historical_archives",
+  "central_workspace_historical_documents",
+] as const;
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -280,6 +291,7 @@ const classifiedTables = new Set([
   ...billingQuotaServiceOnlyTables,
   ...verifactuCertificateServiceTables,
   ...centralVerifactuServiceReadOnlyTables,
+  ...centralWorkspaceHistoricalArchiveServiceOnlyTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -617,6 +629,29 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         new RegExp(
           `grant\\s+[^;]*on table public\\.${escapedTable(table)}\\s+to authenticated`,
           "i",
+        ),
+      );
+    }
+  });
+
+  it("keeps historical workspace recovery server-only", () => {
+    for (const table of centralWorkspaceHistoricalArchiveServiceOnlyTables) {
+      expect(centralWorkspaceHistoricalArchiveMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(centralWorkspaceHistoricalArchiveMigrationSource).toMatch(
+        new RegExp(
+          `revoke all on table public\\.${escapedTable(table)}[\\s\\S]*?from public, anon, authenticated`,
+          "i",
+        ),
+      );
+      expect(centralWorkspaceHistoricalArchiveMigrationSource).toContain(
+        `grant all on table public.${table} to service_role`,
+      );
+      expect(centralWorkspaceHistoricalArchiveMigrationSource).not.toMatch(
+        new RegExp(
+          `grant\\s+[^;]*on table public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
+          "iu",
         ),
       );
     }

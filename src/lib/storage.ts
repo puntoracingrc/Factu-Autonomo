@@ -91,6 +91,10 @@ type NormalizedCentralInvoiceAuthorityEventsCursor = Exclude<
   null
 >;
 
+const HISTORICAL_ARCHIVE_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const HISTORICAL_ARCHIVE_SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
+
 function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
   return {
     ...DEFAULT_PROFILE,
@@ -573,6 +577,41 @@ function normalizeCentralInvoiceAuthorityEventsSync(
     ...(lastConflictAt ? { lastConflictAt } : {}),
     ...(lastErrorAt ? { lastErrorAt } : {}),
     ...(normalizedLastResult ? { lastResult: normalizedLastResult } : {}),
+  };
+}
+
+function normalizeHistoricalWorkspaceArchiveReceipt(
+  value: unknown,
+  quarantine: WorkspaceIntegrityQuarantineEntry[],
+): AppData["historicalWorkspaceArchiveReceipt"] | undefined {
+  if (value === undefined) return undefined;
+  if (
+    !isRecord(value) ||
+    value.schema !== "CENTRAL_WORKSPACE_HISTORICAL_ARCHIVE_RECEIPT_V1" ||
+    typeof value.archiveId !== "string" ||
+    !HISTORICAL_ARCHIVE_UUID_PATTERN.test(value.archiveId) ||
+    typeof value.manifestHash !== "string" ||
+    !HISTORICAL_ARCHIVE_SHA256_PATTERN.test(value.manifestHash) ||
+    typeof value.documentCount !== "number" ||
+    !Number.isInteger(value.documentCount) ||
+    value.documentCount < 1 ||
+    value.documentCount > 10_000 ||
+    typeof value.appliedAt !== "string" ||
+    !Number.isFinite(Date.parse(value.appliedAt))
+  ) {
+    quarantine.push({
+      collection: "historicalWorkspaceArchiveReceipt",
+      reason: "malformed_record",
+      rawValue: value,
+    });
+    return undefined;
+  }
+  return {
+    schema: "CENTRAL_WORKSPACE_HISTORICAL_ARCHIVE_RECEIPT_V1",
+    archiveId: value.archiveId,
+    manifestHash: value.manifestHash,
+    documentCount: value.documentCount,
+    appliedAt: value.appliedAt,
   };
 }
 
@@ -1073,6 +1112,11 @@ export function normalizeLoadedData(
       parsed.centralInvoiceAuthorityEventsSync,
       workspaceIntegrityQuarantine,
     );
+  const historicalWorkspaceArchiveReceipt =
+    normalizeHistoricalWorkspaceArchiveReceipt(
+      parsed.historicalWorkspaceArchiveReceipt,
+      workspaceIntegrityQuarantine,
+    );
   const parsedCounters: Record<string, unknown> = isRecord(parsed.counters)
     ? parsed.counters
     : {};
@@ -1088,6 +1132,7 @@ export function normalizeLoadedData(
     expenses,
     documents,
     centralInvoiceAuthorityEventsSync,
+    historicalWorkspaceArchiveReceipt,
     testDocumentRetirementBatches: normalizedRetirementBatches.batches,
     fiscalNotificationsWorkspace,
     snapshotIntegrityVersion: 1,

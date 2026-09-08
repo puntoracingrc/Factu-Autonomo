@@ -5,6 +5,7 @@ import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
 import { AppErrorMonitor } from "@/components/monitoring/AppErrorMonitor";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { WorkspaceServerAdoptionGate } from "@/components/workspace/WorkspaceServerAdoptionGate";
+import { WorkspaceHistoricalArchiveGate } from "@/components/workspace/WorkspaceHistoricalArchiveGate";
 import { WorkspaceStorageBoundary } from "@/components/workspace/WorkspaceStorageBoundary";
 import { AppStoreProvider } from "@/context/AppStore";
 import { BillingProvider } from "@/context/BillingContext";
@@ -23,17 +24,19 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             storageKey={scope.storageKey}
           >
             <CloudSyncProvider>
-              <WorkspaceServerAdoptionGate>
-                <BillingProvider>
-                  <CentralAuthorityPlanGateProvider>
-                    <QuickToolsProvider>
-                      <ConditionalAppShell>{children}</ConditionalAppShell>
-                    </QuickToolsProvider>
-                    <AppErrorMonitor />
-                    <RegisterServiceWorker />
-                  </CentralAuthorityPlanGateProvider>
-                </BillingProvider>
-              </WorkspaceServerAdoptionGate>
+              <WorkspaceHistoricalArchiveGate>
+                <WorkspaceServerAdoptionGate>
+                  <BillingProvider>
+                    <CentralAuthorityPlanGateProvider>
+                      <QuickToolsProvider>
+                        <ConditionalAppShell>{children}</ConditionalAppShell>
+                      </QuickToolsProvider>
+                      <AppErrorMonitor />
+                      <RegisterServiceWorker />
+                    </CentralAuthorityPlanGateProvider>
+                  </BillingProvider>
+                </WorkspaceServerAdoptionGate>
+              </WorkspaceHistoricalArchiveGate>
             </CloudSyncProvider>
           </AppStoreProvider>
         )}
