@@ -597,7 +597,7 @@ describe("MVP usability polish", () => {
     expect(onboardingSource).toContain("Primeros pasos");
     expect(onboardingSource).toContain("Prepara tu primera factura real");
     expect(onboardingSource).toContain("Ya tenemos los datos de tu negocio");
-    expect(onboardingSource).toContain("Importar datos");
+    expect(onboardingSource).toContain("Importar contactos");
     expect(onboardingSource).toContain("Registrar gasto");
     expect(onboardingSource).toContain("Crear");
     expect(onboardingSource).toContain("Omitir");
@@ -1361,24 +1361,21 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("calculatePurchaseNetUnitCost");
   });
 
-  it("pide confirmacion antes de autorrellenar ajustes detectados en importaciones", () => {
+  it("limita la importacion ordinaria a clientes y proveedores", () => {
     const importPageSource = readFileSync(
       new URL("../app/importar/page.tsx", import.meta.url),
       "utf8",
     );
 
+    expect(importPageSource).toContain("Solo se importarán contactos");
     expect(importPageSource).toContain(
-      "Hemos detectado configuración de empresa en tus datos importados",
-    );
-    expect(importPageSource).toContain("Actual");
-    expect(importPageSource).toContain("Detectado");
-    expect(importPageSource).toContain(
-      "Rellenar ajustes vacíos con estos datos al importar",
+      "Facturas, presupuestos, recibos, gastos, productos, numeración",
     );
     expect(importPageSource).toContain(
-      "Los campos que ya tengan valor no se cambian",
+      "buildContactOnlyImportData",
     );
-    expect(importPageSource).toContain(
+    expect(importPageSource).not.toContain("invoice-payment-mode");
+    expect(importPageSource).not.toContain(
       "applyBusinessProfileAutofillSuggestion",
     );
   });

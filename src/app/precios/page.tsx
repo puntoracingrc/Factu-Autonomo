@@ -110,7 +110,7 @@ const PRO_FEATURES = [
   `Escaneo simple de gastos (${PRO_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos; packs extra opcionales)`,
   "Rellenar clientes con IA desde texto (10 rellenos equivalen a 1 escaneo), incluido CP si la dirección se localiza",
   "Buzón inteligente básico para facturas de proveedores",
-  "Importar datos desde otros programas de facturación",
+  "Importar clientes y proveedores desde otros programas",
   "Diseñador Pro de plantillas para facturas, presupuestos y recibos",
   "Nube de Factu para hasta 2 dispositivos sincronizados",
   "Copia automática opcional en Google Drive",
