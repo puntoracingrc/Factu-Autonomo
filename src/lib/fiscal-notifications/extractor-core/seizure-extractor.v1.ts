@@ -37,6 +37,9 @@ import {
   type ReferenceV1,
 } from "./reference.v1";
 import {
+  normalizeOfficialReference,
+} from "../official-reference-normalization.v1";
+import {
   FISCAL_NOTIFICATION_EXTRACTOR_CORE_RELEASE_V1,
   FISCAL_NOTIFICATION_EXTRACTOR_CORE_VERSION_V1,
   assertExactDataRecordV1,
@@ -121,6 +124,13 @@ export interface SeizureMoneyFactV1 {
   readonly reviewStatus: "REVIEW_REQUIRED";
 }
 
+export interface SeizureDebtAnnexRowV1 {
+  readonly concept: SeizureTextFactV1 | null;
+  readonly period: SeizureTextFactV1 | null;
+  readonly liquidationKey: SeizureTextFactV1;
+  readonly outstandingAmount: SeizureMoneyFactV1;
+}
+
 export type SeizureSpecificFieldIdV1 =
   | "FINANCIAL_ENTITY"
   | "MASKED_ACCOUNT"
@@ -168,6 +178,7 @@ export interface SeizureFactsV1 {
   readonly expediente: SeizureTextFactV1 | null;
   readonly debtKeys: readonly SeizureTextFactV1[];
   readonly liquidationKeys: readonly SeizureTextFactV1[];
+  readonly debtAnnexRows: readonly SeizureDebtAnnexRowV1[];
   readonly previousEnforcementReference: SeizureTextFactV1 | null;
   readonly csv: SeizureTextFactV1 | null;
   readonly debtorName: SeizureTextFactV1 | null;
@@ -251,7 +262,16 @@ const LABELS = Object.freeze({
   seizureOrderId: ["numero de diligencia", "numero de la diligencia", "diligencia de embargo numero", "referencia de la diligencia"],
   expediente: ["numero de expediente", "expediente"],
   debtKey: ["clave de deuda", "deuda"],
-  liquidationKey: ["clave de liquidacion", "liquidacion"],
+  liquidationKey: [
+    "clave de liquidacion",
+    "liquidacion",
+    "numero liquidacion",
+    "numero de liquidacion",
+    "n liquidacion",
+    "n de liquidacion",
+    "nº liquidacion",
+    "n.º liquidacion",
+  ],
   previousEnforcementReference: ["providencia de apremio", "referencia de la providencia", "deuda de origen"],
   csv: ["codigo seguro de verificacion (csv)", "codigo seguro de verificacion", "csv"],
   debtorName: ["nombre del deudor", "deudor", "obligado al pago"],
@@ -605,12 +625,25 @@ function parseSeizure(
   const instructions = uniqueTextFact(lines, LABELS.instructions, "Instrucciones", warnings, "CONFLICTING_INSTRUCTIONS");
   const printedResources = uniqueTextFact(lines, LABELS.resources, "Recursos impresos", warnings, "CONFLICTING_PRINTED_RESOURCES");
   const moneyFacts = extractMoneyFacts(lines, warnings);
+  const debtAnnexRows = extractDebtAnnexRows(lines, warnings);
+  const annexMoneyFacts = debtAnnexRows
+    .map((row) => row.outstandingAmount)
+    .filter(
+      (fact) =>
+        !moneyFacts.some(
+          (existing) =>
+            existing.role === fact.role &&
+            existing.amountCents === fact.amountCents &&
+            existing.sourcePage === fact.sourcePage,
+        ),
+    );
+  const allMoneyFacts = Object.freeze([...moneyFacts, ...annexMoneyFacts]);
   const specificFacts = extractSpecificFacts(lines, warnings);
   const recipientRole = recipientRoleForSubtype(recognition.subtype, recipientName !== null);
 
   if (!seizureOrderId) warnings.push("MISSING_EXPLICIT_SEIZURE_ORDER_ID");
   if (!debtorName && !debtorTaxId) warnings.push("MISSING_EXPLICIT_DEBTOR");
-  if (recognition.documentKind === "THIRD_PARTY_PAYMENT" && !moneyFacts.some((fact) => fact.role === "THIRD_PARTY_TRANSFERRED")) {
+  if (recognition.documentKind === "THIRD_PARTY_PAYMENT" && !allMoneyFacts.some((fact) => fact.role === "THIRD_PARTY_TRANSFERRED")) {
     warnings.push("MISSING_EXPLICIT_THIRD_PARTY_TRANSFER_AMOUNT");
   }
   if (recognition.documentKind === "SEIZURE_RELEASE" && !releaseDate) {
@@ -618,10 +651,20 @@ function parseSeizure(
   }
 
   const references: ReferenceV1[] = [];
+  const liquidationKeyFingerprints = new Set(
+    liquidationKeys.map((fact) => fact.printedValue),
+  );
   addReference(references, documentId, "SEIZURE_ORDER_ID", seizureOrderId);
   addReference(references, documentId, "EXPEDIENTE_ID", expediente);
   debtKeys.forEach((fact) => addReference(references, documentId, "DEBT_KEY", fact));
   liquidationKeys.forEach((fact) => addReference(references, documentId, "LIQUIDATION_KEY", fact));
+  debtAnnexRows.forEach((row) => {
+    if (liquidationKeyFingerprints.has(row.liquidationKey.printedValue)) {
+      return;
+    }
+    addReference(references, documentId, "LIQUIDATION_KEY", row.liquidationKey);
+    liquidationKeyFingerprints.add(row.liquidationKey.printedValue);
+  });
   addReference(references, documentId, "ACT_ID", previousEnforcementReference);
   addReference(references, documentId, "CSV", csv);
   addReference(references, documentId, "NIF", debtorTaxId);
@@ -630,7 +673,7 @@ function parseSeizure(
   const transferReceipt = specificFacts.find((fact) => fact.fieldId === "TRANSFER_RECEIPT") ?? null;
   addReference(references, documentId, "PAYMENT_RECEIPT_ID", transferReceipt);
 
-  const money = Object.freeze(moneyFacts.map((fact, index) =>
+  const money = Object.freeze(allMoneyFacts.map((fact, index) =>
     createMonetaryComponentV1({
       componentId: `${stablePrefix(documentId)}-money-${index}`,
       componentType: MONEY_COMPONENT_TYPES[fact.role],
@@ -687,6 +730,7 @@ function parseSeizure(
       expediente,
       debtKeys,
       liquidationKeys,
+      debtAnnexRows,
       previousEnforcementReference,
       csv,
       debtorName,
@@ -695,7 +739,7 @@ function parseSeizure(
       recipientTaxId,
       thirdPartyName,
       thirdPartyTaxId,
-      moneyFacts,
+      moneyFacts: allMoneyFacts,
       issueDate,
       seizureDate,
       releaseDate,
@@ -814,6 +858,95 @@ function extractMoneyFacts(
     }));
   }
   return Object.freeze(facts);
+}
+
+function extractDebtAnnexRows(
+  lines: readonly PrivateLineV1[],
+  warnings: string[],
+): readonly SeizureDebtAnnexRowV1[] {
+  const rows: SeizureDebtAnnexRowV1[] = [];
+  for (let index = 0; index < lines.length - 1; index += 1) {
+    const header = lines[index]!;
+    const headers = tableCells(header.raw);
+    const liquidationColumn = headers.findIndex((cell) =>
+      normalizeOfficialReference(cell, "A0000000000000")?.canonicalType ===
+      "LIQUIDATION_KEY",
+    );
+    const amountColumn = headers.findIndex((cell) =>
+      ["IMPPENDIENTE", "IMPORTEPENDIENTE", "DEUDAPENDIENTE"].includes(
+        compactHeader(cell),
+      ),
+    );
+    if (liquidationColumn < 0 || amountColumn < 0) continue;
+    const row = lines[index + 1]!;
+    if (row.pageNumber !== header.pageNumber) continue;
+    const cells = tableCells(row.raw);
+    const liquidation = normalizeOfficialReference(
+      headers[liquidationColumn] ?? "Nº LIQUIDACIÓN",
+      cells[liquidationColumn] ?? "",
+    );
+    const amount = parsePrintedEuro(cells[amountColumn] ?? "");
+    if (
+      !liquidation ||
+      liquidation.canonicalType !== "LIQUIDATION_KEY" ||
+      !amount
+    ) {
+      continue;
+    }
+    const conceptColumn = headers.findIndex(
+      (cell) => compactHeader(cell) === "CONCEPTO",
+    );
+    const periodColumn = headers.findIndex((cell) =>
+      ["PEREJER", "PERIODO", "PERIODOEJERCICIO"].includes(
+        compactHeader(cell),
+      ),
+    );
+    rows.push(
+      Object.freeze({
+        concept:
+          conceptColumn >= 0 && cells[conceptColumn]
+            ? textFact(cells[conceptColumn]!, [row.pageNumber], "Concepto")
+            : null,
+        period:
+          periodColumn >= 0 && cells[periodColumn]
+            ? textFact(cells[periodColumn]!, [row.pageNumber], "Período")
+            : null,
+        liquidationKey: textFact(
+          liquidation.normalizedValue,
+          [row.pageNumber],
+          liquidation.originalLabel || "Nº LIQUIDACIÓN",
+        ),
+        outstandingAmount: Object.freeze({
+          role: "TOTAL_PENDING",
+          printedValue: cells[amountColumn]!,
+          amountCents: amount.amountCents,
+          sign: amount.sign,
+          sourcePage: row.pageNumber,
+          sourceLabel: "IMP. PENDIENTE",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          reviewStatus: "REVIEW_REQUIRED",
+        }),
+      }),
+    );
+  }
+  if (rows.length > SEIZURE_EXTRACTOR_LIMITS_V1.maxRepeatedFacts) {
+    warnings.push("TOO_MANY_DEBT_ANNEX_ROWS");
+    return Object.freeze([]);
+  }
+  return Object.freeze(rows);
+}
+
+function tableCells(line: string): readonly string[] {
+  return Object.freeze(line.split("|").map((cell) => cell.trim()));
+}
+
+function compactHeader(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[º°ª]/gu, "")
+    .toLocaleUpperCase("es-ES")
+    .replace(/[^A-Z0-9]/gu, "");
 }
 
 function extractSpecificFacts(
@@ -1133,6 +1266,7 @@ function emptyOutput(
       recipientTaxId: null,
       thirdPartyName: null,
       thirdPartyTaxId: null,
+      debtAnnexRows: Object.freeze([]),
       moneyFacts: Object.freeze([]),
       issueDate: null,
       seizureDate: null,

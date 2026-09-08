@@ -117,7 +117,7 @@ function bankSeizureSource(input: {
       5: [
         "DEUDAS DEL EXPEDIENTE EJECUTIVO",
         `CONCEPTO | PER/EJER | ${input.debtHeader ?? "Nº LIQUIDACIÓN"} | IMP. PENDIENTE`,
-        `IVA sintético | 4T/2024 | ${input.debtKey ?? "SYN-DEBT-D11"} | ${input.pending ?? "276,00"} EUR`,
+        `IVA sintético | 4T/2024 | ${input.debtKey ?? "A9999900010001001"} | ${input.pending ?? "276,00"} EUR`,
         `IMPORTE PENDIENTE TOTAL: ${input.total ?? "276,00"} EUR`,
         `IMPORTE A EMBARGAR: ${input.limit ?? "276,00"} EUR`,
         input.accountsHeader ?? "DEPÓSITOS Y CUENTAS",
@@ -425,7 +425,9 @@ describe("AEAT real corpus extractor V3", () => {
     );
     expect(result.familyId).toBe("seizure.bank_account");
     expect(fieldReference(result, "SEIZURE_ORDER_ID")).toBe("SYN-SEIZURE-D11");
-    expect(fieldReference(result, "DEBT_KEY")).toBe("SYN-DEBT-D11");
+    expect(fieldReference(result, "LIQUIDATION_KEY")).toBe("A9999900010001001");
+    expect(fieldText(result, "SEIZURE_DEBT_CONCEPT")).toBe("IVA sintético");
+    expect(fieldText(result, "SEIZURE_DEBT_PERIOD")).toBe("4T/2024");
     expect(fieldAmount(result, "PENDING_DEBT")).toBe(27600);
     expect(fieldAmount(result, "PENDING_DEBT_TOTAL")).toBe(27600);
     expect(fieldAmount(result, "SEIZURE_LIMIT")).toBe(27600);
@@ -452,7 +454,9 @@ describe("AEAT real corpus extractor V3", () => {
         bankSeizureSource({ id: `SYN-V3-BANK-${debtHeader}`, debtHeader }),
       );
       expect(result.familyId).toBe("seizure.bank_account");
-      expect(fieldReference(result, "DEBT_KEY")).toBe("SYN-DEBT-D11");
+      expect(fieldReference(result, "LIQUIDATION_KEY")).toBe(
+        "A9999900010001001",
+      );
     },
   );
 
@@ -466,7 +470,7 @@ describe("AEAT real corpus extractor V3", () => {
       }),
     );
     expect(result.familyId).toBe("seizure.bank_account");
-    expect(fieldReference(result, "DEBT_KEY")).toBe("SYN-DEBT-D11");
+    expect(fieldReference(result, "LIQUIDATION_KEY")).toBe("A9999900010001001");
   });
 
   it("does not treat a generic document date as a signing date", async () => {
@@ -889,7 +893,11 @@ describe("AEAT real corpus extractor V3", () => {
         }),
         expect.objectContaining({
           canonicalType: "LIQUIDATION_KEY",
-          displayValue: "SYN-DEBT-D11",
+          displayValue: "A9999900010001001",
+        }),
+        expect.objectContaining({
+          canonicalType: "TOTAL_PENDING",
+          amountCents: 27_600,
         }),
         expect.objectContaining({
           canonicalType: "SEIZURE_LIMIT",
