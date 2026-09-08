@@ -190,7 +190,9 @@ export function normalizeProductCatalogItem(product: Product): Product {
   const legacyIva = normalizeOptionalPercent(product.ivaPercent);
   const legacyDiscount =
     legacyPvp && legacyCost && legacyPvp > 0
-      ? roundMoney(((legacyPvp - legacyCost) / legacyPvp) * 100)
+      ? normalizeOptionalPercent(
+          roundMoney(((legacyPvp - legacyCost) / legacyPvp) * 100),
+        )
       : undefined;
   const salesUnit = cleanOptionalUnit(product.sales?.unit) ?? legacyUnit;
   const saleUnitPrice = normalizeOptionalAmount(product.sales?.unitPrice);

@@ -8,6 +8,8 @@ const EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED =
   process.env.EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED === "true";
 const VERCEL_TRUSTED_OIDC_TOKEN =
   process.env.VERCEL_TRUSTED_OIDC_TOKEN?.trim() || null;
+const VERCEL_AUTOMATION_BYPASS_SECRET =
+  process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim() || null;
 const CHROME_EXECUTABLE_PATH =
   process.env.CHROME_EXECUTABLE_PATH ??
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
@@ -199,6 +201,31 @@ async function readShadowSummary(page, storageKey = WORKSPACE_STORAGE_KEY) {
         };
       };
     });
+  }, storageKey);
+}
+
+async function readShadowFingerprints(page, storageKey = WORKSPACE_STORAGE_KEY) {
+  return page.evaluate(async (workspaceStorageKey) => {
+    const openRequest = indexedDB.open("factura-autonomo-entity-shadow");
+    const database = await new Promise((resolve, reject) => {
+      openRequest.onsuccess = () => resolve(openRequest.result);
+      openRequest.onerror = () => reject(openRequest.error);
+    });
+    const transaction = database.transaction("entities", "readonly");
+    const request = transaction
+      .objectStore("entities")
+      .index("storageKey")
+      .getAll(workspaceStorageKey);
+    const records = await new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    return records.map((record) => ({
+      id: record.id,
+      entityType: record.entityType,
+      payloadFingerprint: record.payloadFingerprint,
+    }));
   }, storageKey);
 }
 
@@ -441,12 +468,21 @@ async function main() {
     executablePath: CHROME_EXECUTABLE_PATH,
     headless: true,
   });
-  const context = await browser.newContext({
-    extraHTTPHeaders: VERCEL_TRUSTED_OIDC_TOKEN
+  const extraHTTPHeaders = {
+    ...(VERCEL_TRUSTED_OIDC_TOKEN
       ? {
           "x-vercel-trusted-oidc-idp-token": VERCEL_TRUSTED_OIDC_TOKEN,
         }
-      : undefined,
+      : {}),
+    ...(VERCEL_AUTOMATION_BYPASS_SECRET
+      ? {
+          "x-vercel-protection-bypass": VERCEL_AUTOMATION_BYPASS_SECRET,
+        }
+      : {}),
+  };
+  const context = await browser.newContext({
+    extraHTTPHeaders:
+      Object.keys(extraHTTPHeaders).length > 0 ? extraHTTPHeaders : undefined,
   });
   const page = await context.newPage();
   const pageErrors = [];
@@ -494,6 +530,7 @@ async function main() {
       return;
     }
     const initialShadow = await waitForShadow(page, { entityCount: 10_000 });
+    const initialFingerprints = await readShadowFingerprints(page);
     routes.invoicesMs = await routeTiming(page, "/facturas", "Facturas");
     routes.expensesMs = await routeTiming(
       page,
@@ -508,19 +545,48 @@ async function main() {
     routes.productsMs = await routeTiming(page, "/productos", "Productos");
     routes.customersWarmMs = await routeTiming(page, "/clientes", "Clientes");
 
-    await page.goto(`${BASE_URL}/clientes/nuevo`, {
-      waitUntil: "domcontentloaded",
-    });
-    await page.getByRole("heading", { name: "Nuevo cliente" }).waitFor();
+    await page
+      .getByRole("button", { name: /^Editar Cliente \d+ Sintetico$/ })
+      .first()
+      .click();
+    await page.getByRole("heading", { name: "Editar cliente" }).waitFor();
     await page.getByLabel("Nombre *").fill("Cliente Guardado Benchmark");
+    await page.getByRole("textbox", { name: /^Apellidos/ }).fill("");
+    const saveStartedIso = new Date().toISOString();
     const saveStartedAt = performance.now();
-    await page.getByRole("button", { name: "Guardar cliente" }).click();
-    await page.waitForURL(`${BASE_URL}/clientes`);
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
     await page.getByText("Cliente Guardado Benchmark", { exact: true }).waitFor();
     const customerSaveMs = Math.round(performance.now() - saveStartedAt);
     const updatedShadow = await waitForShadow(page, {
-      entityCount: 10_001,
+      entityCount: 10_000,
+      checkedAfter: saveStartedIso,
     });
+    const updatedFingerprints = await readShadowFingerprints(page);
+    const initialFingerprintsById = new Map(
+      initialFingerprints.map((record) => [record.id, record.payloadFingerprint]),
+    );
+    const changedShadowEntities = updatedFingerprints.reduce(
+      (counts, record) => {
+        if (initialFingerprintsById.get(record.id) === record.payloadFingerprint) {
+          return counts;
+        }
+        counts[record.entityType] = (counts[record.entityType] ?? 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    const changedShadowEntityCount = Object.values(changedShadowEntities).reduce(
+      (total, count) => total + count,
+      0,
+    );
+    if (
+      changedShadowEntities.customer !== 1 ||
+      changedShadowEntityCount !== 1
+    ) {
+      throw new Error(
+        `entity_shadow_customer_update_scope_failed:${JSON.stringify(changedShadowEntities)}`,
+      );
+    }
 
     const interruptedTransaction = await proveAbortedTransactionIsAtomic(page);
     const corrupted = await corruptShadowAndExpireHealth(page);
@@ -528,7 +594,7 @@ async function main() {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "Clientes", exact: true }).waitFor();
     const repairedShadow = await waitForShadow(page, {
-      entityCount: 10_001,
+      entityCount: 10_000,
       upserted: 1,
       checkedAfter: corrupted.corruptedAt,
     });
@@ -591,9 +657,15 @@ async function main() {
       { guestIdKey: GUEST_ID_KEY, owner: WORKSPACE_OWNER },
     );
     await page.goto(`${BASE_URL}/clientes`, { waitUntil: "domcontentloaded" });
+    await page
+      .getByRole("combobox", { name: /^Buscar cliente/ })
+      .fill("Cliente Guardado Benchmark");
+    await page
+      .getByRole("option", { name: /Cliente Guardado Benchmark/ })
+      .click();
     await page.getByText("Cliente Guardado Benchmark", { exact: true }).waitFor();
     const firstShadowAfterReturn = await waitForShadow(page, {
-      entityCount: 10_001,
+      entityCount: 10_000,
     });
 
     const storedRawLength = await page.evaluate(
@@ -604,8 +676,8 @@ async function main() {
       (EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED
         ? !secondShadow?.manifest && secondShadow?.entityCount === 0
         : secondShadow?.entityCount === 7) &&
-      firstShadowWhileSecondIsActive.entityCount === 10_001 &&
-      firstShadowAfterReturn.entityCount === 10_001;
+      firstShadowWhileSecondIsActive.entityCount === 10_000 &&
+      firstShadowAfterReturn.entityCount === 10_000;
     if (!accountSwitchIsolated) {
       throw new Error(
         `entity_shadow_account_isolation_failed:${JSON.stringify({
@@ -635,6 +707,7 @@ async function main() {
           shadow: {
             initial: initialShadow,
             afterCustomerSave: updatedShadow,
+            changedAfterCustomerSave: changedShadowEntities,
           },
           resilience: {
             interruptedTransaction,

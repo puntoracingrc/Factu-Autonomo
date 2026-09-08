@@ -3,6 +3,24 @@ import { normalizeProductCatalogItem } from "./purchase-products";
 import type { Product } from "./types";
 
 describe("product unit normalization", () => {
+  it("es idempotente cuando el coste historico supera el PVP", () => {
+    const legacyProduct: Product = {
+      id: "product-negative-margin",
+      key: "producto margen negativo",
+      name: "Producto margen negativo",
+      family: "Material sintetico",
+      cost: 75,
+      pvp: 50,
+      source: "manual",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    };
+
+    const normalized = normalizeProductCatalogItem(legacyProduct);
+
+    expect(normalizeProductCatalogItem(normalized)).toEqual(normalized);
+  });
+
   it("unifica und en ud sin perder la identidad ni el aprendizaje del producto", () => {
     const legacyProduct: Product = {
       id: "product-legacy-und",
