@@ -6,6 +6,13 @@ const EXPECT_ENTITY_SHADOW_DISABLED =
   process.env.EXPECT_ENTITY_SHADOW_DISABLED === "true";
 const EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED =
   process.env.EXPECT_SECOND_WORKSPACE_SHADOW_DISABLED === "true";
+const PROFILE_NAVIGATION_ONLY =
+  process.env.PROFILE_NAVIGATION_ONLY === "true";
+const requestedCpuThrottleRate = Number(process.env.CPU_THROTTLE_RATE ?? "1");
+const CPU_THROTTLE_RATE =
+  Number.isFinite(requestedCpuThrottleRate) && requestedCpuThrottleRate >= 1
+    ? requestedCpuThrottleRate
+    : 1;
 const VERCEL_TRUSTED_OIDC_TOKEN =
   process.env.VERCEL_TRUSTED_OIDC_TOKEN?.trim() || null;
 const VERCEL_AUTOMATION_BYPASS_SECRET =
@@ -148,6 +155,91 @@ async function routeTiming(page, pathname, heading) {
     );
   }
   return Math.round(performance.now() - startedAt);
+}
+
+async function appNavigationTiming(
+  page,
+  pathname,
+  heading,
+  { profile = false } = {},
+) {
+  const client = await page.context().newCDPSession(page);
+  await client.send("Performance.enable");
+  if (profile) {
+    await client.send("Profiler.enable");
+    await client.send("Profiler.start");
+  }
+  const before = await client.send("Performance.getMetrics");
+  const startedAt = performance.now();
+  await page.locator(`a[href="${pathname}"]`).first().click();
+  await page
+    .getByRole("heading", { name: heading, exact: true })
+    .waitFor({ timeout: 30_000 });
+  const elapsedMs = Math.round(performance.now() - startedAt);
+  const after = await client.send("Performance.getMetrics");
+  const cpuProfile = profile ? await client.send("Profiler.stop") : null;
+  await client.detach();
+  const metric = (metrics, name) =>
+    metrics.metrics.find((entry) => entry.name === name)?.value ?? 0;
+  const result = {
+    elapsedMs,
+    scriptMs: Math.round(
+      (metric(after, "ScriptDuration") - metric(before, "ScriptDuration")) *
+        1_000,
+    ),
+    taskMs: Math.round(
+      (metric(after, "TaskDuration") - metric(before, "TaskDuration")) *
+      1_000,
+    ),
+  };
+  if (!cpuProfile) return result;
+
+  const nodes = new Map(
+    cpuProfile.profile.nodes.map((node) => [node.id, node.callFrame]),
+  );
+  const selfTimeByNode = new Map();
+  cpuProfile.profile.samples?.forEach((nodeId, index) => {
+    selfTimeByNode.set(
+      nodeId,
+      (selfTimeByNode.get(nodeId) ?? 0) +
+        (cpuProfile.profile.timeDeltas?.[index] ?? 0),
+    );
+  });
+  return {
+    ...result,
+    topCpuFunctions: [...selfTimeByNode]
+      .map(([nodeId, microseconds]) => ({
+        functionName: nodes.get(nodeId)?.functionName || "(anonymous)",
+        url: nodes.get(nodeId)?.url || "",
+        line: (nodes.get(nodeId)?.lineNumber ?? -1) + 1,
+        column: (nodes.get(nodeId)?.columnNumber ?? -1) + 1,
+        selfMs: Math.round(microseconds / 1_000),
+      }))
+      .sort((left, right) => right.selfMs - left.selfMs)
+      .slice(0, 20),
+  };
+}
+
+async function quoteLinkManagerTiming(page) {
+  const startedAt = performance.now();
+  await page
+    .getByRole("button", {
+      name: "Ver o gestionar documentos y gastos vinculados",
+      exact: true,
+    })
+    .first()
+    .click();
+  await page.getByRole("heading", { name: /^Vínculos de / }).waitFor();
+  const visibleCandidates = await page
+    .getByTestId("document-link-modal")
+    .locator("button[aria-pressed]")
+    .count();
+  if (visibleCandidates === 0) {
+    throw new Error("quote_link_manager_candidates_missing");
+  }
+  const elapsedMs = Math.round(performance.now() - startedAt);
+  await page.getByRole("button", { name: "Cerrar vínculos" }).click();
+  return { elapsedMs, visibleCandidates };
 }
 
 async function readShadowSummary(page, storageKey = WORKSPACE_STORAGE_KEY) {
@@ -302,6 +394,94 @@ async function waitForShadow(
   throw new Error(
     `entity_shadow_timeout:${JSON.stringify(await readShadowSummary(page, storageKey))}`,
   );
+}
+
+async function measureIndexedDbReadStrategies(page) {
+  return page.evaluate(async (storageKey) => {
+    const openDatabase = (name) =>
+      new Promise((resolve, reject) => {
+        const request = indexedDB.open(name);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    const requestResult = (request) =>
+      new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    const median = (values) => {
+      const sorted = [...values].sort((left, right) => left - right);
+      return sorted[Math.floor(sorted.length / 2)];
+    };
+
+    const normalizedDatabase = await openDatabase(
+      "factura-autonomo-normalized-cache",
+    );
+    const entityDatabase = await openDatabase(
+      "factura-autonomo-entity-shadow",
+    );
+    const normalizedTimes = [];
+    const entityTimes = [];
+    let normalizedEntityCount = 0;
+    let separatedEntityCount = 0;
+
+    try {
+      for (let iteration = 0; iteration < 9; iteration += 1) {
+        let startedAt = performance.now();
+        const normalizedTransaction = normalizedDatabase.transaction(
+          "snapshots",
+          "readonly",
+        );
+        const normalized = await requestResult(
+          normalizedTransaction
+            .objectStore("snapshots")
+            .get(`3:${storageKey}`),
+        );
+        normalizedEntityCount =
+          normalized.data.customers.length +
+          normalized.data.documents.length +
+          normalized.data.expenses.length +
+          normalized.data.suppliers.length +
+          normalized.data.products.length;
+        normalizedTimes.push(performance.now() - startedAt);
+
+        startedAt = performance.now();
+        const entityTransaction = entityDatabase.transaction(
+          ["manifests", "entities", "health"],
+          "readonly",
+        );
+        const [manifest, entities, health] = await Promise.all([
+          requestResult(entityTransaction.objectStore("manifests").get(storageKey)),
+          requestResult(
+            entityTransaction
+              .objectStore("entities")
+              .index("storageKey")
+              .getAll(storageKey),
+          ),
+          requestResult(entityTransaction.objectStore("health").get(storageKey)),
+        ]);
+        separatedEntityCount = entities.reduce(
+          (count, record) => count + (record.payload?.id ? 1 : 0),
+          0,
+        );
+        if (!manifest || !health?.matches) {
+          throw new Error("entity_cache_metadata_invalid");
+        }
+        entityTimes.push(performance.now() - startedAt);
+      }
+    } finally {
+      normalizedDatabase.close();
+      entityDatabase.close();
+    }
+
+    return {
+      iterations: normalizedTimes.length,
+      normalizedSnapshotMedianMs: Number(median(normalizedTimes).toFixed(1)),
+      separatedEntitiesMedianMs: Number(median(entityTimes).toFixed(1)),
+      normalizedEntityCount,
+      separatedEntityCount,
+    };
+  }, WORKSPACE_STORAGE_KEY);
 }
 
 async function proveAbortedTransactionIsAtomic(page) {
@@ -485,6 +665,13 @@ async function main() {
       Object.keys(extraHTTPHeaders).length > 0 ? extraHTTPHeaders : undefined,
   });
   const page = await context.newPage();
+  let throttleClient = null;
+  if (CPU_THROTTLE_RATE > 1) {
+    throttleClient = await context.newCDPSession(page);
+    await throttleClient.send("Emulation.setCPUThrottlingRate", {
+      rate: CPU_THROTTLE_RATE,
+    });
+  }
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
@@ -503,6 +690,38 @@ async function main() {
         raw: encoded.raw,
       },
     );
+
+    if (PROFILE_NAVIGATION_ONLY) {
+      const routes = {};
+      routes.customersColdMs = await routeTiming(page, "/clientes", "Clientes");
+      await page.waitForTimeout(3_000);
+      routes.invoicesSpaWarm = await appNavigationTiming(
+        page,
+        "/facturas",
+        "Facturas",
+        { profile: true },
+      );
+      routes.quotesSpaWarm = await appNavigationTiming(
+        page,
+        "/presupuestos",
+        "Presupuestos",
+        { profile: true },
+      );
+      routes.quoteLinkManagerOpen = await quoteLinkManagerTiming(page);
+      routes.customersSpaWarm = await appNavigationTiming(
+        page,
+        "/clientes",
+        "Clientes",
+      );
+      process.stdout.write(
+        `${JSON.stringify(
+          { mode: "profile", cpuThrottleRate: CPU_THROTTLE_RATE, routes },
+          null,
+          2,
+        )}\n`,
+      );
+      return;
+    }
 
     const routes = {};
     routes.customersColdMs = await routeTiming(page, "/clientes", "Clientes");
@@ -530,6 +749,14 @@ async function main() {
       return;
     }
     const initialShadow = await waitForShadow(page, { entityCount: 10_000 });
+    const indexedDbReads = await measureIndexedDbReadStrategies(page);
+    await deleteNormalizedWorkspaceCache(page);
+    routes.customersRawFallbackMs = await routeTiming(
+      page,
+      "/clientes",
+      "Clientes",
+    );
+    await waitForNormalizedCache(page, WORKSPACE_STORAGE_KEY);
     const initialFingerprints = await readShadowFingerprints(page);
     routes.invoicesMs = await routeTiming(page, "/facturas", "Facturas");
     routes.expensesMs = await routeTiming(
@@ -544,6 +771,26 @@ async function main() {
     );
     routes.productsMs = await routeTiming(page, "/productos", "Productos");
     routes.customersWarmMs = await routeTiming(page, "/clientes", "Clientes");
+    routes.backgroundSettleMs = 3_000;
+    await page.waitForTimeout(routes.backgroundSettleMs);
+    routes.invoicesSpaWarm = await appNavigationTiming(
+      page,
+      "/facturas",
+      "Facturas",
+      { profile: true },
+    );
+    routes.quotesSpaWarm = await appNavigationTiming(
+      page,
+      "/presupuestos",
+      "Presupuestos",
+      { profile: true },
+    );
+    routes.quoteLinkManagerOpen = await quoteLinkManagerTiming(page);
+    routes.customersSpaWarm = await appNavigationTiming(
+      page,
+      "/clientes",
+      "Clientes",
+    );
 
     await page
       .getByRole("button", { name: /^Editar Cliente \d+ Sintetico$/ })
@@ -703,6 +950,7 @@ async function main() {
             finalStoredRawLength: storedRawLength,
           },
           routes,
+          indexedDbReads,
           customerSaveMs,
           shadow: {
             initial: initialShadow,
@@ -732,6 +980,7 @@ async function main() {
       )}\n`,
     );
   } finally {
+    await throttleClient?.detach();
     await context.close();
     await browser.close();
   }

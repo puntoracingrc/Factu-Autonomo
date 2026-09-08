@@ -55,4 +55,13 @@ describe("wiring de la proyección visual de relaciones", () => {
     expect(manager).toContain("const unresolvedQuoteLink = Boolean(");
     expect(workspace).toContain("const unresolvedQuoteLink = Boolean(");
   });
+
+  it("no prepara todos los candidatos hasta que el usuario abre vínculos", () => {
+    const manager = source("./DocumentLinkManagerButton.tsx");
+
+    expect(manager).toContain("if (!open || !relationshipInvoice) return [];");
+    expect(manager).toContain(
+      'if (!open || doc.type !== "presupuesto") return [];',
+    );
+  });
 });

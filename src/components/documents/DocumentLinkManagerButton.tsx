@@ -84,27 +84,31 @@ export function DocumentLinkManagerButton({
       relationshipInvoice.centralInvoiceAuthority),
   );
   const quoteOptionsForInvoice = useMemo(
-    () =>
-      linkableDocuments(data.documents, "presupuesto").filter((quote) => {
+    () => {
+      if (!open || !relationshipInvoice) return [];
+      return linkableDocuments(data.documents, "presupuesto").filter((quote) => {
         const linkedInvoice = findInvoiceCreatedFromQuote(
           data.documents,
           quote.id,
         );
-        return !linkedInvoice || linkedInvoice.id === relationshipInvoice?.id;
-      }),
-    [data.documents, relationshipInvoice?.id],
+        return !linkedInvoice || linkedInvoice.id === relationshipInvoice.id;
+      });
+    },
+    [data.documents, open, relationshipInvoice],
   );
   const invoiceOptionsForQuote = useMemo(
-    () =>
-      linkableDocuments(data.documents, "factura").filter(
+    () => {
+      if (!open || doc.type !== "presupuesto") return [];
+      return linkableDocuments(data.documents, "factura").filter(
         (invoice) =>
           !invoice.rectification &&
           !invoice.sourceQuoteDocumentId &&
           !invoice.sourceQuoteNumber &&
           (isDocumentEditable(invoice) ||
             Boolean(invoice.centralInvoiceAuthority)),
-      ),
-    [data.documents],
+      );
+    },
+    [data.documents, doc.type, open],
   );
   const hasCurrentLink =
     doc.type === "factura"
