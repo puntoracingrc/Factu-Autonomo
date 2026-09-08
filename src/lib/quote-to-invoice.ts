@@ -14,6 +14,31 @@ interface BuildInvoiceDraftFromQuoteOptions {
   lineIdFactory?: () => string;
 }
 
+const invoiceBySourceQuoteCache = new WeakMap<
+  Document[],
+  ReadonlyMap<string, Document>
+>();
+
+function invoiceBySourceQuote(documents: Document[]): ReadonlyMap<string, Document> {
+  const cached = invoiceBySourceQuoteCache.get(documents);
+  if (cached) return cached;
+
+  const indexed = new Map<string, Document>();
+  for (const document of documents) {
+    if (
+      document.type !== "factura" ||
+      isRectificativa(document) ||
+      !document.sourceQuoteDocumentId ||
+      indexed.has(document.sourceQuoteDocumentId)
+    ) {
+      continue;
+    }
+    indexed.set(document.sourceQuoteDocumentId, document);
+  }
+  invoiceBySourceQuoteCache.set(documents, indexed);
+  return indexed;
+}
+
 function cloneLineItem(
   item: LineItem,
   lineIdFactory: () => string,
@@ -39,12 +64,7 @@ export function findInvoiceCreatedFromQuote(
   documents: Document[],
   quoteId: string,
 ): Document | undefined {
-  return documents.find(
-    (doc) =>
-      doc.type === "factura" &&
-      !isRectificativa(doc) &&
-      doc.sourceQuoteDocumentId === quoteId,
-  );
+  return invoiceBySourceQuote(documents).get(quoteId);
 }
 
 export function buildInvoiceDraftFromQuote(
