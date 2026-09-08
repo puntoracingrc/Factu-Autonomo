@@ -64,10 +64,7 @@ export function HistoricalInvoiceArchiveCard() {
   }, [refresh, revision]);
 
   async function applyReceipt(manifest: HistoricalWorkspaceArchiveManifest) {
-    const result = mergeHistoricalWorkspaceArchiveDurably(
-      getCurrentData(),
-      manifest,
-    );
+    const result = mergeHistoricalWorkspaceArchiveDurably(manifest);
     if (result.status !== "applied") {
       throw new Error(
         "El archivo quedó verificado en el servidor, pero este dispositivo cambió durante el proceso. Recarga para aplicarlo.",

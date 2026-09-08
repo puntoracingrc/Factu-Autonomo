@@ -30,4 +30,27 @@ describe("historical workspace archive automatic recovery wiring", () => {
       'setCurrentState({ status: "checking", phase: "restoring" })',
     );
   });
+
+  it("self-heals local quota pressure without asking the user to sign out", () => {
+    expect(component).toContain(
+      "archiveAndReleaseWorkspaceLocalRecoveryCopies({",
+    );
+    expect(component).toContain('result.reason === "quota_exceeded"');
+    expect(component).toContain(
+      "mergeHistoricalWorkspaceArchiveDurably(manifest)",
+    );
+    expect(component).toContain("AUTOMATIC_RETRY_DELAYS_MS");
+    expect(component).toContain("Intentar ahora");
+    expect(component).not.toContain("signOut");
+    expect(component).not.toContain("Cerrar sesión");
+  });
+
+  it("reports the real durability reason without exposing invoice contents", () => {
+    expect(component).toContain("reportAppError({");
+    expect(component).toContain(
+      '`historical_archive_restore_${failureReason ?? "unexpected"}`',
+    );
+    expect(component).toContain("localInvoiceCount");
+    expect(component).not.toContain("documents: getCurrentData()");
+  });
 });
