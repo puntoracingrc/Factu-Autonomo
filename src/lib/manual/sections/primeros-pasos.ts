@@ -69,7 +69,7 @@ export const primerosPasosSection: ManualSection = {
         "Si tu plan incluye nube y ya habías creado datos sin cuenta, al entrar podrás elegir **Guardar estos datos en mi cuenta**, descargar una copia o **Seguir solo en este navegador**. En Gratis el trabajo permanece local.",
         "En **Legal** encontrarás términos, privacidad, cookies, encargo de tratamiento y nota VeriFactu.",
         "En Pro o Pro+, si un dispositivo no refleja lo que ya está bien en otro, abre **Problemas de sincronización** en Cuenta y usa la reparación con la copia de la nube.",
-        "Para migrar datos desde programas antiguos, usa **Cuenta → Importar datos** o entra en **Importar datos** desde el menú. La importación de bases de datos externas requiere Pro.",
+        "Para traer contactos desde programas antiguos, usa **Cuenta → Importación**. Solo se importan clientes y proveedores; la función requiere Pro.",
       ],
       screenshot: {
         src: "/ayuda/capturas/cuenta-nube.png",

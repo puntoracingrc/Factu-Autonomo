@@ -213,18 +213,20 @@ export default function CuentaPage() {
       <AccountSection
         id="importar-datos"
         title="Importación"
-        description="Trae datos desde otros programas con una previsualización antes de aplicar cambios."
+        description="Trae clientes y proveedores desde otros programas sin modificar tus documentos."
         Icon={Upload}
       >
         <Card className="mb-6 space-y-3">
-          <h3 className="text-lg font-bold text-slate-900">Importar datos</h3>
+          <h3 className="text-lg font-bold text-slate-900">
+            Importar clientes y proveedores
+          </h3>
           <p className="text-sm text-slate-600">
-            Trae clientes, presupuestos, facturas y datos de empresa desde
-            archivos compatibles. Revisa una previsualización antes de aplicar
-            la importación.
+            Trae tus contactos desde archivos compatibles. Facturas,
+            presupuestos, recibos, gastos, productos, numeración y ajustes no
+            se modifican.
           </p>
           <ButtonLink href="/importar" variant="secondary">
-            Abrir importador
+            Importar contactos
           </ButtonLink>
         </Card>
       </AccountSection>

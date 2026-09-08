@@ -224,17 +224,17 @@ export function FirstUseOnboardingPanel() {
           <p className="text-sm font-black text-slate-900">
             {nextStep?.id === "document"
               ? "Puedes facturar sin crear cliente antes"
-              : "También puedes empezar trayendo datos"}
+              : "También puedes empezar trayendo contactos"}
           </p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Importa datos si vienes de otro programa, o registra gastos cuando
-            empieces a trabajar con compras reales.
+            Importa clientes y proveedores si vienes de otro programa, o
+            registra gastos cuando empieces a trabajar con compras reales.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <ButtonLink href="/importar" variant="secondary">
             <Upload className="h-4 w-4" />
-            Importar datos
+            Importar contactos
           </ButtonLink>
           <ButtonLink href="/gastos/nuevo" variant="secondary">
             <ShoppingCart className="h-4 w-4" />
