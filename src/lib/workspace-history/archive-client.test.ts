@@ -41,6 +41,19 @@ function jsonResponse(status: number, body: unknown): Response {
   return Response.json(body, { status });
 }
 
+function rejectReboundFetch(implementation: typeof fetch): typeof fetch {
+  return function receiverSensitiveFetch(
+    this: unknown,
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ) {
+    if (this !== undefined) {
+      throw new TypeError("Illegal invocation");
+    }
+    return implementation(input, init);
+  } as typeof fetch;
+}
+
 function statusFor(
   manifest: ReturnType<typeof buildHistoricalWorkspaceArchive>,
   status: "uploading" | "ready",
@@ -74,6 +87,29 @@ describe("historical workspace archive client", () => {
       code: "HISTORICAL_ARCHIVE_SESSION_REQUIRED",
     });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("does not rebind the browser fetch receiver", async () => {
+    const implementation = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      jsonResponse(200, {
+        ok: true,
+        schema: ROUTE_SCHEMA,
+        archive: null,
+      }),
+    );
+
+    const result = await getHistoricalWorkspaceArchiveStatusFromBrowser({
+      expectedOwnerScope: OWNER,
+      fetchImpl: rejectReboundFetch(implementation),
+      getAccessToken: async () => "access-token",
+      getDeviceToken: () => "device-token",
+    });
+
+    expect(result).toMatchObject({ ok: true, value: null });
+    expect(implementation).toHaveBeenCalledWith(
+      "/api/workspace-history/archive?action=status",
+      expect.objectContaining({ method: "GET", cache: "no-store" }),
+    );
   });
 
   it("rejects a ready status until every document is stored and finalized", async () => {
