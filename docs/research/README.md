@@ -11,3 +11,4 @@ Documentos:
 
 - importadores-software-facturacion-espana-research-v1.md
 - competencia-funcionalidades-gap-analysis-v1.md
+- regulatory-change-monitor-v1.md
