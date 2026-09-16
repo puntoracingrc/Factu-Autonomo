@@ -99,6 +99,34 @@ describe("central business payload parsers", () => {
       ),
     ).toBeNull();
   });
+
+  it("conserva sin recalcular precios brutos en presupuestos y recibos", () => {
+    const grossPriced = {
+      ...quote,
+      items: [
+        {
+          id: "gross-line-1",
+          description: "Precio final sintetico",
+          quantity: 1,
+          unitPrice: 66.12,
+          grossUnitPrice: 80,
+          ivaPercent: 21,
+        },
+      ],
+    } satisfies Document;
+
+    expect(
+      parseCentralBusinessDocumentPayload(grossPriced, quote.id, "quote"),
+    ).toEqual(grossPriced);
+    expect(
+      parseCentralBusinessDocumentPayload(
+        { ...grossPriced, type: "recibo" },
+        quote.id,
+        "receipt",
+      ),
+    ).toEqual({ ...grossPriced, type: "recibo" });
+  });
+
   it("acepta gastos completos y rechaza números o líneas inválidas", () => {
     expect(parseCentralExpensePayload(expense, expense.id)).toEqual(expense);
     expect(
@@ -110,6 +138,52 @@ describe("central business payload parsers", () => {
         expense.id,
       ),
     ).toBeNull();
+  });
+
+  it("conserva todos los decimales operativos de un gasto sin reconstruirlos", () => {
+    const detailedExpense: Expense = {
+      ...expense,
+      amount: 80,
+      purchaseLines: [
+        {
+          id: "decimal-line-1",
+          description: "Material decimal sintetico",
+          sourceQuantity: 0.3,
+          quantity: 0.3,
+          chargeQuantity: 0.3,
+          unitPrice: 66.6667,
+          discountPercent: 12.345,
+          netUnitPrice: 58.4362,
+          ivaPercent: 21,
+          total: 17.53,
+          calculationFormula: "quantity*unitPrice",
+          calculationExpectedTotal: 17.53086,
+          calculationDifference: -0.00086,
+        },
+      ],
+      providerSummary: {
+        status: "completed_with_original",
+        summaryId: "summary-1",
+        importedAt: expense.createdAt,
+        summaryInvoiceTotal: 80,
+        summaryIvaPercent: 21,
+        summaryIvaAmount: 13.88,
+        summaryRecargoPercent: 5.2,
+        summaryRecargoAmount: 3.44,
+      },
+      workAllocations: [
+        {
+          workDocumentId: "invoice-1",
+          amount: 79.99,
+          fullAmountAtAllocation: 80,
+          allocatedAt: expense.createdAt,
+        },
+      ],
+    };
+
+    expect(
+      parseCentralExpensePayload(detailedExpense, detailedExpense.id),
+    ).toEqual(detailedExpense);
   });
 
   it("normaliza tombstones de gastos fijos y rechaza calendarios imposibles", () => {

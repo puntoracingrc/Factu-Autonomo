@@ -44,9 +44,10 @@ function invoice(): Document {
         {
           id: "invoice-line-1",
           description: "Trabajo sintetico",
-          quantity: 2,
+          quantity: 1,
           unit: "ud",
-          unitPrice: 50,
+          unitPrice: 66.12,
+          grossUnitPrice: 80,
           ivaPercent: 21,
         },
       ],
@@ -155,6 +156,15 @@ describe("central receipt materialization", () => {
       }).ok,
     ).toBe(true);
     expect(centralBusinessReceiptServerPayload(result.receipt)).toEqual(payload);
+    expect(result.receipt.items[0]).toMatchObject({
+      unitPrice: 66.12,
+      grossUnitPrice: 80,
+    });
+    expect(result.receipt.documentSnapshot?.items[0]).toMatchObject({
+      subtotal: 66.12,
+      ivaAmount: 13.88,
+      total: 80,
+    });
   });
 
   it("rechaza contenido alterado y nunca crea un segundo recibo", () => {
