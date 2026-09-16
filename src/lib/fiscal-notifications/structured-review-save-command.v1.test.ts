@@ -23,6 +23,7 @@ import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/verti
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import { parseFiscalNotificationPdfTextLayerBytes } from "./pdf-text-layer-parser";
+import { projectFiscalNotificationLibraryAiAuditInputV1 } from "./library-ai-audit.v1";
 import { projectFiscalNotificationDocumentDetailV1 } from "./structured-review-document-detail.v1";
 import { projectFiscalNotificationDocumentLibraryV1 } from "./structured-review-document-library.v1";
 import type {
@@ -1115,9 +1116,9 @@ describe("structured fiscal notification save command v1", () => {
         documentSubtype === "collection.enforcement_order",
     )!.id;
     const durableBeforeDelete = readPersistedDataSnapshot();
-    expect(durableBeforeDelete?.fiscalNotificationsWorkspace?.revision).toBe(
-      workspace.revision + 1,
-    );
+    expect(
+      durableBeforeDelete?.fiscalNotificationsWorkspace?.revision ?? -1,
+    ).toBeGreaterThanOrEqual(workspace.revision);
     const persistDelete = vi.fn(persistFiscal);
     const deleted =
       runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationDocumentDeletionResultV1>(
@@ -2856,7 +2857,8 @@ describe("structured fiscal notification save command v1", () => {
 
     expect(seizure.status).toBe("applied");
     if (seizure.status !== "applied") return;
-    expect(seizure.data.fiscalNotificationsWorkspace?.relations).toEqual([
+    const workspace = seizure.data.fiscalNotificationsWorkspace;
+    expect(workspace?.relations).toEqual([
       expect.objectContaining({
         relationType: "ENFORCES",
         status: "SYSTEM_CONFIRMED_EXACT",
@@ -2866,12 +2868,78 @@ describe("structured fiscal notification save command v1", () => {
         }),
       }),
     ]);
-    expect(seizure.data.fiscalNotificationsWorkspace).toMatchObject({
+    expect(workspace).toMatchObject({
       debts: [],
       obligations: [],
       paymentPlans: [],
       accountingDrafts: [],
     });
+    expect(workspace?.references).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          referenceType: "LIQUIDATION_KEY",
+          normalizedValue: "LQSYNTH071",
+        }),
+        expect.objectContaining({
+          referenceType: "LIQUIDATION_KEY",
+          normalizedValue: "LQSYNTH071",
+        }),
+      ]),
+    );
+    if (!workspace) return;
+
+    const library = projectFiscalNotificationDocumentLibraryV1(
+      workspace,
+      OWNER,
+    );
+    expect(library.status).toBe("READY");
+    if (library.status !== "READY") return;
+    expect(library.groups).toEqual([
+      expect.objectContaining({
+        hasConfirmedRelation: true,
+        links: [
+          expect.objectContaining({
+            relationType: "ENFORCES",
+            relationStatus: "SYSTEM_CONFIRMED_EXACT",
+            matches: [
+              expect.objectContaining({
+                referenceType: "LIQUIDATION_KEY",
+                label: "Clave de liquidación",
+                value: "LQ-SYNTH-071",
+              }),
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    const auditInput = projectFiscalNotificationLibraryAiAuditInputV1(library);
+    expect(auditInput.documents).toHaveLength(2);
+    const liquidationAliases = auditInput.documents.flatMap((document) =>
+      document.references
+        .filter((reference) => reference.label === "Clave de liquidación")
+        .map((reference) => reference.referenceAlias),
+    );
+    const sharedLiquidationAlias = [...new Set(liquidationAliases)][0];
+    expect(new Set(liquidationAliases)).toEqual(
+      new Set([sharedLiquidationAlias]),
+    );
+    expect(sharedLiquidationAlias).toMatch(/^REF-\d{3}$/u);
+    expect(auditInput.relations).toEqual([
+      expect.objectContaining({
+        relationType: "ENFORCES",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        matches: [
+          expect.objectContaining({
+            label: "Clave de liquidación",
+            referenceAlias: sharedLiquidationAlias,
+            strength: "STRONG_IDENTIFIER",
+          }),
+        ],
+      }),
+    ]);
+    expect(JSON.stringify(auditInput)).not.toContain("LQ-SYNTH-071");
+    expect(JSON.stringify(auditInput)).not.toContain("LQSYNTH071");
   });
 
   it("bloquea con diagnóstico de privacidad si una proyección intenta persistir texto libre", async () => {

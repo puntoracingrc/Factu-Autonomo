@@ -6,6 +6,11 @@ import type {
   FiscalNotificationDocumentLibraryViewModelV1,
 } from "./structured-review-document-library.v1";
 import { isStrongStructuredReviewRelationReferenceTypeV1 } from "./structured-review-relations-view-model.v1";
+import {
+  normalizeOfficialReference,
+  normalizeOfficialReferenceValue,
+} from "./official-reference-normalization.v1";
+import type { ExternalReferenceType } from "./types";
 
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1 =
   "fiscal-notification-library-ai-audit.v5";
@@ -421,10 +426,12 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
             : [];
         }
         if (fact.semantic === "REFERENCE") {
-          const alias = referenceAliases.get(referenceIdentity(fact.value));
           const label = auditReferenceLabel(
             fact.label,
             document.documentSubtype,
+          );
+          const alias = referenceAliases.get(
+            referenceIdentity(fact.value, label),
           );
           return alias
             ? [
@@ -476,11 +483,15 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
       ),
       references: Object.freeze(
         document.references.flatMap((reference) => {
+          const normalizedReferenceLabel = auditReferenceLabel(
+            reference.label,
+            document.documentSubtype,
+          );
           const referenceAlias = referenceAliases.get(
-            referenceIdentity(reference.value),
+            referenceIdentity(reference.value, normalizedReferenceLabel),
           );
           const label = cleanStructuralLabel(
-            auditReferenceLabel(reference.label, document.documentSubtype),
+            normalizedReferenceLabel,
             180,
           );
           if (!referenceAlias || !label) return [];
@@ -488,8 +499,11 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
             .filter(
               (fact) =>
                 fact.semantic === "REFERENCE" &&
-                referenceIdentity(fact.value) ===
-                  referenceIdentity(reference.value),
+                referenceIdentity(
+                  fact.value,
+                  auditReferenceLabel(fact.label, document.documentSubtype),
+                ) ===
+                  referenceIdentity(reference.value, normalizedReferenceLabel),
             )
             .map((fact) => fact.pageNumber);
           return [
@@ -518,7 +532,14 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                   pages: Object.freeze([...money.pageNumbers]),
                   sourceReferenceAlias: money.sourceReference
                     ? (referenceAliases.get(
-                        referenceIdentity(money.sourceReference),
+                        referenceIdentityFromReferenceType(
+                          money.sourceReference,
+                          money.sourceReferenceType,
+                          sourceReferenceLabelForDocument(
+                            document,
+                            money.sourceReference,
+                          ),
+                        ),
                       ) ?? null)
                     : null,
                 }),
@@ -737,7 +758,7 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
         return [];
       }
       const referenceAlias =
-        referenceAliases.get(referenceIdentity(match.value)) ??
+        referenceAliases.get(referenceIdentity(match.value, match.label)) ??
         protectedRelationMatchAliases.get(
           protectedRelationMatchAliasKey(link.key, matchIndex),
         );
@@ -871,16 +892,29 @@ function createReferenceAliases(
   const identities = new Set<string>();
   for (const document of viewModel.documents) {
     for (const reference of document.references) {
-      addReferenceIdentity(identities, reference.value, reference.label);
+      addReferenceIdentity(
+        identities,
+        reference.value,
+        auditReferenceLabel(reference.label, document.documentSubtype),
+      );
     }
     for (const fact of document.orderedFacts) {
       if (fact.semantic === "REFERENCE") {
-        addReferenceIdentity(identities, fact.value, fact.label);
+        addReferenceIdentity(
+          identities,
+          fact.value,
+          auditReferenceLabel(fact.label, document.documentSubtype),
+        );
       }
     }
     for (const money of document.money) {
       if (money.sourceReference) {
-        addReferenceIdentity(identities, money.sourceReference);
+        addReferenceIdentityFromReferenceType(
+          identities,
+          money.sourceReference,
+          money.sourceReferenceType,
+          sourceReferenceLabelForDocument(document, money.sourceReference),
+        );
       }
     }
   }
@@ -912,8 +946,9 @@ function createProtectedRelationMatchAliases(
     link.matches.forEach((match, matchIndex) => {
       if (
         nextAlias > 999 ||
-        referenceAliases.has(referenceIdentity(match.value)) ||
-        referenceIdentity(match.value) !== PROTECTED_RELATION_REFERENCE_VALUE ||
+        referenceAliases.has(referenceIdentity(match.value, match.label)) ||
+        referenceIdentity(match.value, match.label) !==
+          PROTECTED_RELATION_REFERENCE_VALUE ||
         !isStrongAuditRelationMatch(match)
       ) {
         return;
@@ -981,12 +1016,22 @@ function createAuditAliasReplacements(
       if (alias) replacements.set(document.subjectName.trim(), alias);
     }
     for (const reference of document.references) {
-      const alias = referenceAliases.get(referenceIdentity(reference.value));
+      const alias = referenceAliases.get(
+        referenceIdentity(
+          reference.value,
+          auditReferenceLabel(reference.label, document.documentSubtype),
+        ),
+      );
       if (alias) replacements.set(reference.value.trim(), alias);
     }
     for (const fact of document.orderedFacts) {
       if (fact.semantic === "REFERENCE") {
-        const alias = referenceAliases.get(referenceIdentity(fact.value));
+        const alias = referenceAliases.get(
+          referenceIdentity(
+            fact.value,
+            auditReferenceLabel(fact.label, document.documentSubtype),
+          ),
+        );
         if (alias) replacements.set(fact.value.trim(), alias);
       }
       if (fact.semantic === "PARTY" || isPartyFactLabel(fact.label)) {
@@ -997,14 +1042,20 @@ function createAuditAliasReplacements(
     for (const money of document.money) {
       if (!money.sourceReference) continue;
       const alias = referenceAliases.get(
-        referenceIdentity(money.sourceReference),
+        referenceIdentityFromReferenceType(
+          money.sourceReference,
+          money.sourceReferenceType,
+          sourceReferenceLabelForDocument(document, money.sourceReference),
+        ),
       );
       if (alias) replacements.set(money.sourceReference.trim(), alias);
     }
   }
   for (const link of uniqueLinks(viewModel)) {
     for (const match of link.matches) {
-      const alias = referenceAliases.get(referenceIdentity(match.value));
+      const alias = referenceAliases.get(
+        referenceIdentity(match.value, match.label),
+      );
       if (alias) replacements.set(match.value.trim(), alias);
     }
   }
@@ -1046,12 +1097,29 @@ function addReferenceIdentity(
   value: string,
   label?: string,
 ): void {
-  const identity = referenceIdentity(value);
+  const identity = referenceIdentity(value, label);
   if (
     identity &&
     !PROTECTED_REFERENCE_VALUES.has(identity) &&
     isAliasableAuditReferenceValue(value, label) &&
     (label === undefined || isSafeAuditText(label))
+  ) {
+    target.add(identity);
+  }
+}
+
+function addReferenceIdentityFromReferenceType(
+  target: Set<string>,
+  value: string,
+  type: ExternalReferenceType | null,
+  fallbackLabel?: string,
+): void {
+  const identity = referenceIdentityFromReferenceType(value, type, fallbackLabel);
+  const label = referenceLabelForType(type) ?? fallbackLabel;
+  if (
+    identity &&
+    !PROTECTED_REFERENCE_VALUES.has(identity) &&
+    isAliasableAuditReferenceValue(value, label)
   ) {
     target.add(identity);
   }
@@ -1074,8 +1142,85 @@ function isAliasableAuditReferenceValue(value: string, label?: string): boolean 
   return true;
 }
 
-function referenceIdentity(value: string): string {
-  return value.trim().toLocaleLowerCase("es-ES").replace(/\s+/gu, " ");
+function referenceIdentity(value: string, label?: string): string {
+  const official = label ? normalizeOfficialReference(label, value) : null;
+  return official
+    ? `${official.canonicalType}:${official.normalizedValue}`
+    : value.trim().toLocaleLowerCase("es-ES").replace(/\s+/gu, " ");
+}
+
+function referenceIdentityFromReferenceType(
+  value: string,
+  type: ExternalReferenceType | null,
+  fallbackLabel?: string,
+): string {
+  switch (type) {
+    case "LIQUIDATION_KEY": {
+      const normalized = normalizeOfficialReferenceValue(
+        "LIQUIDATION_KEY",
+        value,
+      );
+      return normalized ? `LIQUIDATION_KEY:${normalized}` : referenceIdentity(value);
+    }
+    case "DEBT_KEY": {
+      const normalized = normalizeOfficialReferenceValue("DEBT_KEY", value);
+      return normalized ? `DEBT_KEY:${normalized}` : referenceIdentity(value);
+    }
+    case "PAYMENT_JUSTIFICANTE": {
+      const normalized = normalizeOfficialReferenceValue(
+        "PAYMENT_FORM_REFERENCE",
+        value,
+      );
+      return normalized
+        ? `PAYMENT_FORM_REFERENCE:${normalized}`
+        : referenceIdentity(value);
+    }
+    case "EXPEDIENT_NUMBER": {
+      const normalized = normalizeOfficialReferenceValue("EXPEDIENTE_ID", value);
+      return normalized ? `EXPEDIENTE_ID:${normalized}` : referenceIdentity(value);
+    }
+    case "DOCUMENT_REFERENCE": {
+      const normalized = normalizeOfficialReferenceValue(
+        "DOCUMENT_REFERENCE",
+        value,
+      );
+      return normalized
+        ? `DOCUMENT_REFERENCE:${normalized}`
+        : referenceIdentity(value);
+    }
+    default:
+      return referenceIdentity(value, fallbackLabel);
+  }
+}
+
+function referenceLabelForType(type: ExternalReferenceType | null): string | undefined {
+  switch (type) {
+    case "LIQUIDATION_KEY":
+      return "Clave de liquidación";
+    case "DEBT_KEY":
+      return "Clave de deuda";
+    case "PAYMENT_JUSTIFICANTE":
+      return "Número de la carta de pago";
+    case "EXPEDIENT_NUMBER":
+      return "Número de expediente";
+    case "DOCUMENT_REFERENCE":
+      return "Referencia del documento";
+    default:
+      return undefined;
+  }
+}
+
+function sourceReferenceLabelForDocument(
+  document: Extract<
+    FiscalNotificationDocumentLibraryViewModelV1,
+    { readonly status: "READY" }
+  >["documents"][number],
+  value: string,
+): string | undefined {
+  const reference = document.references.find((item) => item.value === value);
+  return reference
+    ? auditReferenceLabel(reference.label, document.documentSubtype)
+    : undefined;
 }
 
 function uniqueLinks(
