@@ -20,6 +20,7 @@ import {
   isDocumentIntegrityLocked,
   markDocumentPaid,
   markDocumentSent,
+  projectCanonicalSnapshotOntoDocument,
   rejectQuote,
   stableStringifySnapshot,
 } from ".";
@@ -845,6 +846,53 @@ describe("document snapshots", () => {
         },
       ],
     });
+  });
+
+  it("conserva el precio bruto que evita recalcular un centimo distinto", () => {
+    const issued = issueDocument(
+      invoice({
+        items: [
+          {
+            id: "gross-line-1",
+            description: "Servicio con precio final",
+            quantity: 1,
+            unit: "ud",
+            unitPrice: 66.12,
+            grossUnitPrice: 80,
+            ivaPercent: 21,
+          },
+        ],
+      }),
+      profile,
+      NOW,
+    );
+
+    expect(issued.documentSnapshot?.items).toEqual([
+      {
+        id: "gross-line-1",
+        description: "Servicio con precio final",
+        quantity: 1,
+        unit: "ud",
+        unitPrice: 66.12,
+        grossUnitPrice: 80,
+        ivaPercent: 21,
+        subtotal: 66.12,
+        ivaAmount: 13.88,
+        total: 80,
+      },
+    ]);
+    expect(inspectDocumentSnapshotsIntegrity(issued).ok).toBe(true);
+    expect(
+      projectCanonicalSnapshotOntoDocument(issued).items[0]?.grossUnitPrice,
+    ).toBe(80);
+    expect(buildPdfViewModelForDocument(issued, profile).items[0]).toMatchObject(
+      {
+        grossUnitPrice: 80,
+        subtotal: 66.12,
+        ivaAmount: 13.88,
+        total: 80,
+      },
+    );
   });
 
   it("suma totales y desglose desde las mismas líneas redondeadas", () => {
