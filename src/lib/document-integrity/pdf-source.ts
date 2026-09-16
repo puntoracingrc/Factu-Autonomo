@@ -72,6 +72,9 @@ function lineFromSnapshot(item: LineItemSnapshot): DocumentPdfLineView {
     quantity: item.quantity,
     unit: item.unit,
     unitPrice: item.unitPrice,
+    ...(item.grossUnitPrice !== undefined
+      ? { grossUnitPrice: item.grossUnitPrice }
+      : {}),
     ivaPercent: item.ivaPercent,
     subtotal: item.subtotal,
     ivaAmount: item.ivaAmount,

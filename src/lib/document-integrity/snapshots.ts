@@ -130,6 +130,10 @@ function snapshotLineItems(
       quantity: item.quantity,
       unit: item.unit,
       unitPrice: item.unitPrice,
+      ...(typeof item.grossUnitPrice === "number" &&
+      Number.isFinite(item.grossUnitPrice)
+        ? { grossUnitPrice: item.grossUnitPrice }
+        : {}),
       ivaPercent: item.ivaPercent,
       subtotal: amounts.subtotal,
       ivaAmount: amounts.iva,
@@ -685,6 +689,8 @@ function isDocumentSnapshotSemanticallyValid(
         !isOptionalString(item.unit) ||
         !isFiniteNumber(item.quantity) ||
         !isFiniteNumber(item.unitPrice) ||
+        (item.grossUnitPrice !== undefined &&
+          !isFiniteNumber(item.grossUnitPrice)) ||
         !isFiniteNumber(item.ivaPercent) ||
         !isFiniteNumber(item.subtotal) ||
         !isFiniteNumber(item.ivaAmount) ||
@@ -1034,6 +1040,9 @@ export function projectCanonicalSnapshotOntoDocument(doc: Document): Document {
       quantity: item.quantity,
       unit: item.unit,
       unitPrice: item.unitPrice,
+      ...(item.grossUnitPrice !== undefined
+        ? { grossUnitPrice: item.grossUnitPrice }
+        : {}),
       ivaPercent: item.ivaPercent,
     })),
     notes: snapshot.notes,

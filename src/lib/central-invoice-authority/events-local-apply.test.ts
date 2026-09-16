@@ -160,6 +160,58 @@ describe("central invoice authority local event apply", () => {
     expect(result.documents[0]?.snapshotSeal).toBeDefined();
   });
 
+  it("recupera una factura central cuyo total procede de un precio con IVA", () => {
+    const grossPriced = document({
+      id: "gross-priced-invoice",
+      number: "F-2026-2977",
+      items: [
+        {
+          id: "gross-line-1",
+          description: "Sustitucion de cinta de persiana",
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 66.12,
+          grossUnitPrice: 80,
+          ivaPercent: 21,
+        },
+      ],
+    });
+
+    const result = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+      documents: [],
+      profile,
+      events: [
+        event(
+          {
+            eventId: "event-f-2026-2977",
+            documentId: "central-f-2026-2977",
+            identityId: "identity-f-2026-2977",
+            fullNumber: "F-2026-2977",
+          },
+          grossPriced,
+        ),
+      ],
+      receivedAt: "2026-09-16T07:05:00.000Z",
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.applied).toEqual([
+      {
+        eventId: "event-f-2026-2977",
+        documentId: "gross-priced-invoice",
+        fullNumber: "F-2026-2977",
+        action: "inserted",
+      },
+    ]);
+    expect(result.documents[0]?.documentSnapshot?.items[0]).toMatchObject({
+      unitPrice: 66.12,
+      grossUnitPrice: 80,
+      subtotal: 66.12,
+      ivaAmount: 13.88,
+      total: 80,
+    });
+  });
+
   it("no pisa una factura local distinta con el mismo numero fiscal", () => {
     const local = document({ id: "local-other" });
     const incoming = document({ id: "remote-doc-1" });

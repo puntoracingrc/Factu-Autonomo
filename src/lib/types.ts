@@ -131,6 +131,8 @@ export interface LineItemSnapshot {
   quantity: number;
   unit?: string;
   unitPrice: number;
+  /** Precio unitario con IVA cuando fue la referencia de cálculo de la línea. */
+  grossUnitPrice?: number;
   ivaPercent: number;
   subtotal: number;
   ivaAmount: number;
