@@ -213,6 +213,79 @@ describe("central invoice authority local event apply", () => {
     ]);
   });
 
+  it("completa desde central un borrador local con el mismo ID aunque conserve otro numero", () => {
+    const draft = document({
+      number: "BORRADOR-F-2026",
+      status: "borrador",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+    });
+    const issued = document();
+    const result = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+      documents: [draft],
+      profile,
+      events: [event({}, issued)],
+      receivedAt: "2026-07-27T12:01:00.000Z",
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.applied).toEqual([
+      {
+        eventId: "event-1",
+        documentId: "local-document-1",
+        fullNumber: "F-2026-0001",
+        action: "draft_completed",
+      },
+    ]);
+    expect(result.documents[0]).toMatchObject({
+      id: "local-document-1",
+      number: "F-2026-0001",
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+      centralInvoiceAuthority: {
+        outboxEventId: "event-1",
+        documentVersion: 1,
+      },
+    });
+    expect(result.documents[0]?.documentSnapshot?.number).toBe("F-2026-0001");
+  });
+
+  it("reconstruye un borrador enlazado aunque el cursor ya hubiera visto el evento", () => {
+    const draft = document({
+      status: "borrador",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      centralInvoiceAuthority: {
+        schemaVersion: 1,
+        source: "central_invoice_authority",
+        serverDocumentId: "server-document-1",
+        identityId: "identity-1",
+        outboxEventId: "event-1",
+        eventType: "invoice_issued",
+        fullNumber: "F-2026-0001",
+        sequence: 1,
+        documentVersion: 1,
+        emittedHash: "sha256:server-materialized",
+        receivedAt: "2026-07-27T12:00:30.000Z",
+      },
+    });
+    const result = applyCentralInvoiceAuthorityPulledEventsToDocuments({
+      documents: [draft],
+      profile,
+      events: [event()],
+      receivedAt: "2026-07-27T12:01:00.000Z",
+    });
+
+    expect(result.skipped).toEqual([]);
+    expect(result.applied[0]?.action).toBe("draft_completed");
+    expect(result.documents[0]).toMatchObject({
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+    });
+  });
+
   it("aplica un cambio central de cobro sobre una factura ya recibida", () => {
     const local = document({
       centralInvoiceAuthority: {

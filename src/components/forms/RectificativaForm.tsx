@@ -542,20 +542,47 @@ export function RectificativaForm({
                 ok: false as const,
                 status: 409,
                 code: "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
-                message:
-                  "La rectificativa ya quedo emitida en el servidor, pero este navegador no pudo guardarla. No repitas la emision: sincroniza los eventos centrales para recuperarla.",
+                identity: centralResult.identity,
+                message: `La rectificativa ${centralResult.identity.fullNumber} ya está emitida y segura en el servidor. Factu intentará recuperarla automáticamente en este dispositivo.`,
               };
             }
           },
         );
 
         if (!centralSave.ok) {
-          setSaveAction("idle");
-          setFormError(centralSave.message);
-          return;
-        }
+          let recoveredDocument: Document | null = null;
+          if (
+            centralSave.code === "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING" &&
+            "identity" in centralSave
+          ) {
+            const recovered = await syncCentralInvoiceAuthorityEvents(
+              getCurrentData(),
+              {
+                eventId: centralSave.identity.outboxEventId,
+                receivedAt: new Date().toISOString(),
+              },
+            );
+            if (recovered.status === "applied") {
+              recoveredDocument =
+                recovered.data.documents.find(
+                  (document) =>
+                    document.id === localDocumentId &&
+                    document.status !== "borrador" &&
+                    document.centralInvoiceAuthority?.outboxEventId ===
+                      centralSave.identity.outboxEventId,
+                ) ?? null;
+            }
+          }
 
-        saved = centralSave.document;
+          if (!recoveredDocument) {
+            setSaveAction("idle");
+            setFormError(centralSave.message);
+            return;
+          }
+          saved = recoveredDocument;
+        } else {
+          saved = centralSave.document;
+        }
       } else {
         saved = await addRectificativa(original.id, payload);
       }

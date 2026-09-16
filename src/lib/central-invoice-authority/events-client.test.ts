@@ -107,6 +107,41 @@ describe("central invoice authority events client", () => {
     expect(JSON.stringify(result)).not.toContain("emittedSnapshot");
   });
 
+  it("solicita una recuperacion concreta sin mezclarla con el cursor", async () => {
+    const eventId = "00000000-0000-4000-8000-000000000020";
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(200, {
+        ok: true,
+        schema: "CENTRAL_INVOICE_AUTHORITY_EVENTS_ROUTE_V1",
+        events: [eventPayload({ eventId })],
+        nextCursor: null,
+      }),
+    );
+
+    const result = await pullCentralInvoiceAuthorityEventsFromBrowser(
+      {
+        eventId,
+        afterCreatedAt: "2026-07-27T11:00:00.000Z",
+        afterEventId: "00000000-0000-4000-8000-000000000001",
+      },
+      {
+        fetchImpl,
+        getAccessToken: async () => "access-token",
+        getDeviceToken: () => "device-token",
+      },
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `/api/central-invoice-authority/events?eventId=${eventId}`,
+      expect.any(Object),
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      events: [{ eventId }],
+      nextCursor: null,
+    });
+  });
+
   it("convierte errores de ruta en errores seguros para sincronizacion", async () => {
     const result = await pullCentralInvoiceAuthorityEventsFromBrowser(
       {},

@@ -26,6 +26,7 @@ export interface CentralInvoiceAuthorityEventsLocalSyncInput {
   documents: Document[];
   profile: BusinessProfile;
   expectedOwnerScope?: string | null;
+  eventId?: string | null;
   cursor?: CentralInvoiceAuthorityEventsCursor | null;
   limit?: number | null;
   receivedAt?: string;
@@ -72,12 +73,15 @@ function successfulCursor(
   input: CentralInvoiceAuthorityEventsLocalSyncInput,
   serverNextCursor: CentralInvoiceAuthorityEventsCursor | null,
 ): CentralInvoiceAuthorityEventsCursor | null {
+  if (input.eventId) return previousCursor(input.cursor);
   return serverNextCursor ?? previousCursor(input.cursor);
 }
 
 function pullInput(
   input: CentralInvoiceAuthorityEventsLocalSyncInput,
 ): CentralInvoiceAuthorityEventsPullInput {
+  const eventId = input.eventId?.trim();
+  if (eventId) return { eventId };
   return {
     afterCreatedAt: input.cursor?.afterCreatedAt ?? null,
     afterEventId: input.cursor?.afterEventId ?? null,

@@ -5,12 +5,11 @@ import {
   hashCloudDeviceToken,
   normalizeCloudDeviceToken,
 } from "@/lib/cloud/devices";
-import {
-  createCentralInvoiceAuthorityEventsRouteHandler,
-} from "@/lib/central-invoice-authority/events-route-handler";
+import { createCentralInvoiceAuthorityEventsRouteHandler } from "@/lib/central-invoice-authority/events-route-handler";
 import type {
   CentralInvoiceAuthorityEventsRpcArgs,
   CentralInvoiceAuthorityEventsRpcClient,
+  CentralInvoiceAuthorityTargetedEventRpcArgs,
 } from "@/lib/central-invoice-authority/events-rpc-adapter";
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -83,14 +82,16 @@ const routeHandler = createCentralInvoiceAuthorityEventsRouteHandler({
     if (!admin) return null;
     return {
       rpc(
-        name: "list_central_invoice_events_v1",
-        args: CentralInvoiceAuthorityEventsRpcArgs,
+        name: "list_central_invoice_events_v1" | "get_central_invoice_event_v1",
+        args:
+          | CentralInvoiceAuthorityEventsRpcArgs
+          | CentralInvoiceAuthorityTargetedEventRpcArgs,
       ) {
         return admin.rpc(name, args) as unknown as ReturnType<
           CentralInvoiceAuthorityEventsRpcClient["rpc"]
         >;
       },
-    };
+    } as CentralInvoiceAuthorityEventsRpcClient;
   },
 });
 

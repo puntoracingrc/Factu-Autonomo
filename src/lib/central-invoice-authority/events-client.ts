@@ -48,6 +48,7 @@ export interface CentralInvoiceAuthorityEventsCursor {
 }
 
 export interface CentralInvoiceAuthorityEventsPullInput {
+  eventId?: string | null;
   afterCreatedAt?: string | null;
   afterEventId?: string | null;
   limit?: number | null;
@@ -115,6 +116,11 @@ function eventType(
 
 function buildEventsUrl(input: CentralInvoiceAuthorityEventsPullInput): string {
   const params = new URLSearchParams();
+  const eventId = input.eventId?.trim();
+  if (eventId) {
+    params.set("eventId", eventId);
+    return `/api/central-invoice-authority/events?${params.toString()}`;
+  }
   const afterCreatedAt = input.afterCreatedAt?.trim();
   const afterEventId = input.afterEventId?.trim();
   if (afterCreatedAt) params.set("afterCreatedAt", afterCreatedAt);
@@ -168,7 +174,9 @@ function parseEvent(
   };
 }
 
-function parseCursor(value: unknown): CentralInvoiceAuthorityEventsCursor | null {
+function parseCursor(
+  value: unknown,
+): CentralInvoiceAuthorityEventsCursor | null {
   if (value === null) return null;
   if (
     isObject(value) &&

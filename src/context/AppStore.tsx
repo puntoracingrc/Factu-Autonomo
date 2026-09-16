@@ -515,6 +515,7 @@ interface AppStoreValue {
   syncCentralInvoiceAuthorityEvents: (
     expected: AppData,
     options?: {
+      eventId?: string | null;
       limit?: number | null;
       receivedAt?: string;
       replayFromStartWhenNoActiveInvoices?: boolean;
@@ -1591,6 +1592,7 @@ export function AppStoreProvider({
     async (
       _expected: AppData,
       options: {
+        eventId?: string | null;
         limit?: number | null;
         receivedAt?: string;
         replayFromStartWhenNoActiveInvoices?: boolean;
@@ -1637,6 +1639,7 @@ export function AppStoreProvider({
         const pulled = await pullCentralInvoiceAuthorityEventsForAppData({
           data: baseline,
           expectedOwnerScope: ownerScope,
+          eventId: options.eventId,
           limit: options.limit,
           receivedAt: options.receivedAt,
           replayFromStartWhenNoActiveInvoices:
@@ -2264,6 +2267,20 @@ export function AppStoreProvider({
         };
       });
       if (result.status !== "applied") {
+        void reportAppError({
+          severity: "error",
+          area: "central_invoice_authority",
+          code: "issued_document_local_commit_pending",
+          message:
+            "La emision central se confirmo, pero el guardado local quedo pendiente de recuperacion.",
+          metadata: {
+            durabilityStatus: result.status,
+            durabilityReason: result.reason,
+            eventId: identity.outboxEventId,
+            serverDocumentId: identity.serverDocumentId,
+            fullNumber: identity.fullNumber,
+          },
+        });
         throw new Error(
           "La identidad fiscal central se emitio, pero el guardado local no pudo confirmarse.",
         );

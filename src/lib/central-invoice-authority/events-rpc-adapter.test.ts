@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCentralInvoiceAuthorityTargetedEventRpcArgs,
   buildCentralInvoiceAuthorityEventsRpcArgs,
   CENTRAL_INVOICE_AUTHORITY_EVENTS_RPC_ADAPTER,
   CentralInvoiceAuthorityEventsRpcAdapterError,
+  getCentralInvoiceAuthorityEventThroughRpc,
   listCentralInvoiceAuthorityEventsThroughRpc,
   type CentralInvoiceAuthorityEventsRpcClient,
 } from "./events-rpc-adapter";
@@ -25,6 +27,63 @@ describe("central invoice authority events RPC adapter", () => {
       p_after_event_id: input.afterEventId,
       p_limit: 100,
     });
+  });
+
+  it("recupera un unico evento por ID sin depender del cursor", async () => {
+    const eventId = "00000000-0000-4000-8000-000000000020";
+    const calls: unknown[] = [];
+    const client: CentralInvoiceAuthorityEventsRpcClient = {
+      async rpc(name, args) {
+        calls.push([name, args]);
+        return {
+          error: null,
+          data: [
+            {
+              event_id: eventId,
+              document_id: "00000000-0000-4000-8000-000000000021",
+              identity_id: "00000000-0000-4000-8000-000000000022",
+              event_type: "invoice_issued",
+              created_at: "2026-07-27T12:01:00.000Z",
+              full_number: "F-2026-0001",
+              sequence: 1,
+              document_version: 1,
+              document_payload: { document: { number: "F-2026-0001" } },
+              emitted_hash: "sha256:materialized",
+              safe_summary: { fullNumber: "F-2026-0001" },
+            },
+          ],
+        };
+      },
+    };
+
+    expect(
+      buildCentralInvoiceAuthorityTargetedEventRpcArgs({
+        userId: input.userId,
+        deviceId: input.deviceId,
+        eventId,
+      }),
+    ).toEqual({
+      p_user_id: input.userId,
+      p_device_id: input.deviceId,
+      p_event_id: eventId,
+    });
+    await expect(
+      getCentralInvoiceAuthorityEventThroughRpc(client, {
+        userId: input.userId,
+        deviceId: input.deviceId,
+        eventId,
+      }),
+    ).resolves.toMatchObject({ eventId, fullNumber: "F-2026-0001" });
+    expect(calls).toEqual([
+      [
+        "get_central_invoice_event_v1",
+        {
+          p_user_id: input.userId,
+          p_device_id: input.deviceId,
+          p_event_id: eventId,
+        },
+      ],
+    ]);
   });
 
   it("normaliza eventos emitidos sin snapshot fiscal completo", async () => {
@@ -58,7 +117,10 @@ describe("central invoice authority events RPC adapter", () => {
       },
     };
 
-    const result = await listCentralInvoiceAuthorityEventsThroughRpc(client, input);
+    const result = await listCentralInvoiceAuthorityEventsThroughRpc(
+      client,
+      input,
+    );
 
     expect(calls).toHaveLength(1);
     expect(result).toEqual([

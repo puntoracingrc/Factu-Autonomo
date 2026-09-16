@@ -1,5 +1,6 @@
 import {
   CentralInvoiceAuthorityEventsRpcAdapterError,
+  getCentralInvoiceAuthorityEventThroughRpc,
   listCentralInvoiceAuthorityEventsThroughRpc,
   type CentralInvoiceAuthorityEventsRpcClient,
   type CentralInvoiceAuthorityPulledEvent,
@@ -30,7 +31,9 @@ export type CentralInvoiceAuthorityEventsRouteRateLimitResult =
     };
 
 export interface CentralInvoiceAuthorityEventsRouteDependencies {
-  authenticate(authorization: string | null): Promise<CentralInvoiceAuthorityEventsRouteAuth | null>;
+  authenticate(
+    authorization: string | null,
+  ): Promise<CentralInvoiceAuthorityEventsRouteAuth | null>;
   rateLimit(
     request: CentralInvoiceAuthorityEventsRouteRequest,
     userId: string,
@@ -57,6 +60,7 @@ export interface CentralInvoiceAuthorityEventsRouteResponse {
 }
 
 interface EventsQuery {
+  eventId: string | null;
   afterCreatedAt: string | null;
   afterEventId: string | null;
   limit: number;
@@ -94,12 +98,19 @@ function isUuid(value: string): boolean {
 }
 
 function parseQuery(url: string | undefined): EventsQuery {
-  const parsed = new URL(url ?? "http://localhost/api/central-invoice-authority/events");
-  const afterCreatedAt = parsed.searchParams.get("afterCreatedAt")?.trim() || null;
+  const parsed = new URL(
+    url ?? "http://localhost/api/central-invoice-authority/events",
+  );
+  const eventId = parsed.searchParams.get("eventId")?.trim() || null;
+  const afterCreatedAt =
+    parsed.searchParams.get("afterCreatedAt")?.trim() || null;
   const afterEventId = parsed.searchParams.get("afterEventId")?.trim() || null;
   const rawLimit = parsed.searchParams.get("limit")?.trim() || "";
   const limit = rawLimit ? Number.parseInt(rawLimit, 10) : 50;
 
+  if (eventId && !isUuid(eventId)) {
+    throw new Error("INVALID_EVENT_ID");
+  }
   if (afterCreatedAt && Number.isNaN(Date.parse(afterCreatedAt))) {
     throw new Error("INVALID_AFTER_CREATED_AT");
   }
@@ -109,8 +120,12 @@ function parseQuery(url: string | undefined): EventsQuery {
   if ((rawLimit && !/^\d+$/.test(rawLimit)) || !Number.isInteger(limit)) {
     throw new Error("INVALID_LIMIT");
   }
+  if (eventId && (afterCreatedAt || afterEventId)) {
+    throw new Error("AMBIGUOUS_EVENT_QUERY");
+  }
 
   return {
+    eventId,
     afterCreatedAt,
     afterEventId,
     limit: Math.min(Math.max(limit, 1), 100),
@@ -201,6 +216,24 @@ export function createCentralInvoiceAuthorityEventsRouteHandler(
       }
 
       try {
+        if (query.eventId) {
+          const event = await getCentralInvoiceAuthorityEventThroughRpc(
+            rpcClient,
+            {
+              userId: auth.userId,
+              deviceId: device.deviceId,
+              eventId: query.eventId,
+            },
+          );
+
+          return json(200, {
+            ok: true,
+            schema: CENTRAL_INVOICE_AUTHORITY_EVENTS_ROUTE,
+            events: event ? [event] : [],
+            nextCursor: null,
+          });
+        }
+
         const events = await listCentralInvoiceAuthorityEventsThroughRpc(
           rpcClient,
           {

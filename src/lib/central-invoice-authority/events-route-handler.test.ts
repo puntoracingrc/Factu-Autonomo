@@ -130,8 +130,7 @@ describe("central invoice authority events route handler", () => {
     }));
     const dependencies = deps({ getRpcClient: vi.fn(() => ({ rpc })) });
     const response = await request(dependencies, {
-      url:
-        "http://localhost/api/central-invoice-authority/events?afterCreatedAt=2026-07-27T12%3A00%3A00.000Z&afterEventId=00000000-0000-4000-8000-000000000010&limit=250",
+      url: "http://localhost/api/central-invoice-authority/events?afterCreatedAt=2026-07-27T12%3A00%3A00.000Z&afterEventId=00000000-0000-4000-8000-000000000010&limit=250",
     });
     const body = response.body as {
       ok: boolean;
@@ -155,6 +154,46 @@ describe("central invoice authority events route handler", () => {
     expect(JSON.stringify(body)).not.toContain("emittedSnapshot");
   });
 
+  it("recupera un evento concreto dentro del usuario autenticado", async () => {
+    const eventId = "00000000-0000-4000-8000-000000000020";
+    const rpc = vi.fn(async () => ({
+      error: null,
+      data: [
+        {
+          event_id: eventId,
+          document_id: "00000000-0000-4000-8000-000000000021",
+          identity_id: "00000000-0000-4000-8000-000000000022",
+          event_type: "invoice_issued",
+          created_at: "2026-07-27T12:01:00.000Z",
+          full_number: "F-2026-0001",
+          sequence: 1,
+          document_version: 1,
+          document_payload: { document: { number: "F-2026-0001" } },
+          emitted_hash: "sha256:materialized",
+          safe_summary: { fullNumber: "F-2026-0001" },
+        },
+      ],
+    }));
+    const response = await request(
+      deps({ getRpcClient: vi.fn(() => ({ rpc })) }),
+      {
+        url: `http://localhost/api/central-invoice-authority/events?eventId=${eventId}`,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("get_central_invoice_event_v1", {
+      p_user_id: userId,
+      p_device_id: "sha256:SYNTHETIC_ONLY_DEVICE_HASH",
+      p_event_id: eventId,
+    });
+    expect(response.body).toMatchObject({
+      ok: true,
+      events: [{ eventId }],
+      nextCursor: null,
+    });
+  });
+
   it("rechaza cursores mal formados", async () => {
     const dependencies = deps();
 
@@ -165,8 +204,17 @@ describe("central invoice authority events route handler", () => {
     ).resolves.toMatchObject({ status: 400 });
     await expect(
       request(dependencies, {
-        url:
-          "http://localhost/api/central-invoice-authority/events?afterEventId=not-a-uuid",
+        url: "http://localhost/api/central-invoice-authority/events?afterEventId=not-a-uuid",
+      }),
+    ).resolves.toMatchObject({ status: 400 });
+    await expect(
+      request(dependencies, {
+        url: "http://localhost/api/central-invoice-authority/events?eventId=not-a-uuid",
+      }),
+    ).resolves.toMatchObject({ status: 400 });
+    await expect(
+      request(dependencies, {
+        url: "http://localhost/api/central-invoice-authority/events?eventId=00000000-0000-4000-8000-000000000020&afterCreatedAt=2026-07-27T12%3A00%3A00.000Z",
       }),
     ).resolves.toMatchObject({ status: 400 });
   });

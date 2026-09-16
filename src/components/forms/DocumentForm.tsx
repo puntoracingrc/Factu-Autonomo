@@ -486,6 +486,7 @@ export function DocumentForm({
     addDocumentWithCentralIdentity,
     updateDocument,
     registerVerifactuForDocument,
+    syncCentralInvoiceAuthorityEvents,
   } = useAppStore();
   const { upsertDocumentCustomer } = useCentralDocumentCustomerUpsert();
   const { updateProfile } = useCentralProfileMutation();
@@ -1903,29 +1904,54 @@ export function DocumentForm({
               ok: false as const,
               status: 409,
               code: "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
-              message:
-                "La factura ya quedo emitida en el servidor, pero este navegador no pudo guardarla. No repitas la emision: sincroniza los eventos centrales para recuperarla.",
+              identity: centralResult.identity,
+              message: `La factura ${centralResult.identity.fullNumber} ya está emitida y segura en el servidor. Factu intentará recuperarla automáticamente en este dispositivo.`,
             };
           }
         },
       );
 
       if (!centralSave.ok) {
+        let recoveredDocument: Document | null = null;
         if (
-          documentQuotaReservation &&
-          centralSave.code === "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING"
+          centralSave.code === "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING" &&
+          "identity" in centralSave
         ) {
-          await commitQuota(documentQuotaReservation, localDocumentId);
-          documentQuotaReservation = null;
-        } else {
-          await releaseDocumentQuota();
+          const recovered = await syncCentralInvoiceAuthorityEvents(data, {
+            eventId: centralSave.identity.outboxEventId,
+            receivedAt: new Date().toISOString(),
+          });
+          if (recovered.status === "applied") {
+            recoveredDocument =
+              recovered.data.documents.find(
+                (document) =>
+                  document.id === localDocumentId &&
+                  document.status !== "borrador" &&
+                  document.centralInvoiceAuthority?.outboxEventId ===
+                    centralSave.identity.outboxEventId,
+              ) ?? null;
+          }
         }
-        setSaveAction("idle");
-        setFormError(centralSave.message);
-        return;
-      }
 
-      saved = centralSave.document;
+        if (recoveredDocument) {
+          saved = recoveredDocument;
+        } else {
+          if (
+            documentQuotaReservation &&
+            centralSave.code === "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING"
+          ) {
+            await commitQuota(documentQuotaReservation, localDocumentId);
+            documentQuotaReservation = null;
+          } else {
+            await releaseDocumentQuota();
+          }
+          setSaveAction("idle");
+          setFormError(centralSave.message);
+          return;
+        }
+      } else {
+        saved = centralSave.document;
+      }
     } else if (existing) {
       saved = {
         ...existing,

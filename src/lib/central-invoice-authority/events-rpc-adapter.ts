@@ -21,6 +21,13 @@ export interface CentralInvoiceAuthorityEventsRpcClient {
     data: unknown;
     error: CentralInvoiceAuthorityEventsRpcError | null;
   }>;
+  rpc(
+    name: "get_central_invoice_event_v1",
+    args: CentralInvoiceAuthorityTargetedEventRpcArgs,
+  ): Promise<{
+    data: unknown;
+    error: CentralInvoiceAuthorityEventsRpcError | null;
+  }>;
 }
 
 export interface CentralInvoiceAuthorityEventsRpcError {
@@ -42,6 +49,18 @@ export interface CentralInvoiceAuthorityEventsRpcInput {
   afterCreatedAt?: string | null;
   afterEventId?: string | null;
   limit?: number | null;
+}
+
+export interface CentralInvoiceAuthorityTargetedEventRpcArgs {
+  p_user_id: string;
+  p_device_id: string;
+  p_event_id: string;
+}
+
+export interface CentralInvoiceAuthorityTargetedEventRpcInput {
+  userId: string;
+  deviceId: string;
+  eventId: string;
 }
 
 export interface CentralInvoiceAuthorityPulledEvent {
@@ -92,7 +111,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function isJsonObjectOrArray(value: unknown): value is CentralInvoiceAuthorityJson {
+function isJsonObjectOrArray(
+  value: unknown,
+): value is CentralInvoiceAuthorityJson {
   return isObject(value) || Array.isArray(value);
 }
 
@@ -141,6 +162,20 @@ export function buildCentralInvoiceAuthorityEventsRpcArgs(
     p_after_created_at: input.afterCreatedAt?.trim() || null,
     p_after_event_id: input.afterEventId?.trim() || null,
     p_limit: normalizeLimit(input.limit),
+  };
+}
+
+export function buildCentralInvoiceAuthorityTargetedEventRpcArgs(
+  input: CentralInvoiceAuthorityTargetedEventRpcInput,
+): CentralInvoiceAuthorityTargetedEventRpcArgs {
+  assertNonEmpty(input.userId, "userId");
+  assertNonEmpty(input.deviceId, "deviceId");
+  assertNonEmpty(input.eventId, "eventId");
+
+  return {
+    p_user_id: input.userId,
+    p_device_id: input.deviceId,
+    p_event_id: input.eventId,
   };
 }
 
@@ -199,7 +234,10 @@ export async function listCentralInvoiceAuthorityEventsThroughRpc(
   input: CentralInvoiceAuthorityEventsRpcInput,
 ): Promise<CentralInvoiceAuthorityPulledEvent[]> {
   const args = buildCentralInvoiceAuthorityEventsRpcArgs(input);
-  const { data, error } = await client.rpc("list_central_invoice_events_v1", args);
+  const { data, error } = await client.rpc(
+    "list_central_invoice_events_v1",
+    args,
+  );
 
   if (error) {
     throw new CentralInvoiceAuthorityEventsRpcAdapterError(
@@ -211,4 +249,32 @@ export async function listCentralInvoiceAuthorityEventsThroughRpc(
 
   const rows = Array.isArray(data) ? data : data ? [data] : [];
   return rows.map(parseEvent);
+}
+
+export async function getCentralInvoiceAuthorityEventThroughRpc(
+  client: CentralInvoiceAuthorityEventsRpcClient,
+  input: CentralInvoiceAuthorityTargetedEventRpcInput,
+): Promise<CentralInvoiceAuthorityPulledEvent | null> {
+  const args = buildCentralInvoiceAuthorityTargetedEventRpcArgs(input);
+  const { data, error } = await client.rpc(
+    "get_central_invoice_event_v1",
+    args,
+  );
+
+  if (error) {
+    throw new CentralInvoiceAuthorityEventsRpcAdapterError(
+      "EVENTS_RPC_REJECTED",
+      "Supabase rechazo la recuperacion del evento central.",
+      error.code,
+    );
+  }
+
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  if (rows.length > 1) {
+    throw new CentralInvoiceAuthorityEventsRpcAdapterError(
+      "INVALID_EVENTS_RPC_RESULT",
+      "La RPC de recuperacion central devolvio mas de un evento.",
+    );
+  }
+  return rows.length === 1 ? parseEvent(rows[0]) : null;
 }
