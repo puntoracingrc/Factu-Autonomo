@@ -6,6 +6,7 @@ import { CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY } from "./document-form-
 import {
   CENTRAL_INVOICE_AUTHORITY_EVENTS_APP_DATA_SYNC,
   buildCentralInvoiceAuthorityEventsAppDataTransition,
+  centralInvoiceAuthorityRecoveryEventId,
   pullCentralInvoiceAuthorityEventsForAppData,
   selectCentralInvoiceAuthorityEventsSyncBaseline,
   shouldReplayCentralInvoiceAuthorityEventsFromStart,
@@ -80,7 +81,9 @@ function appData(overrides: Partial<AppData> = {}): AppData {
 }
 
 function jsonValue(value: unknown): CentralInvoiceAuthorityEventsClientJson {
-  return JSON.parse(JSON.stringify(value)) as CentralInvoiceAuthorityEventsClientJson;
+  return JSON.parse(
+    JSON.stringify(value),
+  ) as CentralInvoiceAuthorityEventsClientJson;
 }
 
 function event(
@@ -244,6 +247,59 @@ describe("central invoice authority app data sync", () => {
       limit: 50,
     });
     expect(transition.data.documents).toHaveLength(1);
+    expect(transition.data.centralInvoiceAuthorityEventsSync?.cursor).toEqual(
+      cursor1,
+    );
+  });
+
+  it("prioriza la autorrecuperacion de un borrador central aunque el cursor haya avanzado", async () => {
+    const draft = document({
+      status: "borrador",
+      documentLifecycle: "draft",
+      integrityLock: "unlocked",
+      centralInvoiceAuthority: {
+        schemaVersion: 1,
+        source: "central_invoice_authority",
+        serverDocumentId: "server-document-1",
+        identityId: "identity-1",
+        outboxEventId: "event-1",
+        eventType: "invoice_issued",
+        fullNumber: "F-2026-0001",
+        sequence: 1,
+        documentVersion: 1,
+        emittedHash: "sha256:server-materialized",
+        receivedAt: "2026-07-27T12:00:30.000Z",
+      },
+    });
+    const stale = appData({
+      documents: [draft],
+      centralInvoiceAuthorityEventsSync: {
+        ...appData().centralInvoiceAuthorityEventsSync!,
+        cursor: cursor1,
+      },
+    });
+    const pullEvents = vi.fn(async () => ({
+      ok: true as const,
+      schema: "CENTRAL_INVOICE_AUTHORITY_EVENTS_CLIENT_V1" as const,
+      events: [event()],
+      nextCursor: null,
+    }));
+
+    const transition = await syncCentralInvoiceAuthorityEventsIntoAppData(
+      {
+        data: stale,
+        receivedAt: "2026-07-27T12:01:00.000Z",
+      },
+      { pullEvents },
+    );
+
+    expect(centralInvoiceAuthorityRecoveryEventId(stale)).toBe("event-1");
+    expect(pullEvents).toHaveBeenCalledWith({ eventId: "event-1" });
+    expect(transition.data.documents[0]).toMatchObject({
+      status: "enviado",
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+    });
     expect(transition.data.centralInvoiceAuthorityEventsSync?.cursor).toEqual(
       cursor1,
     );

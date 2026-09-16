@@ -19,9 +19,27 @@ export const CENTRAL_INVOICE_AUTHORITY_EVENTS_APP_DATA_SYNC =
 export interface CentralInvoiceAuthorityEventsAppDataPullInput {
   data: AppData;
   expectedOwnerScope?: string | null;
+  eventId?: string | null;
   limit?: number | null;
   receivedAt?: string;
   replayFromStartWhenNoActiveInvoices?: boolean;
+}
+
+export function centralInvoiceAuthorityRecoveryEventId(
+  data: AppData,
+): string | null {
+  const recoverable = data.documents.find((document) => {
+    const link = document.centralInvoiceAuthority;
+    return (
+      document.type === "factura" &&
+      document.status === "borrador" &&
+      link !== undefined &&
+      (link.eventType === "invoice_issued" ||
+        link.eventType === "rectification_issued") &&
+      Boolean(link.outboxEventId.trim())
+    );
+  });
+  return recoverable?.centralInvoiceAuthority?.outboxEventId ?? null;
 }
 
 export interface CentralInvoiceAuthorityEventsAppDataPulledValue {
@@ -96,7 +114,10 @@ export async function pullCentralInvoiceAuthorityEventsForAppData(
   dependencies: CentralInvoiceAuthorityEventsLocalSyncDependencies = {},
 ): Promise<CentralInvoiceAuthorityEventsAppDataPulledValue> {
   const recordedAt = input.receivedAt ?? new Date().toISOString();
+  const recoveryEventId =
+    input.eventId?.trim() || centralInvoiceAuthorityRecoveryEventId(input.data);
   const replayFromStart =
+    !recoveryEventId &&
     input.replayFromStartWhenNoActiveInvoices === true &&
     shouldReplayCentralInvoiceAuthorityEventsFromStart(input.data);
   const localSync = await syncCentralInvoiceAuthorityPulledEventsIntoDocuments(
@@ -104,6 +125,7 @@ export async function pullCentralInvoiceAuthorityEventsForAppData(
       documents: input.data.documents,
       profile: input.data.profile,
       expectedOwnerScope: input.expectedOwnerScope,
+      eventId: recoveryEventId,
       cursor: replayFromStart
         ? null
         : (input.data.centralInvoiceAuthorityEventsSync?.cursor ?? null),

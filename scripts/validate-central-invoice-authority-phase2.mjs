@@ -133,6 +133,8 @@ const allowedClosedDocumentEventPullMigration =
   "20260812100000_central_invoice_closed_document_event_pull.sql";
 const allowedQuoteRelationshipAssignmentMigration =
   "20260826073420_central_invoice_quote_relationship_assignment.sql";
+const allowedTargetedEventRecoveryMigration =
+  "20260916071037_central_invoice_event_targeted_recovery.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -151,6 +153,7 @@ const allowedCentralMigrations = new Set([
   allowedVoidedQuoteUnlinkMigration,
   allowedClosedDocumentEventPullMigration,
   allowedQuoteRelationshipAssignmentMigration,
+  allowedTargetedEventRecoveryMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -771,6 +774,36 @@ if (centralMigrations.includes(allowedClosedDocumentEventPullMigration)) {
   );
   assert.doesNotMatch(closedDocumentEventPull, /\buser_backups\b/i);
   assert.doesNotMatch(closedDocumentEventPull, /\bsync_entities\b/i);
+}
+
+if (centralMigrations.includes(allowedTargetedEventRecoveryMigration)) {
+  const targetedEventRecovery = read(
+    `supabase/migrations/${allowedTargetedEventRecoveryMigration}`,
+  );
+  assert.match(
+    targetedEventRecovery,
+    /CENTRAL_INVOICE_AUTHORITY_TARGETED_EVENT_RECOVERY_V1/,
+  );
+  assert.match(
+    targetedEventRecovery,
+    /create\s+or\s+replace\s+function\s+public\.get_central_invoice_event_v1/i,
+  );
+  assert.match(targetedEventRecovery, /\bsecurity\s+definer\b/i);
+  assert.match(targetedEventRecovery, /\bset\s+search_path\s+=\s+''/i);
+  assert.match(
+    targetedEventRecovery,
+    /auth\.role\(\)\s*<>\s*'service_role'/i,
+  );
+  assert.match(targetedEventRecovery, /o\.id\s*=\s*p_event_id/i);
+  assert.match(targetedEventRecovery, /o\.user_id\s*=\s*p_user_id/i);
+  assert.match(targetedEventRecovery, /d\.user_id\s*=\s*p_user_id/i);
+  assert.match(targetedEventRecovery, /i\.user_id\s*=\s*p_user_id/i);
+  assert.doesNotMatch(
+    targetedEventRecovery,
+    /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i,
+  );
+  assert.doesNotMatch(targetedEventRecovery, /\buser_backups\b/i);
+  assert.doesNotMatch(targetedEventRecovery, /\bsync_entities\b/i);
 }
 
 if (centralMigrations.includes(allowedRealtimeWakeupsMigration)) {

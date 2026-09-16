@@ -15,6 +15,7 @@ export const CENTRAL_INVOICE_AUTHORITY_EVENTS_LOCAL_APPLY =
 
 export type CentralInvoiceAuthorityEventsLocalApplyAction =
   | "inserted"
+  | "draft_completed"
   | "metadata_attached"
   | "collection_updated"
   | "relationship_updated";
@@ -192,6 +193,15 @@ function isCollectionUpdateEvent(
   event: CentralInvoiceAuthorityPulledBrowserEvent,
 ): boolean {
   return event.eventType === "invoice_collection_updated";
+}
+
+function isIssuanceEvent(
+  event: CentralInvoiceAuthorityPulledBrowserEvent,
+): boolean {
+  return (
+    event.eventType === "invoice_issued" ||
+    event.eventType === "rectification_issued"
+  );
 }
 
 function isRelationshipUpdateEvent(
@@ -440,7 +450,74 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
     );
     if (centralIndex >= 0) {
       const existing = documents[centralIndex];
-      if (normalizeNumber(existing.number) !== normalizeNumber(event.fullNumber)) {
+      if (existing.status === "borrador" && isIssuanceEvent(event)) {
+        const incomingPayload = documentFromEventPayload(event);
+        const incoming = incomingPayload
+          ? resolveRectificationOriginalReference(documents, incomingPayload)
+          : null;
+        if (
+          !incoming ||
+          kindForDocument(incoming) !== eventKind ||
+          normalizeNumber(incoming.number) !== normalizeNumber(event.fullNumber)
+        ) {
+          skipped.push({
+            eventId: event.eventId,
+            fullNumber: event.fullNumber,
+            code: "invalid_document_payload",
+          });
+          continue;
+        }
+
+        const relationConflict = rectificationRelationConflict(
+          documents,
+          incoming,
+          event,
+        );
+        if (relationConflict) {
+          conflicts.push(relationConflict);
+          continue;
+        }
+        const duplicateNumber = documents.find(
+          (doc, index) =>
+            index !== centralIndex && hasSameFiscalNumber(doc, event),
+        );
+        if (duplicateNumber) {
+          conflicts.push({
+            eventId: event.eventId,
+            fullNumber: event.fullNumber,
+            code: "duplicate_fiscal_number",
+            localDocumentId: duplicateNumber.id,
+            centralDocumentId: event.documentId,
+          });
+          continue;
+        }
+
+        const completed = buildReceivedIssuedDocument({
+          doc: incoming,
+          event,
+          profile: input.profile,
+          receivedAt,
+        });
+        documents = documents.map((doc, index) =>
+          index === centralIndex ? completed : doc,
+        );
+        documents = applyReceivedRectificationToOriginal(
+          documents,
+          completed,
+          receivedAt,
+        );
+        applied.push({
+          eventId: event.eventId,
+          documentId: completed.id,
+          fullNumber: event.fullNumber,
+          action: "draft_completed",
+        });
+        continue;
+      }
+
+      if (
+        normalizeNumber(existing.number) !== normalizeNumber(event.fullNumber)
+      ) {
         conflicts.push({
           eventId: event.eventId,
           fullNumber: event.fullNumber,
@@ -539,6 +616,44 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
     const sameIdIndex = documents.findIndex((doc) => doc.id === incoming.id);
     if (sameIdIndex >= 0) {
       const existing = documents[sameIdIndex];
+      if (existing.status === "borrador" && isIssuanceEvent(event)) {
+        const duplicateNumber = documents.find(
+          (doc, index) =>
+            index !== sameIdIndex && hasSameFiscalNumber(doc, event),
+        );
+        if (duplicateNumber) {
+          conflicts.push({
+            eventId: event.eventId,
+            fullNumber: event.fullNumber,
+            code: "duplicate_fiscal_number",
+            localDocumentId: duplicateNumber.id,
+            centralDocumentId: event.documentId,
+          });
+          continue;
+        }
+
+        const completed = buildReceivedIssuedDocument({
+          doc: incoming,
+          event,
+          profile: input.profile,
+          receivedAt,
+        });
+        documents = documents.map((doc, index) =>
+          index === sameIdIndex ? completed : doc,
+        );
+        documents = applyReceivedRectificationToOriginal(
+          documents,
+          completed,
+          receivedAt,
+        );
+        applied.push({
+          eventId: event.eventId,
+          documentId: completed.id,
+          fullNumber: event.fullNumber,
+          action: "draft_completed",
+        });
+        continue;
+      }
       if (
         hasSameFiscalNumber(existing, event) &&
         !existing.centralInvoiceAuthority
