@@ -156,6 +156,48 @@ describe("quote to invoice conversion", () => {
     expect(issued.verifactu).toBeUndefined();
   });
 
+  it("conserva el precio final exacto al convertir y emitir un presupuesto", () => {
+    const pricedQuote: Document = {
+      ...quote,
+      items: [
+        {
+          id: "quote-gross-line-1",
+          description: "Servicio con precio final",
+          quantity: 1,
+          unit: "ud",
+          unitPrice: 66.12,
+          grossUnitPrice: 80,
+          ivaPercent: 21,
+        },
+      ],
+    };
+    const draft = buildInvoiceDraftFromQuote(pricedQuote, {
+      date: "2026-06-27",
+      lineIdFactory: () => "invoice-gross-line-1",
+    });
+    const issued = issueDocument(
+      {
+        ...draft,
+        id: "invoice-gross-priced",
+        number: "F-2026-0002",
+        createdAt: "2026-06-27T10:00:00.000Z",
+        updatedAt: "2026-06-27T10:00:00.000Z",
+      },
+      DEFAULT_PROFILE,
+      "2026-06-27T10:05:00.000Z",
+    );
+
+    expect(draft.items[0]).toMatchObject({
+      unitPrice: 66.12,
+      grossUnitPrice: 80,
+    });
+    expect(issued.documentSnapshot?.items[0]).toMatchObject({
+      subtotal: 66.12,
+      ivaAmount: 13.88,
+      total: 80,
+    });
+  });
+
   it("solo permite presupuestos activos", () => {
     expect(canConvertQuoteToInvoice(quote)).toBe(true);
     expect(canConvertQuoteToInvoice({ ...quote, type: "factura" })).toBe(false);

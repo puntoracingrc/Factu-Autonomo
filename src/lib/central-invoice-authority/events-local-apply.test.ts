@@ -113,6 +113,7 @@ function rectificationDocument(
         description: "Correccion",
         quantity: 1,
         unitPrice: -25,
+        grossUnitPrice: -30.25,
         ivaPercent: 21,
       },
     ],
@@ -518,6 +519,16 @@ describe("central invoice authority local event apply", () => {
       result.documents.find((item) => item.id === "rectification-from-pc")
         ?.rectification?.originalDocumentId,
     ).toBe("phone-local-original");
+    expect(
+      result.documents.find((item) => item.id === "rectification-from-pc")
+        ?.documentSnapshot?.items[0],
+    ).toMatchObject({
+      unitPrice: -25,
+      grossUnitPrice: -30.25,
+      subtotal: -25,
+      ivaAmount: -5.25,
+      total: -30.25,
+    });
     expect(
       result.documents.find((item) => item.id === "phone-local-original"),
     ).toMatchObject({
