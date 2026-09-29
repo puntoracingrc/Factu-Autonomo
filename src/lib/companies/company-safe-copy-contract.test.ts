@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const migrationPath =
-  "supabase/migrations/20260929154242_copy_safe_company_catalog.sql";
+  "supabase/migrations/20260929160952_copy_safe_company_catalog.sql";
 
 describe("safe company copy contract", () => {
   it("creates the company and reusable catalog in one audited transaction", () => {
