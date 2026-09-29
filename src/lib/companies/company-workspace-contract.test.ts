@@ -5,6 +5,10 @@ const migration = readFileSync(
   "supabase/migrations/20260929121947_company_workspaces_and_admin_invitations.sql",
   "utf8",
 );
+const companyListConflictHotfixMigration = readFileSync(
+  "supabase/migrations/20260929150510_fix_company_list_conflict_target.sql",
+  "utf8",
+);
 
 const sensitiveRouteHandlers = [
   "src/lib/central-business-authority/mutation-route-handler.ts",
@@ -57,6 +61,23 @@ describe("company workspace security contract", () => {
       "drop constraint if exists expense_inbox_items_user_id_fkey",
     );
     expect(migration).toContain("app_company_cloud_access_allowed_v1");
+  });
+
+  it("uses an unambiguous membership upsert in the table-returning list RPC", () => {
+    expect(
+      companyListConflictHotfixMigration.match(
+        /on conflict on constraint app_company_members_pkey/gi,
+      ),
+    ).toHaveLength(2);
+    expect(companyListConflictHotfixMigration).not.toContain(
+      "on conflict (company_id, user_id)",
+    );
+    expect(companyListConflictHotfixMigration).toContain(
+      "update public.app_company_invitations as invitation",
+    );
+    expect(companyListConflictHotfixMigration).toContain(
+      "where invitation.company_id = v_company_id",
+    );
   });
 
   it("requires the company header at every central data boundary", () => {
