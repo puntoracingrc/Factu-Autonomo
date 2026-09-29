@@ -11,8 +11,7 @@ export const WORKSPACE_STORAGE_GUEST_ID_KEY =
 const WORKSPACE_STORAGE_BINDING_PREFIX = "factu:workspace:v2:binding:";
 const WORKSPACE_STORAGE_CANDIDATE_OWNER_PREFIX =
   "factu:workspace:v2:candidate-owner:";
-const WORKSPACE_SERVER_ADOPTION_PREFIX =
-  "factu:workspace:v2:server-adoption:";
+const WORKSPACE_SERVER_ADOPTION_PREFIX = "factu:workspace:v2:server-adoption:";
 const WORKSPACE_RECOVERY_PREFIX = "factu:workspace:v2:recovery:";
 
 export interface WorkspaceStorageLike {
@@ -125,9 +124,7 @@ export function workspaceServerAdoptionKey(ownerScope: string): string {
   return `${WORKSPACE_SERVER_ADOPTION_PREFIX}${encodedOwner(ownerScope)}`;
 }
 
-export function workspaceRecoveryStorageKeyPrefix(
-  ownerScope: string,
-): string {
+export function workspaceRecoveryStorageKeyPrefix(ownerScope: string): string {
   return `${WORKSPACE_RECOVERY_PREFIX}${encodedOwner(ownerScope)}:`;
 }
 
@@ -191,6 +188,33 @@ export function workspaceStorageScopeForUser(
     ownerScope,
     storageKey: workspaceStorageKeyForUser(ownerScope),
   };
+}
+
+export function adoptLegacyWorkspaceInPlace(input: {
+  ownerScope: string;
+  storage: WorkspaceStorageLike;
+}): Extract<WorkspaceStorageScope, { kind: "user" }> | null {
+  try {
+    if (input.storage.getItem(LEGACY_APP_DATA_STORAGE_KEY) === null) {
+      return null;
+    }
+    const ownerKey = workspaceStorageCandidateOwnerKey(
+      LEGACY_APP_DATA_STORAGE_KEY,
+    );
+    const ownerBefore = input.storage.getItem(ownerKey);
+    if (ownerBefore && ownerBefore !== input.ownerScope) return null;
+    if (!ownerBefore) {
+      input.storage.setItem(ownerKey, input.ownerScope);
+      if (input.storage.getItem(ownerKey) !== input.ownerScope) return null;
+    }
+    return {
+      kind: "user",
+      ownerScope: input.ownerScope,
+      storageKey: LEGACY_APP_DATA_STORAGE_KEY,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function demoWorkspaceStorageScope(): Extract<
@@ -305,9 +329,7 @@ export function claimWorkspaceStorageCandidate(input: {
 }): boolean {
   const raw = input.storage.getItem(input.candidateStorageKey);
   if (raw === null) return false;
-  const ownerKey = workspaceStorageCandidateOwnerKey(
-    input.candidateStorageKey,
-  );
+  const ownerKey = workspaceStorageCandidateOwnerKey(input.candidateStorageKey);
   const ownerBefore = input.storage.getItem(ownerKey);
   if (ownerBefore && ownerBefore !== input.scope.ownerScope) return false;
   let ownerWritten = false;
@@ -445,7 +467,11 @@ export function resolveWorkspaceStorage(input: {
       }
 
       const guestScope = readExistingGuestWorkspaceScope(input.storage);
-      if (guestScope && input.guestHasContent) {
+      if (
+        guestScope &&
+        input.guestHasContent &&
+        input.storage.getItem(guestScope.storageKey) !== null
+      ) {
         const candidateOwner = readWorkspaceStorageCandidateOwner(
           guestScope.storageKey,
           input.storage,
@@ -485,7 +511,27 @@ export function resolveWorkspaceStorage(input: {
         );
         if (candidateOwner && candidateOwner !== input.userId) {
           // La copia global antigua ya fue atribuida a otra cuenta.
-        } else if (!input.canAutoClaimLegacy && candidateOwner !== input.userId) {
+        } else if (candidateOwner === input.userId) {
+          const legacyScope = adoptLegacyWorkspaceInPlace({
+            ownerScope: input.userId,
+            storage: input.storage,
+          });
+          if (!legacyScope) {
+            return {
+              status: "blocked",
+              message:
+                "No se pudo abrir la copia local ya verificada de esta cuenta.",
+            };
+          }
+          return {
+            status: "ready",
+            scope: legacyScope,
+            migration: "verified_legacy",
+          };
+        } else if (
+          !input.canAutoClaimLegacy &&
+          candidateOwner !== input.userId
+        ) {
           return {
             status: "review_required",
             scope,
@@ -500,9 +546,21 @@ export function resolveWorkspaceStorage(input: {
             storage: input.storage,
           })
         ) {
+          const legacyScope = adoptLegacyWorkspaceInPlace({
+            ownerScope: input.userId,
+            storage: input.storage,
+          });
+          if (!legacyScope) {
+            return {
+              status: "blocked",
+              message:
+                "No se pudo preparar de forma verificable el espacio local de esta cuenta.",
+            };
+          }
           return {
-            status: "blocked",
-            message: "No se pudo preparar de forma verificable el espacio local de esta cuenta.",
+            status: "ready",
+            scope: legacyScope,
+            migration: "verified_legacy",
           };
         } else {
           return { status: "ready", scope, migration: "verified_legacy" };
@@ -520,7 +578,8 @@ export function resolveWorkspaceStorage(input: {
       ) {
         return {
           status: "blocked",
-          message: "El navegador no pudo crear el espacio seguro de esta cuenta.",
+          message:
+            "El navegador no pudo crear el espacio seguro de esta cuenta.",
         };
       }
       return { status: "ready", scope, migration: "empty" };
@@ -552,39 +611,21 @@ export function resolveWorkspaceStorage(input: {
       );
       const legacyOwnerBefore = input.storage.getItem(legacyOwnerKey);
       if (!legacyOwnerBefore || legacyOwnerBefore === scope.ownerScope) {
-        let legacyOwnerWritten = false;
-        if (!legacyOwnerBefore) {
-          input.storage.setItem(legacyOwnerKey, scope.ownerScope);
-          if (input.storage.getItem(legacyOwnerKey) !== scope.ownerScope) {
+        if (legacyOwnerBefore === scope.ownerScope) {
+          input.storage.removeItem(legacyOwnerKey);
+          if (input.storage.getItem(legacyOwnerKey) !== null) {
             return {
               status: "blocked",
               message:
-                "El navegador no pudo proteger la procedencia de la copia local.",
+                "El navegador no pudo liberar la copia local para verificarla al iniciar sesión.",
             };
           }
-          legacyOwnerWritten = true;
         }
-        if (
-          !bindWorkspaceRaw({
-            scope,
-            raw: legacyRaw,
-            source: "guest_legacy",
-            sourceStorageKey: LEGACY_APP_DATA_STORAGE_KEY,
-            storage: input.storage,
-          })
-        ) {
-          if (
-            legacyOwnerWritten &&
-            input.storage.getItem(legacyOwnerKey) === scope.ownerScope
-          ) {
-            input.storage.removeItem(legacyOwnerKey);
-          }
-          return {
-            status: "blocked",
-            message: "El navegador no pudo aislar los datos locales existentes.",
-          };
-        }
-        return { status: "ready", scope, migration: "guest_legacy" };
+        return {
+          status: "ready",
+          scope: { ...scope, storageKey: LEGACY_APP_DATA_STORAGE_KEY },
+          migration: "guest_legacy",
+        };
       }
     }
     if (
@@ -604,7 +645,8 @@ export function resolveWorkspaceStorage(input: {
   } catch {
     return {
       status: "blocked",
-      message: "No se pudo determinar con seguridad qué datos pertenecen a esta sesión.",
+      message:
+        "No se pudo determinar con seguridad qué datos pertenecen a esta sesión.",
     };
   }
 }

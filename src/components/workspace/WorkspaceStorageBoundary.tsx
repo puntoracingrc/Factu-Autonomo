@@ -30,6 +30,7 @@ import {
 } from "@/lib/workspace-auxiliary-storage";
 import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 import {
+  adoptLegacyWorkspaceInPlace,
   claimWorkspaceStorageCandidate,
   initializeWorkspaceStorage,
   preserveWorkspaceStorageCandidate,
@@ -235,13 +236,24 @@ export function WorkspaceStorageBoundary({
 
   function confirmLocalOwnership() {
     if (!review || !confirmed) return;
-    const applied = claimWorkspaceStorageCandidate({
+    let readyScope = review.resolution.scope;
+    const copied = claimWorkspaceStorageCandidate({
       scope: review.resolution.scope,
       candidateStorageKey: review.resolution.candidateStorageKey,
       source: "confirmed_local",
       storage: localStorage,
     });
-    if (!applied) {
+    if (
+      !copied &&
+      review.resolution.candidateStorageKey === LEGACY_APP_DATA_STORAGE_KEY
+    ) {
+      const inPlaceScope = adoptLegacyWorkspaceInPlace({
+        ownerScope: review.resolution.scope.ownerScope,
+        storage: localStorage,
+      });
+      if (inPlaceScope) readyScope = inPlaceScope;
+    }
+    if (!copied && readyScope === review.resolution.scope) {
       setState({
         status: "blocked",
         message: "El navegador no pudo confirmar la copia local.",
@@ -249,11 +261,8 @@ export function WorkspaceStorageBoundary({
       return;
     }
     claimLegacyAuxiliaryData(review.resolution.scope.ownerScope);
-    setActiveWorkspaceOwnerScope(
-      review.resolution.scope.ownerScope,
-      billingOwnerId,
-    );
-    setState({ status: "ready", scope: review.resolution.scope });
+    setActiveWorkspaceOwnerScope(readyScope.ownerScope, billingOwnerId);
+    setState({ status: "ready", scope: readyScope });
   }
 
   function startFromServer() {

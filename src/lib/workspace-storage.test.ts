@@ -5,6 +5,7 @@ import {
   claimWorkspaceStorageCandidate,
   initializeWorkspaceStorage,
   preserveWorkspaceStorageCandidate,
+  readExistingGuestWorkspaceScope,
   readWorkspaceStorageCandidateOwner,
   resolveWorkspaceStorage,
   workspaceRequiresServerAdoption,
@@ -17,14 +18,21 @@ import {
 class MemoryStorage implements WorkspaceStorageLike {
   private readonly values = new Map<string, string>();
 
-  constructor(private readonly failSetKey: string | null = null) {}
+  constructor(
+    private readonly failSet:
+      string | ((key: string, value: string) => boolean) | null = null,
+  ) {}
 
   getItem(key: string): string | null {
     return this.values.get(key) ?? null;
   }
 
   setItem(key: string, value: string): void {
-    if (key === this.failSetKey) throw new Error("write_failed");
+    const shouldFail =
+      typeof this.failSet === "function"
+        ? this.failSet(key, value)
+        : key === this.failSet;
+    if (shouldFail) throw new Error("write_failed");
     this.values.set(key, value);
   }
 
@@ -120,10 +128,7 @@ describe("workspace storage isolation", () => {
     });
     expect(storage.getItem(workspaceStorageKeyForUser(USER_A))).toBeNull();
     expect(
-      readWorkspaceStorageCandidateOwner(
-        LEGACY_APP_DATA_STORAGE_KEY,
-        storage,
-      ),
+      readWorkspaceStorageCandidateOwner(LEGACY_APP_DATA_STORAGE_KEY, storage),
     ).toBeNull();
   });
 
@@ -181,7 +186,7 @@ describe("workspace storage isolation", () => {
     });
     expect(firstLogin).toMatchObject({
       status: "review_required",
-      reason: "guest_owner_unknown",
+      reason: "legacy_owner_unknown",
       candidateStorageKey: guest.scope.storageKey,
     });
     if (firstLogin.status !== "review_required") {
@@ -211,7 +216,7 @@ describe("workspace storage isolation", () => {
     if (signedOut.status !== "ready" || signedOut.scope.kind !== "guest") {
       throw new Error("fresh_guest_workspace_not_created");
     }
-    expect(signedOut.scope.ownerScope).not.toBe(guest.scope.ownerScope);
+    expect(signedOut.scope.ownerScope).toBe(guest.scope.ownerScope);
     expect(storage.getItem(signedOut.scope.storageKey)).toBe(EMPTY_RAW);
     expect(storage.getItem(guest.scope.storageKey)).toBe(latestGuestRaw);
 
@@ -223,6 +228,55 @@ describe("workspace storage isolation", () => {
     });
     expect(secondLogin).toMatchObject({ status: "ready", migration: "empty" });
     expect(storage.getItem(workspaceStorageKeyForUser(USER_B))).toBe(EMPTY_RAW);
+  });
+
+  it("abre en el móvil una copia heredada grande sin duplicarla", () => {
+    const userStorageKey = workspaceStorageKeyForUser(USER_A);
+    const storage = new MemoryStorage((key) => key === userStorageKey);
+    const legacyRaw = JSON.stringify({
+      profile: { name: "Empresa del móvil" },
+      documents: [{ id: "factura-local" }],
+    });
+    storage.setItem(LEGACY_APP_DATA_STORAGE_KEY, legacyRaw);
+
+    const guest = resolveWorkspaceStorage({
+      userId: null,
+      demoMode: false,
+      legacyHasContent: true,
+      canAutoClaimLegacy: false,
+      emptyRaw: EMPTY_RAW,
+      storage,
+    });
+    expect(guest).toMatchObject({
+      status: "ready",
+      migration: "guest_legacy",
+      scope: { kind: "guest", storageKey: LEGACY_APP_DATA_STORAGE_KEY },
+    });
+    const generatedGuestScope = readExistingGuestWorkspaceScope(storage);
+    expect(generatedGuestScope).not.toBeNull();
+    expect(storage.getItem(generatedGuestScope?.storageKey ?? "")).toBeNull();
+    expect(storage.getItem(LEGACY_APP_DATA_STORAGE_KEY)).toBe(legacyRaw);
+
+    const signedIn = resolveUser({
+      storage,
+      userId: USER_A,
+      legacyHasContent: true,
+      canAutoClaimLegacy: true,
+    });
+    expect(signedIn).toMatchObject({
+      status: "ready",
+      migration: "verified_legacy",
+      scope: {
+        kind: "user",
+        ownerScope: USER_A,
+        storageKey: LEGACY_APP_DATA_STORAGE_KEY,
+      },
+    });
+    expect(storage.getItem(userStorageKey)).toBeNull();
+    expect(storage.getItem(LEGACY_APP_DATA_STORAGE_KEY)).toBe(legacyRaw);
+    expect(
+      readWorkspaceStorageCandidateOwner(LEGACY_APP_DATA_STORAGE_KEY, storage),
+    ).toBe(USER_A);
   });
 
   it("revierte datos y marcador si no puede escribir el recibo de vinculación", () => {
