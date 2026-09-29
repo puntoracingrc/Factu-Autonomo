@@ -12,6 +12,7 @@ import {
 
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { useCentralBusinessResolvedUserId } from "@/hooks/useCentralBusinessUserId";
 import {
   CENTRAL_BUSINESS_AUTOMATIC_BOOTSTRAP_VERIFIED_EVENT,
@@ -45,8 +46,11 @@ export function CentralAuthorityPlanGateProvider({
   children: ReactNode;
 }) {
   const { user } = useCloudSync();
+  const workspace = useWorkspaceStorage();
   const cloudUserId = normalizeUserId(user?.id ?? null);
   const resolvedUserId = useCentralBusinessResolvedUserId(cloudUserId);
+  const centralOwnerId =
+    workspace.kind === "user" ? normalizeUserId(workspace.ownerScope) : null;
   const { loading, limits } = useBilling();
   const [bootstrapRevision, setBootstrapRevision] = useState(0);
 
@@ -68,11 +72,11 @@ export function CentralAuthorityPlanGateProvider({
 
   const centralBootstrapReady = (() => {
     void bootstrapRevision;
-    if (!resolvedUserId) return true;
+    if (!resolvedUserId || !centralOwnerId) return true;
     if (!isCentralAuthorityPublicRolloutUser(resolvedUserId)) return true;
     return (
-      isLegacyCloudExplicitlyRetiredForUser(resolvedUserId) ||
-      hasVerifiedCentralBusinessAutomaticBootstrap(resolvedUserId)
+      isLegacyCloudExplicitlyRetiredForUser(centralOwnerId) ||
+      hasVerifiedCentralBusinessAutomaticBootstrap(centralOwnerId)
     );
   })();
 
@@ -80,6 +84,7 @@ export function CentralAuthorityPlanGateProvider({
     const common = {
       resolvedUserId,
       cloudUserId,
+      centralOwnerId,
       billingLoading: loading,
       cloudSyncIncluded: limits.cloudSync,
     };
@@ -96,6 +101,7 @@ export function CentralAuthorityPlanGateProvider({
   }, [
     centralBootstrapReady,
     cloudUserId,
+    centralOwnerId,
     limits.cloudSync,
     loading,
     resolvedUserId,

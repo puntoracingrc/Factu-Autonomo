@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Building2,
+  Copy,
   MailPlus,
   Plus,
   RefreshCw,
@@ -11,19 +12,23 @@ import {
 } from "lucide-react";
 
 import { Card } from "@/components/ui/Card";
+import { useAppStore } from "@/context/AppStore";
 import { useCompany } from "@/context/CompanyContext";
 import {
   fetchCompanyAccess,
   inviteAdmin,
   revokeCompanyAccess,
 } from "@/lib/companies/client";
+import { buildSafeCompanyCopyProfile } from "@/lib/companies/safe-company-copy";
 import type { AppCompanyAccessOverview } from "@/lib/companies/types";
 
 export function CompanyManagementCard() {
+  const { data } = useAppStore();
   const { activeCompany, companies, createCompany, renameCompany } =
     useCompany();
   const [access, setAccess] = useState<AppCompanyAccessOverview | null>(null);
   const [newCompanyName, setNewCompanyName] = useState("");
+  const [copyReusableData, setCopyReusableData] = useState(true);
   const [companyName, setCompanyName] = useState(activeCompany?.name ?? "");
   const [inviteEmail, setInviteEmail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -63,11 +68,31 @@ export function CompanyManagementCard() {
     setBusy("create");
     setMessage(null);
     try {
-      await createCompany(name);
+      const result = await createCompany(
+        name,
+        copyReusableData
+          ? {
+              sourceCompanyId: companyId,
+              sourceProfile:
+                buildSafeCompanyCopyProfile(data.profile) ?? undefined,
+            }
+          : undefined,
+      );
       setNewCompanyName("");
-      setMessage(`Empresa «${name}» creada y abierta.`);
-    } catch {
-      setMessage("No se pudo crear la empresa.");
+      if (result.copied) {
+        const copied = result.copied;
+        setMessage(
+          `Empresa «${name}» creada con ${copied.customers} clientes, ${copied.suppliers} proveedores y ${copied.products} productos.`,
+        );
+      } else {
+        setMessage(`Empresa «${name}» creada vacía y abierta.`);
+      }
+    } catch (error) {
+      setMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : "No se pudo crear la empresa.",
+      );
     } finally {
       setBusy(null);
     }
@@ -225,6 +250,27 @@ export function CompanyManagementCard() {
               Crear
             </button>
           </div>
+          <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-950">
+            <input
+              type="checkbox"
+              checked={copyReusableData}
+              onChange={(event) => setCopyReusableData(event.target.checked)}
+              disabled={busy !== null}
+              className="mt-0.5 h-4 w-4 rounded border-emerald-300"
+            />
+            <span>
+              <span className="flex items-center gap-2 font-bold">
+                <Copy className="h-4 w-4" />
+                Empezar con los datos útiles de «{currentCompanyName}»
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-emerald-800">
+                Copia clientes, proveedores, productos, logo, contacto,
+                plantillas y preferencias. No copia facturas, presupuestos,
+                recibos, gastos, avisos, NIF, dirección fiscal, impuestos,
+                series, numeración ni Veri*Factu.
+              </span>
+            </span>
+          </label>
           <p className="mt-2 text-xs text-slate-500">
             Actualmente puedes abrir {companies.length}{" "}
             {companies.length === 1 ? "empresa" : "empresas"}.

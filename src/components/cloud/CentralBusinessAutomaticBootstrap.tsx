@@ -73,7 +73,7 @@ export function CentralBusinessAutomaticBootstrap() {
     if (
       planGate.mode !== "central" ||
       !ownerScope ||
-      !isCentralAuthorityPublicRolloutUser(ownerScope) ||
+      !isCentralAuthorityPublicRolloutUser(planGate.authenticatedUserId) ||
       !ready ||
       !emailConfirmed ||
       requiresEmailConfirmation
@@ -250,6 +250,7 @@ export function CentralBusinessAutomaticBootstrap() {
     online,
     ownerScope,
     planGate.mode,
+    planGate.authenticatedUserId,
     ready,
     requiresEmailConfirmation,
     retryRevision,

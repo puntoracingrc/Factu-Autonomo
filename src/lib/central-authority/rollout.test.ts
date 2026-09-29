@@ -1,13 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   centralAuthorityRolloutBucket,
   centralAuthorityRolloutPercent,
   evaluateCentralAuthorityPublicRollout,
+  isCentralAuthorityPublicRolloutUser,
   isCentralAuthorityRolloutSelected,
 } from "./rollout";
+import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 const USER_ID = "00000000-0000-4000-8000-000000000001";
+
+afterEach(() => setActiveWorkspaceOwnerScope(null));
 
 describe("central authority percentage rollout", () => {
   it("asigna una cohorte estable, monotona y sin estado compartido", () => {
@@ -17,9 +21,9 @@ describe("central authority percentage rollout", () => {
     expect(isCentralAuthorityRolloutSelected(USER_ID, "0", "*")).toBe(false);
     expect(isCentralAuthorityRolloutSelected(USER_ID, "100", "*")).toBe(true);
     expect(isCentralAuthorityRolloutSelected(USER_ID, "100", "")).toBe(false);
-    expect(
-      isCentralAuthorityRolloutSelected(USER_ID, "100", USER_ID),
-    ).toBe(true);
+    expect(isCentralAuthorityRolloutSelected(USER_ID, "100", USER_ID)).toBe(
+      true,
+    );
 
     const threshold = ((bucket ?? 0) + 1) / 100;
     expect(
@@ -42,5 +46,17 @@ describe("central authority percentage rollout", () => {
       writesEnabled: false,
       emergencyStopped: true,
     });
+  });
+
+  it("aplica la cohorte de la cuenta pagadora al tenant de una empresa seleccionada", () => {
+    const companyOwnerId = "00000000-0000-4000-8000-000000000002";
+    setActiveWorkspaceOwnerScope(companyOwnerId, USER_ID);
+
+    expect(
+      isCentralAuthorityPublicRolloutUser(companyOwnerId, {
+        rolloutPercent: "100",
+        eligibleUserIds: USER_ID,
+      }),
+    ).toBe(true);
   });
 });

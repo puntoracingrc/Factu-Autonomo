@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
 import {
   createCompanyForIdentity,
+  createCompanyFromSourceForIdentity,
   listCompaniesForIdentity,
 } from "@/lib/companies/server";
 import {
@@ -55,8 +56,12 @@ export async function POST(request: Request) {
     actor.user.id,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
-  const body = await readJsonBody<{ name?: unknown }>(request, {
-    maxBytes: 2_048,
+  const body = await readJsonBody<{
+    name?: unknown;
+    sourceCompanyId?: unknown;
+    sourceProfile?: unknown;
+  }>(request, {
+    maxBytes: 2 * 1_024 * 1_024,
     invalidMessage: "Datos de empresa no válidos",
   });
   if (!body.ok) return body.response;
@@ -67,17 +72,37 @@ export async function POST(request: Request) {
     );
   }
   try {
+    if (body.data.sourceCompanyId !== undefined) {
+      if (typeof body.data.sourceCompanyId !== "string") {
+        return privateJson(
+          { error: "La empresa de origen no es válida." },
+          { status: 400 },
+        );
+      }
+      const result = await createCompanyFromSourceForIdentity(
+        actor,
+        body.data.name,
+        body.data.sourceCompanyId,
+        body.data.sourceProfile,
+      );
+      return privateJson(result, { status: 201 });
+    }
     const company = await createCompanyForIdentity(actor, body.data.name);
-    return privateJson({ company }, { status: 201 });
+    return privateJson({ company, copied: null }, { status: 201 });
   } catch (error) {
+    const code = error instanceof Error ? error.message : "";
     return privateJson(
       {
         error:
-          error instanceof Error && error.message === "INVALID_COMPANY_NAME"
+          code === "INVALID_COMPANY_NAME"
             ? "El nombre de la empresa no es válido."
-            : "No se pudo crear la empresa.",
+            : code === "INVALID_COMPANY_COPY"
+              ? "No se pudieron preparar los datos reutilizables."
+              : code === "SOURCE_COMPANY_ACCESS_DENIED"
+                ? "Ya no tienes acceso a la empresa de origen."
+                : "No se pudo crear la empresa.",
       },
-      { status: 400 },
+      { status: code === "SOURCE_COMPANY_ACCESS_DENIED" ? 403 : 400 },
     );
   }
 }

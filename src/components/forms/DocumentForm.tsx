@@ -1852,7 +1852,7 @@ export function DocumentForm({
     const centralPolicy = centralDocumentEligible
       ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
           publicFormCanaryEnabled: centralCanaryEnabled,
-          publicFormCanaryUserId: centralPlanGate.centralUserId,
+          publicFormCanaryUserId: centralPlanGate.authenticatedUserId,
           expectedOwnerScope: centralPlanGate.centralUserId,
         })
       : null;

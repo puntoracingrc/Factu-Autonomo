@@ -453,7 +453,7 @@ export function RectificativaForm({
       const centralPolicy = centralRectificationEligible
         ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
             publicFormCanaryEnabled: centralCanaryEnabled,
-            publicFormCanaryUserId: centralPlanGate.centralUserId,
+            publicFormCanaryUserId: centralPlanGate.authenticatedUserId,
             expectedOwnerScope: centralPlanGate.centralUserId,
           })
         : null;
