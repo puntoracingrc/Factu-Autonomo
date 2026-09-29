@@ -10,6 +10,7 @@ export interface DocumentSessionDraft {
   source: "document-session";
   schemaVersion: 1;
   documentType: DocumentType;
+  localDocumentId?: string;
   updatedAt: string;
   form: DocumentSessionFormStateDraft;
 }
@@ -70,6 +71,7 @@ export function hasMeaningfulDocumentSessionDraft(
 export function saveDocumentSessionDraft(
   documentType: DocumentType,
   form: DocumentSessionFormStateDraft,
+  options: { localDocumentId?: string } = {},
 ): boolean {
   const target = storage();
   if (!target) return false;
@@ -84,6 +86,9 @@ export function saveDocumentSessionDraft(
       source: "document-session",
       schemaVersion: 1,
       documentType,
+      ...(options.localDocumentId
+        ? { localDocumentId: options.localDocumentId }
+        : {}),
       updatedAt: new Date().toISOString(),
       form,
     };
@@ -108,6 +113,11 @@ export function getDocumentSessionDraft(
       parsed?.source !== "document-session" ||
       parsed.schemaVersion !== 1 ||
       parsed.documentType !== documentType ||
+      (parsed.localDocumentId !== undefined &&
+        (typeof parsed.localDocumentId !== "string" ||
+          parsed.localDocumentId.length < 1 ||
+          parsed.localDocumentId.length > 200 ||
+          /[\u0000-\u001f\u007f]/u.test(parsed.localDocumentId))) ||
       !parsed.form ||
       !Array.isArray(parsed.form.items) ||
       !hasMeaningfulDocumentSessionDraft(parsed.form)

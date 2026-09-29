@@ -135,7 +135,7 @@ describe("central expense create canary", () => {
     expect(deps.fetchStatus).not.toHaveBeenCalled();
   });
 
-  it("persists locally before confirming version one centrally", async () => {
+  it("confirms version one centrally before caching locally", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({ storage });
     const result = await createExpenseWithCentralCanary({
@@ -165,7 +165,7 @@ describe("central expense create canary", () => {
     });
   });
 
-  it("keeps a durable pending operation when the status check is offline", async () => {
+  it("does not cache or queue a local expense while offline", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -185,10 +185,11 @@ describe("central expense create canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({ ok: false });
     expect(loadCentralBusinessDurableQueue(userId, storage).operations).toHaveLength(
-      1,
+      0,
     );
     expect(deps.mutate).not.toHaveBeenCalled();
+    expect(deps.addExpenseDurably).not.toHaveBeenCalled();
   });
 });

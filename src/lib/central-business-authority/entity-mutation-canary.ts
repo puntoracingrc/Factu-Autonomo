@@ -74,12 +74,6 @@ export interface CentralBusinessEntityMutationDependencies<T> {
   statusTimeoutMs?: number;
 }
 
-function transientStatusFailure(
-  result: Extract<CentralBusinessAuthorityStatusResult, { ok: false }>,
-): boolean {
-  return result.status === 0 || result.status === 429 || result.status >= 500;
-}
-
 async function statusWithTimeout(
   fetchStatus: () => Promise<CentralBusinessAuthorityStatusResult>,
   timeoutMs: number,
@@ -108,18 +102,6 @@ async function statusWithTimeout(
 
 function entityKey(entityType: CentralBusinessEntityType, entityId: string) {
   return `${entityType}:${entityId}`;
-}
-
-function durableFailure<T>(
-  result: Exclude<AppDataDurabilityResult<T>, { status: "applied" }>,
-): string {
-  if (result.status === "indeterminate") {
-    return "El cambio quedó pendiente de revisión porque no se pudo confirmar el almacenamiento local.";
-  }
-  if (result.reason === "stale_precondition") {
-    return "Otro dispositivo cambió los datos mientras guardabas. No se ha sobrescrito nada. Revisa la información actual y vuelve a guardar para confirmar tu cambio.";
-  }
-  return "No se pudo guardar y verificar el cambio en este dispositivo.";
 }
 
 function hasSafeBlockedPreflight(
@@ -243,15 +225,11 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
     dependencies.fetchStatus ?? fetchCentralBusinessAuthorityStatusFromBrowser,
     dependencies.statusTimeoutMs ?? 3_000,
   );
-  const canAttemptServer = status.ok && status.summary.writesPossible;
-  if (
-    (!status.ok && !transientStatusFailure(status)) ||
-    (status.ok && !status.summary.writesPossible)
-  ) {
+  if (!status.ok || !status.summary.writesPossible) {
     return {
       ok: false,
       error:
-        "El servidor central todavía no está preparado para modificar esta ficha.",
+        "Se necesita conexión con el servidor central para modificar esta ficha. No se ha aplicado ningún cambio en este dispositivo.",
     };
   }
 
@@ -320,30 +298,6 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
         now: () => now,
       });
 
-      const local = dependencies.commitLocal(
-        baseline,
-        prepared.transition,
-        now,
-      );
-      if (local.status !== "applied") {
-        if (local.status === "blocked") {
-          discardCentralBusinessOperation({
-            ownerScope,
-            operationId,
-            storage: dependencies.storage,
-          });
-        }
-        return { ok: false, error: durableFailure(local) };
-      }
-
-      if (!canAttemptServer) {
-        return {
-          ok: true,
-          value: local.value,
-          delivery: "central_pending",
-        };
-      }
-
       const drained = await drainCentralBusinessDurableQueue({
         ownerScope,
         storage: dependencies.storage,
@@ -353,20 +307,40 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
       const ownOperation = drained.state.operations.find(
         (operation) => operation.operationId === operationId,
       );
-      if (!ownOperation) {
+      if (ownOperation) {
+        if (ownOperation.status !== "pending") {
+          discardCentralBusinessOperation({
+            ownerScope,
+            operationId,
+            storage: dependencies.storage,
+          });
+        }
         return {
-          ok: true,
-          value: local.value,
-          delivery: "central_confirmed",
+          ok: false,
+          error:
+            ownOperation.status === "pending" &&
+            drained.stoppedBy === "retryable"
+              ? "No se pudo confirmar la respuesta del servidor central. El cambio no se ha aplicado en este dispositivo y se conservará únicamente su identidad de recuperación para comprobarlo sin duplicarlo."
+              : "El servidor central rechazó el cambio porque la ficha ya tiene otra versión. No se ha sobrescrito ni aplicado nada localmente.",
+        };
+      }
+
+      const local = dependencies.commitLocal(
+        baseline,
+        prepared.transition,
+        now,
+      );
+      if (local.status !== "applied") {
+        return {
+          ok: false,
+          error:
+            "El servidor confirmó el cambio, pero la caché local no pudo actualizarse. Recarga para recibir la versión central; el cambio no se ha perdido.",
         };
       }
       return {
         ok: true,
         value: local.value,
-        delivery:
-          ownOperation.status === "pending" && drained.stoppedBy === "retryable"
-            ? "central_pending"
-            : "central_review",
+        delivery: "central_confirmed",
       };
     });
   } catch {

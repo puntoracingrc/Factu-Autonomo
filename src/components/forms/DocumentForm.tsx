@@ -479,6 +479,7 @@ export function DocumentForm({
   initialPrefill,
 }: DocumentFormProps) {
   const router = useRouter();
+  const localDocumentIdRef = useRef(existing?.id ?? crypto.randomUUID());
   const {
     data,
     ready,
@@ -1010,6 +1011,9 @@ export function DocumentForm({
 
   function applySessionDraft(draft: DocumentSessionDraft) {
     const form = draft.form;
+    if (draft.localDocumentId) {
+      localDocumentIdRef.current = draft.localDocumentId;
+    }
     const restoredItems = form.items.length
       ? form.items
       : [emptyLine(effectiveDocumentIva, defaultUnit)];
@@ -1057,20 +1061,24 @@ export function DocumentForm({
   useEffect(() => {
     if (existing || !sessionDraftChecked || pendingSessionDraft) return;
     const timer = window.setTimeout(() => {
-      saveDocumentSessionDraft(type, {
-        clientForm: clientFormToDraft(clientForm),
-        selectedCustomerId,
-        date,
-        dueDate,
-        notes,
-        salesTerms,
-        paymentTerms,
-        status,
-        documentIvaPercent: effectiveDocumentIva,
-        items: itemsRef.current,
-        lineProductPricing,
-        lineAreaDrafts,
-      });
+      saveDocumentSessionDraft(
+        type,
+        {
+          clientForm: clientFormToDraft(clientForm),
+          selectedCustomerId,
+          date,
+          dueDate,
+          notes,
+          salesTerms,
+          paymentTerms,
+          status,
+          documentIvaPercent: effectiveDocumentIva,
+          items: itemsRef.current,
+          lineProductPricing,
+          lineAreaDrafts,
+        },
+        { localDocumentId: localDocumentIdRef.current },
+      );
     }, 500);
     return () => window.clearTimeout(timer);
   }, [
@@ -1715,7 +1723,7 @@ export function DocumentForm({
 
     setSaveAction(download ? "save-pdf" : "save");
 
-    const pendingDocumentId = existing?.id ?? crypto.randomUUID();
+    const pendingDocumentId = existing?.id ?? localDocumentIdRef.current;
     const becomesDefinitive =
       resolvedStatus !== "borrador" &&
       !existing?.rectification &&

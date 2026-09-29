@@ -58,11 +58,13 @@ describe("document session draft", () => {
           },
         ],
       }),
+      { localDocumentId: "quote-pending-stable-id" },
     );
 
     expect(saved).toBe(true);
     expect(getDocumentSessionDraft("presupuesto")).toMatchObject({
       documentType: "presupuesto",
+      localDocumentId: "quote-pending-stable-id",
       form: {
         salesTerms: "Garantía de dos años",
         items: [

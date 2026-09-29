@@ -105,7 +105,7 @@ function successSync() {
 }
 
 describe("central business entity mutation canary", () => {
-  it("explica un choque local entre dispositivos sin sugerir que se guardó", async () => {
+  it("explica que el servidor confirmó aunque falle la caché local", async () => {
     const storage = new MemoryStorage();
     await seedVersion(storage);
 
@@ -132,20 +132,30 @@ describe("central business entity mutation canary", () => {
         }),
         syncEventsBeforeWrite: async () => successSync(),
         fetchStatus: async () => readyStatus(),
+        mutate: async () => ({
+          ok: true,
+          schema: "CENTRAL_BUSINESS_MUTATION_CLIENT_V1",
+          status: "committed",
+          eventId: "event-update-cache-failure",
+          eventSequence: 2,
+          entityVersion: 2,
+          deleted: false,
+          contentHash: "hash-v2",
+        }),
       },
     });
 
     expect(result).toEqual({
       ok: false,
       error:
-        "Otro dispositivo cambió los datos mientras guardabas. No se ha sobrescrito nada. Revisa la información actual y vuelve a guardar para confirmar tu cambio.",
+        "El servidor confirmó el cambio, pero la caché local no pudo actualizarse. Recarga para recibir la versión central; el cambio no se ha perdido.",
     });
     expect(
       loadCentralBusinessDurableQueue(ownerScope, storage).operations,
     ).toEqual([]);
   });
 
-  it("usa la versión confirmada y persiste local antes de confirmar el cambio", async () => {
+  it("usa la versión confirmada y actualiza la caché después del servidor", async () => {
     const storage = new MemoryStorage();
     await seedVersion(storage);
     let current: AppData = EMPTY_DATA;
@@ -154,10 +164,12 @@ describe("central business entity mutation canary", () => {
         expected: AppData,
         transition: { data: AppData; value: string },
       ): AppDataDurabilityResult<string> => {
-        expect(
-          loadCentralBusinessDurableQueue(ownerScope, storage).operations[0]
-            .input.expectedVersion,
-        ).toBe(1);
+        expect(loadCentralBusinessDurableQueue(ownerScope, storage)).toMatchObject({
+          operations: [],
+          entityVersions: {
+            [`customer:${entityId}`]: { version: 2, deleted: false },
+          },
+        });
         expect(current).toBe(expected);
         current = transition.data;
         return {
@@ -792,9 +804,20 @@ describe("central business entity mutation canary", () => {
     expect(fallback).not.toHaveBeenCalled();
   });
 
-  it("conserva en cola un cambio conocido cuando la red está caída", async () => {
+  it("no aplica ni encola un cambio conocido cuando la red está caída", async () => {
     const storage = new MemoryStorage();
     await seedVersion(storage);
+    const commitLocal = vi.fn(
+      (
+        expected: AppData,
+        transition: { data: AppData; value: string },
+      ): AppDataDurabilityResult<string> => ({
+        status: "applied",
+        data: expected,
+        value: transition.value,
+        replayed: false,
+      }),
+    );
 
     const result = await mutateCentralBusinessEntityWithCanary({
       enabled: true,
@@ -813,12 +836,7 @@ describe("central business entity mutation canary", () => {
           payload: null,
           transition: { data, value: entityId },
         }),
-        commitLocal: (expected, transition) => ({
-          status: "applied",
-          data: expected,
-          value: transition.value,
-          replayed: false,
-        }),
+        commitLocal,
         syncEventsBeforeWrite: async () => ({
           ok: false,
           schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1",
@@ -838,23 +856,11 @@ describe("central business entity mutation canary", () => {
       },
     });
 
-    expect(result).toEqual({
-      ok: true,
-      value: entityId,
-      delivery: "central_pending",
-    });
+    expect(result).toMatchObject({ ok: false });
+    expect(commitLocal).not.toHaveBeenCalled();
     expect(
       loadCentralBusinessDurableQueue(ownerScope, storage).operations,
-    ).toEqual([
-      expect.objectContaining({
-        status: "pending",
-        input: expect.objectContaining({
-          operationKind: "delete",
-          expectedVersion: 1,
-          payload: null,
-        }),
-      }),
-    ]);
+    ).toEqual([]);
   });
 
   it("no encadena dos cambios locales sobre la misma versión pendiente", async () => {

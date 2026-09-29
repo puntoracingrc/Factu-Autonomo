@@ -98,12 +98,6 @@ export interface CentralExpenseBundleCanaryDependencies<T> {
   environment?: CentralExpenseProfileCanaryEnvironment;
 }
 
-function transientStatusFailure(
-  result: Extract<CentralBusinessAuthorityStatusResult, { ok: false }>,
-): boolean {
-  return result.status === 0 || result.status === 429 || result.status >= 500;
-}
-
 async function statusWithTimeout(
   fetchStatus: () => Promise<CentralBusinessAuthorityStatusResult>,
   timeoutMs: number,
@@ -222,15 +216,11 @@ export async function saveCentralExpenseBundleWithCanary<T>(input: {
     dependencies.fetchStatus ?? fetchCentralBusinessAuthorityStatusFromBrowser,
     dependencies.statusTimeoutMs ?? 3_000,
   );
-  const canAttemptServer = status.ok && status.summary.writesPossible;
-  if (
-    (!status.ok && !transientStatusFailure(status)) ||
-    (status.ok && !status.summary.writesPossible)
-  ) {
+  if (!status.ok || !status.summary.writesPossible) {
     return {
       ok: false,
       error:
-        "El servidor central todavía no está preparado para guardar este gasto completo.",
+        "Se necesita conexión con el servidor central para guardar este gasto completo. No se ha aplicado ningún cambio en este dispositivo.",
     };
   }
 
@@ -314,30 +304,6 @@ export async function saveCentralExpenseBundleWithCanary<T>(input: {
         now: () => now,
       });
 
-      const local = dependencies.commitLocal(
-        baseline,
-        prepared.transition,
-        now,
-      );
-      if (local.status !== "applied") {
-        if (local.status === "blocked") {
-          discardCentralBusinessOperation({
-            ownerScope,
-            operationId: mutations[0].idempotencyKey,
-            storage: dependencies.storage,
-          });
-        }
-        return {
-          ok: false,
-          error: durableFailure(local),
-          localFailure: local,
-        };
-      }
-
-      if (!canAttemptServer) {
-        return { ok: true, local, delivery: "central_pending" };
-      }
-
       let drained;
       try {
         drained = await drainCentralBusinessDurableQueue({
@@ -349,22 +315,51 @@ export async function saveCentralExpenseBundleWithCanary<T>(input: {
           now: dependencies.now,
         });
       } catch {
-        return { ok: true, local, delivery: "central_review" };
+        return {
+          ok: false,
+          error:
+            "No se pudo verificar la respuesta del servidor central. El gasto no se ha aplicado en la caché de este dispositivo.",
+        };
       }
       const ownOperations = drained.state.operations.filter(
         (operation) => operation.batchId === identity.batchId,
       );
-      if (ownOperations.length === 0) {
-        return { ok: true, local, delivery: "central_confirmed" };
+      if (ownOperations.length > 0) {
+        if (ownOperations.some((operation) => operation.status !== "pending")) {
+          discardCentralBusinessOperation({
+            ownerScope,
+            operationId: mutations[0].idempotencyKey,
+            storage: dependencies.storage,
+          });
+        }
+        return {
+          ok: false,
+          error:
+            ownOperations.every(
+              (operation) => operation.status === "pending",
+            ) && drained.stoppedBy === "retryable"
+              ? "No se pudo confirmar la respuesta del servidor central. El gasto no se ha aplicado en este dispositivo y se conservará únicamente la identidad del lote para comprobarlo sin duplicarlo."
+              : "El servidor central rechazó el lote porque alguna ficha ya tiene otra versión. No se ha sobrescrito ni aplicado nada localmente.",
+        };
+      }
+
+      const local = dependencies.commitLocal(
+        baseline,
+        prepared.transition,
+        now,
+      );
+      if (local.status !== "applied") {
+        return {
+          ok: false,
+          error:
+            "El servidor confirmó el gasto completo, pero la caché local no pudo actualizarse. Recarga para recibir la versión central; el gasto no se ha perdido.",
+          localFailure: local,
+        };
       }
       return {
         ok: true,
         local,
-        delivery:
-          ownOperations.every((operation) => operation.status === "pending") &&
-          drained.stoppedBy === "retryable"
-            ? "central_pending"
-            : "central_review",
+        delivery: "central_confirmed",
       };
     });
   } catch (error) {

@@ -64,12 +64,6 @@ export interface CentralExpenseCreateCanaryDependencies {
   environment?: CentralExpenseProfileCanaryEnvironment;
 }
 
-function transientStatusFailure(
-  result: Extract<CentralBusinessAuthorityStatusResult, { ok: false }>,
-): boolean {
-  return result.status === 0 || result.status === 429 || result.status >= 500;
-}
-
 async function statusWithTimeout(
   fetchStatus: () => Promise<CentralBusinessAuthorityStatusResult>,
   timeoutMs: number,
@@ -98,18 +92,6 @@ async function statusWithTimeout(
 
 function jsonExpense(expense: Expense): CentralBusinessJson {
   return JSON.parse(JSON.stringify(expense)) as CentralBusinessJson;
-}
-
-function durabilityError(
-  result: Exclude<AppDataDurabilityResult<Expense>, { status: "applied" }>,
-): string {
-  if (result.status === "indeterminate") {
-    return "El gasto quedó pendiente de revisión porque no se pudo confirmar el almacenamiento local.";
-  }
-  if (result.reason === "stale_precondition") {
-    return "Los gastos cambiaron mientras se guardaba. Revisa la lista y vuelve a intentarlo.";
-  }
-  return "No se pudo guardar y verificar el gasto en este dispositivo.";
 }
 
 export async function createExpenseWithCentralCanary(input: {
@@ -142,15 +124,11 @@ export async function createExpenseWithCentralCanary(input: {
     dependencies.fetchStatus ?? fetchCentralBusinessAuthorityStatusFromBrowser,
     dependencies.statusTimeoutMs ?? 3_000,
   );
-  const canAttemptServer = status.ok && status.summary.writesPossible;
-  if (
-    (!status.ok && !transientStatusFailure(status)) ||
-    (status.ok && !status.summary.writesPossible)
-  ) {
+  if (!status.ok || !status.summary.writesPossible) {
     return {
       ok: false,
       error:
-        "El servidor central todavía no está preparado para guardar gastos en esta cuenta.",
+        "Se necesita conexión con el servidor central para guardar gastos. No se ha aplicado ningún cambio en este dispositivo.",
     };
   }
 
@@ -187,30 +165,6 @@ export async function createExpenseWithCentralCanary(input: {
         now: () => now,
       });
 
-      const local = dependencies.addExpenseDurably(
-        input.expense,
-        { id, now },
-        baseline,
-      );
-      if (local.status !== "applied") {
-        if (local.status === "blocked") {
-          discardCentralBusinessOperation({
-            ownerScope,
-            operationId,
-            storage: dependencies.storage,
-          });
-        }
-        return { ok: false, error: durabilityError(local) };
-      }
-
-      if (!canAttemptServer) {
-        return {
-          ok: true,
-          expense: local.value,
-          delivery: "central_pending",
-        };
-      }
-
       const drained = await drainCentralBusinessDurableQueue({
         ownerScope,
         storage: dependencies.storage,
@@ -220,20 +174,40 @@ export async function createExpenseWithCentralCanary(input: {
       const ownOperation = drained.state.operations.find(
         (operation) => operation.operationId === operationId,
       );
-      if (!ownOperation) {
+      if (ownOperation) {
+        if (ownOperation.status !== "pending") {
+          discardCentralBusinessOperation({
+            ownerScope,
+            operationId,
+            storage: dependencies.storage,
+          });
+        }
         return {
-          ok: true,
-          expense: local.value,
-          delivery: "central_confirmed",
+          ok: false,
+          error:
+            ownOperation.status === "pending" &&
+            drained.stoppedBy === "retryable"
+              ? "No se pudo confirmar la respuesta del servidor central. El gasto no se ha añadido a la caché de este dispositivo y se conservará únicamente la identidad necesaria para comprobar la operación sin duplicarla."
+              : "El servidor central rechazó el alta. No se ha creado ningún gasto solo en este dispositivo.",
+        };
+      }
+
+      const local = dependencies.addExpenseDurably(
+        input.expense,
+        { id, now },
+        baseline,
+      );
+      if (local.status !== "applied") {
+        return {
+          ok: false,
+          error:
+            "El servidor confirmó el gasto, pero la caché local no pudo actualizarse. Recarga para recibir la versión central; el gasto no se ha perdido.",
         };
       }
       return {
         ok: true,
         expense: local.value,
-        delivery:
-          ownOperation.status === "pending" && drained.stoppedBy === "retryable"
-            ? "central_pending"
-            : "central_review",
+        delivery: "central_confirmed",
       };
     });
   } catch {

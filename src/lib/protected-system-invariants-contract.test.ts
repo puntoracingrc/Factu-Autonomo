@@ -57,6 +57,13 @@ describe("mandatory protected-system registry", () => {
       "Una ficha antigua sin versión central permanece local",
     );
     expect(registry).toContain(
+      "Una escritura nueva se confirma primero en PostgreSQL",
+    );
+    expect(registry).toContain(
+      "Un formulario de factura o presupuesto puede persistir como borrador local",
+    );
+    expect(registry).toContain("Realtime solo despierta al cliente");
+    expect(registry).toContain(
       "La cola legacy de un dispositivo solo puede retirarse",
     );
     expect(registry).toContain(

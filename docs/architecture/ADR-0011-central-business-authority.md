@@ -1,8 +1,8 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 27
-- Fecha: 2026-08-12
+- Version: 28
+- Fecha: 2026-09-29
 
 ## Contexto
 
@@ -58,7 +58,8 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
    y canario apagado por defecto.
 3. Conectar clientes, proveedores y productos en la cuenta de pruebas.
 4. Incorporar gastos, recordatorios, perfil y documentos no fiscales.
-5. Añadir cola offline visible y resolucion explicita de conflictos.
+5. Hacer las escrituras servidor-primero y conservar solo un sobre tecnico de
+   recuperacion cuando la respuesta de una peticion ya enviada sea ambigua.
 6. Comparar y hacer bootstrap de la cuenta real; despues retirar la escritura
    de `sync_entities`.
 7. Verificar con cuentas sinteticas el alta cloud, dos dispositivos, todos los
@@ -67,8 +68,9 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
 
 Durante esta retirada, aplicar o adoptar una pagina ya verificada del outbox no
 genera otra vez las mismas fichas en `meta.pendingChanges`. El cursor central,
-la cola central durable y el readback de AppData siguen siendo obligatorios; el
-cambio solo evita duplicar una confirmacion entrante en la cola legacy pausada.
+el checkpoint de versiones de la cache y el readback de AppData siguen siendo
+obligatorios; una cola de cambios locales ya no es una fuente operativa ni
+habilita trabajo offline dentro de la autoridad central.
 Las entradas legacy que ya existan se conservan sin alteraciones hasta una
 accion explicita de migracion o restauracion, y cualquier guardado local fuera
 del contrato central mantiene el seguimiento anterior.
@@ -116,32 +118,43 @@ canario aplica, los gates de entorno permiten escribir y todos los rechazos
 seguros responden como se espera. Este estado se consulta con `no-store` y no
 sustituye una confirmacion de escritura.
 
-Los clientes clasifican un fallo de red o servidor como reintentable, pero
-nunca reintentan automaticamente un conflicto de version, una clave
-idempotente reutilizada o una entidad ya eliminada. PostgreSQL expone esos
-casos con SQLSTATE estables (`P4103`, `P4102` y `P4104`) y la API los traduce a
-codigos de dominio. La cola cliente debe conservar esos conflictos hasta una
-decision explicita.
+Los clientes clasifican un fallo de red o servidor como no confirmado, pero
+nunca presentan el cambio como guardado localmente ni reintentan a ciegas un
+conflicto de version, una clave idempotente reutilizada o una entidad ya
+eliminada. PostgreSQL expone esos casos con SQLSTATE estables (`P4103`, `P4102`
+y `P4104`) y la API los traduce a codigos de dominio.
 
-La cola duradera se separa por propietario y se escribe y relee antes de
-permitir la mutacion local. Procesa en FIFO, conserva la misma clave idempotente
-en todos los reintentos y no usa la secuencia devuelta por una escritura para
-adelantar el cursor de descarga: podria haber eventos intermedios de otro
-dispositivo. Una pagina descargada solo confirma su cursor despues de aplicar
-todos sus eventos. Si falla a mitad, se repite de forma idempotente; si coincide
-con una operacion local pendiente, ambas versiones quedan en conflicto
-explicito. Las transiciones de la cola se ejecutan bajo Web Locks por
-propietario cuando el navegador lo soporta, con serializacion local de respaldo
-para evitar que dos acciones de la misma pestaña se pisen.
+Cada escritura central sigue este orden: descargar eventos pendientes,
+comprobar el preflight, preparar una identidad idempotente, enviar la mutacion
+con `expectedVersion`, recibir la confirmacion transaccional y solo entonces
+actualizar la cache local visible. Sin conexion o sin preflight valido no se
+aplica ningun cambio de negocio confirmado en el navegador. Un formulario de
+factura o presupuesto puede conservarse como borrador local pendiente y sin
+numeracion definitiva, pero no aparece como emitido, no consume contador ni
+entra en contabilidad. Al recuperar conexion, la misma identidad idempotente se
+reutiliza en el reintento al servidor y solo su confirmacion materializa el
+documento numerado.
+Para resolver una respuesta ambigua puede conservarse por propietario un sobre
+tecnico temporal con esa identidad; nunca se proyecta como dato confirmado,
+nunca adelanta el cursor y desaparece al confirmar o rechazar la operacion. Las
+transiciones se serializan bajo Web Locks por propietario cuando el navegador
+lo soporta, con serializacion local de respaldo.
+
+La secuencia devuelta por una escritura no adelanta el cursor de descarga:
+podria haber eventos intermedios de otro dispositivo. Una pagina descargada
+solo confirma su cursor despues de aplicar todos sus eventos a la cache y
+verificar su readback. Realtime sigue siendo unicamente el aviso que dispara
+esa lectura autoritativa.
 
 El primer flujo funcional es la creacion de clientes y permanece limitado por
 una allowlist publica de UUIDs sin datos fiscales, ademas del canario privado
 del servidor. Fuera de esa lista se conserva exactamente el guardado local
 anterior. Dentro del canario, el cliente consulta el preflight: un rechazo
 autenticado o un servidor no preparado bloquean antes de escribir; un fallo
-transitorio de red permite guardar offline solo despues de persistir y releer
-la operacion. La ficha local y el comando central comparten ID y timestamp. El
-boton queda ocupado durante el commit para evitar dobles operaciones. El
+transitorio de red bloquea el guardado visible y no crea una ficha local. La
+ficha cacheada y el comando central comparten ID y timestamp solo despues de
+la confirmacion. El boton queda ocupado durante el commit para evitar dobles
+operaciones. El
 preflight tiene un limite corto: si una red degradada lo deja colgado, se trata
 como fallo transitorio y no congela el formulario.
 
@@ -151,15 +164,15 @@ normalizada no cambia, se conserva su version y no se publica un evento vacio.
 El documento emitido mantiene su snapshot congelado y nunca se reescribe por
 una modificacion posterior del maestro.
 
-Un commit local bloqueado retira el comando antes de cualquier envio. Si el
-estado durable local queda indeterminado, la operacion se conserva para
-revision y nunca se confirma silenciosamente. Una confirmacion de escritura
-actualiza la version conocida de la entidad, pero no adelanta el cursor del
-outbox.
+Un commit de cache bloqueado despues de una confirmacion central no revierte ni
+duplica el servidor: la UI informa que debe recargar y el outbox reconstruye la
+copia local. Una confirmacion de escritura actualiza la version conocida de la
+entidad, pero no adelanta el cursor del outbox.
 
 La creacion manual de productos desde su formulario dedicado reutiliza el
-mismo contrato. El producto normalizado, la copia local durable y el comando
-central comparten ID y timestamp. Las altas automaticas y duplicados permanecen
+mismo contrato. El producto normalizado y el comando central comparten ID y
+timestamp; la cache local se materializa despues de confirmar. Las altas
+automaticas y duplicados permanecen
 locales hasta que sus flujos tengan control de version propio; activar este
 canario no los convierte implicitamente en escrituras centrales.
 
@@ -265,7 +278,9 @@ adaptativo solo recupera avisos perdidos: tres minutos con el canal suscrito,
 treinta segundos mientras este degradado y dispersion entre dispositivos. Cada
 alta del canario fuerza ademas una lectura justo antes del preflight de
 escritura: un conflicto local bloquea la operacion, mientras una caida
-transitoria de red conserva el modo offline y su cola durable.
+transitoria de red impide confirmar la escritura y conserva, como maximo, el
+borrador pendiente o el sobre tecnico necesario para resolver una respuesta
+ambigua sin duplicarla.
 
 El navegador valida la forma completa de la ficha recibida, su ID, version y
 hash antes de incorporarla. Nunca pisa una ficha local divergente sin una
@@ -277,21 +292,18 @@ ausencia sin ocultarla detras del cursor.
 
 Las ediciones y borrados de clientes y productos que ya tienen una version
 central confirmada usan esa version como `expectedVersion`. Primero descargan
-eventos, despues conservan la operacion y su clave idempotente, confirman el
-cambio local durable y finalmente envian la cola FIFO. Al recuperar conexion,
-foco o visibilidad, el cliente vacia siempre la cola antes de descargar el
-outbox; asi un evento propio confirmado no se confunde con una operacion local
-todavia pendiente.
+eventos, despues envian la operacion con su clave idempotente y solo tras la
+confirmacion actualizan la cache local. Al recuperar conexion, foco o
+visibilidad, el cliente resuelve cualquier sobre ambiguo antes de descargar el
+outbox; asi un evento propio confirmado no se confunde con una operacion cuya
+respuesta se perdio.
 
-Un conflicto de version o un evento remoto concurrente se presenta en Cuenta
-como una revision agrupada por entidad. Conservar la version del servidor exige
-una confirmacion explicita del usuario y prepara todas las operaciones
-pendientes de esa entidad, no solo la primera. La descarga autoritativa evita
-esas operaciones preparadas al comprobar conflictos locales, pero siguen
-retenidas en la cola y no se descartan hasta que el evento haya superado hash,
-forma, escritura local durable y una version central superior a todas las
-versiones esperadas. Una descarga parcial o fallida deja la resolucion
-reintentable. Un conflicto de idempotencia no ofrece reparacion automatica.
+Un conflicto de version bloquea la escritura antes de tocar la cache y ordena
+recibir la version autoritativa. Los sobres heredados de la etapa local-primero
+siguen disponibles para revision agrupada y no se eliminan automaticamente;
+las operaciones nuevas rechazadas no se convierten en cambios locales. Una
+descarga parcial o fallida deja la recuperacion reintentable. Un conflicto de
+idempotencia no ofrece reparacion automatica.
 
 Una ficha antigua sin version en el ledger sigue local fuera del rollout. En
 una cuenta cloud seleccionada, la ausencia de version obliga a terminar el
@@ -322,8 +334,9 @@ byte-semanticamente el cliente congelado, snapshots, PDF, sellos, hashes y
 evidencia de documentos emitidos. Las reorganizaciones de familias y
 subfamilias que incluyen productos centrales usan un unico lote atomico con la
 version esperada de cada producto y del perfil cuando migran reglas de margen.
-El lote completo se conserva antes del commit local durable y se confirma o
-entra en revision como una unidad; nunca se descompone en escrituras parciales.
+El lote completo se envia y confirma en servidor antes de actualizar la cache
+local; una respuesta ambigua conserva una unica identidad atomica de
+recuperacion y nunca se descompone en escrituras parciales.
 La fusion entre fichas de producto reutiliza el mismo contrato: actualiza o
 materializa la ficha conservada, absorbe sus alias y completa campos ausentes,
 y retira las fichas duplicadas dentro del mismo lote. Los gastos historicos no
