@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 export const CENTRAL_INVOICE_AUTHORITY_EVENTS_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_EVENTS_CLIENT_V1";
@@ -246,6 +247,7 @@ export async function pullCentralInvoiceAuthorityEventsFromBrowser(
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
         [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },
       cache: "no-store",

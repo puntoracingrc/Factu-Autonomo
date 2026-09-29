@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "./route";
-import { isAdminEmail, isAdminUser } from "@/lib/admin/access";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { isAdminEmail } from "@/lib/admin/access";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   consumeExpenseScan,
   getExpenseScanQuota,
@@ -22,11 +22,10 @@ import {
 
 vi.mock("@/lib/admin/access", () => ({
   isAdminEmail: vi.fn(),
-  isAdminUser: vi.fn(),
 }));
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/scan-usage-server", () => ({
@@ -59,12 +58,26 @@ function request(token: string | null) {
 
 function scanPostRequest(token: string | null) {
   const form = new FormData();
-  form.set("file", new File(["factura"], "factura.pdf", { type: "application/pdf" }));
+  form.set(
+    "file",
+    new File(["factura"], "factura.pdf", { type: "application/pdf" }),
+  );
   return new Request("http://localhost/api/expenses/scan", {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
   });
+}
+
+function companyAuth(userId: string, email?: string) {
+  return {
+    userId,
+    actorUserId: userId,
+    billingUserId: userId,
+    companyId: userId,
+    sessionId: "session-1",
+    userEmail: email ?? null,
+  };
 }
 
 function mockSuccessfulScan() {
@@ -119,10 +132,9 @@ describe("GET /api/expenses/scan", () => {
       retryAfterSeconds: 600,
       backend: "memory",
     });
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "learning-user",
-      email: "persianasalmar@gmail.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth("learning-user", "persianasalmar@gmail.com"),
+    );
 
     const response = await GET(request("token"));
     const body = await response.json();
@@ -147,7 +159,7 @@ describe("GET /api/expenses/scan", () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
-    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(null);
 
     const response = await GET(request(null));
 
@@ -166,11 +178,9 @@ describe("POST /api/expenses/scan", () => {
   it("mantiene el limite antiabuso normal para usuarios no admin", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     mockSuccessfulScan();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-1",
-      email: "cliente@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
-    vi.mocked(isAdminUser).mockReturnValue(false);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth("user-1", "cliente@example.com"),
+    );
     vi.mocked(isAdminEmail).mockReturnValue(false);
 
     const response = await POST(scanPostRequest("token"));
@@ -190,11 +200,9 @@ describe("POST /api/expenses/scan", () => {
   it("no expone learningHints en la respuesta pública", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     mockSuccessfulScan();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-1",
-      email: "cliente@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
-    vi.mocked(isAdminUser).mockReturnValue(false);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth("user-1", "cliente@example.com"),
+    );
     vi.mocked(extractExpenseFromImage).mockResolvedValue({
       data: { expense: { description: "Factura proveedor" } },
       learningHints: learningHintsFixture(),
@@ -214,11 +222,9 @@ describe("POST /api/expenses/scan", () => {
   it("permite lotes internos mas grandes para cuentas admin autenticadas", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     mockSuccessfulScan();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "admin-1",
-      email: "admin@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
-    vi.mocked(isAdminUser).mockReturnValue(true);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth("admin-1", "admin@example.com"),
+    );
     vi.mocked(isAdminEmail).mockReturnValue(true);
 
     const response = await POST(scanPostRequest("token"));
@@ -241,7 +247,7 @@ describe("POST /api/expenses/scan", () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "false");
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
-    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(null);
 
     const response = await POST(
       new Request("https://facturacion-autonomos.app/api/expenses/scan", {
@@ -262,11 +268,10 @@ describe("POST /api/expenses/scan", () => {
   it("devuelve mantenimiento tipado sin filtrar el error de cuota del proveedor", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     mockSuccessfulScan();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "admin-1",
-      email: "admin@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
-    vi.mocked(isAdminUser).mockReturnValue(true);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth("admin-1", "admin@example.com"),
+    );
+    vi.mocked(isAdminEmail).mockReturnValue(true);
     vi.mocked(extractExpenseFromImage).mockResolvedValue({
       error:
         "El servicio de escáner está en mantenimiento. Prueba de nuevo en las próximas 24 horas.",

@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Building2,
   Check,
   Crown,
   LoaderCircle,
@@ -25,11 +24,13 @@ import { DataAccessEventReporter } from "@/components/security/DataAccessEventRe
 import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
 import { DemoModeBanner } from "@/components/demo/DemoModeBanner";
 import { UsageBanner } from "@/components/billing/UsageBanner";
+import { CompanySwitcher } from "@/components/companies/CompanySwitcher";
 import { QuickToolsLauncher } from "@/components/documents/QuickToolsLauncher";
 import { ReferralCapture } from "@/components/referrals/ReferralCapture";
 import { ReferralRedeemOnLogin } from "@/components/referrals/ReferralRedeemOnLogin";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCompany } from "@/context/CompanyContext";
 import { useAppStore } from "@/context/AppStore";
 import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { FactuOccasionalHost } from "@/components/factu/FactuOccasionalHost";
@@ -138,6 +139,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data, ready, writeBlock } = useAppStore();
   const workspace = useWorkspaceStorage();
   const { authReady, user } = useCloudSync();
+  const { activeCompany, renameCompany } = useCompany();
   const { isPro, billingEnabled, plan } = useBilling();
   const demoMode = useDemoWorkspaceMode();
   const [factuDismissed, setFactuDismissed] = useState(false);
@@ -169,9 +171,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showFactu = baseShowFactu && !writeBlock;
   const workspaceLoading = !ready || !authReady;
   const visualCacheScope = `${workspace.kind}:${workspace.ownerScope}`;
-  const accountLabel = workspaceLoading
-    ? "Comprobando sesión"
-    : data.profile.name.trim() || user?.email || "Cuenta";
+  const renamedDefaultCompanyRef = useRef<string | null>(null);
   const hasAppSessionContext = Boolean(user) || workspaceLoading;
   const configuredBrandHref = appStartPageHref(appPreferences.startPage);
   const brandHref = hasAppSessionContext
@@ -400,6 +400,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
+    if (
+      !activeCompany ||
+      activeCompany.role !== "owner" ||
+      activeCompany.name !== "Mi empresa"
+    ) {
+      return;
+    }
+    const profileName =
+      data.profile.commercialName?.trim() || data.profile.name.trim();
+    if (!profileName || renamedDefaultCompanyRef.current === activeCompany.id) {
+      return;
+    }
+    renamedDefaultCompanyRef.current = activeCompany.id;
+    void renameCompany(activeCompany.id, profileName).catch(() => {
+      renamedDefaultCompanyRef.current = null;
+    });
+  }, [
+    activeCompany,
+    data.profile.commercialName,
+    data.profile.name,
+    renameCompany,
+  ]);
+
+  useEffect(() => {
     const nav = mobileNavRef.current;
     const activeLink = nav?.querySelector<HTMLElement>(
       '[data-navigation-selected="true"]',
@@ -466,14 +490,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="border-b border-slate-100 px-4 py-3">
           {hasAppSessionContext ? (
-            <Link
-              href="/cuenta"
-              className="flex min-w-0 items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
-              title={accountLabel}
-            >
-              <Building2 className="h-4 w-4 shrink-0" />
-              <span className="truncate">{accountLabel}</span>
-            </Link>
+            <div className="grid gap-2">
+              <CompanySwitcher />
+              <Link
+                href="/cuenta#empresas-cuenta"
+                className="px-2 text-xs font-bold text-slate-500 hover:text-blue-700"
+              >
+                Gestionar empresas y accesos
+              </Link>
+            </div>
           ) : (
             <div className="grid gap-2">
               <Link
@@ -611,16 +636,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               ) : null}
               {hasAppSessionContext ? (
-                <Link
-                  href="/cuenta"
-                  className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl bg-emerald-50 px-0 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 min-[430px]:w-auto min-[430px]:max-w-[9rem] min-[430px]:justify-start min-[430px]:px-2.5 min-[430px]:py-1.5 sm:max-w-[13rem]"
-                  title={accountLabel}
-                >
-                  <Building2 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden truncate min-[430px]:inline">
-                    {accountLabel}
-                  </span>
-                </Link>
+                <CompanySwitcher compact />
               ) : (
                 <Link
                   href="/cuenta#inicio-sesion"
@@ -677,14 +693,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ) : null}
             {hasAppSessionContext ? (
-              <Link
-                href="/cuenta"
-                className="flex max-w-xs items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
-                title={accountLabel}
-              >
-                <Building2 className="h-4 w-4 shrink-0" />
-                <span className="truncate">{accountLabel}</span>
-              </Link>
+              <CompanySwitcher compact />
             ) : (
               <Link
                 href="/cuenta#inicio-sesion"

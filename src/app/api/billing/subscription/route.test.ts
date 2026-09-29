@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import { ensureFreeSubscriptionServer } from "@/lib/billing/server-repository";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/server-repository", () => ({
@@ -41,7 +41,7 @@ describe("POST /api/billing/subscription", () => {
   });
 
   it("requiere una cuenta confirmada", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(null);
 
     const response = await POST(request(null));
 
@@ -51,9 +51,14 @@ describe("POST /api/billing/subscription", () => {
   });
 
   it("devuelve la suscripcion vigente sin cachearla", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-pro",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: "user-pro",
+      actorUserId: "user-pro",
+      billingUserId: "user-pro",
+      companyId: "user-pro",
+      sessionId: "session-pro",
+      userEmail: "pro@example.com",
+    });
     vi.mocked(ensureFreeSubscriptionServer).mockResolvedValue({
       userId: "user-pro",
       plan: "pro",
@@ -85,9 +90,14 @@ describe("POST /api/billing/subscription", () => {
   });
 
   it("conserva el limite de abuso sin convertirlo en una suscripcion Gratis", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-limited",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: "user-limited",
+      actorUserId: "user-limited",
+      billingUserId: "user-limited",
+      companyId: "user-limited",
+      sessionId: "session-limited",
+      userEmail: "limited@example.com",
+    });
     vi.mocked(checkRateLimit).mockResolvedValue({
       allowed: false,
       limit: 600,

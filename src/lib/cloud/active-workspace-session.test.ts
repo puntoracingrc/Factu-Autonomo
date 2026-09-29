@@ -41,7 +41,7 @@ describe("active workspace session", () => {
     );
   });
 
-  it("rechaza un token válido perteneciente a otra cuenta", async () => {
+  it("acepta el token del miembro para un espacio de empresa activo", async () => {
     setActiveWorkspaceOwnerScope(OWNER_A);
     vi.mocked(getSupabaseClientAsync).mockResolvedValue({
       auth: {
@@ -49,7 +49,9 @@ describe("active workspace session", () => {
       },
     } as never);
 
-    await expect(getActiveWorkspaceAccessToken(OWNER_A)).resolves.toBeNull();
+    await expect(getActiveWorkspaceAccessToken(OWNER_A)).resolves.toBe(
+      "token-b",
+    );
   });
 
   it("descarta la respuesta si la cuenta cambia mientras Supabase responde", async () => {

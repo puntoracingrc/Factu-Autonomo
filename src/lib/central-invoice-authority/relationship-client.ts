@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 export const CENTRAL_INVOICE_AUTHORITY_RELATIONSHIP_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_RELATIONSHIP_CLIENT_V1";
@@ -145,6 +146,7 @@ export async function setCentralInvoiceQuoteFromBrowser(
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
           "Content-Type": "application/json",
           [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
         },

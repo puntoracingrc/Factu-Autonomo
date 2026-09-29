@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { AiUsageMeter } from "@/lib/billing/scan-limits";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 
 interface AiUsageResponse {
   meter: AiUsageMeter;
@@ -27,7 +28,8 @@ function meterCopy(meter: AiUsageMeter) {
     return {
       title: "IA del plan",
       text: "Modo de pruebas sin límite activo.",
-      detail: "No se descontarán escaneos ni rellenos mientras este permiso esté activo desde Admin.",
+      detail:
+        "No se descontarán escaneos ni rellenos mientras este permiso esté activo desde Admin.",
     };
   }
 
@@ -35,7 +37,8 @@ function meterCopy(meter: AiUsageMeter) {
     return {
       title: "Prueba IA",
       text: `Te queda el ${meter.percentRemaining}% de la prueba.`,
-      detail: "Cuando se agote, podrás pasar a Pro para seguir usando escaneos y rellenos IA.",
+      detail:
+        "Cuando se agote, podrás pasar a Pro para seguir usando escaneos y rellenos IA.",
     };
   }
 
@@ -43,7 +46,8 @@ function meterCopy(meter: AiUsageMeter) {
     return {
       title: "Recarga IA extra",
       text: `Estás usando una recarga. Queda el ${meter.percentRemaining}%.`,
-      detail: "La IA incluida del mes ya se agotó; ahora se descuentan créditos extra comprados.",
+      detail:
+        "La IA incluida del mes ya se agotó; ahora se descuentan créditos extra comprados.",
     };
   }
 
@@ -58,7 +62,8 @@ function meterCopy(meter: AiUsageMeter) {
   return {
     title: "IA del plan",
     text: `Te queda el ${meter.percentRemaining}% de IA incluida este mes.`,
-    detail: "Escaneos, rellenos IA y direcciones con Google bajan este porcentaje.",
+    detail:
+      "Escaneos, rellenos IA y direcciones con Google bajan este porcentaje.",
   };
 }
 
@@ -88,7 +93,7 @@ export function AiUsageMeterCard() {
     try {
       const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
       const supabase = await getSupabaseClientAsync();
-      const { data: sessionData } = await supabase?.auth.getSession() ?? {
+      const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
         data: { session: null },
       };
       const token = sessionData.session?.access_token;
@@ -98,7 +103,9 @@ export function AiUsageMeterCard() {
       }
 
       const res = await fetch("/api/billing/ai-usage", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: activeCompanyRequestHeaders({
+          Authorization: `Bearer ${token}`,
+        }),
       });
       const body = (await res.json()) as AiUsageResponse | { error?: string };
       if (!res.ok) {
@@ -161,7 +168,7 @@ export function AiUsageMeterCard() {
             <div>
               <h2 className="text-lg font-bold text-slate-900">{copy.title}</h2>
               <p className="mt-1 text-sm text-slate-600">
-                {loading ? "Calculando saldo…" : error ?? copy.text}
+                {loading ? "Calculando saldo…" : (error ?? copy.text)}
               </p>
             </div>
 

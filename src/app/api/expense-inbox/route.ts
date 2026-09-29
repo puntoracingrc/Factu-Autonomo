@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   canUseExpenseInbox,
   ensureExpenseInboxAlias,
@@ -22,7 +23,7 @@ const PRIVATE_RESPONSE_HEADERS = {
   "CDN-Cache-Control": "no-store",
   "Vercel-CDN-Cache-Control": "no-store",
   Pragma: "no-cache",
-  Vary: "Authorization",
+  Vary: `Authorization, ${FACTU_COMPANY_HEADER}`,
 } as const;
 
 function privateJson(body: unknown, init?: ResponseInit) {
@@ -50,10 +51,11 @@ function serverError(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return privateJson(
       { error: "Inicia sesión para usar el buzón de gastos." },
       { status: 401 },
@@ -66,28 +68,28 @@ export async function GET(request: Request) {
       limit: 180,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return withPrivateHeaders(rateLimitExceededResponse(rateLimit));
   }
 
   try {
-    const access = await canUseExpenseInbox(user.id);
+    const access = await canUseExpenseInbox(auth.billingUserId);
     if (!access.allowed) {
       return privateJson({ error: access.reason }, { status: 402 });
     }
 
     const url = new URL(request.url);
     const itemId = url.searchParams.get("id");
-    const alias = await ensureExpenseInboxAlias(user.id);
+    const alias = await ensureExpenseInboxAlias(auth.userId);
     const [deliveryStatus, copyRecipient] = await Promise.all([
       getExpenseInboxDeliveryStatus(),
-      getExpenseInboxCopyRecipient(user.id).catch(() => null),
+      getExpenseInboxCopyRecipient(auth.userId).catch(() => null),
     ]);
 
     if (itemId) {
-      const item = await getExpenseInboxItem(user.id, itemId);
+      const item = await getExpenseInboxItem(auth.userId, itemId);
       if (!item) {
         return privateJson(
           { error: "No encuentro esa factura del buzón." },
@@ -97,7 +99,7 @@ export async function GET(request: Request) {
       return privateJson({ alias, deliveryStatus, copyRecipient, item });
     }
 
-    const items = await listExpenseInboxItems(user.id);
+    const items = await listExpenseInboxItems(auth.userId);
     return privateJson({
       alias,
       deliveryStatus,
@@ -111,10 +113,11 @@ export async function GET(request: Request) {
   }
 }
 export async function PATCH(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return privateJson(
       { error: "Inicia sesión para actualizar el buzón de gastos." },
       { status: 401 },
@@ -127,7 +130,7 @@ export async function PATCH(request: Request) {
       limit: 120,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return withPrivateHeaders(rateLimitExceededResponse(rateLimit));
@@ -153,18 +156,18 @@ export async function PATCH(request: Request) {
           limit: 5,
           windowMs: 60 * 60_000,
         },
-        user.id,
+        auth.actorUserId,
       );
       if (!rotateRateLimit.allowed) {
         return withPrivateHeaders(rateLimitExceededResponse(rotateRateLimit));
       }
 
-      const access = await canUseExpenseInbox(user.id);
+      const access = await canUseExpenseInbox(auth.billingUserId);
       if (!access.allowed) {
         return privateJson({ error: access.reason }, { status: 402 });
       }
 
-      const alias = await rotateExpenseInboxAlias(user.id);
+      const alias = await rotateExpenseInboxAlias(auth.userId);
       const deliveryStatus = await getExpenseInboxDeliveryStatus();
       return privateJson({ alias, deliveryStatus });
     }
@@ -184,12 +187,15 @@ export async function PATCH(request: Request) {
           limit: 12,
           windowMs: 60 * 60_000,
         },
-        user.id,
+        auth.actorUserId,
       );
       if (!retryRateLimit.allowed) {
         return withPrivateHeaders(rateLimitExceededResponse(retryRateLimit));
       }
-      const item = await retryExpenseInboxItem({ userId: user.id, itemId: id });
+      const item = await retryExpenseInboxItem({
+        userId: auth.userId,
+        itemId: id,
+      });
       return privateJson({ item });
     }
 
@@ -206,7 +212,7 @@ export async function PATCH(request: Request) {
     }
 
     await updateExpenseInboxItemStatus({
-      userId: user.id,
+      userId: auth.userId,
       itemId: id,
       status,
     });

@@ -9,6 +9,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { notifyCloudDeviceReactivated } from "@/lib/cloud/device-events";
 
 export interface CloudDeviceApiPayload {
@@ -39,11 +40,10 @@ async function cloudDeviceCredentials(
   return { ownerScope, accessToken, deviceToken };
 }
 
-function cloudDeviceHeaders(
-  credentials: CloudDeviceCredentials,
-): HeadersInit {
+function cloudDeviceHeaders(credentials: CloudDeviceCredentials): HeadersInit {
   return {
     Authorization: `Bearer ${credentials.accessToken}`,
+    [FACTU_COMPANY_HEADER]: credentials.ownerScope,
     "Content-Type": "application/json",
     [CLOUD_DEVICE_TOKEN_HEADER]: credentials.deviceToken,
   };
@@ -89,9 +89,7 @@ export async function registerCurrentCloudDevice(
     expectedOwnerScope?: string | null;
   } = {},
 ): Promise<CloudDeviceApiPayload> {
-  const credentials = await cloudDeviceCredentials(
-    options.expectedOwnerScope,
-  );
+  const credentials = await cloudDeviceCredentials(options.expectedOwnerScope);
   if (!credentials) {
     return {
       plan: "free",
@@ -118,9 +116,7 @@ export async function registerCurrentCloudDevice(
   return result;
 }
 
-export async function recoverRevokedCloudDeviceAfterFreshSignIn(): Promise<
-  CloudDeviceApiPayload
-> {
+export async function recoverRevokedCloudDeviceAfterFreshSignIn(): Promise<CloudDeviceApiPayload> {
   const ownerScope = captureActiveWorkspaceOwnerScope();
   const current = await registerCurrentCloudDevice({
     expectedOwnerScope: ownerScope,
@@ -201,6 +197,7 @@ export async function releaseCurrentCloudDeviceSession(
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
+        [FACTU_COMPANY_HEADER]: ownerScope,
         [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },
       cache: "no-store",

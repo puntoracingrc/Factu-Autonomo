@@ -3,6 +3,8 @@ import {
   getLocalCloudDeviceToken,
 } from "../cloud/device-token";
 import type { Document, VerifactuChainState } from "../types";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
+import { getActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 export interface VerifactuServerRegisterResponse {
   ok: boolean;
@@ -53,14 +55,17 @@ export async function submitVerifactuToServer(input: {
     const response = await (input.dependencies?.fetchImpl ?? fetch)(
       "/api/verifactu/register",
       {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${input.authToken}`,
-        [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
-      },
-      body: JSON.stringify({ localDocumentId: input.localDocumentId }),
-      signal: controller.signal,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${input.authToken}`,
+          ...(getActiveWorkspaceOwnerScope()
+            ? { [FACTU_COMPANY_HEADER]: getActiveWorkspaceOwnerScope()! }
+            : {}),
+          [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
+        },
+        body: JSON.stringify({ localDocumentId: input.localDocumentId }),
+        signal: controller.signal,
       },
     );
 

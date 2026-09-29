@@ -8,20 +8,16 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 export const CENTRAL_INVOICE_AUTHORITY_STATUS_CLIENT =
   "CENTRAL_INVOICE_AUTHORITY_STATUS_CLIENT_V1";
 
 export type CentralInvoiceAuthorityStatusMode =
-  | "off"
-  | "shadow"
-  | "canary"
-  | "required";
+  "off" | "shadow" | "canary" | "required";
 
 export type CentralInvoiceAuthorityStatusCheckKind =
-  | "configuration"
-  | "table"
-  | "rpc";
+  "configuration" | "table" | "rpc";
 
 export type CentralInvoiceAuthorityStatusCheckStatus = "ready" | "blocked";
 
@@ -104,10 +100,15 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+  return (
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+  );
 }
 
-function isOneOf<T extends string>(value: unknown, allowed: readonly T[]): value is T {
+function isOneOf<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+): value is T {
   return typeof value === "string" && allowed.includes(value as T);
 }
 
@@ -274,6 +275,7 @@ export async function fetchCentralInvoiceAuthorityStatusFromBrowser(
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
         [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },
       cache: "no-store",

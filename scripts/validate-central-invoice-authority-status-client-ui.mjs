@@ -58,7 +58,7 @@ for (const required of [
   "getActiveWorkspaceAccessToken",
   "expectedOwnerScope",
   "getSupabaseClientAsync",
-  "session.user.id !== ownerScope",
+  "!session?.access_token || !isActiveWorkspaceOwnerScope(ownerScope)",
   "isActiveWorkspaceOwnerScope",
   "CENTRAL_INVOICE_AUTHORITY_STATUS_ROUTE_V1",
   "CENTRAL_INVOICE_AUTHORITY_STATUS_READINESS_V1",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAppUrl } from "@/lib/billing/config";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { getStripe } from "@/lib/billing/stripe";
 import {
   checkRateLimit,
@@ -9,10 +10,11 @@ import {
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
@@ -22,7 +24,7 @@ export async function POST(request: Request) {
       limit: 20,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
   const { data } = await admin
     .from("user_subscriptions")
     .select("stripe_customer_id")
-    .eq("user_id", user.id)
+    .eq("user_id", auth.billingUserId)
     .maybeSingle();
 
   if (!data?.stripe_customer_id) {

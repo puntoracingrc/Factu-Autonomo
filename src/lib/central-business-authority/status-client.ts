@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 export const CENTRAL_BUSINESS_AUTHORITY_STATUS_CLIENT =
   "CENTRAL_BUSINESS_AUTHORITY_STATUS_CLIENT_V1";
@@ -164,7 +165,8 @@ function parse(payload: unknown): CentralBusinessAuthorityBrowserStatus | null {
       schema: "CENTRAL_BUSINESS_AUTHORITY_STATUS_READINESS_V1",
       checkedAt: payload.readiness.checkedAt,
       ready: payload.readiness.ready,
-      checks: checks as CentralBusinessAuthorityBrowserStatus["readiness"]["checks"],
+      checks:
+        checks as CentralBusinessAuthorityBrowserStatus["readiness"]["checks"],
       blockers: payload.readiness.blockers as string[],
     },
     summary: {
@@ -195,8 +197,7 @@ export async function fetchCentralBusinessAuthorityStatusFromBrowser(
   }
   const deviceToken = (
     dependencies.getDeviceToken ??
-    (() =>
-      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
+    (() => (ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null))
   )();
   if (!deviceToken) {
     return failure(
@@ -214,6 +215,7 @@ export async function fetchCentralBusinessAuthorityStatusFromBrowser(
         method: "GET",
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
           [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
         },
         cache: "no-store",

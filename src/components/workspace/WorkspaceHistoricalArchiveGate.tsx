@@ -5,6 +5,7 @@ import { ArchiveRestore, RefreshCw } from "lucide-react";
 
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCompany } from "@/context/CompanyContext";
 import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import { registerCurrentCloudDevice } from "@/lib/cloud/device-client";
@@ -84,6 +85,7 @@ export function WorkspaceHistoricalArchiveGate({
   children: React.ReactNode;
 }) {
   const scope = useWorkspaceStorage();
+  const { activeCompany } = useCompany();
   const { ready, getCurrentData, mergeHistoricalWorkspaceArchiveDurably } =
     useAppStore();
   const { user, emailConfirmed, requiresEmailConfirmation } = useCloudSync();
@@ -124,7 +126,9 @@ export function WorkspaceHistoricalArchiveGate({
         setCurrentState({ status: "ready" });
         return;
       }
-      if (!ready || !user || user.id !== scope.ownerScope) return;
+      if (!ready || !user || activeCompany?.dataOwnerId !== scope.ownerScope) {
+        return;
+      }
       if (!emailConfirmed || requiresEmailConfirmation) {
         setCurrentState({ status: "ready" });
         return;
@@ -143,7 +147,7 @@ export function WorkspaceHistoricalArchiveGate({
         setCurrentState({ status: "checking", phase: "checking" });
       }
 
-      const access = await canUseCloudForUser(user.id);
+      const access = await canUseCloudForUser(activeCompany.billingOwnerUserId);
       if (!isCurrent()) return;
       if (!access.allowed) {
         setCurrentState({ status: "ready" });
@@ -151,7 +155,7 @@ export function WorkspaceHistoricalArchiveGate({
       }
       const device = await registerCurrentCloudDevice({
         notifyReactivated: false,
-        expectedOwnerScope: user.id,
+        expectedOwnerScope: scope.ownerScope,
       });
       if (!isCurrent()) return;
       if (device.error || device.allowed === false) {
@@ -164,7 +168,7 @@ export function WorkspaceHistoricalArchiveGate({
       }
 
       const status = await getHistoricalWorkspaceArchiveStatusFromBrowser({
-        expectedOwnerScope: user.id,
+        expectedOwnerScope: scope.ownerScope,
       });
       if (!isCurrent()) return;
       if (!status.ok) {
@@ -198,14 +202,14 @@ export function WorkspaceHistoricalArchiveGate({
       const cached = cachedArchiveRef.current;
       let manifest: HistoricalWorkspaceArchiveManifest;
       if (
-        cached?.ownerScope === user.id &&
+        cached?.ownerScope === scope.ownerScope &&
         cached.archiveId === status.value.archiveId &&
         cached.manifestHash === status.value.manifestHash
       ) {
         manifest = cached.manifest;
       } else {
         const pulled = await pullHistoricalWorkspaceArchiveFromBrowser({
-          expectedOwnerScope: user.id,
+          expectedOwnerScope: scope.ownerScope,
         });
         if (!isCurrent()) return;
         if (!pulled.ok || !pulled.value) {
@@ -220,7 +224,7 @@ export function WorkspaceHistoricalArchiveGate({
         }
         manifest = pulled.value;
         cachedArchiveRef.current = {
-          ownerScope: user.id,
+          ownerScope: scope.ownerScope,
           archiveId: status.value.archiveId,
           manifestHash: status.value.manifestHash,
           manifest,
@@ -269,7 +273,7 @@ export function WorkspaceHistoricalArchiveGate({
         ) {
           quotaRecoveryAttempted = true;
           const released = await archiveAndReleaseWorkspaceLocalRecoveryCopies({
-            ownerScope: user.id,
+            ownerScope: scope.ownerScope,
             activeStorageKey: scope.storageKey,
             storage: localStorage,
           });
@@ -357,6 +361,7 @@ export function WorkspaceHistoricalArchiveGate({
       }
     }
   }, [
+    activeCompany,
     emailConfirmed,
     getCurrentData,
     mergeHistoricalWorkspaceArchiveDurably,

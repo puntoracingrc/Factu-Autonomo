@@ -22,9 +22,7 @@ const rpc = read(
 const handler = read(
   "src/lib/central-invoice-authority/account-series-reconciliation-route-handler.ts",
 );
-const route = read(
-  "src/app/api/central-invoice-authority/reconcile/route.ts",
-);
+const route = read("src/app/api/central-invoice-authority/reconcile/route.ts");
 const client = read(
   "src/lib/central-invoice-authority/account-series-reconciliation-client.ts",
 );
@@ -44,7 +42,7 @@ for (const required of [
   "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_ROUTE_V1",
   "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_CLIENT_V1",
   "reconcile_central_invoice_series_v1",
-  "getUserSessionFromBearer",
+  "getCompanyRouteAuthFromBearer",
   "ensureCloudDeviceAccess",
   "hashCloudDeviceToken",
   "checkRateLimit",
@@ -56,7 +54,7 @@ for (const required of [
   "private, no-store",
   "CentralInvoiceAuthorityAccountReconciliationCard",
   "runCentralInvoiceAuthorityClientOperation",
-  "type=\"checkbox\"",
+  'type="checkbox"',
 ]) {
   assert.match(
     body,

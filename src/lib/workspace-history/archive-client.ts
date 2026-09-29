@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import type { Document } from "@/lib/types";
 
 import {
@@ -55,6 +56,7 @@ interface ArchiveCredentials {
   fetchImpl: typeof fetch;
   accessToken: string;
   deviceToken: string;
+  ownerScope: string;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -83,24 +85,28 @@ async function credentials(
     dependencies.getDeviceToken ??
     (() => (ownerScope ? getLocalCloudDeviceToken(ownerScope) : null))
   )();
-  if (!accessToken || !deviceToken) return null;
+  if (!ownerScope || !accessToken || !deviceToken) return null;
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   return {
     fetchImpl: (input, init) => fetchImpl(input, init),
     accessToken,
     deviceToken,
+    ownerScope,
   };
 }
 
 function headers(value: ArchiveCredentials): HeadersInit {
   return {
     Authorization: `Bearer ${value.accessToken}`,
+    [FACTU_COMPANY_HEADER]: value.ownerScope,
     "Content-Type": "application/json",
     [CLOUD_DEVICE_TOKEN_HEADER]: value.deviceToken,
   };
 }
 
-function parseStatus(value: unknown): HistoricalWorkspaceArchiveStatusRow | null {
+function parseStatus(
+  value: unknown,
+): HistoricalWorkspaceArchiveStatusRow | null {
   if (value === null) return null;
   if (!isObject(value)) return null;
   const completionIsValid =
@@ -131,7 +137,9 @@ function parseStatus(value: unknown): HistoricalWorkspaceArchiveStatusRow | null
   return value as unknown as HistoricalWorkspaceArchiveStatusRow;
 }
 
-function parseArchiveDocument(value: unknown): HistoricalWorkspaceArchiveDocument | null {
+function parseArchiveDocument(
+  value: unknown,
+): HistoricalWorkspaceArchiveDocument | null {
   if (!isObject(value) || !isObject(value.payload)) return null;
   if (
     typeof value.localDocumentId !== "string" ||
@@ -145,7 +153,9 @@ function parseArchiveDocument(value: unknown): HistoricalWorkspaceArchiveDocumen
   return value as unknown as HistoricalWorkspaceArchiveDocument;
 }
 
-async function payload(response: Response): Promise<Record<string, unknown> | null> {
+async function payload(
+  response: Response,
+): Promise<Record<string, unknown> | null> {
   const parsed = (await response.json().catch(() => null)) as unknown;
   return isObject(parsed) ? parsed : null;
 }
@@ -159,9 +169,7 @@ function rejected<T>(
   const failure = body && isObject(body.error) ? body.error : null;
   return error(
     response.status,
-    failure && typeof failure.code === "string"
-      ? failure.code
-      : fallbackCode,
+    failure && typeof failure.code === "string" ? failure.code : fallbackCode,
     failure && typeof failure.message === "string"
       ? failure.message
       : fallbackMessage,
@@ -178,7 +186,9 @@ function success<T>(value: T): HistoricalWorkspaceArchiveClientResult<T> {
 
 async function requestStatus(
   auth: ArchiveCredentials,
-): Promise<HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveStatusRow | null>> {
+): Promise<
+  HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveStatusRow | null>
+> {
   let response: Response;
   try {
     response = await auth.fetchImpl(`${ROUTE}?action=status`, {
@@ -222,7 +232,9 @@ async function requestStatus(
 
 export async function getHistoricalWorkspaceArchiveStatusFromBrowser(
   dependencies: HistoricalWorkspaceArchiveClientDependencies = {},
-): Promise<HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveStatusRow | null>> {
+): Promise<
+  HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveStatusRow | null>
+> {
   const auth = await credentials(dependencies);
   if (!auth) {
     return error(
@@ -319,7 +331,9 @@ export async function uploadHistoricalWorkspaceArchiveFromBrowser(
     dependencies?: HistoricalWorkspaceArchiveClientDependencies;
     onProgress?: (stored: number, total: number) => void;
   } = {},
-): Promise<HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveUploadValue>> {
+): Promise<
+  HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveUploadValue>
+> {
   const auth = await credentials(options.dependencies ?? {});
   if (!auth) {
     return error(
@@ -405,8 +419,14 @@ export async function uploadHistoricalWorkspaceArchiveFromBrowser(
       },
     );
     if (!appended.ok) return appended;
-    uploaded = Math.max(uploaded + batch.length, appended.value.storedDocumentCount);
-    options.onProgress?.(Math.min(uploaded, manifest.documentCount), manifest.documentCount);
+    uploaded = Math.max(
+      uploaded + batch.length,
+      appended.value.storedDocumentCount,
+    );
+    options.onProgress?.(
+      Math.min(uploaded, manifest.documentCount),
+      manifest.documentCount,
+    );
   }
 
   const finalized = await post(
@@ -432,7 +452,9 @@ export async function uploadHistoricalWorkspaceArchiveFromBrowser(
 
 export async function pullHistoricalWorkspaceArchiveFromBrowser(
   dependencies: HistoricalWorkspaceArchiveClientDependencies = {},
-): Promise<HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveManifest | null>> {
+): Promise<
+  HistoricalWorkspaceArchiveClientResult<HistoricalWorkspaceArchiveManifest | null>
+> {
   const auth = await credentials(dependencies);
   if (!auth) {
     return error(

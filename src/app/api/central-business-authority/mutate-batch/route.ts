@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   commitCentralQuotaReservations,
   releaseCentralQuotaReservations,
   releaseDeletedCentralBusinessQuota,
   reserveCentralBusinessBatchQuota,
 } from "@/lib/billing/central-quota-enforcement";
-import {
-  createCentralBusinessBatchMutationRouteHandler,
-} from "@/lib/central-business-authority/batch-mutation-route-handler";
+import { createCentralBusinessBatchMutationRouteHandler } from "@/lib/central-business-authority/batch-mutation-route-handler";
 import type {
   CentralBusinessBatchMutationRpcArgs,
   CentralBusinessBatchMutationRpcClient,
@@ -27,16 +25,8 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 1024 * 1024;
 
 const handler = createCentralBusinessBatchMutationRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      userEmail: identity.user.email ?? null,
-      sessionId: identity.sessionId,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

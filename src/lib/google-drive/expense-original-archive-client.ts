@@ -1,6 +1,7 @@
 "use client";
 
 import { createExpenseOriginalArchiveV1 } from "@/lib/expense-original-archive";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type { ExpenseOriginalArchiveV1 } from "@/lib/types";
 import { loadDriveBackupSettings } from "./backup";
@@ -90,7 +91,10 @@ export async function archiveExpenseOriginalForSavedExpense(input: {
 }
 
 async function recoverInboxOriginal(
-  candidate: Extract<ExpenseOriginalArchiveCandidate, { kind: "expense_inbox" }>,
+  candidate: Extract<
+    ExpenseOriginalArchiveCandidate,
+    { kind: "expense_inbox" }
+  >,
 ): Promise<
   | Readonly<{ status: "ready"; file: ExpenseOriginalFileV1 }>
   | Readonly<{ status: "blocked"; error: string }>
@@ -114,9 +118,7 @@ async function recoverInboxOriginal(
           : "No se pudo recuperar el original del buzón.";
       return blocked(`${reason} Conservamos el formulario sin cambios.`);
     }
-    const serverSha256 = response.headers
-      .get("X-Factu-Source-Sha256")
-      ?.trim();
+    const serverSha256 = response.headers.get("X-Factu-Source-Sha256")?.trim();
     const contentType = response.headers
       .get("Content-Type")
       ?.split(";", 1)[0]
@@ -148,9 +150,13 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
     data: { session: null },
   };
   const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return activeCompanyRequestHeaders(
+    token ? { Authorization: `Bearer ${token}` } : {},
+  );
 }
 
-function blocked(error: string): Readonly<{ status: "blocked"; error: string }> {
+function blocked(
+  error: string,
+): Readonly<{ status: "blocked"; error: string }> {
   return Object.freeze({ status: "blocked" as const, error });
 }

@@ -1,6 +1,8 @@
 import { getSupabaseClientAsync } from "../supabase/client";
 import type { UserSubscription } from "./subscription";
 import type { PlanId } from "./plans";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
+import { getActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 const SUBSCRIPTIONS_TABLE = "user_subscriptions";
 
@@ -8,14 +10,16 @@ function mapRow(row: Record<string, unknown>): UserSubscription {
   return {
     userId: String(row.user_id),
     plan: (row.plan as PlanId) ?? "free",
-    status:
-      (row.status as UserSubscription["status"]) ?? "inactive",
+    status: (row.status as UserSubscription["status"]) ?? "inactive",
     stripeCustomerId: row.stripe_customer_id as string | null | undefined,
-    stripeSubscriptionId: row.stripe_subscription_id as string | null | undefined,
+    stripeSubscriptionId: row.stripe_subscription_id as
+      string | null | undefined,
     trialEndsAt: row.trial_ends_at as string | null | undefined,
     currentPeriodEnd: row.current_period_end as string | null | undefined,
-    promotionalPlan: row.promotional_plan as "pro" | "pro_plus" | null | undefined,
-    promotionalPlanEndsAt: row.promotional_plan_ends_at as string | null | undefined,
+    promotionalPlan: row.promotional_plan as
+      "pro" | "pro_plus" | null | undefined,
+    promotionalPlanEndsAt: row.promotional_plan_ends_at as
+      string | null | undefined,
   };
 }
 
@@ -47,7 +51,12 @@ export async function ensureFreeSubscription(
 
   const response = await fetch("/api/billing/subscription", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(getActiveWorkspaceOwnerScope()
+        ? { [FACTU_COMPANY_HEADER]: getActiveWorkspaceOwnerScope()! }
+        : {}),
+    },
   });
   if (!response.ok) return null;
 

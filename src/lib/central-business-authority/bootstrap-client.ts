@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import type { AppData } from "@/lib/types";
 
 import { centralBusinessReceiptServerPayload } from "./central-receipt-materialization";
@@ -252,8 +253,7 @@ function parsePreviewEntry(
     return null;
   }
   return {
-    entityType:
-      value.entityType as CentralBusinessBootstrapBrowserEntityType,
+    entityType: value.entityType as CentralBusinessBootstrapBrowserEntityType,
     entityId: value.entityId,
     status:
       value.status as CentralBusinessBootstrapBrowserPreviewEntry["status"],
@@ -292,9 +292,7 @@ function parsePreview(
   ] as const;
   if (
     !summaryKeys.every(
-      (key) =>
-        Number.isInteger(summary[key]) &&
-        (summary[key] as number) >= 0,
+      (key) => Number.isInteger(summary[key]) && (summary[key] as number) >= 0,
     )
   ) {
     return null;
@@ -349,12 +347,12 @@ async function authHeaders(
   if (!accessToken) return null;
   const deviceToken = (
     dependencies.getDeviceToken ??
-    (() =>
-      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
+    (() => (ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null))
   )();
   if (!deviceToken) return null;
   return new Headers({
     Authorization: `Bearer ${accessToken}`,
+    ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
     "Content-Type": "application/json",
     [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
   });
@@ -416,7 +414,10 @@ async function post(
   path: string,
   body: unknown,
   dependencies: CentralBusinessBootstrapClientDependencies,
-): Promise<{ response: Response; payload: unknown } | CentralBusinessBootstrapClientFailure> {
+): Promise<
+  | { response: Response; payload: unknown }
+  | CentralBusinessBootstrapClientFailure
+> {
   const headers = await authHeaders(dependencies);
   if (!headers) {
     return failure(
@@ -465,7 +466,7 @@ function parseFailure(
       : "CENTRAL_BUSINESS_BOOTSTRAP_REJECTED";
   const preview =
     isObject(payload) && payload.preview
-      ? parsePreview(payload.preview) ?? undefined
+      ? (parsePreview(payload.preview) ?? undefined)
       : undefined;
   return failure(
     response.status,
@@ -491,8 +492,7 @@ export async function previewCentralBusinessBootstrapFromBrowser(
   const preview =
     isObject(request.payload) &&
     request.payload.ok === true &&
-    request.payload.schema ===
-      "CENTRAL_BUSINESS_BOOTSTRAP_PREVIEW_ROUTE_V1"
+    request.payload.schema === "CENTRAL_BUSINESS_BOOTSTRAP_PREVIEW_ROUTE_V1"
       ? parsePreview(request.payload.preview)
       : null;
   return preview

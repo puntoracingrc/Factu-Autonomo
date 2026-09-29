@@ -6,7 +6,8 @@ import {
   BILLING_QUOTA_PACK_FULFILLMENT_CONTRACT,
   isBillingQuotaPackKey,
 } from "@/lib/billing/quotas";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { getStripe, quotaPackPriceId } from "@/lib/billing/stripe";
 import {
   checkRateLimit,
@@ -18,10 +19,11 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 const MAX_CHECKOUT_REQUEST_BYTES = 16 * 1024;
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
       limit: 10,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const plan = await resolveServerBillingPlan(user.id);
+  const plan = await resolveServerBillingPlan(auth.billingUserId);
   if (plan !== "free") {
     return NextResponse.json(
       { error: "Tu plan ya incluye este uso sin límite." },
@@ -75,19 +77,19 @@ export async function POST(request: Request) {
   const { data: subscription } = await admin
     .from("user_subscriptions")
     .select("stripe_customer_id")
-    .eq("user_id", user.id)
+    .eq("user_id", auth.billingUserId)
     .maybeSingle();
   const customerId = subscription?.stripe_customer_id as string | undefined;
   const appUrl = getAppUrl();
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer: customerId,
-    customer_email: customerId ? undefined : (user.email ?? undefined),
+    customer_email: customerId ? undefined : (auth.userEmail ?? undefined),
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/cuenta?checkout=quota_pack_success`,
     cancel_url: `${appUrl}/cuenta?checkout=quota_pack_cancel`,
     metadata: {
-      user_id: user.id,
+      user_id: auth.billingUserId,
       checkout_type: "quota_pack",
       quota_pack: pack,
       quota_quantity: String(definition.quantity),

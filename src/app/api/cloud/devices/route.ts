@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  getUserFromBearer,
-  getUserSessionFromBearer,
-} from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   ensureCloudDeviceAccess,
   listCloudDevicesForUser,
@@ -25,7 +23,10 @@ function privateJson(body: unknown, init?: ResponseInit) {
 function markPrivate<T extends Response>(response: T): T {
   response.headers.set("Cache-Control", "private, no-store, max-age=0");
   response.headers.set("Pragma", "no-cache");
-  response.headers.set("Vary", "Authorization, X-Factu-Device-Token");
+  response.headers.set(
+    "Vary",
+    `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
+  );
   return response;
 }
 
@@ -34,41 +35,41 @@ function deviceTokenFromRequest(request: Request): string | null {
 }
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return privateJson({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
     request,
     { namespace: "cloud_devices_list", limit: 120, windowMs: 10 * 60_000 },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return markPrivate(rateLimitExceededResponse(rateLimit));
   }
 
   const payload = await listCloudDevicesForUser({
-    userId: user.id,
+    userId: auth.billingUserId,
     token: deviceTokenFromRequest(request) ?? undefined,
   });
   return privateJson(payload);
 }
 
 export async function POST(request: Request) {
-  const identity = await getUserSessionFromBearer(
+  const auth = await getCompanyRouteAuthFromBearer(
     request.headers.get("authorization"),
-    { requireEmailConfirmed: true },
+    request.headers.get(FACTU_COMPANY_HEADER),
   );
-  if (!identity) {
+  if (!auth) {
     return privateJson({ error: "No autorizado" }, { status: 401 });
   }
-  const { user, sessionId } = identity;
   const rateLimit = await checkRateLimit(
     request,
     { namespace: "cloud_devices_claim", limit: 60, windowMs: 10 * 60_000 },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return markPrivate(rateLimitExceededResponse(rateLimit));
@@ -92,9 +93,9 @@ export async function POST(request: Request) {
   if (!bodyResult.ok) return markPrivate(bodyResult.response);
   const body = bodyResult.data;
   const result = await ensureCloudDeviceAccess({
-    userId: user.id,
+    userId: auth.billingUserId,
     token,
-    sessionId,
+    sessionId: auth.sessionId,
     name: typeof body.name === "string" ? body.name : undefined,
     userAgent: request.headers.get("user-agent") ?? "",
     markSynced: body.markSynced === true,
@@ -110,10 +111,11 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return privateJson({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
@@ -123,7 +125,7 @@ export async function DELETE(request: Request) {
       limit: 10,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return markPrivate(rateLimitExceededResponse(rateLimit));
@@ -137,11 +139,11 @@ export async function DELETE(request: Request) {
     );
   }
   const result = await revokeCurrentCloudDeviceForUser({
-    userId: user.id,
+    userId: auth.billingUserId,
     currentToken: token,
   });
   const overview = await listCloudDevicesForUser({
-    userId: user.id,
+    userId: auth.billingUserId,
     token,
   });
   return privateJson(

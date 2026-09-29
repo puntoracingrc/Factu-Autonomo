@@ -18,6 +18,8 @@ import type {
   CentralQuotaDecision,
   CentralQuotaReservation,
 } from "@/lib/billing/central-quota-enforcement";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
+import { evaluateCentralInvoiceAuthorityActivation } from "./activation";
 
 assertServerOnlyModule();
 
@@ -28,6 +30,9 @@ const MAX_BODY_BYTES = 512 * 1024;
 
 export interface CentralInvoiceAuthorityRouteAuth {
   userId: string;
+  actorUserId?: string;
+  billingUserId?: string;
+  companyId?: string;
   sessionId: string;
   userEmail?: string | null;
 }
@@ -46,7 +51,10 @@ export type CentralInvoiceAuthorityRouteRateLimitResult =
     };
 
 export interface CentralInvoiceAuthorityIssueRouteDependencies {
-  authenticate(authorization: string | null): Promise<CentralInvoiceAuthorityRouteAuth | null>;
+  authenticate(
+    authorization: string | null,
+    companyId?: string | null,
+  ): Promise<CentralInvoiceAuthorityRouteAuth | null>;
   rateLimit(
     request: CentralInvoiceAuthorityIssueRouteRequest,
     userId: string,
@@ -109,7 +117,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
   return {
     "Cache-Control": "private, no-store, max-age=0",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -126,7 +134,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function isJsonObjectOrArray(value: unknown): value is CentralInvoiceAuthorityJson {
+function isJsonObjectOrArray(
+  value: unknown,
+): value is CentralInvoiceAuthorityJson {
   return isObject(value) || Array.isArray(value);
 }
 
@@ -227,18 +237,21 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
 
-      const rateLimit = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const rateLimit = await dependencies.rateLimit(request, actorUserId);
       if (!rateLimit.allowed) {
         return json(rateLimit.status, rateLimit.body, rateLimit.headers);
       }
 
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
@@ -281,7 +294,7 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
         let decision: CentralQuotaDecision;
         try {
           decision = await dependencies.reserveQuota({
-            userId: auth.userId,
+            userId: billingUserId,
             kind: body.kind,
             localDocumentId: body.draft.localDocumentId,
           });
@@ -314,7 +327,7 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
         }
         try {
           await dependencies.releaseQuota({
-            userId: auth.userId,
+            userId: billingUserId,
             reservations: quotaReservations,
           });
         } catch {
@@ -338,6 +351,10 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
       };
 
       try {
+        const activation = evaluateCentralInvoiceAuthorityActivation({
+          userId: billingUserId,
+          userEmail: auth.userEmail,
+        });
         const result = await issueCentralInvoiceWithAuthority({
           issueInput,
           documentPayload: body.documentPayload,
@@ -345,12 +362,13 @@ export function createCentralInvoiceAuthorityIssueRouteHandler(
           emittedHash: body.emittedHash,
           rpcClient,
           userEmail: auth.userEmail,
+          activation,
         });
 
         try {
           if (dependencies.commitQuota && quotaReservations.length > 0) {
             await dependencies.commitQuota({
-              userId: auth.userId,
+              userId: billingUserId,
               reservations: quotaReservations,
             });
           }

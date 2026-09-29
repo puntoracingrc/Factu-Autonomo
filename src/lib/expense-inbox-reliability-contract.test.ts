@@ -98,15 +98,15 @@ describe("expense inbox reliability contract", () => {
       'body.status === "processed" || body.status === "ignored"',
     );
     expect(route).toContain(
-      "getExpenseInboxCopyRecipient(user.id).catch(() => null)",
+      "getExpenseInboxCopyRecipient(auth.userId).catch(() => null)",
     );
     expect(route).toContain('"Cache-Control": "private, no-store, max-age=0"');
     expect(route).toContain('"Vercel-CDN-Cache-Control": "no-store"');
-    expect(route).toContain('Vary: "Authorization"');
+    expect(route).toContain("Vary: `Authorization, ${FACTU_COMPANY_HEADER}`");
     expect(route).toContain(
       "withPrivateHeaders(rateLimitExceededResponse(rateLimit))",
     );
-    expect(route).toContain("listExpenseInboxItems(user.id)");
+    expect(route).toContain("listExpenseInboxItems(auth.userId)");
     expect(card).toContain("items.map((item)");
     expect(card).not.toContain("items.slice(0, 5)");
     expect(form).toContain('updateActiveInboxItemStatus("ignored")');
@@ -119,8 +119,9 @@ describe("expense inbox reliability contract", () => {
     const route = source("src/app/api/expense-inbox/[id]/original/route.ts");
     const server = source("src/lib/expense-inbox-server.ts");
 
-    expect(route).toContain("getUserFromBearer");
-    expect(route).toContain("requireEmailConfirmed: true");
+    expect(route).toContain("getCompanyRouteAuthFromBearer");
+    expect(route).toContain("request.headers.get(FACTU_COMPANY_HEADER)");
+    expect(route).toContain("userId: auth.userId");
     expect(route).toContain("expense_inbox_original_download");
     expect(route).toContain("private, no-store");
     expect(route).toContain("X-Factu-Source-Sha256");
@@ -134,7 +135,7 @@ describe("expense inbox reliability contract", () => {
     const server = source("src/lib/expense-inbox-server.ts");
 
     expect(route).toContain('body.action === "rotate-alias"');
-    expect(route).toContain("rotateExpenseInboxAlias(user.id)");
+    expect(route).toContain("rotateExpenseInboxAlias(auth.userId)");
     expect(server).toContain("aliasTokenReserved(aliasToken)");
     expect(server).toContain("rememberExpenseInboxAlias");
     expect(server).toContain('status: "retired"');

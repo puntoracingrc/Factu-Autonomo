@@ -4,22 +4,18 @@ import {
   releaseCentralQuotaReservations,
   reserveCentralInvoiceQuota,
 } from "@/lib/billing/central-quota-enforcement";
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
   normalizeCloudDeviceToken,
 } from "@/lib/cloud/devices";
-import {
-  createCentralInvoiceAuthorityIssueRouteHandler,
-} from "@/lib/central-invoice-authority/issue-route-handler";
+import { createCentralInvoiceAuthorityIssueRouteHandler } from "@/lib/central-invoice-authority/issue-route-handler";
 import type {
   CentralInvoiceAuthorityIssueRpcArgs,
   CentralInvoiceAuthorityIssueRpcClient,
 } from "@/lib/central-invoice-authority/issue-rpc-adapter";
-import {
-  checkRateLimit,
-} from "@/lib/server/rate-limit";
+import { checkRateLimit } from "@/lib/server/rate-limit";
 import { readTextBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -28,16 +24,8 @@ export const dynamic = "force-dynamic";
 const MAX_ISSUE_BODY_BYTES = 512 * 1024;
 
 const routeHandler = createCentralInvoiceAuthorityIssueRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      sessionId: identity.sessionId,
-      userEmail: identity.user.email ?? null,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(
@@ -96,7 +84,10 @@ const routeHandler = createCentralInvoiceAuthorityIssueRouteHandler({
     const admin = getSupabaseAdmin();
     if (!admin) return null;
     return {
-      rpc(name: "issue_central_invoice_v1", args: CentralInvoiceAuthorityIssueRpcArgs) {
+      rpc(
+        name: "issue_central_invoice_v1",
+        args: CentralInvoiceAuthorityIssueRpcArgs,
+      ) {
         return admin.rpc(name, args) as unknown as ReturnType<
           CentralInvoiceAuthorityIssueRpcClient["rpc"]
         >;

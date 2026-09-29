@@ -11,6 +11,7 @@ import {
 import { BillingQuotaDialog } from "@/components/billing/BillingQuotaDialog";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCompany } from "@/context/CompanyContext";
 import { isBillingEnforced } from "@/lib/billing/config";
 import {
   getPlanLimits,
@@ -32,6 +33,7 @@ import {
 } from "@/lib/billing/quotas";
 import { ensureFreeSubscription } from "@/lib/billing/repository";
 import { getActiveWorkspaceAccessToken } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   resolveEffectivePlan,
   trialDaysRemaining,
@@ -100,8 +102,11 @@ function quotaFailureBlock(
 export function BillingProvider({ children }: { children: React.ReactNode }) {
   const { data, ready } = useAppStore();
   const { user } = useCloudSync();
+  const { activeCompany } = useCompany();
   const billingEnabled = isBillingEnforced();
-  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(
+    null,
+  );
   const [loading, setLoading] = useState(billingEnabled);
   const [quotaLoading, setQuotaLoading] = useState(billingEnabled);
   const [quotaSnapshot, setQuotaSnapshot] = useState<BillingQuotaSnapshot>(() =>
@@ -115,16 +120,16 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
-    if (!user) {
+    if (!user || !activeCompany) {
       setSubscription(null);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const sub = await ensureFreeSubscription(user.id);
+    const sub = await ensureFreeSubscription(activeCompany.billingOwnerUserId);
     setSubscription(sub);
     setLoading(false);
-  }, [billingEnabled, user]);
+  }, [activeCompany, billingEnabled, user]);
 
   useEffect(() => {
     void loadSubscription();
@@ -147,8 +152,17 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
   const trialDaysLeft = trialDaysRemaining(subscription);
 
   const getAccessToken = useCallback(async () => {
-    return getActiveWorkspaceAccessToken(user?.id);
-  }, [user?.id]);
+    return getActiveWorkspaceAccessToken(activeCompany?.dataOwnerId);
+  }, [activeCompany?.dataOwnerId]);
+
+  const authenticatedHeaders = useCallback(
+    (token: string, json = true): HeadersInit => ({
+      ...(json ? { "Content-Type": "application/json" } : {}),
+      Authorization: `Bearer ${token}`,
+      ...(activeCompany ? { [FACTU_COMPANY_HEADER]: activeCompany.id } : {}),
+    }),
+    [activeCompany],
+  );
 
   const quotaReconciliation = useMemo(() => {
     if (!ready) return null;
@@ -207,10 +221,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
         }
         const response = await fetch("/api/billing/quota", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: authenticatedHeaders(token),
           body: JSON.stringify({ action: "reconcile", claims }),
         }).catch(() => null);
         const body = response
@@ -230,6 +241,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     };
   }, [
     billingEnabled,
+    authenticatedHeaders,
     getAccessToken,
     isPro,
     loading,
@@ -248,10 +260,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       if (!token) return "Inicia sesión para suscribirte";
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authenticatedHeaders(token),
         body: JSON.stringify({ interval, plan: planToBuy }),
       });
       const body = (await res.json()) as { url?: string; error?: string };
@@ -259,7 +268,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       if (body.url) window.location.href = body.url;
       return null;
     },
-    [getAccessToken],
+    [authenticatedHeaders, getAccessToken],
   );
 
   const checkoutScanPack = useCallback(async (): Promise<string | null> => {
@@ -267,13 +276,13 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     if (!token) return "Inicia sesión para comprar escaneos extra";
     const res = await fetch("/api/billing/checkout-scan-pack", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authenticatedHeaders(token, false),
     });
     const body = (await res.json()) as { url?: string; error?: string };
     if (!res.ok) return body.error ?? "No se pudo iniciar el pago";
     if (body.url) window.location.href = body.url;
     return null;
-  }, [getAccessToken]);
+  }, [authenticatedHeaders, getAccessToken]);
 
   const checkoutQuotaPack = useCallback(
     async (pack: BillingQuotaPackKey): Promise<string | null> => {
@@ -282,10 +291,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       if (!token) return "Inicia sesión para comprar un extra";
       const res = await fetch("/api/billing/checkout-quota-pack", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authenticatedHeaders(token),
         body: JSON.stringify({ pack }),
       });
       const body = (await res.json()) as { url?: string; error?: string };
@@ -293,7 +299,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       if (body.url) window.location.href = body.url;
       return null;
     },
-    [getAccessToken],
+    [authenticatedHeaders, getAccessToken],
   );
 
   const openPortal = useCallback(async (): Promise<string | null> => {
@@ -301,13 +307,13 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     if (!token) return "Inicia sesión para gestionar tu suscripción";
     const res = await fetch("/api/billing/portal", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authenticatedHeaders(token, false),
     });
     const body = (await res.json()) as { url?: string; error?: string };
     if (!res.ok) return body.error ?? "No se pudo abrir el portal";
     if (body.url) window.location.href = body.url;
     return null;
-  }, [getAccessToken]);
+  }, [authenticatedHeaders, getAccessToken]);
 
   const reserveQuota = useCallback(
     async (input: {
@@ -345,14 +351,13 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       }
       const response = await fetch("/api/billing/quota", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authenticatedHeaders(token),
         body: JSON.stringify({ action: "reserve", ...input }),
       }).catch(() => null);
       const result = response
-        ? ((await response.json().catch(() => null)) as BillingQuotaReserveResult | null)
+        ? ((await response
+            .json()
+            .catch(() => null)) as BillingQuotaReserveResult | null)
         : null;
       if (
         result &&
@@ -382,7 +387,14 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       setActiveQuotaBlock(block);
       return { allowed: false, block };
     },
-    [billingEnabled, getAccessToken, isPro, quotaSnapshot, user],
+    [
+      authenticatedHeaders,
+      billingEnabled,
+      getAccessToken,
+      isPro,
+      quotaSnapshot,
+      user,
+    ],
   );
 
   const commitQuota = useCallback(
@@ -395,10 +407,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       if (!token) return false;
       const response = await fetch("/api/billing/quota", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authenticatedHeaders(token),
         body: JSON.stringify({
           action: "commit",
           claimId: reservation.claimId,
@@ -416,7 +425,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     },
-    [getAccessToken],
+    [authenticatedHeaders, getAccessToken],
   );
 
   const releaseQuota = useCallback(
@@ -426,10 +435,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       if (!token) return false;
       const response = await fetch("/api/billing/quota", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authenticatedHeaders(token),
         body: JSON.stringify({
           action: "release",
           claimId: reservation.claimId,
@@ -446,7 +452,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     },
-    [getAccessToken],
+    [authenticatedHeaders, getAccessToken],
   );
 
   const removeQuotaSubject = useCallback(
@@ -459,10 +465,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       if (!token) return false;
       const response = await fetch("/api/billing/quota", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authenticatedHeaders(token),
         body: JSON.stringify({ action: "remove_subject", metric, subjectId }),
       }).catch(() => null);
       const body = response
@@ -476,7 +479,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     },
-    [billingEnabled, getAccessToken],
+    [authenticatedHeaders, billingEnabled, getAccessToken],
   );
 
   const documentsThisMonth = quotaSnapshot.metrics.documents.used;

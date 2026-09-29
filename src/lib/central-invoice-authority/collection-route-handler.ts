@@ -9,6 +9,7 @@ import {
   updateCentralInvoiceCollectionThroughRpc,
 } from "./collection-rpc-adapter";
 import type { CentralInvoiceAuthorityJson } from "./issue-rpc-adapter";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 assertServerOnlyModule();
 
@@ -19,6 +20,9 @@ const MAX_BODY_BYTES = 512 * 1024;
 
 export interface CentralInvoiceAuthorityCollectionRouteAuth {
   userId: string;
+  actorUserId?: string;
+  billingUserId?: string;
+  companyId?: string;
   sessionId: string;
   userEmail?: string | null;
 }
@@ -37,7 +41,10 @@ export type CentralInvoiceAuthorityCollectionRouteRateLimitResult =
     };
 
 export interface CentralInvoiceAuthorityCollectionRouteDependencies {
-  authenticate(authorization: string | null): Promise<CentralInvoiceAuthorityCollectionRouteAuth | null>;
+  authenticate(
+    authorization: string | null,
+    companyId?: string | null,
+  ): Promise<CentralInvoiceAuthorityCollectionRouteAuth | null>;
   rateLimit(
     request: CentralInvoiceAuthorityCollectionRouteRequest,
     userId: string,
@@ -88,7 +95,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
   return {
     "Cache-Control": "private, no-store, max-age=0",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -105,7 +112,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function isJsonObjectOrArray(value: unknown): value is CentralInvoiceAuthorityJson {
+function isJsonObjectOrArray(
+  value: unknown,
+): value is CentralInvoiceAuthorityJson {
   return isObject(value) || Array.isArray(value);
 }
 
@@ -146,7 +155,9 @@ function parseBody(raw: string): CentralInvoiceAuthorityCollectionRouteBody {
   return parsed as unknown as CentralInvoiceAuthorityCollectionRouteBody;
 }
 
-function rpcErrorResponse(error: CentralInvoiceAuthorityCollectionRpcAdapterError) {
+function rpcErrorResponse(
+  error: CentralInvoiceAuthorityCollectionRpcAdapterError,
+) {
   return json(error.code === "COLLECTION_RPC_REJECTED" ? 409 : 400, {
     ok: false,
     error: {
@@ -178,18 +189,21 @@ export function createCentralInvoiceAuthorityCollectionRouteHandler(
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
 
-      const rateLimit = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const rateLimit = await dependencies.rateLimit(request, actorUserId);
       if (!rateLimit.allowed) {
         return json(rateLimit.status, rateLimit.body, rateLimit.headers);
       }
 
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),

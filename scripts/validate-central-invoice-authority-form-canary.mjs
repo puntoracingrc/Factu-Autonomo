@@ -35,7 +35,7 @@ for (const required of [
   "getActiveWorkspaceAccessToken",
   "expectedOwnerScope",
   "getSupabaseClientAsync",
-  "session.user.id !== ownerScope",
+  "!session?.access_token || !isActiveWorkspaceOwnerScope(ownerScope)",
   "isActiveWorkspaceOwnerScope",
   "getLocalCloudDeviceToken",
   "CLOUD_DEVICE_TOKEN_HEADER",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { getExpenseInboxOriginalAttachment } from "@/lib/expense-inbox-server";
 import {
   checkRateLimit,
@@ -17,6 +18,7 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
   "CDN-Cache-Control": "no-store",
   "Vercel-CDN-Cache-Control": "no-store",
+  Vary: `Authorization, ${FACTU_COMPANY_HEADER}`,
 };
 
 function json(body: unknown, init: ResponseInit = {}): NextResponse {
@@ -28,10 +30,11 @@ function json(body: unknown, init: ResponseInit = {}): NextResponse {
 }
 
 export async function GET(request: Request, context: RouteContext) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return json(
       { error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE },
       { status: 401 },
@@ -45,7 +48,7 @@ export async function GET(request: Request, context: RouteContext) {
       limit: 30,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     const response = rateLimitExceededResponse(rateLimit);
@@ -58,12 +61,15 @@ export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const itemId = id.trim();
   if (!itemId || itemId.length > 160) {
-    return json({ error: "El original solicitado no es válido." }, { status: 400 });
+    return json(
+      { error: "El original solicitado no es válido." },
+      { status: 400 },
+    );
   }
 
   try {
     const original = await getExpenseInboxOriginalAttachment({
-      userId: user.id,
+      userId: auth.userId,
       itemId,
     });
     if (!original) {

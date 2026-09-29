@@ -13,6 +13,7 @@ import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import type { AiUsageMeter, ScanQuota } from "@/lib/billing/scan-limits";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import type { AddressResidenceType } from "@/lib/types";
 
 export interface CustomerAiAutofillValues {
@@ -79,14 +80,16 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     try {
       const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
       const supabase = await getSupabaseClientAsync();
-      const { data: sessionData } = await supabase?.auth.getSession() ?? {
+      const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
         data: { session: null },
       };
       const token = sessionData.session?.access_token;
       if (!token) return;
 
       const res = await fetch("/api/billing/ai-usage", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: activeCompanyRequestHeaders({
+          Authorization: `Bearer ${token}`,
+        }),
       });
       const body = (await res.json()) as AiUsageResponse | { error?: string };
       if (res.ok && "meter" in body) setUsage(body);
@@ -140,9 +143,10 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     try {
       const headers: HeadersInit = { "Content-Type": "application/json" };
       if (user) {
-        const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+        const { getSupabaseClientAsync } =
+          await import("@/lib/supabase/client");
         const supabase = await getSupabaseClientAsync();
-        const { data: sessionData } = await supabase?.auth.getSession() ?? {
+        const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
           data: { session: null },
         };
         const token = sessionData.session?.access_token;
@@ -205,7 +209,9 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-bold text-slate-900">Rellenar desde texto</span>
+            <span className="font-bold text-slate-900">
+              Rellenar desde texto
+            </span>
             {usageLabel ? (
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-sky-800 ring-1 ring-sky-100">
                 {usageLabel}
@@ -223,7 +229,8 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
       {expanded ? (
         <div className="mt-3 space-y-3">
           <p className="text-sm text-slate-600">
-            Pega aquí los datos que te hayan pasado y Factu intentará organizarlos.
+            Pega aquí los datos que te hayan pasado y Factu intentará
+            organizarlos.
           </p>
           <Textarea
             aria-label="Datos para rellenar desde texto"
@@ -278,7 +285,8 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
           )}
           {demoMode && aiRetryAvailable && (
             <p className="text-sm text-amber-800">
-              La mejora con IA está desactivada en demo para no consumir créditos.
+              La mejora con IA está desactivada en demo para no consumir
+              créditos.
             </p>
           )}
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}

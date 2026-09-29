@@ -20,6 +20,7 @@ import { useBilling } from "@/context/BillingContext";
 import { formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { closeExpenseInboxItemLocally } from "@/lib/expense-inbox-lifecycle";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import type { AiUsageMeter } from "@/lib/billing/scan-limits";
 import type {
   ExpenseInboxDeliveryStatus,
@@ -49,10 +50,16 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
     data: { session: null },
   };
   const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return activeCompanyRequestHeaders(
+    token ? { Authorization: `Bearer ${token}` } : {},
+  );
 }
 
-export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean }) {
+export function ExpenseInboxCard({
+  vatExempt = false,
+}: {
+  vatExempt?: boolean;
+}) {
   const { user } = useCloudSync();
   const { checkoutScanPack } = useBilling();
   const [address, setAddress] = useState("");
@@ -93,7 +100,9 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
         fetch("/api/expense-inbox", { headers }),
         fetch("/api/billing/ai-usage", { headers }).catch(() => null),
       ]);
-      const body = (await response.json().catch(() => ({}))) as ExpenseInboxResponse;
+      const body = (await response
+        .json()
+        .catch(() => ({}))) as ExpenseInboxResponse;
       const usageBody =
         usageResponse && usageResponse.ok
           ? ((await usageResponse.json().catch(() => ({}))) as AiUsageResponse)
@@ -151,7 +160,9 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ action: "rotate-alias" }),
       });
-      const body = (await response.json().catch(() => ({}))) as ExpenseInboxResponse;
+      const body = (await response
+        .json()
+        .catch(() => ({}))) as ExpenseInboxResponse;
       if (!response.ok || !body.alias?.address) {
         setError(body.error ?? "No se pudo generar un correo nuevo.");
         return;
@@ -181,7 +192,9 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id, status: "ignored" }),
       });
-      const body = (await response.json().catch(() => ({}))) as ExpenseInboxResponse;
+      const body = (await response
+        .json()
+        .catch(() => ({}))) as ExpenseInboxResponse;
       if (!response.ok) {
         setError(body.error ?? "No se pudo descartar la factura.");
         return;
@@ -208,8 +221,11 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ action: "retry", id: item.id }),
       });
-      const body = (await response.json().catch(() => ({}))) as
-        ExpenseInboxResponse & { item?: ExpenseInboxItem };
+      const body = (await response
+        .json()
+        .catch(() => ({}))) as ExpenseInboxResponse & {
+        item?: ExpenseInboxItem;
+      };
       if (!response.ok || !body.item) {
         setError(body.error ?? "No se pudo reintentar el análisis.");
         return;
@@ -281,7 +297,8 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
               ) : null}
             </div>
             <p className="mt-1 text-sm text-slate-600">
-              Reenvía aquí facturas de proveedores. Quedan pendientes de revisar.
+              Reenvía aquí facturas de proveedores. Quedan pendientes de
+              revisar.
             </p>
           </div>
         </div>
@@ -317,7 +334,11 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
               {address}
             </code>
             <Button variant="secondary" onClick={() => void copyAddress()}>
-              {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+              {copied ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Clipboard className="h-4 w-4" />
+              )}
               {copied ? "Copiado" : "Copiar"}
             </Button>
             <Button
@@ -385,7 +406,8 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
                 <div className="min-w-0">
                   <p className="truncate font-bold text-slate-900">{title}</p>
                   <p className="text-sm text-slate-500">
-                    {item.fromEmail ?? "Proveedor"} · {formatShortDate(item.receivedAt)}
+                    {item.fromEmail ?? "Proveedor"} ·{" "}
+                    {formatShortDate(item.receivedAt)}
                     {vatView ? ` · ${vatView.amountLabel}` : ""}
                   </p>
                   {vatView ? (

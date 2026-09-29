@@ -37,7 +37,9 @@ describe("legacy cloud retirement", () => {
     expect(context).not.toContain("pullSyncChanges");
     expect(context).not.toContain("user_backups");
     expect(context).toContain("const legacyCloudRetired = Boolean(user)");
-    expect(context).toContain("canUseCloudForUser(user.id)");
+    expect(context).toContain(
+      "canUseCloudForUser(activeCompany.billingOwnerUserId)",
+    );
     expect(context).toContain("pendingUpload: pendingChangeCount > 0");
     expect(context).toContain("void syncNow()");
     expect(appStore).not.toContain("isCloudSyncTemporarilyPaused");

@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 import type {
   CentralBusinessEntityType,
@@ -69,9 +70,7 @@ function failure(input: {
     ok: false,
     ...input,
     retryable:
-      input.status === 0 ||
-      input.status === 429 ||
-      input.status >= 500,
+      input.status === 0 || input.status === 429 || input.status >= 500,
     conflict:
       input.code === "CENTRAL_BUSINESS_VERSION_CONFLICT" ||
       input.code === "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT" ||
@@ -134,8 +133,7 @@ export async function mutateCentralBusinessFromBrowser(
   }
   const deviceToken = (
     dependencies.getDeviceToken ??
-    (() =>
-      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
+    (() => (ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null))
   )();
   if (!deviceToken) {
     return failure({
@@ -154,6 +152,7 @@ export async function mutateCentralBusinessFromBrowser(
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
           [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
           "Content-Type": "application/json",
         },

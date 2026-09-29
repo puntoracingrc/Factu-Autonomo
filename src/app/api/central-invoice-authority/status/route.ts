@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
@@ -9,9 +9,7 @@ import {
   createCentralInvoiceAuthorityStatusRouteHandler,
   defaultCentralInvoiceAuthorityStatusRouteDependencies,
 } from "@/lib/central-invoice-authority/status-route-handler";
-import type {
-  CentralInvoiceAuthorityStatusProbeClient,
-} from "@/lib/central-invoice-authority/status-readiness";
+import type { CentralInvoiceAuthorityStatusProbeClient } from "@/lib/central-invoice-authority/status-readiness";
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -19,16 +17,8 @@ export const dynamic = "force-dynamic";
 
 const routeHandler = createCentralInvoiceAuthorityStatusRouteHandler({
   ...defaultCentralInvoiceAuthorityStatusRouteDependencies,
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      sessionId: identity.sessionId,
-      userEmail: identity.user.email ?? null,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

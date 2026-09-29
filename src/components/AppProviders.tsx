@@ -11,36 +11,39 @@ import { AppStoreProvider } from "@/context/AppStore";
 import { BillingProvider } from "@/context/BillingContext";
 import { CloudAuthProvider } from "@/context/CloudAuthContext";
 import { CloudSyncProvider } from "@/context/CloudSyncContext";
+import { CompanyProvider } from "@/context/CompanyContext";
 import { CentralAuthorityPlanGateProvider } from "@/hooks/useCentralAuthorityPlanGate";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <CloudAuthProvider>
-      <WorkspaceStorageBoundary>
-        {(scope) => (
-          <AppStoreProvider
-            key={scope.storageKey}
-            ownerScope={scope.ownerScope}
-            storageKey={scope.storageKey}
-          >
-            <CloudSyncProvider>
-              <WorkspaceHistoricalArchiveGate>
-                <WorkspaceServerAdoptionGate>
-                  <BillingProvider>
-                    <CentralAuthorityPlanGateProvider>
-                      <QuickToolsProvider>
-                        <ConditionalAppShell>{children}</ConditionalAppShell>
-                      </QuickToolsProvider>
-                      <AppErrorMonitor />
-                      <RegisterServiceWorker />
-                    </CentralAuthorityPlanGateProvider>
-                  </BillingProvider>
-                </WorkspaceServerAdoptionGate>
-              </WorkspaceHistoricalArchiveGate>
-            </CloudSyncProvider>
-          </AppStoreProvider>
-        )}
-      </WorkspaceStorageBoundary>
+      <CompanyProvider>
+        <WorkspaceStorageBoundary>
+          {(scope) => (
+            <AppStoreProvider
+              key={scope.storageKey}
+              ownerScope={scope.ownerScope}
+              storageKey={scope.storageKey}
+            >
+              <CloudSyncProvider>
+                <WorkspaceHistoricalArchiveGate>
+                  <WorkspaceServerAdoptionGate>
+                    <BillingProvider>
+                      <CentralAuthorityPlanGateProvider>
+                        <QuickToolsProvider>
+                          <ConditionalAppShell>{children}</ConditionalAppShell>
+                        </QuickToolsProvider>
+                        <AppErrorMonitor />
+                        <RegisterServiceWorker />
+                      </CentralAuthorityPlanGateProvider>
+                    </BillingProvider>
+                  </WorkspaceServerAdoptionGate>
+                </WorkspaceHistoricalArchiveGate>
+              </CloudSyncProvider>
+            </AppStoreProvider>
+          )}
+        </WorkspaceStorageBoundary>
+      </CompanyProvider>
     </CloudAuthProvider>
   );
 }

@@ -191,6 +191,13 @@ const centralWorkspaceHistoricalArchiveMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const companyWorkspacesMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260929121947_company_workspaces_and_admin_invitations.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -261,6 +268,12 @@ const centralWorkspaceHistoricalArchiveServiceOnlyTables = [
   "central_workspace_historical_archives",
   "central_workspace_historical_documents",
 ] as const;
+const companyWorkspaceServiceTables = [
+  "app_companies",
+  "app_company_members",
+  "app_company_invitations",
+  "app_company_access_audit",
+] as const;
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -292,6 +305,7 @@ const classifiedTables = new Set([
   ...verifactuCertificateServiceTables,
   ...centralVerifactuServiceReadOnlyTables,
   ...centralWorkspaceHistoricalArchiveServiceOnlyTables,
+  ...companyWorkspaceServiceTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -651,6 +665,32 @@ describe("Supabase table-by-table RLS audit hardening", () => {
       expect(centralWorkspaceHistoricalArchiveMigrationSource).not.toMatch(
         new RegExp(
           `grant\\s+[^;]*on table public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
+          "iu",
+        ),
+      );
+    }
+  });
+
+  it("keeps company membership and invitations behind service-role RPCs", () => {
+    for (const table of companyWorkspaceServiceTables) {
+      expect(companyWorkspacesMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(companyWorkspacesMigrationSource).toMatch(
+        new RegExp(
+          `revoke all on table public\\.${escapedTable(table)}[\\s\\S]*?from public, anon, authenticated`,
+          "i",
+        ),
+      );
+      expect(companyWorkspacesMigrationSource).not.toMatch(
+        new RegExp(
+          `grant\\s+[^;]*on table public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
+          "iu",
+        ),
+      );
+      expect(companyWorkspacesMigrationSource).toMatch(
+        new RegExp(
+          `grant\\s+[^;]*on table public\\.${escapedTable(table)}[^;]*to\\s+service_role`,
           "iu",
         ),
       );

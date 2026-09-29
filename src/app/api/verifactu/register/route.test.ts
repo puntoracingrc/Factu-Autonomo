@@ -6,12 +6,17 @@ const DOCUMENT_ID = "synthetic-central-invoice-1";
 const DEVICE_TOKEN = "synthetic-device-token-000000000000000001";
 
 const mocks = vi.hoisted(() => ({
+  companyAuth: vi.fn(),
   auth: vi.fn(),
   normalizeDeviceToken: vi.fn(),
   ensureDevice: vi.fn(),
   rateLimit: vi.fn(),
   rateLimitResponse: vi.fn(),
   submit: vi.fn(),
+}));
+
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: mocks.companyAuth,
 }));
 
 vi.mock("@/lib/billing/server-auth", () => ({
@@ -28,15 +33,19 @@ vi.mock("@/lib/server/rate-limit", () => ({
   rateLimitExceededResponse: mocks.rateLimitResponse,
 }));
 
-vi.mock("@/lib/verifactu/central-submission-service", async (importOriginal) => {
-  const original = await importOriginal<
-    typeof import("@/lib/verifactu/central-submission-service")
-  >();
-  return {
-    ...original,
-    submitCentralInvoiceToAeatPreproduction: mocks.submit,
-  };
-});
+vi.mock(
+  "@/lib/verifactu/central-submission-service",
+  async (importOriginal) => {
+    const original =
+      await importOriginal<
+        typeof import("@/lib/verifactu/central-submission-service")
+      >();
+    return {
+      ...original,
+      submitCentralInvoiceToAeatPreproduction: mocks.submit,
+    };
+  },
+);
 
 import { CentralVerifactuSubmissionError } from "@/lib/verifactu/central-submission-service";
 import { POST } from "./route";
@@ -71,6 +80,14 @@ beforeEach(() => {
     sessionId: SESSION_ID,
     aal: "aal1",
   });
+  mocks.companyAuth.mockResolvedValue({
+    userId: USER_ID,
+    actorUserId: USER_ID,
+    billingUserId: USER_ID,
+    companyId: USER_ID,
+    sessionId: SESSION_ID,
+    userEmail: "owner@example.com",
+  });
   mocks.rateLimit.mockResolvedValue({ allowed: true });
   mocks.normalizeDeviceToken.mockImplementation((value) => value);
   mocks.ensureDevice.mockResolvedValue({ allowed: true });
@@ -86,7 +103,7 @@ beforeEach(() => {
 
 describe("POST /api/verifactu/register preproduction containment", () => {
   it("requires a confirmed session before doing any work", async () => {
-    mocks.auth.mockResolvedValue(null);
+    mocks.companyAuth.mockResolvedValue(null);
 
     const response = await POST(request());
 
@@ -142,9 +159,7 @@ describe("POST /api/verifactu/register preproduction containment", () => {
     expect(response.status).toBe(400);
     expect(mocks.submit).not.toHaveBeenCalled();
 
-    const oversized = await POST(
-      request({ contentLength: "2048" }),
-    );
+    const oversized = await POST(request({ contentLength: "2048" }));
     expect(oversized.status).toBe(413);
   });
 

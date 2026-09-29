@@ -26,11 +26,7 @@ export async function getActiveWorkspaceAccessToken(
   if (!supabase || !isActiveWorkspaceOwnerScope(ownerScope)) return null;
   const { data } = await supabase.auth.getSession();
   const session = data.session;
-  if (
-    !session?.access_token ||
-    session.user.id !== ownerScope ||
-    !isActiveWorkspaceOwnerScope(ownerScope)
-  ) {
+  if (!session?.access_token || !isActiveWorkspaceOwnerScope(ownerScope)) {
     return null;
   }
   return session.access_token;

@@ -154,6 +154,10 @@ describe("MVP usability polish", () => {
       new URL("../components/cloud/CloudSyncIndicator.tsx", import.meta.url),
       "utf8",
     );
+    const companySwitcherSource = readFileSync(
+      new URL("../components/companies/CompanySwitcher.tsx", import.meta.url),
+      "utf8",
+    );
 
     expect(appShellSource).toContain("min-w-0 flex-1 items-center");
     expect(appShellSource).toContain('sm:hidden">Entrar');
@@ -163,7 +167,10 @@ describe("MVP usability polish", () => {
       "hidden text-xs leading-tight text-slate-500 min-[430px]:block",
     );
     expect(appShellSource).toContain("flex min-h-11 min-w-11 items-center");
-    expect(appShellSource).toContain("hidden truncate min-[430px]:inline");
+    expect(appShellSource).toContain("<CompanySwitcher compact />");
+    expect(companySwitcherSource).toContain('compact ? "max-w-44" : "w-full"');
+    expect(companySwitcherSource).toContain('aria-label="Empresa abierta"');
+    expect(companySwitcherSource).toContain("appearance-none truncate");
     expect(cloudIndicatorSource).toContain(
       "hidden whitespace-nowrap min-[430px]:inline",
     );
@@ -1371,9 +1378,7 @@ describe("MVP usability polish", () => {
     expect(importPageSource).toContain(
       "Facturas, presupuestos, recibos, gastos, productos, numeración",
     );
-    expect(importPageSource).toContain(
-      "buildContactOnlyImportData",
-    );
+    expect(importPageSource).toContain("buildContactOnlyImportData");
     expect(importPageSource).not.toContain("invoice-payment-mode");
     expect(importPageSource).not.toContain(
       "applyBusinessProfileAutofillSuggestion",

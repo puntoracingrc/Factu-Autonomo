@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 import type { CentralInvoiceAuthorityAccountSeriesSummary } from "./account-series-inventory";
 
@@ -118,24 +119,22 @@ export async function reconcileCentralInvoiceAuthorityAccountSeriesFromBrowser(
 
   let response: Response;
   try {
-    response = await fetchImpl(
-      "/api/central-invoice-authority/reconcile",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
-        },
-        body: JSON.stringify({
-          schema:
-            "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_REQUEST_V1",
-          confirmed: true,
-          summaries,
-        }),
-        cache: "no-store",
+    response = await fetchImpl("/api/central-invoice-authority/reconcile", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
+        "Content-Type": "application/json",
+        [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },
-    );
+      body: JSON.stringify({
+        schema:
+          "CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_REQUEST_V1",
+        confirmed: true,
+        summaries,
+      }),
+      cache: "no-store",
+    });
   } catch {
     return errorResult(
       0,
@@ -186,8 +185,7 @@ export async function reconcileCentralInvoiceAuthorityAccountSeriesFromBrowser(
 
   return {
     ok: true,
-    schema:
-      CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_CLIENT,
+    schema: CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_CLIENT,
     results:
       results as CentralInvoiceAuthorityAccountSeriesReconciliationResult[],
   };

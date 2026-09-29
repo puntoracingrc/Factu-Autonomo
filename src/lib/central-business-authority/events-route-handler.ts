@@ -4,17 +4,21 @@ import {
   listCentralBusinessEventsThroughRpc,
   type CentralBusinessEventsRpcClient,
 } from "./events-rpc-adapter";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 assertServerOnlyModule();
 
-export const CENTRAL_BUSINESS_EVENTS_ROUTE =
-  "CENTRAL_BUSINESS_EVENTS_ROUTE_V1";
+export const CENTRAL_BUSINESS_EVENTS_ROUTE = "CENTRAL_BUSINESS_EVENTS_ROUTE_V1";
 
 export interface CentralBusinessEventsRouteDependencies {
   authenticate(
     authorization: string | null,
+    companyId?: string | null,
   ): Promise<{
     userId: string;
+    actorUserId?: string;
+    billingUserId?: string;
+    companyId?: string;
     sessionId: string;
     userEmail?: string | null;
   } | null>;
@@ -68,7 +72,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
     "CDN-Cache-Control": "no-store",
     "Vercel-CDN-Cache-Control": "no-store",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -122,16 +126,19 @@ export function createCentralBusinessEventsRouteHandler(
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
-      const limited = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const limited = await dependencies.rateLimit(request, actorUserId);
       if (!limited.allowed) {
         return json(limited.status, limited.body, limited.headers);
       }
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
@@ -144,7 +151,7 @@ export function createCentralBusinessEventsRouteHandler(
       }
 
       const activation = evaluateCentralBusinessAuthorityActivation({
-        userId: auth.userId,
+        userId: billingUserId,
         userEmail: auth.userEmail,
       });
       if (!activation.enabled) {
@@ -188,8 +195,7 @@ export function createCentralBusinessEventsRouteHandler(
           schema: CENTRAL_BUSINESS_EVENTS_ROUTE,
           activation,
           events,
-          nextSequence:
-            events.at(-1)?.eventSequence ?? cursor.afterSequence,
+          nextSequence: events.at(-1)?.eventSequence ?? cursor.afterSequence,
           hasMore: events.length === cursor.limit,
         });
       } catch (error) {

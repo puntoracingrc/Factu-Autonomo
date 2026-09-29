@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 import type { DocumentKind } from "@/lib/types";
 import {
@@ -128,9 +129,7 @@ type CentralInvoiceAuthorityFormLocalPolicyReason =
   | "status_unavailable";
 
 export type CentralInvoiceAuthorityFormLastKnownGuardReason =
-  | "public_form_required"
-  | "server_required"
-  | "server_fiscal_writes_possible";
+  "public_form_required" | "server_required" | "server_fiscal_writes_possible";
 
 export interface CentralInvoiceAuthorityFormLastKnownGuard {
   schema: typeof CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD;
@@ -161,8 +160,7 @@ export type CentralInvoiceAuthorityFormIssuePolicyDecision =
       statusError?: Extract<CentralInvoiceAuthorityStatusResult, { ok: false }>;
     };
 
-export interface CentralInvoiceAuthorityFormIssuePolicyDependencies
-  extends CentralInvoiceAuthorityStatusClientDependencies {
+export interface CentralInvoiceAuthorityFormIssuePolicyDependencies extends CentralInvoiceAuthorityStatusClientDependencies {
   env?: Record<string, string | undefined>;
   publicFormCanaryEnabled?: boolean;
   publicFormCanaryUserId?: string | null;
@@ -191,8 +189,8 @@ export function isCentralInvoiceAuthorityFormRequiredEnabled(
 
 export function isCentralInvoiceAuthorityFormCanaryUserAllowed(
   userId: string | null | undefined,
-  value: string | undefined =
-    process.env.NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS,
+  value: string | undefined = process.env
+    .NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS,
 ): boolean {
   const raw = value?.trim();
   if (!raw) return true;
@@ -288,7 +286,9 @@ function readLastKnownCentralAuthorityFormGuard(
   try {
     const raw = storage.getItem(lastKnownFormGuardStorageKey(ownerScope));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<CentralInvoiceAuthorityFormLastKnownGuard>;
+    const parsed = JSON.parse(
+      raw,
+    ) as Partial<CentralInvoiceAuthorityFormLastKnownGuard>;
     if (
       parsed.schema !== CENTRAL_INVOICE_AUTHORITY_FORM_LAST_KNOWN_GUARD ||
       typeof parsed.rememberedAt !== "string" ||
@@ -343,12 +343,13 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
     storage,
     ownerScope,
   );
-  const publicCanaryEnabled =
-    isCentralInvoiceAuthorityFormCanaryEnabledForUser({
+  const publicCanaryEnabled = isCentralInvoiceAuthorityFormCanaryEnabledForUser(
+    {
       env,
       publicFormCanaryEnabled: dependencies.publicFormCanaryEnabled,
       userId: dependencies.publicFormCanaryUserId,
-    });
+    },
+  );
   const publicRequiredEnabled =
     dependencies.publicFormRequiredEnabled ??
     isCentralInvoiceAuthorityFormRequiredEnabled(env);
@@ -383,7 +384,8 @@ export async function resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser(
     if (lastKnownGuard) return enabledPolicy("last_known_central_authority");
     return localPolicy("status_unavailable", { statusError: status });
   }
-  if (lastKnownGuard) return enabledPolicy("last_known_central_authority", status);
+  if (lastKnownGuard)
+    return enabledPolicy("last_known_central_authority", status);
   if (status.activation.requestedMode === "required") {
     rememberCentralAuthorityFormGuard(
       storage,
@@ -451,7 +453,11 @@ function identityFromPayload(
   payload: unknown,
   input: CentralInvoiceAuthorityFormIssueRequest,
 ): CentralInvoiceAuthorityFormIssueIdentity | null {
-  if (!isObject(payload) || payload.ok !== true || !isObject(payload.rpcResult)) {
+  if (
+    !isObject(payload) ||
+    payload.ok !== true ||
+    !isObject(payload.rpcResult)
+  ) {
     return null;
   }
 
@@ -562,6 +568,7 @@ export async function issueCentralInvoiceAuthorityFromBrowser(
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
         "Content-Type": "application/json",
         [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },
@@ -582,7 +589,9 @@ export async function issueCentralInvoiceAuthorityFromBrowser(
       isObject(payload) && isObject(payload.error) ? payload.error : {};
     return errorResult(
       response.status,
-      typeof error.code === "string" ? error.code : "CENTRAL_AUTHORITY_REJECTED",
+      typeof error.code === "string"
+        ? error.code
+        : "CENTRAL_AUTHORITY_REJECTED",
       typeof error.message === "string"
         ? error.message
         : "La autoridad central no acepto la emision.",

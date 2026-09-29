@@ -3,6 +3,8 @@ import {
   CLOUD_DEVICE_TOKEN_HEADER,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
+import { getActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 import { isCloudEnabled } from "./config";
 
 let client: SupabaseClient | null = null;
@@ -29,6 +31,8 @@ function deviceAwareFetch(input: RequestInfo | URL, init?: RequestInit) {
     init?.headers ?? (input instanceof Request ? input.headers : undefined);
   const headers = new Headers(inheritedHeaders);
   headers.set(CLOUD_DEVICE_TOKEN_HEADER, getOrCreateLocalCloudDeviceToken());
+  const companyId = getActiveWorkspaceOwnerScope();
+  if (companyId) headers.set(FACTU_COMPANY_HEADER, companyId);
   return fetch(input, { ...init, headers });
 }
 

@@ -27,9 +27,7 @@ function excludes(source, pattern, label) {
 
 const marker = "CENTRAL_INVOICE_AUTHORITY_STATUS_ROUTE_V1";
 const readinessMarker = "CENTRAL_INVOICE_AUTHORITY_STATUS_READINESS_V1";
-const readiness = read(
-  "src/lib/central-invoice-authority/status-readiness.ts",
-);
+const readiness = read("src/lib/central-invoice-authority/status-readiness.ts");
 const readinessTest = read(
   "src/lib/central-invoice-authority/status-readiness.test.ts",
 );
@@ -49,12 +47,12 @@ const body = `${readiness}\n${readinessTest}\n${handler}\n${handlerTest}\n${rout
 for (const required of [
   marker,
   readinessMarker,
-  "getUserSessionFromBearer",
+  "getCompanyRouteAuthFromBearer",
   "ensureCloudDeviceAccess",
   "hashCloudDeviceToken",
   "checkRateLimit",
   "getSupabaseAdmin",
-  "select(\"id\", { count: \"exact\", head: true })",
+  'select("id", { count: "exact", head: true })',
   "issue_central_invoice_v1",
   "list_central_invoice_events_v1",
   "invalid central invoice issue command",
@@ -82,14 +80,14 @@ for (const forbidden of [
 
 includes(
   readiness,
-  "p_kind: \"__factu_status_preflight_invalid__\"",
+  'p_kind: "__factu_status_preflight_invalid__"',
   "status readiness dry-run",
 );
 includes(readiness, "p_document_payload: null", "status readiness dry-run");
 includes(readiness, "p_emitted_snapshot: null", "status readiness dry-run");
 includes(readiness, "noBusinessRows: true", "status readiness");
 includes(readiness, "destructive: false", "status readiness");
-includes(route, "dynamic = \"force-dynamic\"", "status route");
+includes(route, 'dynamic = "force-dynamic"', "status route");
 includes(route, "export async function GET", "status route");
 includes(route, "export async function OPTIONS", "status route");
 includes(route, "export async function POST", "status route");

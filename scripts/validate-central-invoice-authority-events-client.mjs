@@ -38,7 +38,7 @@ for (const required of [
   "getActiveWorkspaceAccessToken",
   "expectedOwnerScope",
   "getSupabaseClientAsync",
-  "session.user.id !== ownerScope",
+  "!session?.access_token || !isActiveWorkspaceOwnerScope(ownerScope)",
   "isActiveWorkspaceOwnerScope",
   "CENTRAL_INVOICE_AUTHORITY_EVENTS_ROUTE_V1",
   "CENTRAL_INVOICE_AUTHORITY_EVENTS_RPC_ADAPTER_V1",

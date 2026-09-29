@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { resolveServerBillingPlan } from "@/lib/billing/quota-server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import { getStripe, quotaPackPriceId } from "@/lib/billing/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -13,8 +13,8 @@ vi.mock("@/lib/billing/quota-server", () => ({
   resolveServerBillingPlan: vi.fn(),
 }));
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/stripe", () => ({
@@ -45,10 +45,14 @@ function request(pack: string) {
 describe("POST /api/billing/checkout-quota-pack", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "11111111-1111-4111-8111-111111111111",
-      email: "buyer@example.test",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: "11111111-1111-4111-8111-111111111111",
+      actorUserId: "11111111-1111-4111-8111-111111111111",
+      billingUserId: "11111111-1111-4111-8111-111111111111",
+      companyId: "11111111-1111-4111-8111-111111111111",
+      sessionId: "session_1",
+      userEmail: "buyer@example.test",
+    });
     vi.mocked(resolveServerBillingPlan).mockResolvedValue("free");
     vi.mocked(quotaPackPriceId).mockReturnValue("price_documents_5");
     const maybeSingle = vi.fn(async () => ({

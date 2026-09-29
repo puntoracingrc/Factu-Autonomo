@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAppUrl } from "@/lib/billing/config";
 import type { PaidPlanId } from "@/lib/billing/plans";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { getStripe, priceIdForPlanInterval } from "@/lib/billing/stripe";
 import {
   checkRateLimit,
@@ -11,10 +12,11 @@ import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
       limit: 10,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
     const { data } = await admin
       .from("user_subscriptions")
       .select("stripe_customer_id")
-      .eq("user_id", user.id)
+      .eq("user_id", auth.billingUserId)
       .maybeSingle();
     customerId = data?.stripe_customer_id ?? undefined;
   }
@@ -71,13 +73,13 @@ export async function POST(request: Request) {
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    customer_email: customerId ? undefined : (user.email ?? undefined),
+    customer_email: customerId ? undefined : (auth.userEmail ?? undefined),
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/precios?checkout=success`,
     cancel_url: `${appUrl}/precios?checkout=cancel`,
-    metadata: { user_id: user.id, plan },
+    metadata: { user_id: auth.billingUserId, plan },
     subscription_data: {
-      metadata: { user_id: user.id, plan },
+      metadata: { user_id: auth.billingUserId, plan },
     },
     tax_id_collection: { enabled: true },
     billing_address_collection: "required",

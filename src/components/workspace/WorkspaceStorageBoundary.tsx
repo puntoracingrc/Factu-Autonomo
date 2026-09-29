@@ -1,9 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Database, HardDrive, LogOut, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  Database,
+  HardDrive,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 
 import { useCloudAuth } from "@/context/CloudAuthContext";
+import { useCompany } from "@/context/CompanyContext";
 import { WorkspaceStorageProvider } from "@/context/WorkspaceStorageContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { claimLegacyLocalCloudDeviceToken } from "@/lib/cloud/device-token";
@@ -23,6 +30,7 @@ import {
 } from "@/lib/workspace-auxiliary-storage";
 import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 import {
+  adoptLegacyWorkspaceInPlace,
   claimWorkspaceStorageCandidate,
   initializeWorkspaceStorage,
   preserveWorkspaceStorageCandidate,
@@ -87,16 +95,24 @@ export function WorkspaceStorageBoundary({
 }: {
   children: (scope: WorkspaceStorageScope) => React.ReactNode;
 }) {
+  const { authReady, user, signOutAuthSession } = useCloudAuth();
   const {
-    authReady,
-    user,
-    signOutAuthSession,
-  } = useCloudAuth();
+    ready: companyReady,
+    error: companyError,
+    activeCompany,
+    refreshCompanies,
+  } = useCompany();
   const demoMode = useDemoWorkspaceMode();
   const [state, setState] = useState<BoundaryState>({ status: "loading" });
   const [confirmed, setConfirmed] = useState(false);
   const resolutionSequence = useRef(0);
-  const ownerId = user?.id ?? null;
+  const ownerId = user ? (activeCompany?.dataOwnerId ?? null) : null;
+  const billingOwnerId = user
+    ? (activeCompany?.billingOwnerUserId ?? null)
+    : null;
+  const isLegacyAccountCompany = Boolean(
+    user && activeCompany && activeCompany.dataOwnerId === user.id,
+  );
 
   const resolve = useCallback(async () => {
     const sequence = resolutionSequence.current + 1;
@@ -105,23 +121,31 @@ export function WorkspaceStorageBoundary({
       if (resolutionSequence.current !== sequence) return;
       setActiveWorkspaceOwnerScope(
         next.status === "ready" ? next.scope.ownerScope : null,
+        next.status === "ready" ? billingOwnerId : null,
       );
       setState(next);
     };
-    if (!authReady || typeof localStorage === "undefined") {
+    if (!authReady || !companyReady || typeof localStorage === "undefined") {
+      setCurrentState({ status: "loading" });
+      return;
+    }
+    if (user && companyError) {
+      setCurrentState({ status: "blocked", message: companyError });
+      return;
+    }
+    if (user && !ownerId) {
       setCurrentState({ status: "loading" });
       return;
     }
     setCurrentState({ status: "loading" });
     setConfirmed(false);
     try {
-      const legacyData =
-        await readPersistedDataSnapshotPreferPersistentCache({
-          storageKey: LEGACY_APP_DATA_STORAGE_KEY,
-          onCacheMissLoaded: schedulePersistedAppDataCacheRefresh,
-        });
+      const legacyData = await readPersistedDataSnapshotPreferPersistentCache({
+        storageKey: LEGACY_APP_DATA_STORAGE_KEY,
+        onCacheMissLoaded: schedulePersistedAppDataCacheRefresh,
+      });
       const legacyHasContent = Boolean(
-        legacyData && hasWorkspaceContent(legacyData),
+        isLegacyAccountCompany && legacyData && hasWorkspaceContent(legacyData),
       );
       const guestScope = readExistingGuestWorkspaceScope(localStorage);
       const guestData = guestScope
@@ -131,17 +155,17 @@ export function WorkspaceStorageBoundary({
           })
         : null;
       const guestHasContent = Boolean(
-        guestData && hasWorkspaceContent(guestData),
+        isLegacyAccountCompany && guestData && hasWorkspaceContent(guestData),
       );
       const canAutoClaimLegacy = Boolean(
         ownerId &&
-          legacyData &&
-          legacyHasContent &&
-          (await legacyWorkspaceMatchesVerifiedOwner({
-            data: legacyData,
-            ownerScope: ownerId,
-            storage: localStorage,
-          })),
+        legacyData &&
+        legacyHasContent &&
+        (await legacyWorkspaceMatchesVerifiedOwner({
+          data: legacyData,
+          ownerScope: ownerId,
+          storage: localStorage,
+        })),
       );
       if (resolutionSequence.current !== sequence) return;
       const resolution = resolveWorkspaceStorage({
@@ -183,7 +207,16 @@ export function WorkspaceStorageBoundary({
           "No se pudo preparar el espacio local de esta sesión con seguridad.",
       });
     }
-  }, [authReady, demoMode, ownerId]);
+  }, [
+    authReady,
+    billingOwnerId,
+    companyError,
+    companyReady,
+    demoMode,
+    isLegacyAccountCompany,
+    ownerId,
+    user,
+  ]);
 
   useEffect(() => {
     void resolve();
@@ -195,20 +228,32 @@ export function WorkspaceStorageBoundary({
   const accountLabel = user?.email ?? "esta cuenta";
   const review = state.status === "review_required" ? state : null;
   const summaryText = useMemo(() => {
-    if (!review?.summary) return "No se pudo leer el resumen de la copia local.";
+    if (!review?.summary)
+      return "No se pudo leer el resumen de la copia local.";
     const value = review.summary;
     return `${value.documents} documentos, ${value.customers} clientes, ${value.suppliers} proveedores y ${value.expenses} gastos.`;
   }, [review]);
 
   function confirmLocalOwnership() {
     if (!review || !confirmed) return;
-    const applied = claimWorkspaceStorageCandidate({
+    let readyScope = review.resolution.scope;
+    const copied = claimWorkspaceStorageCandidate({
       scope: review.resolution.scope,
       candidateStorageKey: review.resolution.candidateStorageKey,
       source: "confirmed_local",
       storage: localStorage,
     });
-    if (!applied) {
+    if (
+      !copied &&
+      review.resolution.candidateStorageKey === LEGACY_APP_DATA_STORAGE_KEY
+    ) {
+      const inPlaceScope = adoptLegacyWorkspaceInPlace({
+        ownerScope: review.resolution.scope.ownerScope,
+        storage: localStorage,
+      });
+      if (inPlaceScope) readyScope = inPlaceScope;
+    }
+    if (!copied && readyScope === review.resolution.scope) {
       setState({
         status: "blocked",
         message: "El navegador no pudo confirmar la copia local.",
@@ -216,8 +261,8 @@ export function WorkspaceStorageBoundary({
       return;
     }
     claimLegacyAuxiliaryData(review.resolution.scope.ownerScope);
-    setActiveWorkspaceOwnerScope(review.resolution.scope.ownerScope);
-    setState({ status: "ready", scope: review.resolution.scope });
+    setActiveWorkspaceOwnerScope(readyScope.ownerScope, billingOwnerId);
+    setState({ status: "ready", scope: readyScope });
   }
 
   function startFromServer() {
@@ -260,7 +305,10 @@ export function WorkspaceStorageBoundary({
       });
       return;
     }
-    setActiveWorkspaceOwnerScope(review.resolution.scope.ownerScope);
+    setActiveWorkspaceOwnerScope(
+      review.resolution.scope.ownerScope,
+      billingOwnerId,
+    );
     setState({ status: "ready", scope: review.resolution.scope });
   }
 
@@ -287,7 +335,9 @@ export function WorkspaceStorageBoundary({
               <HardDrive className="h-6 w-6" />
             </span>
             <div>
-              <h1 className="text-xl font-black">Confirma qué datos son tuyos</h1>
+              <h1 className="text-xl font-black">
+                Confirma qué datos son tuyos
+              </h1>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Este navegador contiene una copia creada antes de que Factu
                 separase los datos por cuenta. No se subirá ni reemplazará nada
@@ -299,12 +349,16 @@ export function WorkspaceStorageBoundary({
           <div className="mt-6 border-y border-slate-200 py-5">
             <p className="text-sm font-bold text-slate-500">Sesión actual</p>
             <p className="mt-1 font-black">{accountLabel}</p>
-            <p className="mt-4 text-sm font-bold text-slate-500">Copia local encontrada</p>
+            <p className="mt-4 text-sm font-bold text-slate-500">
+              Copia local encontrada
+            </p>
             <p className="mt-1 text-lg font-black">
               {state.summary?.businessName ?? "Copia local sin identificar"}
             </p>
             {state.summary?.nif ? (
-              <p className="mt-1 text-sm text-slate-600">NIF: {state.summary.nif}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                NIF: {state.summary.nif}
+              </p>
             ) : null}
             <p className="mt-2 text-sm text-slate-600">{summaryText}</p>
           </div>
@@ -367,7 +421,9 @@ export function WorkspaceStorageBoundary({
             </p>
             <button
               type="button"
-              onClick={() => void resolve()}
+              onClick={() =>
+                void (companyError ? refreshCompanies() : resolve())
+              }
               className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 font-bold text-white hover:bg-blue-700"
             >
               <RefreshCw className="h-5 w-5" />
