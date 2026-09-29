@@ -14,28 +14,37 @@ function runBin(bin, args) {
 }
 
 const marker = "CENTRAL_INVOICE_AUTHORITY_ISSUE_ROUTE_V1";
-const handler = read("src/lib/central-invoice-authority/issue-route-handler.ts");
+const handler = read(
+  "src/lib/central-invoice-authority/issue-route-handler.ts",
+);
 const route = read("src/app/api/central-invoice-authority/issue/route.ts");
-const test = read("src/lib/central-invoice-authority/issue-route-handler.test.ts");
-const doc = read("docs/architecture/central-invoice-authority-issue-route-v1.md");
+const test = read(
+  "src/lib/central-invoice-authority/issue-route-handler.test.ts",
+);
+const doc = read(
+  "docs/architecture/central-invoice-authority-issue-route-v1.md",
+);
 const packageJson = JSON.parse(read("package.json"));
 const body = `${handler}\n${route}\n${test}\n${doc}`;
 
 for (const required of [
   marker,
-  "getUserSessionFromBearer",
+  "getCompanyRouteAuthFromBearer",
   "ensureCloudDeviceAccess",
   "hashCloudDeviceToken",
   "checkRateLimit",
   "getSupabaseAdmin",
   "issueCentralInvoiceWithAuthority",
-  "userIdSource: \"server\"",
+  'userIdSource: "server"',
   "documentPayload",
   "emittedSnapshot",
   "commandSafeSummary",
   "rpcResult",
 ]) {
-  assert.match(body, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+  assert.match(
+    body,
+    new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+  );
 }
 
 for (const forbidden of [
@@ -47,7 +56,11 @@ for (const forbidden of [
   /body\.sessionId/,
   /body\.deviceId/,
 ]) {
-  assert.doesNotMatch(handler, forbidden, `Forbidden issue route coupling: ${forbidden}`);
+  assert.doesNotMatch(
+    handler,
+    forbidden,
+    `Forbidden issue route coupling: ${forbidden}`,
+  );
 }
 
 assert.match(route, /export\s+async\s+function\s+POST\b/);
