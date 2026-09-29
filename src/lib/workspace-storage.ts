@@ -132,9 +132,19 @@ export function workspaceRecoveryStorageKeyPrefix(
 }
 
 function randomGuestId(): string {
-  const value = globalThis.crypto?.randomUUID?.();
+  const cryptoApi = globalThis.crypto;
+  const value = cryptoApi?.randomUUID?.();
   if (value) return value;
-  return `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+  if (cryptoApi?.getRandomValues) {
+    const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+    const secureSuffix = Array.from(bytes, (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+    return `guest-${secureSuffix}`;
+  }
+
+  throw new Error("secure_random_unavailable");
 }
 
 export function getOrCreateGuestWorkspaceScope(
