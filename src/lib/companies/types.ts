@@ -34,6 +34,18 @@ export interface AppCompaniesPayload {
   companies: AppCompany[];
 }
 
+export interface CompanySafeCopySummary {
+  customers: number;
+  suppliers: number;
+  products: number;
+  reusableProfile: boolean;
+}
+
+export interface CompanyCreationResult {
+  company: AppCompany;
+  copied: CompanySafeCopySummary | null;
+}
+
 export interface CompanyWorkspaceAccess {
   companyId: string;
   dataOwnerId: string;

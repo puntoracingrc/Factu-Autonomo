@@ -52,7 +52,10 @@ describe("central authority client plan gate wiring", () => {
       expect(form).toContain("useCentralAuthorityPlanGate");
       expect(form).toContain('centralPlanGate.mode === "loading"');
       expect(form).toContain(
-        "publicFormCanaryUserId: centralPlanGate.centralUserId",
+        "publicFormCanaryUserId: centralPlanGate.authenticatedUserId",
+      );
+      expect(form).toContain(
+        "expectedOwnerScope: centralPlanGate.centralUserId",
       );
     }
   });

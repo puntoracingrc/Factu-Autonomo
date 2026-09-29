@@ -12,6 +12,7 @@ export interface CentralAuthorityPlanGate {
 export interface CentralAuthorityPlanGateInput {
   resolvedUserId: string | null;
   cloudUserId: string | null;
+  centralOwnerId: string | null;
   billingLoading: boolean;
   cloudSyncIncluded: boolean;
   centralBootstrapReady: boolean;
@@ -27,6 +28,7 @@ export function evaluateCentralAuthorityPlanGate(
 ): CentralAuthorityPlanGate {
   const authenticatedUserId = normalizeUserId(input.resolvedUserId);
   const cloudUserId = normalizeUserId(input.cloudUserId);
+  const centralOwnerId = normalizeUserId(input.centralOwnerId);
 
   if (!authenticatedUserId) {
     return {
@@ -39,7 +41,8 @@ export function evaluateCentralAuthorityPlanGate(
   if (
     input.billingLoading ||
     !cloudUserId ||
-    cloudUserId !== authenticatedUserId
+    cloudUserId !== authenticatedUserId ||
+    !centralOwnerId
   ) {
     return {
       mode: "loading",
@@ -67,7 +70,7 @@ export function evaluateCentralAuthorityPlanGate(
   return {
     mode: "central",
     authenticatedUserId,
-    centralUserId: authenticatedUserId,
+    centralUserId: centralOwnerId,
   };
 }
 

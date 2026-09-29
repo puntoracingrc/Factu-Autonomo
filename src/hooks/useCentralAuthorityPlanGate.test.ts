@@ -14,6 +14,7 @@ describe("central authority plan gate", () => {
       evaluateCentralAuthorityPlanGate({
         resolvedUserId: null,
         cloudUserId: null,
+        centralOwnerId: null,
         billingLoading: false,
         cloudSyncIncluded: false,
         centralBootstrapReady: true,
@@ -28,6 +29,7 @@ describe("central authority plan gate", () => {
       evaluateCentralAuthorityPlanGate({
         resolvedUserId: USER_ID,
         cloudUserId: USER_ID,
+        centralOwnerId: USER_ID,
         billingLoading: false,
         cloudSyncIncluded: false,
         centralBootstrapReady: true,
@@ -44,6 +46,7 @@ describe("central authority plan gate", () => {
       evaluateCentralAuthorityPlanGate({
         resolvedUserId: USER_ID,
         cloudUserId: USER_ID,
+        centralOwnerId: USER_ID,
         billingLoading: false,
         cloudSyncIncluded: true,
         centralBootstrapReady: true,
@@ -60,6 +63,7 @@ describe("central authority plan gate", () => {
       evaluateCentralAuthorityPlanGate({
         resolvedUserId: USER_ID,
         cloudUserId: null,
+        centralOwnerId: USER_ID,
         billingLoading: false,
         cloudSyncIncluded: false,
         centralBootstrapReady: true,
@@ -69,6 +73,7 @@ describe("central authority plan gate", () => {
       evaluateCentralAuthorityPlanGate({
         resolvedUserId: USER_ID,
         cloudUserId: USER_ID,
+        centralOwnerId: USER_ID,
         billingLoading: true,
         cloudSyncIncluded: true,
         centralBootstrapReady: true,
@@ -78,6 +83,7 @@ describe("central authority plan gate", () => {
       evaluateCentralAuthorityPlanGate({
         resolvedUserId: USER_ID,
         cloudUserId: USER_ID,
+        centralOwnerId: USER_ID,
         billingLoading: false,
         cloudSyncIncluded: true,
         centralBootstrapReady: false,
@@ -86,6 +92,25 @@ describe("central authority plan gate", () => {
     expect(centralAuthorityPlanLoadingFailure()).toEqual({
       ok: false,
       error: CENTRAL_AUTHORITY_PLAN_LOADING_ERROR,
+    });
+  });
+
+  it("keeps authentication on the Google account and writes into the selected company tenant", () => {
+    const companyOwnerId = "22222222-2222-4222-8222-222222222222";
+
+    expect(
+      evaluateCentralAuthorityPlanGate({
+        resolvedUserId: USER_ID,
+        cloudUserId: USER_ID,
+        centralOwnerId: companyOwnerId,
+        billingLoading: false,
+        cloudSyncIncluded: true,
+        centralBootstrapReady: true,
+      }),
+    ).toEqual({
+      mode: "central",
+      authenticatedUserId: USER_ID,
+      centralUserId: companyOwnerId,
     });
   });
 });

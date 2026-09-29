@@ -1,11 +1,19 @@
+import { createHash } from "node:crypto";
+
 import {
   getUserSessionFromBearer,
   type VerifiedUserSession,
 } from "@/lib/billing/server-auth";
+import {
+  buildCentralBusinessMutationCommand,
+  type CentralBusinessJson,
+} from "@/lib/central-business-authority/mutation-command";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { buildSafeCompanyCopyProfile } from "./safe-company-copy";
 import type {
   AppCompany,
   AppCompanyAccessOverview,
+  CompanyCreationResult,
   CompanyMemberRole,
   CompanyWorkspaceAccess,
 } from "./types";
@@ -20,6 +28,13 @@ type CompanyRpcRow = {
   company_name: string;
   member_role: string;
   company_created_at: string;
+};
+
+type CompanyCopyRpcRow = CompanyRpcRow & {
+  copied_customers: number;
+  copied_suppliers: number;
+  copied_products: number;
+  copied_profile: boolean;
 };
 
 type CompanyMemberRow = {
@@ -114,6 +129,77 @@ export async function createCompanyForIdentity(
   const row = (data as CompanyRpcRow[] | null)?.[0];
   if (!row) throw new Error("COMPANY_CREATE_FAILED");
   return companyFromRpcRow(row);
+}
+
+function centralBusinessJson(value: unknown): CentralBusinessJson {
+  return JSON.parse(JSON.stringify(value)) as CentralBusinessJson;
+}
+
+export async function createCompanyFromSourceForIdentity(
+  identity: VerifiedUserSession,
+  name: string,
+  sourceCompanyId: string,
+  sourceProfile: unknown,
+): Promise<CompanyCreationResult> {
+  const companyName = name.replace(/\s+/g, " ").trim();
+  const normalizedSourceCompanyId = normalizeCompanyId(sourceCompanyId);
+  const safeProfile = buildSafeCompanyCopyProfile(sourceProfile);
+  if (
+    !companyName ||
+    companyName.length > 120 ||
+    !normalizedSourceCompanyId ||
+    !safeProfile
+  ) {
+    throw new Error("INVALID_COMPANY_COPY");
+  }
+
+  const profileCommand = buildCentralBusinessMutationCommand({
+    auth: {
+      userId: identity.user.id,
+      deviceId: "company-copy",
+      sessionId: identity.sessionId,
+      userIdSource: "server",
+    },
+    idempotencyKey: `COMPANY_COPY_PROFILE_V1:${normalizedSourceCompanyId}`,
+    operationKind: "upsert",
+    entityType: "profile",
+    entityId: "profile",
+    expectedVersion: 0,
+    payload: centralBusinessJson(safeProfile),
+  });
+  const { data, error } = await adminClient().rpc(
+    "create_app_company_from_source_v1",
+    {
+      p_actor_user_id: identity.user.id,
+      p_actor_email: verifiedEmail(identity),
+      p_actor_session_hash: createHash("sha256")
+        .update(identity.sessionId)
+        .digest("hex"),
+      p_name: companyName,
+      p_source_company_id: normalizedSourceCompanyId,
+      p_profile_payload: profileCommand.payload,
+      p_profile_content_hash: profileCommand.contentHash,
+      p_profile_idempotency_key_hash: profileCommand.idempotencyKeyHash,
+      p_profile_request_hash: profileCommand.requestHash,
+    },
+  );
+  if (error) {
+    if (error.code === "42501") {
+      throw new Error("SOURCE_COMPANY_ACCESS_DENIED");
+    }
+    throw new Error(error.message);
+  }
+  const row = (data as CompanyCopyRpcRow[] | null)?.[0];
+  if (!row) throw new Error("COMPANY_COPY_FAILED");
+  return {
+    company: companyFromRpcRow(row),
+    copied: {
+      customers: row.copied_customers,
+      suppliers: row.copied_suppliers,
+      products: row.copied_products,
+      reusableProfile: row.copied_profile,
+    },
+  };
 }
 
 export async function renameCompanyForIdentity(

@@ -130,7 +130,7 @@ describe("central invoice authority form runtime policy wiring", () => {
     expect(branch).toContain("centralPolicy?.shouldUseCentralAuthority");
     expect(branch).toContain('centralPlanGate.mode === "loading"');
     expect(branch).toContain(
-      "publicFormCanaryUserId: centralPlanGate.centralUserId",
+      "publicFormCanaryUserId: centralPlanGate.authenticatedUserId",
     );
     expect(policyIndex).toBeGreaterThanOrEqual(0);
     expect(centralStoreIndex).toBeGreaterThan(policyIndex);
@@ -151,7 +151,7 @@ describe("central invoice authority form runtime policy wiring", () => {
     expect(branch).toContain("centralPolicy?.shouldUseCentralAuthority");
     expect(branch).toContain('centralPlanGate.mode === "loading"');
     expect(branch).toContain(
-      "publicFormCanaryUserId: centralPlanGate.centralUserId",
+      "publicFormCanaryUserId: centralPlanGate.authenticatedUserId",
     );
     expect(policyIndex).toBeGreaterThanOrEqual(0);
     expect(centralStoreIndex).toBeGreaterThan(policyIndex);

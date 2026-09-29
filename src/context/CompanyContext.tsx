@@ -17,6 +17,8 @@ import {
   renameCompany as renameCompanyRequest,
 } from "@/lib/companies/client";
 import type { AppCompany } from "@/lib/companies/types";
+import type { CompanyCreationResult } from "@/lib/companies/types";
+import type { BusinessProfile } from "@/lib/types";
 
 interface CompanyContextValue {
   ready: boolean;
@@ -24,7 +26,10 @@ interface CompanyContextValue {
   companies: AppCompany[];
   activeCompany: AppCompany | null;
   selectCompany: (companyId: string) => void;
-  createCompany: (name: string) => Promise<AppCompany>;
+  createCompany: (
+    name: string,
+    options?: { sourceCompanyId?: string; sourceProfile?: BusinessProfile },
+  ) => Promise<CompanyCreationResult>;
   renameCompany: (companyId: string, name: string) => Promise<void>;
   refreshCompanies: () => Promise<void>;
 }
@@ -96,13 +101,17 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createCompany = useCallback(
-    async (name: string) => {
-      const company = await createCompanyRequest(name);
+    async (
+      name: string,
+      options?: { sourceCompanyId?: string; sourceProfile?: BusinessProfile },
+    ) => {
+      const result = await createCompanyRequest(name, options);
+      const { company } = result;
       setCompanies((current) => [...current, company]);
       if (user)
         localStorage.setItem(activeCompanyStorageKey(user.id), company.id);
       setActiveCompanyId(company.id);
-      return company;
+      return result;
     },
     [user],
   );

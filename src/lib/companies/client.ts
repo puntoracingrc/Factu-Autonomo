@@ -5,7 +5,9 @@ import type {
   AppCompaniesPayload,
   AppCompany,
   AppCompanyAccessOverview,
+  CompanyCreationResult,
 } from "./types";
+import type { BusinessProfile } from "@/lib/types";
 
 async function accessToken(): Promise<string | null> {
   const supabase = await getSupabaseClientAsync();
@@ -40,15 +42,14 @@ export async function fetchCompanies(): Promise<AppCompany[]> {
   return payload.companies;
 }
 
-export async function createCompany(name: string): Promise<AppCompany> {
-  const payload = await companyRequest<{ company: AppCompany }>(
-    "/api/companies",
-    {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    },
-  );
-  return payload.company;
+export async function createCompany(
+  name: string,
+  options: { sourceCompanyId?: string; sourceProfile?: BusinessProfile } = {},
+): Promise<CompanyCreationResult> {
+  return companyRequest<CompanyCreationResult>("/api/companies", {
+    method: "POST",
+    body: JSON.stringify({ name, ...options }),
+  });
 }
 
 export async function renameCompany(

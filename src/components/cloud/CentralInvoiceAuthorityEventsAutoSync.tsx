@@ -51,8 +51,9 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
   const realtimeWakeupsEnabled =
     isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled();
   const userId = planGate.centralUserId;
-  const userCanaryAllowed =
-    isCentralInvoiceAuthorityEventsCanaryUserAllowed(userId);
+  const userCanaryAllowed = isCentralInvoiceAuthorityEventsCanaryUserAllowed(
+    planGate.authenticatedUserId,
+  );
   const runningRef = useRef(false);
   const pendingWakeRef = useRef(false);
   const timerRef = useRef<number | null>(null);

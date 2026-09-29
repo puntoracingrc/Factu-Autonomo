@@ -1,3 +1,5 @@
+import { resolveActiveWorkspaceBillingOwnerScope } from "@/lib/workspace-owner-runtime";
+
 export const CENTRAL_AUTHORITY_ROLLOUT_PERCENT_KEY =
   "CENTRAL_AUTHORITY_ROLLOUT_PERCENT";
 export const CENTRAL_AUTHORITY_KILL_SWITCH_KEY =
@@ -26,8 +28,7 @@ export interface CentralAuthorityPublicRolloutDecision {
 }
 
 const publicRolloutEnvironment: CentralAuthorityPublicRolloutEnvironment = {
-  rolloutPercent:
-    process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_PERCENT,
+  rolloutPercent: process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_PERCENT,
   killSwitch: process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_KILL_SWITCH,
   eligibleUserIds:
     process.env.NEXT_PUBLIC_CENTRAL_AUTHORITY_ROLLOUT_ELIGIBLE_USER_IDS,
@@ -114,13 +115,18 @@ export function isCentralAuthorityPublicRolloutUser(
   userId: string | null | undefined,
   environment: CentralAuthorityPublicRolloutEnvironment = publicRolloutEnvironment,
 ): boolean {
-  return evaluateCentralAuthorityPublicRollout(userId, environment).selected;
+  return evaluateCentralAuthorityPublicRollout(
+    resolveActiveWorkspaceBillingOwnerScope(userId ?? null),
+    environment,
+  ).selected;
 }
 
 export function isCentralAuthorityPublicWriteRolloutUser(
   userId: string | null | undefined,
   environment: CentralAuthorityPublicRolloutEnvironment = publicRolloutEnvironment,
 ): boolean {
-  return evaluateCentralAuthorityPublicRollout(userId, environment)
-    .writesEnabled;
+  return evaluateCentralAuthorityPublicRollout(
+    resolveActiveWorkspaceBillingOwnerScope(userId ?? null),
+    environment,
+  ).writesEnabled;
 }
