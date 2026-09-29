@@ -1,13 +1,16 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 12
-- Fecha: 2026-08-12
+- Versión: 13
+- Fecha: 2026-09-29
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
 > contratos de dispositivos, copias JSON, Google Drive y durabilidad local.
-> No existe rollback al escritor genérico del navegador.
+> No existe rollback al escritor genérico del navegador. Desde V13, la
+> durabilidad local de una cuenta bajo ADR-0011 es caché reconstruible o
+> recuperación técnica de una respuesta ambigua: nunca confirma por sí sola
+> una escritura operativa ni habilita un guardado offline.
 
 ## Contexto
 
@@ -230,8 +233,10 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 ## Consecuencias
 
 - La aplicación evita carreras entre sincronización manual y automática.
-- Un dispositivo puede seguir trabajando offline sin perder las colas
-  centrales durables ni el expediente auxiliar fiscal pendiente.
+- Las funciones expresamente locales que aún queden fuera de ADR-0011 pueden
+  conservar su cola; una escritura operativa central no se presenta como
+  guardada offline. El expediente auxiliar fiscal pendiente mantiene su
+  contrato propio.
 - Una reparación no puede sobrescribir la nube con el estado atascado que
   pretende sustituir ni declarar éxito antes del guardado local verificado.
 - El panel Admin no obliga a interpretar una acción correcta como prueba de

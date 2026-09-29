@@ -224,13 +224,20 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
   aditiva y por canario hacia PostgreSQL como autoridad canónica.
 - Cada mutación central exige versión esperada, clave idempotente y una
   transacción que confirme estado, comando y evento de salida.
-- La cola local se conserva y relee antes del cambio local. Al recuperar
-  conexión se vacía en FIFO antes de descargar eventos; un conflicto de
-  versión nunca sobrescribe silenciosamente.
-- Conservar la versión central exige decisión explícita, agrupa todas las
-  operaciones de la entidad y solo las retira después de aplicar y verificar
-  una versión autoritativa superior. Los conflictos de idempotencia no se
-  resuelven automáticamente.
+- Una escritura nueva se confirma primero en PostgreSQL y solo después
+  actualiza la caché local. Sin conexión no se presenta ningún cambio de
+  negocio como guardado en el navegador.
+- Un formulario de factura o presupuesto puede persistir como borrador local
+  pendiente y sin número definitivo. No se muestra como emitido ni afecta a
+  contabilidad; al reintentar tras recuperar conexión, el servidor asigna el
+  número y solo la confirmación central materializa el documento creado.
+- Una respuesta ambigua puede conservar únicamente un sobre técnico con la
+  identidad idempotente necesaria para comprobar o repetir la misma petición;
+  nunca se proyecta como dato local confirmado. Un conflicto de versión no
+  sobrescribe ni el servidor ni la caché y los conflictos de idempotencia no
+  se resuelven automáticamente.
+- Realtime solo despierta al cliente. La lectura por cursor del outbox sigue
+  siendo la fuente autoritativa y reconstruye una caché ausente o atrasada.
 - Una ficha antigua sin versión central permanece local fuera del rollout. En
   una cuenta con plan cloud seleccionada, las escrituras quedan bloqueadas
   hasta completar un bootstrap automático aditivo o una revisión explícita.

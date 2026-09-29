@@ -153,7 +153,7 @@ describe("central product create canary", () => {
     expect(deps.addProductDurably).not.toHaveBeenCalled();
   });
 
-  it("persiste antes del commit local y confirma el producto central", async () => {
+  it("confirma el producto central antes de actualizar la caché local", async () => {
     const storage = new MemoryStorage();
     let queuedBeforeLocalCommit:
       | ReturnType<typeof loadCentralBusinessDurableQueue>["operations"]
@@ -182,16 +182,7 @@ describe("central product create canary", () => {
     });
 
     if (!result.ok) throw new Error(result.error);
-    expect(queuedBeforeLocalCommit).toEqual([
-      expect.objectContaining({
-        operationId: `CENTRAL_PRODUCT_CREATE:${productId}`,
-        status: "pending",
-        input: expect.objectContaining({
-          entityType: "product",
-          expectedVersion: 0,
-        }),
-      }),
-    ]);
+    expect(queuedBeforeLocalCommit).toEqual([]);
     expect(result).toMatchObject({
       ok: true,
       delivery: "central_confirmed",
@@ -206,7 +197,7 @@ describe("central product create canary", () => {
     });
   });
 
-  it("guarda offline solo despues de conservar la operacion", async () => {
+  it("no guarda local ni crea cola offline sin servidor", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -226,11 +217,12 @@ describe("central product create canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({ ok: false });
     expect(deps.mutate).not.toHaveBeenCalled();
+    expect(deps.addProductDurably).not.toHaveBeenCalled();
     expect(
       loadCentralBusinessDurableQueue(userId, storage).operations,
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 
   it("falla cerrado y no guarda si el servidor rechaza el canario", async () => {

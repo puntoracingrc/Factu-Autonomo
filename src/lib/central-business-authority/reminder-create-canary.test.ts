@@ -148,17 +148,17 @@ describe("central reminder create canary", () => {
     expect(deps.addUserReminderDurably).not.toHaveBeenCalled();
   });
 
-  it("persiste local antes de confirmar una versión central", async () => {
+  it("confirma una versión central antes de actualizar la caché", async () => {
     const storage = new MemoryStorage();
     const addUserReminderDurably = vi.fn(
       (_draft, identity, expected): AppDataDurabilityResult<UserReminder> => {
-        expect(
-          loadCentralBusinessDurableQueue(userId, storage).operations[0],
-        ).toMatchObject({
-          operationId: `CENTRAL_REMINDER_CREATE:${reminderId}`,
-          input: {
-            entityType: "user_reminder",
-            expectedVersion: 0,
+        expect(loadCentralBusinessDurableQueue(userId, storage)).toMatchObject({
+          operations: [],
+          entityVersions: {
+            [`user_reminder:${reminderId}`]: {
+              version: 1,
+              deleted: false,
+            },
           },
         });
         return appliedReminder(expected, identity.id, identity.now);
@@ -184,7 +184,7 @@ describe("central reminder create canary", () => {
     ).toMatchObject({ version: 1, deleted: false });
   });
 
-  it("conserva la operación local pendiente cuando no hay red", async () => {
+  it("no guarda local ni deja una operación pendiente cuando no hay red", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -204,9 +204,10 @@ describe("central reminder create canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.addUserReminderDurably).not.toHaveBeenCalled();
     expect(
       loadCentralBusinessDurableQueue(userId, storage).operations,
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 });

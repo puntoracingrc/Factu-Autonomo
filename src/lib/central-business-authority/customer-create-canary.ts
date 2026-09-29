@@ -124,12 +124,6 @@ export function isCentralCustomerCreateCanaryEnabledForUser(
   );
 }
 
-function transientStatusFailure(
-  result: Extract<CentralBusinessAuthorityStatusResult, { ok: false }>,
-): boolean {
-  return result.status === 0 || result.status === 429 || result.status >= 500;
-}
-
 async function statusWithTimeout(
   fetchStatus: () => Promise<CentralBusinessAuthorityStatusResult>,
   timeoutMs: number,
@@ -161,18 +155,6 @@ function jsonCustomer(customer: Customer) {
     string,
     string | string[]
   >;
-}
-
-function durabilityError(
-  result: Exclude<AppDataDurabilityResult<Customer>, { status: "applied" }>,
-): string {
-  if (result.status === "indeterminate") {
-    return "El cliente quedó pendiente de revisión porque no se pudo confirmar el almacenamiento local.";
-  }
-  if (result.reason === "stale_precondition") {
-    return "Los clientes cambiaron mientras se guardaba. Revisa el listado y vuelve a intentarlo.";
-  }
-  return "No se pudo guardar y verificar el cliente en este dispositivo.";
 }
 
 export async function createCustomerWithCentralCanary(input: {
@@ -207,15 +189,11 @@ export async function createCustomerWithCentralCanary(input: {
       fetchCentralBusinessAuthorityStatusFromBrowser,
     dependencies.statusTimeoutMs ?? 3_000,
   );
-  const canAttemptServer = status.ok && status.summary.writesPossible;
-  if (
-    (!status.ok && !transientStatusFailure(status)) ||
-    (status.ok && !status.summary.writesPossible)
-  ) {
+  if (!status.ok || !status.summary.writesPossible) {
     return {
       ok: false,
       error:
-        "El servidor central todavía no está preparado para guardar clientes en esta cuenta.",
+        "Se necesita conexión con el servidor central para guardar clientes. No se ha aplicado ningún cambio en este dispositivo.",
     };
   }
 
@@ -248,30 +226,6 @@ export async function createCustomerWithCentralCanary(input: {
         now: () => now,
       });
 
-      const local = dependencies.addCustomerDurably(
-        input.draft,
-        { id, now },
-        baseline,
-      );
-      if (local.status !== "applied") {
-        if (local.status === "blocked") {
-          discardCentralBusinessOperation({
-            ownerScope,
-            operationId,
-            storage: dependencies.storage,
-          });
-        }
-        return { ok: false, error: durabilityError(local) };
-      }
-
-      if (!canAttemptServer) {
-        return {
-          ok: true,
-          customer: local.value,
-          delivery: "central_pending",
-        };
-      }
-
       const drained = await drainCentralBusinessDurableQueue({
         ownerScope,
         storage: dependencies.storage,
@@ -281,20 +235,40 @@ export async function createCustomerWithCentralCanary(input: {
       const ownOperation = drained.state.operations.find(
         (operation) => operation.operationId === operationId,
       );
-      if (!ownOperation) {
+      if (ownOperation) {
+        if (ownOperation.status !== "pending") {
+          discardCentralBusinessOperation({
+            ownerScope,
+            operationId,
+            storage: dependencies.storage,
+          });
+        }
         return {
-          ok: true,
-          customer: local.value,
-          delivery: "central_confirmed",
+          ok: false,
+          error:
+            ownOperation.status === "pending" &&
+            drained.stoppedBy === "retryable"
+              ? "No se pudo confirmar la respuesta del servidor central. El cliente no se ha añadido a la caché de este dispositivo y se conservará únicamente la identidad necesaria para comprobar la operación sin duplicarla."
+              : "El servidor central rechazó el alta. No se ha creado ningún cliente solo en este dispositivo.",
+        };
+      }
+
+      const local = dependencies.addCustomerDurably(
+        input.draft,
+        { id, now },
+        baseline,
+      );
+      if (local.status !== "applied") {
+        return {
+          ok: false,
+          error:
+            "El servidor confirmó el cliente, pero la caché local no pudo actualizarse. Recarga para recibir la versión central; el cliente no se ha perdido.",
         };
       }
       return {
         ok: true,
         customer: local.value,
-        delivery:
-          ownOperation.status === "pending" && drained.stoppedBy === "retryable"
-            ? "central_pending"
-            : "central_review",
+        delivery: "central_confirmed",
       };
     });
   } catch {

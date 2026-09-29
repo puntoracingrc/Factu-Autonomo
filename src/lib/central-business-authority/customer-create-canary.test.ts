@@ -189,18 +189,16 @@ describe("central customer create canary", () => {
     expect(deps.addCustomerDurably).not.toHaveBeenCalled();
   });
 
-  it("relee la cola antes del commit local y confirma en servidor", async () => {
+  it("confirma en servidor antes de actualizar la caché local", async () => {
     const storage = new MemoryStorage();
     const addCustomerDurably = vi.fn(
       (_draft, identity, expected): AppDataDurabilityResult<Customer> => {
-        expect(
-          loadCentralBusinessDurableQueue(userId, storage).operations,
-        ).toEqual([
-          expect.objectContaining({
-            operationId: `CENTRAL_CUSTOMER_CREATE:${customerId}`,
-            status: "pending",
-          }),
-        ]);
+        expect(loadCentralBusinessDurableQueue(userId, storage)).toMatchObject({
+          operations: [],
+          entityVersions: {
+            [`customer:${customerId}`]: { version: 1, deleted: false },
+          },
+        });
         return appliedCustomer(expected, identity.id, identity.now);
       },
     );
@@ -226,7 +224,7 @@ describe("central customer create canary", () => {
     });
   });
 
-  it("guarda local y conserva la operacion si la red no responde", async () => {
+  it("no guarda local ni crea cola offline si la red no responde", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -246,11 +244,12 @@ describe("central customer create canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({ ok: false });
     expect(deps.mutate).not.toHaveBeenCalled();
+    expect(deps.addCustomerDurably).not.toHaveBeenCalled();
     expect(
       loadCentralBusinessDurableQueue(userId, storage).operations,
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 
   it("no congela el formulario si el preflight queda colgado", async () => {
@@ -269,10 +268,11 @@ describe("central customer create canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.addCustomerDurably).not.toHaveBeenCalled();
     expect(
       loadCentralBusinessDurableQueue(userId, storage).operations,
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 
   it("falla cerrado si el servidor responde que el canario no esta listo", async () => {
@@ -293,7 +293,7 @@ describe("central customer create canary", () => {
     expect(result).toEqual({
       ok: false,
       error:
-        "El servidor central todavía no está preparado para guardar clientes en esta cuenta.",
+        "Se necesita conexión con el servidor central para guardar clientes. No se ha aplicado ningún cambio en este dispositivo.",
     });
     expect(deps.addCustomerDurably).not.toHaveBeenCalled();
   });
@@ -321,7 +321,7 @@ describe("central customer create canary", () => {
     expect(deps.addCustomerDurably).not.toHaveBeenCalled();
   });
 
-  it("permite la cola offline si la recepción falla solo por red", async () => {
+  it("bloquea el guardado local si la recepción y el preflight están offline", async () => {
     const syncEventsBeforeWrite = vi.fn(async () => ({
       ok: false as const,
       schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1" as const,
@@ -348,11 +348,11 @@ describe("central customer create canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
-    expect(deps.addCustomerDurably).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.addCustomerDurably).not.toHaveBeenCalled();
   });
 
-  it("retira la operacion si el commit local queda bloqueado", async () => {
+  it("mantiene el servidor confirmado aunque falle la actualización de caché", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -372,6 +372,6 @@ describe("central customer create canary", () => {
     expect(loadCentralBusinessDurableQueue(userId, storage).operations).toEqual(
       [],
     );
-    expect(deps.mutate).not.toHaveBeenCalled();
+    expect(deps.mutate).toHaveBeenCalledOnce();
   });
 });

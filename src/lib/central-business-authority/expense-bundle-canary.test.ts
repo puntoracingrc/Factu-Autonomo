@@ -237,7 +237,7 @@ describe("central expense bundle canary", () => {
       delivery: "central_confirmed",
       local: { value: { id: createdExpense.id } },
     });
-    expect(order).toEqual(["local", "server"]);
+    expect(order).toEqual(["server", "local"]);
     expect(deps.mutate).not.toHaveBeenCalled();
     expect(deps.mutateBatch).toHaveBeenCalledWith([
       expect.objectContaining({
@@ -263,7 +263,7 @@ describe("central expense bundle canary", () => {
     });
   });
 
-  it("keeps every member pending when the server is unreachable", async () => {
+  it("keeps only the recovery envelope when the server response is unreachable", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -286,7 +286,8 @@ describe("central expense bundle canary", () => {
     });
     const queue = loadCentralBusinessDurableQueue(userId, storage);
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.commitLocal).not.toHaveBeenCalled();
     expect(queue.operations).toHaveLength(3);
     expect(new Set(queue.operations.map((entry) => entry.batchId)).size).toBe(
       1,
@@ -360,7 +361,7 @@ describe("central expense bundle canary", () => {
     ]);
   });
 
-  it("marks the complete batch for review on one version conflict", async () => {
+  it("rejects a conflicting batch without applying or retaining local changes", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -383,14 +384,12 @@ describe("central expense bundle canary", () => {
     });
     const queue = loadCentralBusinessDurableQueue(userId, storage);
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_review" });
-    expect(queue.operations).toHaveLength(3);
-    expect(queue.operations.every((entry) => entry.status === "conflict")).toBe(
-      true,
-    );
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.commitLocal).not.toHaveBeenCalled();
+    expect(queue.operations).toHaveLength(0);
   });
 
-  it("keeps the verified local result for review if confirmation is incomplete", async () => {
+  it("does not apply local data if confirmation is incomplete", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -405,17 +404,14 @@ describe("central expense bundle canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({
-      ok: true,
-      delivery: "central_review",
-      local: { status: "applied", value: { id: createdExpense.id } },
-    });
+    expect(result).toMatchObject({ ok: false });
+    expect(deps.commitLocal).not.toHaveBeenCalled();
     expect(
       loadCentralBusinessDurableQueue(userId, storage).operations,
     ).toHaveLength(3);
   });
 
-  it("discards the complete queued batch when local persistence blocks", async () => {
+  it("keeps the server confirmation when the cache persistence blocks", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -438,7 +434,7 @@ describe("central expense bundle canary", () => {
     expect(loadCentralBusinessDurableQueue(userId, storage).operations).toEqual(
       [],
     );
-    expect(deps.mutateBatch).not.toHaveBeenCalled();
+    expect(deps.mutateBatch).toHaveBeenCalledOnce();
   });
 
   it("requires a known central version before updating a linked entity", async () => {

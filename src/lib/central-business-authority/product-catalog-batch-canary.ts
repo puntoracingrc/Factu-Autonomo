@@ -90,12 +90,6 @@ interface PreparedMutation {
   payload: CentralBusinessJson | null;
 }
 
-function transientStatusFailure(
-  result: Extract<CentralBusinessAuthorityStatusResult, { ok: false }>,
-): boolean {
-  return result.status === 0 || result.status === 429 || result.status >= 500;
-}
-
 async function statusWithTimeout(
   fetchStatus: () => Promise<CentralBusinessAuthorityStatusResult>,
   timeoutMs: number,
@@ -254,15 +248,11 @@ export async function applyProductCatalogBatchWithCentralCanary(input: {
     dependencies.fetchStatus ?? fetchCentralBusinessAuthorityStatusFromBrowser,
     dependencies.statusTimeoutMs ?? 3_000,
   );
-  const canAttemptServer = status.ok && status.summary.writesPossible;
-  if (
-    (!status.ok && !transientStatusFailure(status)) ||
-    (status.ok && !status.summary.writesPossible)
-  ) {
+  if (!status.ok || !status.summary.writesPossible) {
     return {
       ok: false,
       error:
-        "El servidor central todavía no está preparado para organizar este catálogo.",
+        "Se necesita conexión con el servidor central para organizar este catálogo. No se ha aplicado ningún cambio en este dispositivo.",
     };
   }
 
@@ -343,14 +333,6 @@ export async function applyProductCatalogBatchWithCentralCanary(input: {
         storage: dependencies.storage,
         now: () => now,
       });
-
-      if (!canAttemptServer) {
-        return {
-          ok: false,
-          error:
-            "No se pudo confirmar el lote con el servidor central. El cambio queda pendiente y no se ha aplicado todavía en este dispositivo.",
-        };
-      }
 
       let drained;
       try {

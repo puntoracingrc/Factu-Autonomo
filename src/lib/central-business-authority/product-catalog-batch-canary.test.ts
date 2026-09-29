@@ -350,7 +350,7 @@ describe("central product catalog batch canary", () => {
     expect(deps.mutateBatch).not.toHaveBeenCalled();
   });
 
-  it("conserva el lote pendiente cuando la red central no responde", async () => {
+  it("no aplica ni encola el lote cuando el preflight central no responde", async () => {
     const deps = dependencies({
       fetchStatus: vi.fn(async () => ({
         ok: false as const,
@@ -368,17 +368,14 @@ describe("central product catalog batch canary", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      error: expect.stringContaining("no se ha aplicado"),
+      error: expect.stringContaining("No se ha aplicado"),
     });
     expect(deps.commitLocal).not.toHaveBeenCalled();
     const queue = loadCentralBusinessDurableQueue(
       userId,
       deps.storage as CentralBusinessQueueStorage,
     );
-    expect(queue.operations).toHaveLength(2);
-    expect(
-      new Set(queue.operations.map((operation) => operation.batchId)).size,
-    ).toBe(1);
+    expect(queue.operations).toHaveLength(0);
   });
 
   it("pide actualizar si el servidor confirma y el CAS local detecta una pestaña obsoleta", async () => {

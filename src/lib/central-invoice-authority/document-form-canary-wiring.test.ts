@@ -45,7 +45,10 @@ describe("DocumentForm central authority canary wiring", () => {
       "shouldUseCentralInvoiceAuthorityDocumentFormCanary",
     );
     expect(form).toContain(
-      "const pendingDocumentId = existing?.id ?? crypto.randomUUID()",
+      "const pendingDocumentId = existing?.id ?? localDocumentIdRef.current",
+    );
+    expect(form).toContain(
+      "const localDocumentIdRef = useRef(existing?.id ?? crypto.randomUUID())",
     );
     expect(branch).toContain("const localDocumentId = pendingDocumentId");
     expect(branch).toContain(

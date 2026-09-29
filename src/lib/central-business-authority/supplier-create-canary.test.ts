@@ -140,16 +140,17 @@ describe("central supplier create canary", () => {
     expect(deps.addSupplierDurably).not.toHaveBeenCalled();
   });
 
-  it("conserva el comando antes del commit local y confirma la version", async () => {
+  it("confirma la versión central antes del commit de caché", async () => {
     const storage = new MemoryStorage();
     let queuedBeforeLocal = false;
     const deps = dependencies({
       storage,
       addSupplierDurably: vi.fn(
         (_draft, identity, expected): AppDataDurabilityResult<Supplier> => {
+          const queue = loadCentralBusinessDurableQueue(userId, storage);
           queuedBeforeLocal =
-            loadCentralBusinessDurableQueue(userId, storage).operations
-              .length === 1;
+            queue.operations.length === 0 &&
+            queue.entityVersions[`supplier:${supplierId}`]?.version === 1;
           const created = {
             ...draft,
             id: identity.id,
@@ -185,7 +186,7 @@ describe("central supplier create canary", () => {
     });
   });
 
-  it("guarda offline con la operacion pendiente", async () => {
+  it("no guarda local ni deja una operación offline", async () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
@@ -205,10 +206,11 @@ describe("central supplier create canary", () => {
       dependencies: deps,
     });
 
-    expect(result).toMatchObject({ ok: true, delivery: "central_pending" });
+    expect(result).toMatchObject({ ok: false });
     expect(deps.mutate).not.toHaveBeenCalled();
+    expect(deps.addSupplierDurably).not.toHaveBeenCalled();
     expect(
       loadCentralBusinessDurableQueue(userId, storage).operations,
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 });
