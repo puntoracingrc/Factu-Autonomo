@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Database, LogOut, RefreshCw } from "lucide-react";
+import { Building2, Database, LogOut, RefreshCw } from "lucide-react";
 
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -30,7 +30,7 @@ export function WorkspaceServerAdoptionGate({
   children: React.ReactNode;
 }) {
   const scope = useWorkspaceStorage();
-  const { activeCompany } = useCompany();
+  const { activeCompany, companies, selectCompany } = useCompany();
   const {
     ready,
     getCurrentData,
@@ -174,6 +174,10 @@ export function WorkspaceServerAdoptionGate({
 
   if (state.status === "ready") return <>{children}</>;
 
+  const alternativeCompanies = activeCompany
+    ? companies.filter((company) => company.id !== activeCompany.id)
+    : companies;
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 text-slate-950">
       <section className="w-full max-w-lg rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
@@ -193,23 +197,49 @@ export function WorkspaceServerAdoptionGate({
         {state.status === "checking" ? (
           <RefreshCw className="mx-auto mt-6 h-6 w-6 animate-spin text-blue-600" />
         ) : (
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => setRevision((value) => value + 1)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 font-bold text-white hover:bg-blue-700"
-            >
-              <RefreshCw className="h-5 w-5" />
-              Reintentar
-            </button>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 font-bold text-slate-700 hover:bg-slate-50"
-            >
-              <LogOut className="h-5 w-5" />
-              Cerrar sesión
-            </button>
+          <div className="mt-6 space-y-4">
+            {alternativeCompanies.length > 0 ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-left">
+                <p className="text-sm font-bold text-emerald-950">
+                  Volver a una empresa disponible
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {alternativeCompanies.map((company) => (
+                    <button
+                      key={company.id}
+                      type="button"
+                      onClick={() => selectCompany(company.id)}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 font-bold text-emerald-900 hover:bg-emerald-100"
+                    >
+                      <Building2 className="h-5 w-5" />
+                      Abrir {company.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs leading-5 text-emerald-800">
+                  Cambiar de empresa no borra ni modifica los datos de ninguna
+                  de ellas.
+                </p>
+              </div>
+            ) : null}
+            <div className="flex flex-col justify-center gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setRevision((value) => value + 1)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 font-bold text-white hover:bg-blue-700"
+              >
+                <RefreshCw className="h-5 w-5" />
+                Reintentar
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <LogOut className="h-5 w-5" />
+                Cerrar sesión
+              </button>
+            </div>
           </div>
         )}
       </section>

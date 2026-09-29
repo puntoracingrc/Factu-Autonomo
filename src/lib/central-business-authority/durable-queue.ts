@@ -1,5 +1,7 @@
 "use client";
 
+import { gzipSync, gunzipSync, strFromU8, strToU8 } from "fflate";
+
 import type { CentralBusinessBrowserEvent } from "./events-client";
 import type {
   CentralBusinessBrowserMutationInput,
@@ -22,6 +24,8 @@ export const CENTRAL_BUSINESS_DURABLE_QUEUE_CHANGED_EVENT =
   "factu:central-business-authority:durable-queue-changed";
 
 const STORAGE_PREFIX = "factu:central-business-authority:durable-queue:v1:";
+const COMPRESSED_STATE_PREFIX = "factu-gzip-v1:";
+const COMPRESSION_THRESHOLD = 64_000;
 const MAX_OPERATIONS = 1_000;
 const ENTITY_TYPES = new Set<CentralBusinessEntityType>([
   "customer",
@@ -164,6 +168,42 @@ function storageKey(ownerScope: string) {
   return `${STORAGE_PREFIX}${encodeURIComponent(ownerScope)}`;
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)),
+    );
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function serializeState(state: CentralBusinessDurableQueueState): string {
+  const serialized = JSON.stringify(state);
+  if (serialized.length < COMPRESSION_THRESHOLD) return serialized;
+  const compressed = `${COMPRESSED_STATE_PREFIX}${bytesToBase64(
+    gzipSync(strToU8(serialized), { level: 6 }),
+  )}`;
+  return compressed.length < serialized.length ? compressed : serialized;
+}
+
+function decodeState(raw: string): string {
+  if (!raw.startsWith(COMPRESSED_STATE_PREFIX)) return raw;
+  return strFromU8(
+    gunzipSync(base64ToBytes(raw.slice(COMPRESSED_STATE_PREFIX.length))),
+  );
+}
+
 function defaultStorage(): CentralBusinessQueueStorage | null {
   return typeof window === "undefined" ? null : window.localStorage;
 }
@@ -299,7 +339,7 @@ function parseState(
 ): CentralBusinessDurableQueueState | null {
   let value: unknown;
   try {
-    value = JSON.parse(raw);
+    value = JSON.parse(decodeState(raw));
   } catch {
     return null;
   }
@@ -425,7 +465,7 @@ function persistState(
   storage: CentralBusinessQueueStorage,
 ): CentralBusinessDurableQueueState {
   const next = { ...state, revision: state.revision + 1 };
-  const serialized = JSON.stringify(next);
+  const serialized = serializeState(next);
   const key = storageKey(next.ownerScope);
   try {
     storage.setItem(key, serialized);

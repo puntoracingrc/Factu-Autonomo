@@ -82,10 +82,12 @@ export function CompanyManagementCard() {
       if (result.copied) {
         const copied = result.copied;
         setMessage(
-          `Empresa «${name}» creada con ${copied.customers} clientes, ${copied.suppliers} proveedores y ${copied.products} productos.`,
+          `Empresa «${name}» creada con ${copied.customers} clientes, ${copied.suppliers} proveedores y ${copied.products} productos. Puedes abrirla desde el selector de empresas.`,
         );
       } else {
-        setMessage(`Empresa «${name}» creada vacía y abierta.`);
+        setMessage(
+          `Empresa «${name}» creada vacía. Puedes abrirla desde el selector de empresas.`,
+        );
       }
     } catch (error) {
       setMessage(
