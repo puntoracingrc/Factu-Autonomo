@@ -137,6 +137,36 @@ describe("central business durable queue", () => {
     });
   });
 
+  it("comprime indices grandes y los relee sin perder versiones", () => {
+    const storage = new MemoryStorage();
+    const entities = Array.from({ length: 1_400 }, (_, index) => ({
+      entityType: "customer" as const,
+      entityId: `customer-${index.toString().padStart(4, "0")}`,
+      version: 1,
+      contentHash: index.toString(16).padStart(64, "0"),
+    }));
+
+    recordCentralBusinessEntityVersionCheckpoint({
+      ownerScope,
+      entities,
+      storage,
+    });
+
+    const stored = storage.getItem(
+      "factu:central-business-authority:durable-queue:v1:synthetic-user-0001",
+    );
+    expect(stored).toMatch(/^factu-gzip-v1:/u);
+    expect(stored!.length).toBeLessThan(JSON.stringify(entities).length);
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, storage).entityVersions[
+        "customer:customer-1399"
+      ],
+    ).toEqual({
+      ...entities[1399],
+      deleted: false,
+    });
+  });
+
   it("no ancla un bootstrap sobre operaciones pendientes", () => {
     const storage = new MemoryStorage();
     enqueueCentralBusinessOperation({

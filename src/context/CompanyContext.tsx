@@ -94,7 +94,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     (companyId: string) => {
       if (!user || !companies.some((company) => company.id === companyId))
         return;
-      localStorage.setItem(activeCompanyStorageKey(user.id), companyId);
+      try {
+        localStorage.setItem(activeCompanyStorageKey(user.id), companyId);
+      } catch {
+        // La selección de esta sesión no puede quedar bloqueada por una caché
+        // llena. El servidor seguirá resolviendo la empresa autorizada.
+      }
       setActiveCompanyId(companyId);
     },
     [companies, user],
@@ -108,12 +113,9 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       const result = await createCompanyRequest(name, options);
       const { company } = result;
       setCompanies((current) => [...current, company]);
-      if (user)
-        localStorage.setItem(activeCompanyStorageKey(user.id), company.id);
-      setActiveCompanyId(company.id);
       return result;
     },
-    [user],
+    [],
   );
 
   const renameCompany = useCallback(async (companyId: string, name: string) => {
