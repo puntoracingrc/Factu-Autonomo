@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
   normalizeCloudDeviceToken,
 } from "@/lib/cloud/devices";
-import {
-  createCentralBusinessEventsRouteHandler,
-} from "@/lib/central-business-authority/events-route-handler";
+import { createCentralBusinessEventsRouteHandler } from "@/lib/central-business-authority/events-route-handler";
 import type {
   CentralBusinessEventsRpcArgs,
   CentralBusinessEventsRpcClient,
@@ -19,16 +17,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 const handler = createCentralBusinessEventsRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      userEmail: identity.user.email ?? null,
-      sessionId: identity.sessionId,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

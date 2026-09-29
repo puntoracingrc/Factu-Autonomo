@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   listCloudDevicesForUser,
   normalizeCloudDeviceToken,
@@ -20,7 +21,10 @@ function privateJson(body: unknown, init?: ResponseInit) {
 function markPrivate<T extends Response>(response: T): T {
   response.headers.set("Cache-Control", "private, no-store, max-age=0");
   response.headers.set("Pragma", "no-cache");
-  response.headers.set("Vary", "Authorization, X-Factu-Device-Token");
+  response.headers.set(
+    "Vary",
+    `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
+  );
   return response;
 }
 
@@ -33,16 +37,17 @@ function deviceTokenFromRequest(request: Request): string | null {
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return privateJson({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
     request,
     { namespace: "cloud_devices_revoke", limit: 30, windowMs: 10 * 60_000 },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return markPrivate(rateLimitExceededResponse(rateLimit));
@@ -50,12 +55,12 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   const result = await revokeCloudDeviceForUser({
-    userId: user.id,
+    userId: auth.billingUserId,
     deviceId: id,
     currentToken: deviceTokenFromRequest(request) ?? undefined,
   });
   const overview = await listCloudDevicesForUser({
-    userId: user.id,
+    userId: auth.billingUserId,
     token: deviceTokenFromRequest(request) ?? undefined,
   });
 

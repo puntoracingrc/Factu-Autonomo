@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import type { ScanQuota } from "@/lib/billing/scan-limits";
 import { collectFactuFeatureTips } from "@/lib/factu/feature-discovery";
 import { readFactuFeatureUsage } from "@/lib/factu/feature-usage";
@@ -35,7 +36,8 @@ export function useAppRecommendations(): {
       setUsageVersion((value) => value + 1);
     }
     window.addEventListener("factu-feature-used", onFeatureUsed);
-    return () => window.removeEventListener("factu-feature-used", onFeatureUsed);
+    return () =>
+      window.removeEventListener("factu-feature-used", onFeatureUsed);
   }, []);
 
   const loadScanQuota = useCallback(async () => {
@@ -50,12 +52,14 @@ export function useAppRecommendations(): {
 
     setLoadingScans(true);
     try {
-      const headers: HeadersInit = {};
+      const headers = activeCompanyRequestHeaders();
       if (user) {
-        const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+        const { getSupabaseClientAsync } =
+          await import("@/lib/supabase/client");
         const supabase = await getSupabaseClientAsync();
-        const { data: sessionData } =
-          (await supabase?.auth.getSession()) ?? { data: { session: null } };
+        const { data: sessionData } = (await supabase?.auth.getSession()) ?? {
+          data: { session: null },
+        };
         const token = sessionData.session?.access_token;
         if (token) headers.Authorization = `Bearer ${token}`;
       }
@@ -121,7 +125,8 @@ export function useAppRecommendations(): {
       usage: {
         ...readFactuFeatureUsage(),
         userReminders:
-          readFactuFeatureUsage().userReminders || data.userReminders.length > 0,
+          readFactuFeatureUsage().userReminders ||
+          data.userReminders.length > 0,
         recurringExpenses:
           readFactuFeatureUsage().recurringExpenses ||
           data.recurringExpenses.length > 0,
@@ -130,7 +135,14 @@ export function useAppRecommendations(): {
           data.documents.some((doc) => doc.type === "presupuesto"),
       },
     });
-  }, [ready, recommendationContext, usageVersion, data.userReminders.length, data.recurringExpenses.length, data.documents]);
+  }, [
+    ready,
+    recommendationContext,
+    usageVersion,
+    data.userReminders.length,
+    data.recurringExpenses.length,
+    data.documents,
+  ]);
 
   const taskCount = useMemo(() => {
     if (!ready) return 0;

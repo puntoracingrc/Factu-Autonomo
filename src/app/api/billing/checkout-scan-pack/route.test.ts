@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import { getStripe, scanPackPriceId } from "@/lib/billing/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -8,8 +8,8 @@ vi.mock("@/lib/billing/config", () => ({
   getAppUrl: vi.fn(() => "https://example.test"),
 }));
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/stripe", () => ({
@@ -29,10 +29,14 @@ vi.mock("@/lib/supabase/admin", () => ({
 describe("POST /api/billing/checkout-scan-pack", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "11111111-1111-4111-8111-111111111111",
-      email: "buyer@example.test",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: "11111111-1111-4111-8111-111111111111",
+      actorUserId: "11111111-1111-4111-8111-111111111111",
+      billingUserId: "11111111-1111-4111-8111-111111111111",
+      companyId: "11111111-1111-4111-8111-111111111111",
+      sessionId: "session_1",
+      userEmail: "buyer@example.test",
+    });
     vi.mocked(scanPackPriceId).mockReturnValue("price_test_pack");
   });
 

@@ -2,10 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE } from "./route";
 
 const mocks = vi.hoisted(() => ({
+  companyAuth: vi.fn(),
   getUserSessionFromBearer: vi.fn(),
   checkRateLimit: vi.fn(),
   rateLimitExceededResponse: vi.fn(),
   releaseCloudDeviceSessionForUser: vi.fn(),
+}));
+
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: mocks.companyAuth,
 }));
 
 vi.mock("@/lib/billing/server-auth", () => ({
@@ -19,8 +24,7 @@ vi.mock("@/lib/cloud/devices", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/cloud/devices")>();
   return {
     ...actual,
-    releaseCloudDeviceSessionForUser:
-      mocks.releaseCloudDeviceSessionForUser,
+    releaseCloudDeviceSessionForUser: mocks.releaseCloudDeviceSessionForUser,
   };
 });
 
@@ -41,6 +45,14 @@ describe("cloud device session route", () => {
       user: { id: "user-1" },
       sessionId: "22222222-2222-4222-8222-222222222222",
     });
+    mocks.companyAuth.mockResolvedValue({
+      userId: "user-1",
+      actorUserId: "user-1",
+      billingUserId: "user-1",
+      companyId: "user-1",
+      sessionId: "22222222-2222-4222-8222-222222222222",
+      userEmail: "owner@example.com",
+    });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.releaseCloudDeviceSessionForUser.mockResolvedValue(true);
   });
@@ -58,7 +70,7 @@ describe("cloud device session route", () => {
   });
 
   it("fails closed without a verified Supabase session", async () => {
-    mocks.getUserSessionFromBearer.mockResolvedValue(null);
+    mocks.companyAuth.mockResolvedValue(null);
 
     const response = await DELETE(request());
 

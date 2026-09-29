@@ -5,6 +5,7 @@ import { Database, LogOut, RefreshCw } from "lucide-react";
 
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCompany } from "@/context/CompanyContext";
 import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import { markCentralBusinessAutomaticBootstrapVerified } from "@/lib/central-business-authority/automatic-bootstrap-state";
@@ -29,6 +30,7 @@ export function WorkspaceServerAdoptionGate({
   children: React.ReactNode;
 }) {
   const scope = useWorkspaceStorage();
+  const { activeCompany } = useCompany();
   const {
     ready,
     getCurrentData,
@@ -36,12 +38,8 @@ export function WorkspaceServerAdoptionGate({
     syncCentralInvoiceAuthorityEvents,
     syncFiscalNotificationsWorkspace,
   } = useAppStore();
-  const {
-    user,
-    emailConfirmed,
-    requiresEmailConfirmation,
-    signOut,
-  } = useCloudSync();
+  const { user, emailConfirmed, requiresEmailConfirmation, signOut } =
+    useCloudSync();
   const adoptionSequence = useRef(0);
   const [revision, setRevision] = useState(0);
   const [state, setState] = useState<GateState>(() =>
@@ -67,7 +65,8 @@ export function WorkspaceServerAdoptionGate({
       setCurrentState({ status: "ready" });
       return;
     }
-    if (!ready || !user || user.id !== scope.ownerScope) return;
+    if (!ready || !user || activeCompany?.dataOwnerId !== scope.ownerScope)
+      return;
     if (!emailConfirmed || requiresEmailConfirmation) {
       // La cuenta necesita poder abrir /cuenta para confirmar o reenviar email.
       setCurrentState({ status: "ready" });
@@ -76,10 +75,10 @@ export function WorkspaceServerAdoptionGate({
 
     setCurrentState({ status: "checking" });
     try {
-      const access = await canUseCloudForUser(user.id);
+      const access = await canUseCloudForUser(activeCompany.billingOwnerUserId);
       if (!isCurrent()) return;
       if (!access.allowed) {
-        markWorkspaceServerAdoptionComplete(user.id, localStorage);
+        markWorkspaceServerAdoptionComplete(scope.ownerScope, localStorage);
         setCurrentState({ status: "ready" });
         return;
       }
@@ -97,10 +96,13 @@ export function WorkspaceServerAdoptionGate({
         );
       }
 
-      const business = await adoptCentralBusinessEventsFromServer(user.id, {
-        limit: BUSINESS_EVENT_LIMIT,
-        maxPages: MAX_EVENT_PAGES,
-      });
+      const business = await adoptCentralBusinessEventsFromServer(
+        scope.ownerScope,
+        {
+          limit: BUSINESS_EVENT_LIMIT,
+          maxPages: MAX_EVENT_PAGES,
+        },
+      );
       if (!isCurrent()) return;
       if (!business.ok) throw new Error(business.message);
 
@@ -126,16 +128,20 @@ export function WorkspaceServerAdoptionGate({
         }
         if (invoices.value.localSync.pulledEvents < INVOICE_EVENT_LIMIT) break;
         if (page === MAX_EVENT_PAGES - 1) {
-          throw new Error("Quedan demasiadas facturas centrales por recuperar.");
+          throw new Error(
+            "Quedan demasiadas facturas centrales por recuperar.",
+          );
         }
       }
 
-      const fiscal = await syncFiscalNotificationsWorkspace(user.id);
+      const fiscal = await syncFiscalNotificationsWorkspace(scope.ownerScope);
       if (!isCurrent()) return;
       if (!fiscal.ok) throw new Error(fiscal.message);
 
-      markCentralBusinessAutomaticBootstrapVerified({ ownerScope: user.id });
-      markWorkspaceServerAdoptionComplete(user.id, localStorage);
+      markCentralBusinessAutomaticBootstrapVerified({
+        ownerScope: scope.ownerScope,
+      });
+      markWorkspaceServerAdoptionComplete(scope.ownerScope, localStorage);
       setCurrentState({ status: "ready" });
     } catch (error) {
       setCurrentState({
@@ -148,6 +154,7 @@ export function WorkspaceServerAdoptionGate({
     }
   }, [
     adoptCentralBusinessEventsFromServer,
+    activeCompany,
     emailConfirmed,
     getCurrentData,
     ready,

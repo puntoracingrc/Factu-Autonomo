@@ -2,11 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE } from "./route";
 
 const mocks = vi.hoisted(() => ({
+  companyAuth: vi.fn(),
   getUserFromBearer: vi.fn(),
   checkRateLimit: vi.fn(),
   rateLimitExceededResponse: vi.fn(),
   listCloudDevicesForUser: vi.fn(),
   revokeCloudDeviceForUser: vi.fn(),
+}));
+
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: mocks.companyAuth,
 }));
 
 vi.mock("@/lib/billing/server-auth", () => ({
@@ -39,6 +44,14 @@ describe("cloud device revoke route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getUserFromBearer.mockResolvedValue({ id: "user-1" });
+    mocks.companyAuth.mockResolvedValue({
+      userId: "user-1",
+      actorUserId: "user-1",
+      billingUserId: "user-1",
+      companyId: "user-1",
+      sessionId: "session-id",
+      userEmail: "owner@example.com",
+    });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.revokeCloudDeviceForUser.mockResolvedValue({ ok: true, devices: [] });
     mocks.listCloudDevicesForUser.mockResolvedValue({
@@ -62,7 +75,7 @@ describe("cloud device revoke route", () => {
   });
 
   it("does not reveal devices without authentication", async () => {
-    mocks.getUserFromBearer.mockResolvedValue(null);
+    mocks.companyAuth.mockResolvedValue(null);
     const response = await DELETE(request(), {
       params: Promise.resolve({ id: "lost-device" }),
     });

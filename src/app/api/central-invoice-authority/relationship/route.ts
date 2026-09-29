@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
@@ -19,16 +19,8 @@ export const dynamic = "force-dynamic";
 const MAX_RELATIONSHIP_BODY_BYTES = 8 * 1024;
 
 const routeHandler = createCentralInvoiceAuthorityRelationshipRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      sessionId: identity.sessionId,
-      userEmail: identity.user.email ?? null,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

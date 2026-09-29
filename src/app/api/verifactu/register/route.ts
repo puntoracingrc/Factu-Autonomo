@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   ensureCloudDeviceAccess,
   normalizeCloudDeviceToken,
@@ -23,7 +24,7 @@ const PRIVATE_RESPONSE_HEADERS = {
   "CDN-Cache-Control": "no-store",
   "Vercel-CDN-Cache-Control": "no-store",
   Pragma: "no-cache",
-  Vary: "Authorization, X-Factu-Device-Token",
+  Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
 } as const;
 
 function protectedResponse<T extends Response>(response: T): T {
@@ -96,11 +97,11 @@ function submissionErrorResponse(
 }
 
 export async function POST(request: Request) {
-  const identity = await getUserSessionFromBearer(
+  const auth = await getCompanyRouteAuthFromBearer(
     request.headers.get("authorization"),
-    { requireEmailConfirmed: true },
+    request.headers.get(FACTU_COMPANY_HEADER),
   );
-  if (!identity) {
+  if (!auth) {
     return privateJson(
       { error: "Inicia sesión para registrar VeriFactu." },
       { status: 401 },
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
       limit: 5,
       windowMs: 10 * 60_000,
     },
-    identity.user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return protectedResponse(rateLimitExceededResponse(rateLimit));
@@ -132,8 +133,8 @@ export async function POST(request: Request) {
 
   try {
     const deviceAccess = await ensureCloudDeviceAccess({
-      userId: identity.user.id,
-      sessionId: identity.sessionId,
+      userId: auth.billingUserId,
+      sessionId: auth.sessionId,
       token: deviceToken,
       userAgent: request.headers.get("user-agent") ?? undefined,
     });
@@ -167,13 +168,12 @@ export async function POST(request: Request) {
 
   try {
     const result = await submitCentralInvoiceToAeatPreproduction({
-      userId: identity.user.id,
+      userId: auth.userId,
       localDocumentId,
     });
     const status = result.ok
       ? 200
-      : result.status === "in_progress" ||
-          result.status === "delivery_unknown"
+      : result.status === "in_progress" || result.status === "delivery_unknown"
         ? 202
         : 422;
     return privateJson(result, { status });

@@ -28,7 +28,7 @@ describe("public VeriFactu containment", () => {
     expect(declarationRoute).not.toMatch(
       /buildDeclaration|verifactu\/declaration|AeatSubmit|ServerVerifactuEnvironment/i,
     );
-    expect(statusRoute).toContain("getUserFromBearer");
+    expect(statusRoute).toContain("getCompanyRouteAuthFromBearer");
     expect(statusRoute).toContain('submissionMode: "disabled"');
     expect(statusRoute).not.toMatch(
       /VERIFACTU_SOFTWARE|getVerifactuCertificateConfig|getProducerConfigStatus|getServerVerifactuEnvironment|isAeatSubmitConfigured|VERIFACTU_ENVIRONMENT|qrHosts|certificateConfigured|certificateChannel/i,

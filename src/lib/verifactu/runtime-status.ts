@@ -37,7 +37,12 @@ export async function loadVerifactuRuntimeState(
   try {
     const response = await fetcher("/api/verifactu/status", {
       cache: "no-store",
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(getActiveWorkspaceOwnerScope()
+          ? { [FACTU_COMPANY_HEADER]: getActiveWorkspaceOwnerScope()! }
+          : {}),
+      },
     });
     if (!response.ok) return { phase: "unavailable" };
 
@@ -96,3 +101,5 @@ export function resolveVerifactuConnectionStatus(
     tone: "unavailable",
   };
 }
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
+import { getActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";

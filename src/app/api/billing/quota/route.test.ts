@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   commitBillingQuotaServer,
   getBillingQuotaSnapshotServer,
@@ -12,8 +12,8 @@ import {
 } from "@/lib/billing/quota-server";
 import { emptyBillingQuotaSnapshot } from "@/lib/billing/quotas";
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/quota-server", () => ({
@@ -51,16 +51,21 @@ function request(body: Record<string, unknown>) {
 describe("POST /api/billing/quota", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: AUTHENTICATED_USER_ID,
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: AUTHENTICATED_USER_ID,
+      actorUserId: AUTHENTICATED_USER_ID,
+      billingUserId: AUTHENTICATED_USER_ID,
+      companyId: AUTHENTICATED_USER_ID,
+      sessionId: "session-id",
+      userEmail: "owner@example.com",
+    });
     vi.mocked(resolveServerBillingPlan).mockResolvedValue("free");
     vi.mocked(getBillingQuotaSnapshotServer).mockResolvedValue(snapshot);
     vi.mocked(reconcileBillingQuotaServer).mockResolvedValue(snapshot);
   });
 
   it("autentica antes de consultar o escribir cuotas", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(null);
 
     const response = await POST(
       request({

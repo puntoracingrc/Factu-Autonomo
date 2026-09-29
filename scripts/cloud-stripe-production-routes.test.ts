@@ -3,6 +3,7 @@ import { POST as checkoutPost } from "../src/app/api/billing/checkout/route";
 import { POST as portalPost } from "../src/app/api/billing/portal/route";
 import { POST as welcomePost } from "../src/app/api/email/welcome/route";
 import { getUserFromBearer } from "../src/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "../src/lib/companies/server";
 import { getStripe } from "../src/lib/billing/stripe";
 import { isEmailConfigured } from "../src/lib/email/config";
 import { sendWelcomeEmailForUser } from "../src/lib/email/welcome";
@@ -10,6 +11,10 @@ import { getSupabaseAdmin } from "../src/lib/supabase/admin";
 
 vi.mock("../src/lib/billing/server-auth", () => ({
   getUserFromBearer: vi.fn(),
+}));
+
+vi.mock("../src/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("../src/lib/billing/stripe", () => ({
@@ -56,6 +61,17 @@ function authenticatedRequest(url: string, body?: Record<string, unknown>) {
   });
 }
 
+function companyAuth(userId = "user_1") {
+  return {
+    userId,
+    actorUserId: userId,
+    billingUserId: userId,
+    companyId: userId,
+    sessionId: "session_1",
+    userEmail: "cliente@example.com",
+  };
+}
+
 function fakeCheckoutStripe() {
   return {
     checkout: {
@@ -99,13 +115,16 @@ describe("cloud and Stripe production routes", () => {
   it("checkout usa dominio publico en success/cancel y conserva user_id", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://facturacion-autonomos.app/");
     vi.stubEnv("STRIPE_PRICE_MONTHLY", "price_monthly");
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user_1",
-      email: "cliente@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth() as Awaited<
+        ReturnType<typeof getCompanyRouteAuthFromBearer>
+      >,
+    );
     const stripe = fakeCheckoutStripe();
     vi.mocked(getStripe).mockReturnValue(stripe as never);
-    vi.mocked(getSupabaseAdmin).mockReturnValue(fakeAdmin("cus_existing") as never);
+    vi.mocked(getSupabaseAdmin).mockReturnValue(
+      fakeAdmin("cus_existing") as never,
+    );
 
     const response = await checkoutPost(
       authenticatedRequest("http://localhost/api/billing/checkout", {
@@ -122,7 +141,8 @@ describe("cloud and Stripe production routes", () => {
         customer: "cus_existing",
         customer_email: undefined,
         line_items: [{ price: "price_monthly", quantity: 1 }],
-        success_url: "https://facturacion-autonomos.app/precios?checkout=success",
+        success_url:
+          "https://facturacion-autonomos.app/precios?checkout=success",
         cancel_url: "https://facturacion-autonomos.app/precios?checkout=cancel",
         metadata: { user_id: "user_1", plan: "pro" },
         subscription_data: { metadata: { user_id: "user_1", plan: "pro" } },
@@ -131,7 +151,7 @@ describe("cloud and Stripe production routes", () => {
   });
 
   it("checkout rechaza usuario ausente y precio no configurado", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValueOnce(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValueOnce(null);
 
     const unauthorized = await checkoutPost(
       authenticatedRequest("http://localhost/api/billing/checkout", {
@@ -143,9 +163,11 @@ describe("cloud and Stripe production routes", () => {
     expect(getStripe).not.toHaveBeenCalled();
 
     vi.resetAllMocks();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user_1",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth() as Awaited<
+        ReturnType<typeof getCompanyRouteAuthFromBearer>
+      >,
+    );
     vi.mocked(getStripe).mockReturnValue(fakeCheckoutStripe() as never);
 
     const missingPrice = await checkoutPost(
@@ -159,12 +181,16 @@ describe("cloud and Stripe production routes", () => {
 
   it("portal usa dominio publico para volver a configuracion", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://facturacion-autonomos.app/");
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user_1",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth() as Awaited<
+        ReturnType<typeof getCompanyRouteAuthFromBearer>
+      >,
+    );
     const stripe = fakePortalStripe();
     vi.mocked(getStripe).mockReturnValue(stripe as never);
-    vi.mocked(getSupabaseAdmin).mockReturnValue(fakeAdmin("cus_existing") as never);
+    vi.mocked(getSupabaseAdmin).mockReturnValue(
+      fakeAdmin("cus_existing") as never,
+    );
 
     const response = await portalPost(
       authenticatedRequest("http://localhost/api/billing/portal"),
@@ -180,7 +206,7 @@ describe("cloud and Stripe production routes", () => {
   });
 
   it("portal rechaza usuario ausente o sin cliente Stripe", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValueOnce(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValueOnce(null);
 
     const unauthorized = await portalPost(
       authenticatedRequest("http://localhost/api/billing/portal"),
@@ -190,9 +216,11 @@ describe("cloud and Stripe production routes", () => {
     expect(getStripe).not.toHaveBeenCalled();
 
     vi.resetAllMocks();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user_1",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(
+      companyAuth() as Awaited<
+        ReturnType<typeof getCompanyRouteAuthFromBearer>
+      >,
+    );
     vi.mocked(getStripe).mockReturnValue(fakePortalStripe() as never);
     vi.mocked(getSupabaseAdmin).mockReturnValue(fakeAdmin(null) as never);
 

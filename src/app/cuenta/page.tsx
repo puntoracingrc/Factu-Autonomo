@@ -2,6 +2,7 @@
 
 import { Suspense, type ReactNode } from "react";
 import {
+  Building2,
   Cloud,
   CreditCard,
   Gift,
@@ -17,6 +18,7 @@ import { AiUsageMeterCard } from "@/components/billing/AiUsageMeterCard";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
+import { CompanyManagementCard } from "@/components/companies/CompanyManagementCard";
 import { CloudDevicesCard } from "@/components/cloud/CloudDevicesCard";
 import { CentralBusinessConflictRecoveryCard } from "@/components/cloud/CentralBusinessConflictRecoveryCard";
 import { CentralBusinessBootstrapCard } from "@/components/cloud/CentralBusinessBootstrapCard";
@@ -43,6 +45,7 @@ const ACCOUNT_NAV_ITEMS: Array<{
 }> = [
   { href: "#instalar-app", label: "App", Icon: MonitorSmartphone },
   { href: "#inicio-sesion", label: "Acceso", Icon: LogIn },
+  { href: "#empresas-cuenta", label: "Empresas", Icon: Building2 },
   { href: "#plan-cuenta", label: "Plan", Icon: CreditCard },
   { href: "#sincronizacion-cuenta", label: "Sincronización", Icon: RefreshCw },
   { href: "#copias-cuenta", label: "Copias", Icon: HardDrive },
@@ -129,6 +132,17 @@ export default function CuentaPage() {
           <CloudAccountCard />
         </Suspense>
       </AccountSection>
+
+      {user ? (
+        <AccountSection
+          id="empresas-cuenta"
+          title="Empresas"
+          description="Crea espacios independientes, cambia de empresa y concede acceso total a otras cuentas de Google."
+          Icon={Building2}
+        >
+          <CompanyManagementCard />
+        </AccountSection>
+      ) : null}
 
       <AccountSection
         id="plan-cuenta"
@@ -222,8 +236,8 @@ export default function CuentaPage() {
           </h3>
           <p className="text-sm text-slate-600">
             Trae tus contactos desde archivos compatibles. Facturas,
-            presupuestos, recibos, gastos, productos, numeración y ajustes no
-            se modifican.
+            presupuestos, recibos, gastos, productos, numeración y ajustes no se
+            modifican.
           </p>
           <ButtonLink href="/importar" variant="secondary">
             Importar contactos

@@ -31,6 +31,7 @@ import { useCentralSupplierCreate } from "@/hooks/useCentralSupplierCreate";
 import { inspectFixedExpenseBundle } from "@/lib/app-data-durability";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import { filterDocumentsByQuery, sortDocumentsByNewest } from "@/lib/documents";
 import { isExpenseFiscalDeductible } from "@/lib/expenses";
 import { documentShortNumber } from "@/lib/document-links";
@@ -171,7 +172,9 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
     data: { session: null },
   };
   const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return activeCompanyRequestHeaders(
+    token ? { Authorization: `Bearer ${token}` } : {},
+  );
 }
 
 export default function NuevoGastoPage() {
@@ -1706,11 +1709,11 @@ export default function NuevoGastoPage() {
     let supplierId = resolved.supplierId;
     const usesDurableManualSupplierSave = Boolean(
       resolved.create &&
-        !editingExpense &&
-        !providerSummaryUpgradeTarget &&
-        expenseOrigin === "manual" &&
-        !usesDurableFixedSave &&
-        !usesDurableScannedSave,
+      !editingExpense &&
+      !providerSummaryUpgradeTarget &&
+      expenseOrigin === "manual" &&
+      !usesDurableFixedSave &&
+      !usesDurableScannedSave,
     );
     if (
       resolved.create &&
@@ -1906,10 +1909,7 @@ export default function NuevoGastoPage() {
       }
     } else if (providerSummaryUpgradeTarget) {
       const result = await updateCentralExpense(
-        mergeProviderSummaryWithOriginal(
-          providerSummaryUpgradeTarget,
-          payload,
-        ),
+        mergeProviderSummaryWithOriginal(providerSummaryUpgradeTarget, payload),
       );
       if (!result.ok) {
         setSaveSubmitError(result.error);

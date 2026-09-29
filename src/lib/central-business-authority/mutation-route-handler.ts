@@ -1,6 +1,4 @@
-import {
-  evaluateCentralBusinessAuthorityActivation,
-} from "./activation";
+import { evaluateCentralBusinessAuthorityActivation } from "./activation";
 import {
   CentralBusinessMutationCommandError,
   type CentralBusinessEntityType,
@@ -19,6 +17,7 @@ import type {
   CentralQuotaDecision,
   CentralQuotaReservation,
 } from "@/lib/billing/central-quota-enforcement";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 assertServerOnlyModule();
 
@@ -28,6 +27,9 @@ const MAX_BODY_BYTES = 256 * 1024;
 
 export interface CentralBusinessMutationRouteAuth {
   userId: string;
+  actorUserId?: string;
+  billingUserId?: string;
+  companyId?: string;
   sessionId: string;
   userEmail?: string | null;
 }
@@ -47,6 +49,7 @@ export interface CentralBusinessMutationRouteResponse {
 export interface CentralBusinessMutationRouteDependencies {
   authenticate(
     authorization: string | null,
+    companyId?: string | null,
   ): Promise<CentralBusinessMutationRouteAuth | null>;
   rateLimit(
     request: CentralBusinessMutationRouteRequest,
@@ -111,7 +114,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
     "CDN-Cache-Control": "no-store",
     "Vercel-CDN-Cache-Control": "no-store",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -170,8 +173,7 @@ function rpcRejection(error: CentralBusinessMutationRpcError) {
     return {
       status: 409,
       code: "CENTRAL_BUSINESS_IDEMPOTENCY_CONFLICT",
-      message:
-        "La clave de operacion ya se utilizo para un cambio diferente.",
+      message: "La clave de operacion ya se utilizo para un cambio diferente.",
     };
   }
   if (error.causeCode === "P4103") {
@@ -224,16 +226,19 @@ export function createCentralBusinessMutationRouteHandler(
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
-      const limited = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const limited = await dependencies.rateLimit(request, actorUserId);
       if (!limited.allowed) {
         return json(limited.status, limited.body, limited.headers);
       }
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
@@ -246,7 +251,7 @@ export function createCentralBusinessMutationRouteHandler(
       }
 
       const activation = evaluateCentralBusinessAuthorityActivation({
-        userId: auth.userId,
+        userId: billingUserId,
         userEmail: auth.userEmail,
       });
       if (!activation.writesEnabled) {
@@ -287,7 +292,7 @@ export function createCentralBusinessMutationRouteHandler(
         let decision: CentralQuotaDecision;
         try {
           decision = await dependencies.reserveQuota({
-            userId: auth.userId,
+            userId: billingUserId,
             mutation: body,
           });
         } catch {
@@ -319,7 +324,7 @@ export function createCentralBusinessMutationRouteHandler(
         }
         try {
           await dependencies.releaseQuota({
-            userId: auth.userId,
+            userId: billingUserId,
             reservations: quotaReservations,
           });
         } catch {
@@ -345,12 +350,12 @@ export function createCentralBusinessMutationRouteHandler(
         try {
           if (dependencies.commitQuota && quotaReservations.length > 0) {
             await dependencies.commitQuota({
-              userId: auth.userId,
+              userId: billingUserId,
               reservations: quotaReservations,
             });
           }
           await dependencies.releaseDeletedQuota?.({
-            userId: auth.userId,
+            userId: billingUserId,
             mutation: body,
           });
         } catch {

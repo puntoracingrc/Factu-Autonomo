@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import type { Document } from "@/lib/types";
 import {
   CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_NUMBERS,
@@ -227,19 +228,23 @@ async function importHistoricalInvoicesFromBrowser(
 
   let response: Response;
   try {
-    response = await fetchImpl("/api/central-invoice-authority/historical-import", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
+    response = await fetchImpl(
+      "/api/central-invoice-authority/historical-import",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
+          "Content-Type": "application/json",
+          [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
+        },
+        body: JSON.stringify({
+          mode,
+          documents: documents.map(sanitizeDocumentForHistoricalImport),
+        }),
+        cache: "no-store",
       },
-      body: JSON.stringify({
-        mode,
-        documents: documents.map(sanitizeDocumentForHistoricalImport),
-      }),
-      cache: "no-store",
-    });
+    );
   } catch {
     return errorResult(
       0,

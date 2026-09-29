@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { ensureFreeSubscriptionServer } from "@/lib/billing/server-repository";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -21,11 +23,11 @@ export async function POST(request: Request) {
       limit: 600,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const subscription = await ensureFreeSubscriptionServer(user.id);
+  const subscription = await ensureFreeSubscriptionServer(auth.billingUserId);
   if (!subscription) {
     return NextResponse.json(
       { error: "Servidor de suscripciones no disponible" },
@@ -35,6 +37,11 @@ export async function POST(request: Request) {
 
   return NextResponse.json(
     { subscription },
-    { headers: { "Cache-Control": "private, no-store" } },
+    {
+      headers: {
+        "Cache-Control": "private, no-store",
+        Vary: `Authorization, ${FACTU_COMPANY_HEADER}`,
+      },
+    },
   );
 }

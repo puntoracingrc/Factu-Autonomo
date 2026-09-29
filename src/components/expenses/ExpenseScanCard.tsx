@@ -33,6 +33,7 @@ import { ExpenseLearningConsentControl } from "./ExpenseLearningConsentControl";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import {
   buildAiUsageMeter,
   PRO_EXPENSE_SCANS_PER_MONTH,
@@ -129,8 +130,7 @@ export function ExpenseScanCard({
     quota !== null &&
     quota.remaining <= 0 &&
     quota.remaining !== Number.MAX_SAFE_INTEGER;
-  const unlimitedScanMode =
-    quota?.remainingUnits === Number.MAX_SAFE_INTEGER;
+  const unlimitedScanMode = quota?.remainingUnits === Number.MAX_SAFE_INTEGER;
   const scanBatchLimit = unlimitedScanMode
     ? Number.MAX_SAFE_INTEGER
     : MAX_SCAN_FILES;
@@ -168,11 +168,14 @@ export function ExpenseScanCard({
     }
     setLoadingQuota(true);
     try {
-      const headers: HeadersInit = {};
+      const headers = activeCompanyRequestHeaders();
       if (user) {
-        const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+        const { getSupabaseClientAsync } =
+          await import("@/lib/supabase/client");
         const supabase = await getSupabaseClientAsync();
-        const { data } = await supabase?.auth.getSession() ?? { data: { session: null } };
+        const { data } = (await supabase?.auth.getSession()) ?? {
+          data: { session: null },
+        };
         const token = data.session?.access_token;
         if (token) headers.Authorization = `Bearer ${token}`;
       }
@@ -228,11 +231,13 @@ export function ExpenseScanCard({
     const form = new FormData();
     form.append("file", uploadFile);
 
-    const headers: HeadersInit = {};
+    const headers = activeCompanyRequestHeaders();
     if (user) {
       const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
       const supabase = await getSupabaseClientAsync();
-      const { data } = await supabase?.auth.getSession() ?? { data: { session: null } };
+      const { data } = (await supabase?.auth.getSession()) ?? {
+        data: { session: null },
+      };
       const token = data.session?.access_token;
       if (token) headers.Authorization = `Bearer ${token}`;
     }
@@ -257,7 +262,7 @@ export function ExpenseScanCard({
         !res.ok || !body.data
           ? serviceUnavailable
             ? EXPENSE_SCAN_MAINTENANCE_MESSAGE
-            : body.error ?? "No se pudo escanear la factura."
+            : (body.error ?? "No se pudo escanear la factura.")
           : undefined,
       code: serviceUnavailable ? "SCAN_SERVICE_UNAVAILABLE" : undefined,
       quota: body.quota,
@@ -410,9 +415,7 @@ export function ExpenseScanCard({
         const data = result.data;
         if (data.warnings.length > 0) {
           allWarnings.push(
-            ...data.warnings.map(
-              (warning) => `${item.file.name}: ${warning}`,
-            ),
+            ...data.warnings.map((warning) => `${item.file.name}: ${warning}`),
           );
         }
         setScanQueue((current) =>
@@ -509,8 +512,8 @@ export function ExpenseScanCard({
             Escanear factura o ticket
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Foto, imagen o PDF: la app rellena proveedor, importe e IVA.
-            Siempre revisa antes de guardar.
+            Foto, imagen o PDF: la app rellena proveedor, importe e IVA. Siempre
+            revisa antes de guardar.
           </p>
           <p className="mt-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-sm text-slate-700">
             Para crear productos desde el escaneo, revisa la factura y deja
@@ -540,7 +543,10 @@ export function ExpenseScanCard({
       ) : needsAccount ? (
         <p className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700">
           Necesitas{" "}
-          <Link href="/configuracion" className="font-semibold text-sky-700 underline">
+          <Link
+            href="/configuracion"
+            className="font-semibold text-sky-700 underline"
+          >
             crear cuenta e iniciar sesión
           </Link>{" "}
           para usar el escáner (2 escaneos de prueba gratis; con Pro,{" "}
@@ -801,7 +807,8 @@ export function ExpenseScanCard({
                 {isPro ? (
                   <>
                     Has usado los {includedScanLimit} escaneos incluidos este
-                    mes. Puedes comprar un pack extra o esperar al mes que viene.
+                    mes. Puedes comprar un pack extra o esperar al mes que
+                    viene.
                   </>
                 ) : (
                   <>
@@ -809,8 +816,8 @@ export function ExpenseScanCard({
                     <Link href="/precios" className="font-semibold underline">
                       Pro
                     </Link>{" "}
-                    para escanear hasta {PRO_EXPENSE_SCANS_PER_MONTH} facturas al
-                    mes (incluido en el plan, sin coste extra).
+                    para escanear hasta {PRO_EXPENSE_SCANS_PER_MONTH} facturas
+                    al mes (incluido en el plan, sin coste extra).
                   </>
                 )}
               </p>

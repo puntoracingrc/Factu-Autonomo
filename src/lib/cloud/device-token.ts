@@ -1,5 +1,6 @@
 import {
   getActiveWorkspaceOwnerScope,
+  resolveActiveWorkspaceBillingOwnerScope,
   workspaceScopedBrowserStorageKey,
 } from "@/lib/workspace-owner-runtime";
 
@@ -17,7 +18,7 @@ export function cloudDeviceTokenStorageKey(
 ): string {
   return workspaceScopedBrowserStorageKey(
     CLOUD_DEVICE_TOKEN_STORAGE_KEY,
-    ownerScope,
+    resolveActiveWorkspaceBillingOwnerScope(ownerScope),
   );
 }
 

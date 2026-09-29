@@ -1,4 +1,5 @@
 import type { Document } from "@/lib/types";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 import {
   historicalWorkspaceDocumentHash,
@@ -38,12 +39,16 @@ export interface HistoricalWorkspaceArchiveRouteResponse {
 
 interface AuthenticatedArchiveUser {
   userId: string;
+  actorUserId?: string;
+  billingUserId?: string;
+  companyId?: string;
   sessionId: string;
 }
 
 export interface HistoricalWorkspaceArchiveRouteDependencies {
   authenticate(
     authorization: string | null,
+    companyId?: string | null,
   ): Promise<AuthenticatedArchiveUser | null>;
   rateLimit(
     request: HistoricalWorkspaceArchiveRouteRequest,
@@ -66,7 +71,9 @@ export interface HistoricalWorkspaceArchiveRouteDependencies {
     | { allowed: true; deviceId: string }
     | { allowed: false; status: number; code: string; message: string }
   >;
-  readStatus(userId: string): Promise<HistoricalWorkspaceArchiveStatusRow | null>;
+  readStatus(
+    userId: string,
+  ): Promise<HistoricalWorkspaceArchiveStatusRow | null>;
   readPage(input: {
     userId: string;
     archiveId: string;
@@ -92,7 +99,9 @@ export interface HistoricalWorkspaceArchiveRouteDependencies {
 
 function assertServerOnlyModule() {
   if (typeof window !== "undefined") {
-    throw new Error("El archivo histórico solo puede servirse desde el servidor.");
+    throw new Error(
+      "El archivo histórico solo puede servirse desde el servidor.",
+    );
   }
 }
 
@@ -102,7 +111,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
     "CDN-Cache-Control": "no-store",
     "Vercel-CDN-Cache-Control": "no-store",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -128,15 +137,15 @@ function validStatus(value: HistoricalWorkspaceArchiveStatusRow): boolean {
         Number.isFinite(Date.parse(value.completedAt));
   return Boolean(
     UUID_PATTERN.test(value.archiveId) &&
-      (value.status === "uploading" || value.status === "ready") &&
-      Number.isInteger(value.expectedDocumentCount) &&
-      value.expectedDocumentCount >= 1 &&
-      value.expectedDocumentCount <= 10_000 &&
-      Number.isInteger(value.storedDocumentCount) &&
-      value.storedDocumentCount >= 0 &&
-      value.storedDocumentCount <= value.expectedDocumentCount &&
-      SHA256_PATTERN.test(value.manifestHash) &&
-      completionIsValid,
+    (value.status === "uploading" || value.status === "ready") &&
+    Number.isInteger(value.expectedDocumentCount) &&
+    value.expectedDocumentCount >= 1 &&
+    value.expectedDocumentCount <= 10_000 &&
+    Number.isInteger(value.storedDocumentCount) &&
+    value.storedDocumentCount >= 0 &&
+    value.storedDocumentCount <= value.expectedDocumentCount &&
+    SHA256_PATTERN.test(value.manifestHash) &&
+    completionIsValid,
   );
 }
 
@@ -177,8 +186,7 @@ function archiveDocument(value: unknown): HistoricalWorkspaceArchiveDocument {
     typeof localDocumentId !== "string" ||
     localDocumentId.length < 1 ||
     localDocumentId.length > 200 ||
-    (documentKind !== "factura" &&
-      documentKind !== "factura_rectificativa") ||
+    (documentKind !== "factura" && documentKind !== "factura_rectificativa") ||
     typeof contentHash !== "string" ||
     !SHA256_PATTERN.test(contentHash) ||
     payload.id !== localDocumentId ||
@@ -186,7 +194,8 @@ function archiveDocument(value: unknown): HistoricalWorkspaceArchiveDocument {
     Object.prototype.hasOwnProperty.call(payload, "centralInvoiceAuthority") ||
     (documentKind === "factura_rectificativa") !==
       isObject(payload.rectification) ||
-    historicalWorkspaceDocumentHash(payload as unknown as Document) !== contentHash
+    historicalWorkspaceDocumentHash(payload as unknown as Document) !==
+      contentHash
   ) {
     throw new Error("INVALID_DOCUMENT");
   }
@@ -264,16 +273,19 @@ export function createHistoricalWorkspaceArchiveRouteHandler(
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
-      const limited = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const limited = await dependencies.rateLimit(request, actorUserId);
       if (!limited.allowed) {
         return json(limited.status, limited.body, limited.headers);
       }
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
@@ -289,7 +301,8 @@ export function createHistoricalWorkspaceArchiveRouteHandler(
         if (request.method === "GET") {
           const query = parsePullQuery(request.url);
           const status = await dependencies.readStatus(auth.userId);
-          if (status && !validStatus(status)) throw new Error("INVALID_STORAGE");
+          if (status && !validStatus(status))
+            throw new Error("INVALID_STORAGE");
           if (query.action === "status") {
             return json(200, {
               ok: true,

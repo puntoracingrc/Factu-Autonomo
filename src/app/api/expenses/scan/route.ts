@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/admin/access";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { isAdminEmail } from "@/lib/admin/access";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   consumeExpenseScan,
   getExpenseScanQuota,
@@ -34,7 +35,9 @@ const ADMIN_EXPENSE_SCAN_RATE_LIMIT = 300;
 function expenseScanRateLimitPolicy(adminUser: boolean) {
   return {
     namespace: adminUser ? "admin_expenses_scan" : "expenses_scan",
-    limit: adminUser ? ADMIN_EXPENSE_SCAN_RATE_LIMIT : USER_EXPENSE_SCAN_RATE_LIMIT,
+    limit: adminUser
+      ? ADMIN_EXPENSE_SCAN_RATE_LIMIT
+      : USER_EXPENSE_SCAN_RATE_LIMIT,
     windowMs: EXPENSE_SCAN_RATE_LIMIT_WINDOW_MS,
   };
 }
@@ -45,10 +48,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ quota });
   }
 
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return NextResponse.json(
       { error: "Inicia sesión para escanear gastos" },
       { status: 401 },
@@ -61,24 +65,25 @@ export async function GET(request: Request) {
       limit: 180,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  if (hasUnlimitedAiAccess(user)) {
+  if (hasUnlimitedAiAccess({ email: auth.userEmail ?? undefined })) {
     return NextResponse.json({ quota: buildUnlimitedAiQuota() });
   }
 
-  const quota = await getExpenseScanQuota(user.id);
+  const quota = await getExpenseScanQuota(auth.billingUserId);
   return NextResponse.json({ quota });
 }
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
 
-  if (isAiRouteAuthenticationRequired(request) && !user) {
+  if (isAiRouteAuthenticationRequired(request) && !auth) {
     return NextResponse.json(
       {
         error:
@@ -89,8 +94,8 @@ export async function POST(request: Request) {
   }
   const rateLimit = await checkRateLimit(
     request,
-    expenseScanRateLimitPolicy(Boolean(user && isAdminUser(user))),
-    user?.id,
+    expenseScanRateLimitPolicy(Boolean(auth && isAdminEmail(auth.userEmail))),
+    auth?.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
@@ -115,9 +120,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: fileError }, { status: 400 });
   }
 
-  const userId = user?.id ?? "dev";
+  const userId = auth?.billingUserId ?? "dev";
   const gate =
-    user && hasUnlimitedAiAccess(user)
+    auth && hasUnlimitedAiAccess({ email: auth.userEmail ?? undefined })
       ? unlimitedAiUsageResult()
       : await consumeExpenseScan(userId);
   if (!gate.allowed) {

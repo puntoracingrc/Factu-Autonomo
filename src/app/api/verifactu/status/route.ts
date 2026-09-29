@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -8,15 +9,16 @@ import {
 function protectStatusResponse<T extends Response>(response: T): T {
   response.headers.set("Cache-Control", "private, no-store, max-age=0");
   response.headers.set("Pragma", "no-cache");
-  response.headers.set("Vary", "Authorization");
+  response.headers.set("Vary", `Authorization, ${FACTU_COMPANY_HEADER}`);
   return response;
 }
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return protectStatusResponse(
       NextResponse.json({ error: "Sesión requerida" }, { status: 401 }),
     );
@@ -29,7 +31,7 @@ export async function GET(request: Request) {
       limit: 120,
       windowMs: 5 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return protectStatusResponse(rateLimitExceededResponse(rateLimit));

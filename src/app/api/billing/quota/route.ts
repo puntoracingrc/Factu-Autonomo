@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   commitBillingQuotaServer,
   getBillingQuotaSnapshotServer,
@@ -42,9 +43,7 @@ function isSource(value: unknown): value is BillingQuotaSource {
 
 function validKey(value: unknown, maxLength: number): value is string {
   return (
-    typeof value === "string" &&
-    value.length >= 1 &&
-    value.length <= maxLength
+    typeof value === "string" && value.length >= 1 && value.length <= maxLength
   );
 }
 
@@ -58,7 +57,9 @@ function subjectArray(value: unknown): string[] | null {
     : null;
 }
 
-function reconciliationInput(value: unknown): BillingQuotaReconciliationInput | null {
+function reconciliationInput(
+  value: unknown,
+): BillingQuotaReconciliationInput | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
   const documents = subjectArray(record.documents);
@@ -73,9 +74,10 @@ function reconciliationInput(value: unknown): BillingQuotaReconciliationInput | 
 }
 
 async function authenticatedUser(request: Request) {
-  return getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
+  return getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
 }
 
 export async function GET(request: Request) {
@@ -86,12 +88,15 @@ export async function GET(request: Request) {
   const rateLimit = await checkRateLimit(
     request,
     { namespace: "billing_quota_read", limit: 120, windowMs: 10 * 60_000 },
-    user.id,
+    user.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
   try {
-    const plan = await resolveServerBillingPlan(user.id);
-    const snapshot = await getBillingQuotaSnapshotServer(user.id, plan);
+    const plan = await resolveServerBillingPlan(user.billingUserId);
+    const snapshot = await getBillingQuotaSnapshotServer(
+      user.billingUserId,
+      plan,
+    );
     return NextResponse.json({ snapshot });
   } catch {
     return NextResponse.json(
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(
     request,
     { namespace: "billing_quota_write", limit: 180, windowMs: 10 * 60_000 },
-    user.id,
+    user.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
   const parsedBody = await readJsonBody<Record<string, unknown>>(request, {
@@ -124,7 +129,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const plan = await resolveServerBillingPlan(user.id);
+    const plan = await resolveServerBillingPlan(user.billingUserId);
     if (body.action === "reserve") {
       if (
         !isMetric(body.metric) ||
@@ -132,10 +137,13 @@ export async function POST(request: Request) {
         (body.subjectId !== undefined && !validKey(body.subjectId, 200)) ||
         (body.source !== undefined && !isSource(body.source))
       ) {
-        return NextResponse.json({ error: "Reserva inválida" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Reserva inválida" },
+          { status: 400 },
+        );
       }
       const result = await reserveBillingQuotaServer({
-        userId: user.id,
+        userId: user.billingUserId,
         plan,
         metric: body.metric,
         operationKey: body.operationKey,
@@ -148,23 +156,38 @@ export async function POST(request: Request) {
 
     if (body.action === "commit") {
       if (!validKey(body.claimId, 64) || !validKey(body.subjectId, 200)) {
-        return NextResponse.json({ error: "Confirmación inválida" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Confirmación inválida" },
+          { status: 400 },
+        );
       }
       await commitBillingQuotaServer({
-        userId: user.id,
+        userId: user.billingUserId,
         claimId: body.claimId,
         subjectId: body.subjectId,
       });
-      const snapshot = await getBillingQuotaSnapshotServer(user.id, plan);
+      const snapshot = await getBillingQuotaSnapshotServer(
+        user.billingUserId,
+        plan,
+      );
       return NextResponse.json({ ok: true, snapshot });
     }
 
     if (body.action === "release") {
       if (!validKey(body.claimId, 64)) {
-        return NextResponse.json({ error: "Liberación inválida" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Liberación inválida" },
+          { status: 400 },
+        );
       }
-      await releaseBillingQuotaServer({ userId: user.id, claimId: body.claimId });
-      const snapshot = await getBillingQuotaSnapshotServer(user.id, plan);
+      await releaseBillingQuotaServer({
+        userId: user.billingUserId,
+        claimId: body.claimId,
+      });
+      const snapshot = await getBillingQuotaSnapshotServer(
+        user.billingUserId,
+        plan,
+      );
       return NextResponse.json({ ok: true, snapshot });
     }
 
@@ -181,11 +204,14 @@ export async function POST(request: Request) {
         );
       }
       await removeBillingQuotaSubjectServer({
-        userId: user.id,
+        userId: user.billingUserId,
         metric: body.metric,
         subjectId: body.subjectId,
       });
-      const snapshot = await getBillingQuotaSnapshotServer(user.id, plan);
+      const snapshot = await getBillingQuotaSnapshotServer(
+        user.billingUserId,
+        plan,
+      );
       return NextResponse.json({ ok: true, snapshot });
     }
 
@@ -198,7 +224,7 @@ export async function POST(request: Request) {
         );
       }
       const snapshot = await reconcileBillingQuotaServer({
-        userId: user.id,
+        userId: user.billingUserId,
         plan,
         claims,
       });

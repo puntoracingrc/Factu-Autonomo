@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { buildAiUsageMeter } from "@/lib/billing/scan-limits";
 import { getExpenseScanQuota } from "@/lib/billing/scan-usage-server";
 import {
@@ -12,10 +13,11 @@ import {
 } from "@/lib/server/rate-limit";
 
 export async function GET(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
@@ -25,13 +27,13 @@ export async function GET(request: Request) {
       limit: 120,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const quota = hasUnlimitedAiAccess(user)
+  const quota = hasUnlimitedAiAccess({ email: auth.userEmail ?? undefined })
     ? buildUnlimitedAiQuota()
-    : await getExpenseScanQuota(user.id);
+    : await getExpenseScanQuota(auth.billingUserId);
   const meter = buildAiUsageMeter(quota);
 
   return NextResponse.json({

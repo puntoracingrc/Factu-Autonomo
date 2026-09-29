@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
@@ -17,12 +17,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 const routeHandler = createCentralInvoiceAuthorityEventsRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return { userId: identity.user.id, sessionId: identity.sessionId };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

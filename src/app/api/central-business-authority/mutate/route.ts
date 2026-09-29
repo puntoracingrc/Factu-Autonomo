@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   commitCentralQuotaReservations,
   releaseCentralQuotaReservations,
@@ -12,9 +12,7 @@ import {
   hashCloudDeviceToken,
   normalizeCloudDeviceToken,
 } from "@/lib/cloud/devices";
-import {
-  createCentralBusinessMutationRouteHandler,
-} from "@/lib/central-business-authority/mutation-route-handler";
+import { createCentralBusinessMutationRouteHandler } from "@/lib/central-business-authority/mutation-route-handler";
 import type {
   CentralBusinessMutationRpcArgs,
   CentralBusinessMutationRpcClient,
@@ -27,16 +25,8 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 256 * 1024;
 
 const handler = createCentralBusinessMutationRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      userEmail: identity.user.email ?? null,
-      sessionId: identity.sessionId,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

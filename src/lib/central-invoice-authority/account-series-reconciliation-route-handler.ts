@@ -11,6 +11,7 @@ import {
   type CentralInvoiceAuthorityAccountSeriesReconciliationRpcClient,
   type CentralInvoiceAuthorityAccountSeriesReconciliationRpcResult,
 } from "./account-series-reconciliation-rpc";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 assertServerOnlyModule();
 
@@ -22,6 +23,9 @@ const MAX_SUMMARIES = 32;
 
 export interface CentralInvoiceAuthorityAccountSeriesReconciliationRouteAuth {
   userId: string;
+  actorUserId?: string;
+  billingUserId?: string;
+  companyId?: string;
   sessionId: string;
   userEmail?: string | null;
 }
@@ -42,6 +46,7 @@ export type CentralInvoiceAuthorityAccountSeriesReconciliationRateLimitResult =
 export interface CentralInvoiceAuthorityAccountSeriesReconciliationRouteDependencies {
   authenticate(
     authorization: string | null,
+    companyId?: string | null,
   ): Promise<CentralInvoiceAuthorityAccountSeriesReconciliationRouteAuth | null>;
   rateLimit(
     request: CentralInvoiceAuthorityAccountSeriesReconciliationRouteRequest,
@@ -91,7 +96,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
   return {
     "Cache-Control": "private, no-store, max-age=0",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -181,18 +186,21 @@ export function createCentralInvoiceAuthorityAccountSeriesReconciliationRouteHan
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
 
-      const rateLimit = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const rateLimit = await dependencies.rateLimit(request, actorUserId);
       if (!rateLimit.allowed) {
         return json(rateLimit.status, rateLimit.body, rateLimit.headers);
       }
 
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
@@ -205,7 +213,7 @@ export function createCentralInvoiceAuthorityAccountSeriesReconciliationRouteHan
       }
 
       const activation = dependencies.evaluateActivation({
-        userId: auth.userId,
+        userId: billingUserId,
         userEmail: auth.userEmail,
       });
       if (!activation.fiscalWritesEnabled) {
@@ -232,9 +240,8 @@ export function createCentralInvoiceAuthorityAccountSeriesReconciliationRouteHan
 
       if (
         activation.effectiveMode === "canary" &&
-        dependencies.env[
-          CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY
-        ] === "true" &&
+        dependencies.env[CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY_KEY] ===
+          "true" &&
         body.summaries.some((summary) => summary.environment !== "test")
       ) {
         return json(409, {
@@ -273,8 +280,7 @@ export function createCentralInvoiceAuthorityAccountSeriesReconciliationRouteHan
         }
         return json(200, {
           ok: true,
-          schema:
-            CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_ROUTE,
+          schema: CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_ROUTE,
           rpcSchema:
             CENTRAL_INVOICE_AUTHORITY_ACCOUNT_SERIES_RECONCILIATION_RPC,
           results,

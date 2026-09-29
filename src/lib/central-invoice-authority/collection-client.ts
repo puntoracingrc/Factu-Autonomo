@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import type { DocumentPaymentStatus, DocumentStatus } from "@/lib/types";
 
 import type { CentralInvoiceAuthorityFormJson } from "./form-canary-client";
@@ -95,7 +96,11 @@ function errorResult(
 function identityFromPayload(
   payload: unknown,
 ): CentralInvoiceAuthorityCollectionUpdateIdentity | null {
-  if (!isObject(payload) || payload.ok !== true || !isObject(payload.rpcResult)) {
+  if (
+    !isObject(payload) ||
+    payload.ok !== true ||
+    !isObject(payload.rpcResult)
+  ) {
     return null;
   }
 
@@ -158,6 +163,7 @@ export async function updateCentralInvoiceCollectionFromBrowser(
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
         "Content-Type": "application/json",
         [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
       },

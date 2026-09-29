@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
@@ -17,16 +17,8 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
 const handler = createCentralBusinessBootstrapPreviewRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      userEmail: identity.user.email ?? null,
-      sessionId: identity.sessionId,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   authorize({ userId, userEmail }) {
     return evaluateCentralBusinessAuthorityActivation({
@@ -91,9 +83,7 @@ const handler = createCentralBusinessBootstrapPreviewRouteHandler({
       async loadPage({ from, to }) {
         const { data, error } = await admin
           .from("central_business_entities")
-          .select(
-            "entity_type,entity_id,current_version,deleted,content_hash",
-          )
+          .select("entity_type,entity_id,current_version,deleted,content_hash")
           .eq("user_id", userId)
           .in("entity_type", [
             "customer",

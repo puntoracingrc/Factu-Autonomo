@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
   normalizeCloudDeviceToken,
 } from "@/lib/cloud/devices";
-import {
-  createCentralInvoiceAuthorityCollectionRouteHandler,
-} from "@/lib/central-invoice-authority/collection-route-handler";
+import { createCentralInvoiceAuthorityCollectionRouteHandler } from "@/lib/central-invoice-authority/collection-route-handler";
 import type {
   CentralInvoiceAuthorityCollectionRpcArgs,
   CentralInvoiceAuthorityCollectionRpcClient,
@@ -21,16 +19,8 @@ export const dynamic = "force-dynamic";
 const MAX_COLLECTION_BODY_BYTES = 512 * 1024;
 
 const routeHandler = createCentralInvoiceAuthorityCollectionRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      sessionId: identity.sessionId,
-      userEmail: identity.user.email ?? null,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async rateLimit(request, userId) {
     const result = await checkRateLimit(

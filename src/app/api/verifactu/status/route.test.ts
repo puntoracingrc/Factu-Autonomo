@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 import { GET } from "./route";
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/server/rate-limit", () => ({
@@ -40,7 +40,7 @@ describe("GET /api/verifactu/status", () => {
   });
 
   it("rechaza peticiones sin bearer verificado", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(null);
 
     const response = await GET(request());
 
@@ -48,13 +48,20 @@ describe("GET /api/verifactu/status", () => {
     expect(await response.json()).toEqual({ error: "Sesión requerida" });
     expect(checkRateLimit).not.toHaveBeenCalled();
     expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(response.headers.get("vary")).toBe("Authorization");
+    expect(response.headers.get("vary")).toBe(
+      "Authorization, x-factu-company-id",
+    );
   });
 
   it("devuelve únicamente el modo desactivado sin inferir configuración", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-1",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: "user-1",
+      actorUserId: "user-1",
+      billingUserId: "user-1",
+      companyId: "user-1",
+      sessionId: "session-id",
+      userEmail: "owner@example.com",
+    });
 
     const response = await GET(request("Bearer test-token"));
     const body = await response.json();
@@ -64,22 +71,30 @@ describe("GET /api/verifactu/status", () => {
     expect(JSON.stringify(body)).not.toMatch(
       /software|producer|developer|nif|address|certificate|channel|host|config|test|production|simulated/i,
     );
-    expect(getUserFromBearer).toHaveBeenCalledWith("Bearer test-token", {
-      requireEmailConfirmed: true,
-    });
+    expect(getCompanyRouteAuthFromBearer).toHaveBeenCalledWith(
+      "Bearer test-token",
+      null,
+    );
     expect(checkRateLimit).toHaveBeenCalledWith(
       expect.any(Request),
       expect.objectContaining({ namespace: "verifactu_status" }),
       "user-1",
     );
     expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(response.headers.get("vary")).toBe("Authorization");
+    expect(response.headers.get("vary")).toBe(
+      "Authorization, x-factu-company-id",
+    );
   });
 
   it("conserva cabeceras privadas también al limitar", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-1",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: "user-1",
+      actorUserId: "user-1",
+      billingUserId: "user-1",
+      companyId: "user-1",
+      sessionId: "session-id",
+      userEmail: "owner@example.com",
+    });
     vi.mocked(checkRateLimit).mockResolvedValue({
       allowed: false,
       limit: 120,
@@ -94,6 +109,8 @@ describe("GET /api/verifactu/status", () => {
     expect(response.status).toBe(429);
     expect(rateLimitExceededResponse).toHaveBeenCalled();
     expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(response.headers.get("vary")).toBe("Authorization");
+    expect(response.headers.get("vary")).toBe(
+      "Authorization, x-factu-company-id",
+    );
   });
 });

@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 import type { CentralBusinessJson } from "./mutation-command";
 import type { CentralBusinessNumberedDocumentEntityType } from "./numbered-document-command";
@@ -38,8 +39,7 @@ interface CreateDocumentInput {
 }
 
 export type CentralBusinessNumberedDocumentBrowserInput =
-  | ReconcileSeriesInput
-  | CreateDocumentInput;
+  ReconcileSeriesInput | CreateDocumentInput;
 
 export interface CentralBusinessDocumentSeriesReconciliationBrowserResult {
   schema: typeof CENTRAL_BUSINESS_NUMBERED_DOCUMENT_CLIENT;
@@ -174,8 +174,9 @@ function parseCreation(
     sequence: value.sequence,
     scopeYear: value.scopeYear,
     contentHash: value.contentHash,
-    documentPayload:
-      value.documentPayload as { [key: string]: CentralBusinessJson },
+    documentPayload: value.documentPayload as {
+      [key: string]: CentralBusinessJson;
+    },
   };
 }
 
@@ -200,8 +201,7 @@ export async function mutateCentralBusinessNumberedDocumentFromBrowser(
   }
   const deviceToken = (
     dependencies.getDeviceToken ??
-    (() =>
-      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
+    (() => (ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null))
   )();
   if (!deviceToken) {
     return failure({
@@ -220,6 +220,7 @@ export async function mutateCentralBusinessNumberedDocumentFromBrowser(
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
           [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
           "Content-Type": "application/json",
         },

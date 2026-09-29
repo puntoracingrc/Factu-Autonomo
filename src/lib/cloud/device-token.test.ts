@@ -76,10 +76,23 @@ describe("cloud device token", () => {
     expect(getLocalCloudDeviceToken()).toBe(tokenB);
 
     forgetLocalCloudDeviceToken();
-    expect(values.has(cloudDeviceTokenStorageKey("owner-account-b"))).toBe(false);
+    expect(values.has(cloudDeviceTokenStorageKey("owner-account-b"))).toBe(
+      false,
+    );
     expect(values.get(cloudDeviceTokenStorageKey("owner-account-a"))).toBe(
       tokenA,
     );
+  });
+
+  it("reutiliza el dispositivo entre empresas del mismo titular de facturación", () => {
+    const sharedToken = "s".repeat(64);
+    setActiveWorkspaceOwnerScope("company-a", "billing-owner");
+    values.set(cloudDeviceTokenStorageKey(), sharedToken);
+
+    expect(getLocalCloudDeviceToken()).toBe(sharedToken);
+    setActiveWorkspaceOwnerScope("company-b", "billing-owner");
+    expect(getLocalCloudDeviceToken()).toBe(sharedToken);
+    expect(cloudDeviceTokenStorageKey()).toContain("billing-owner");
   });
 
   it("solo atribuye el token antiguo tras confirmar el propietario", () => {

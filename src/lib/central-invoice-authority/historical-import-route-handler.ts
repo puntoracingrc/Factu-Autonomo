@@ -10,6 +10,7 @@ import {
   CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID,
 } from "./historical-import-scope";
 import type { CentralInvoiceAuthorityJson } from "./issue-rpc-adapter";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 assertServerOnlyModule();
 
@@ -22,13 +23,15 @@ const TARGET_NUMBERS = new Set<string>(
 
 export interface CentralInvoiceAuthorityHistoricalImportRouteAuth {
   userId: string;
+  actorUserId?: string;
+  billingUserId?: string;
+  companyId?: string;
   sessionId: string;
   userEmail?: string | null;
 }
 
 type CentralInvoiceAuthorityHistoricalImportMode =
-  | "cutover_batch"
-  | "on_demand_original";
+  "cutover_batch" | "on_demand_original";
 
 export type CentralInvoiceAuthorityHistoricalImportRouteDeviceGateResult =
   | { allowed: true; deviceId: string }
@@ -75,6 +78,7 @@ export interface CentralInvoiceAuthorityHistoricalImportRpcClient {
 export interface CentralInvoiceAuthorityHistoricalImportRouteDependencies {
   authenticate(
     authorization: string | null,
+    companyId?: string | null,
   ): Promise<CentralInvoiceAuthorityHistoricalImportRouteAuth | null>;
   rateLimit(
     request: CentralInvoiceAuthorityHistoricalImportRouteRequest,
@@ -141,7 +145,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
   return {
     "Cache-Control": "private, no-store, max-age=0",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -269,7 +273,8 @@ function parseImportDocument(
 ): ParsedHistoricalInvoiceImport {
   if (!isObject(value)) throw new Error("INVALID_DOCUMENT_PAYLOAD");
   if (value.type !== "factura") throw new Error("INVALID_DOCUMENT_TYPE");
-  if (value.status === "borrador") throw new Error("DRAFT_DOCUMENT_NOT_ALLOWED");
+  if (value.status === "borrador")
+    throw new Error("DRAFT_DOCUMENT_NOT_ALLOWED");
   if (value.rectification) throw new Error("RECTIFICATION_NOT_ALLOWED");
   if (typeof value.id !== "string" || !value.id.trim()) {
     throw new Error("INVALID_LOCAL_DOCUMENT_ID");
@@ -294,7 +299,9 @@ function parseImportDocument(
     ? value.documentSnapshot
     : null;
   if (!snapshot) throw new Error("MISSING_DOCUMENT_SNAPSHOT");
-  if (normalizeInvoiceNumber(String(snapshot.number ?? "")) !== number.fullNumber) {
+  if (
+    normalizeInvoiceNumber(String(snapshot.number ?? "")) !== number.fullNumber
+  ) {
     throw new Error("DOCUMENT_SNAPSHOT_NUMBER_MISMATCH");
   }
   const issuer = isObject(snapshot.issuer) ? snapshot.issuer : null;
@@ -466,9 +473,11 @@ function parseRpcRow(
   };
 }
 
-function counts(
-  imported: Array<ReturnType<typeof parseRpcRow>>,
-): { committed: number; replayed: number; alreadyPresent: number } {
+function counts(imported: Array<ReturnType<typeof parseRpcRow>>): {
+  committed: number;
+  replayed: number;
+  alreadyPresent: number;
+} {
   return {
     committed: imported.filter((item) => item.status === "committed").length,
     replayed: imported.filter((item) => item.status === "replayed").length,
@@ -497,18 +506,21 @@ export function createCentralInvoiceAuthorityHistoricalImportRouteHandler(
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
 
-      const rateLimit = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const rateLimit = await dependencies.rateLimit(request, actorUserId);
       if (!rateLimit.allowed) {
         return json(rateLimit.status, rateLimit.body, rateLimit.headers);
       }
 
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
@@ -539,7 +551,7 @@ export function createCentralInvoiceAuthorityHistoricalImportRouteHandler(
 
       if (
         importMode === "cutover_batch" &&
-        auth.userId !== CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID
+        billingUserId !== CENTRAL_INVOICE_AUTHORITY_HISTORICAL_IMPORT_USER_ID
       ) {
         return json(403, {
           ok: false,
@@ -550,7 +562,7 @@ export function createCentralInvoiceAuthorityHistoricalImportRouteHandler(
         const activation = (
           dependencies.evaluateActivation ??
           ((input) => evaluateCentralInvoiceAuthorityActivation(input))
-        )({ userId: auth.userId, userEmail: auth.userEmail });
+        )({ userId: billingUserId, userEmail: auth.userEmail });
         if (!activation.fiscalWritesEnabled) {
           return json(409, {
             ok: false,

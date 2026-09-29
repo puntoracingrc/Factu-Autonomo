@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
+  companyAuth: vi.fn(),
   getUserFromBearer: vi.fn(),
   getUserSessionFromBearer: vi.fn(),
   checkRateLimit: vi.fn(),
@@ -9,6 +10,10 @@ const mocks = vi.hoisted(() => ({
   ensureCloudDeviceAccess: vi.fn(),
   listCloudDevicesForUser: vi.fn(),
   revokeCurrentCloudDeviceForUser: vi.fn(),
+}));
+
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: mocks.companyAuth,
 }));
 
 vi.mock("@/lib/billing/server-auth", () => ({
@@ -54,6 +59,14 @@ describe("cloud devices route", () => {
       user: { id: "user-1" },
       sessionId: "22222222-2222-4222-8222-222222222222",
     });
+    mocks.companyAuth.mockResolvedValue({
+      userId: "user-1",
+      actorUserId: "user-1",
+      billingUserId: "user-1",
+      companyId: "user-1",
+      sessionId: "22222222-2222-4222-8222-222222222222",
+      userEmail: "owner@example.com",
+    });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.listCloudDevicesForUser.mockResolvedValue({
       plan: "pro",
@@ -67,14 +80,14 @@ describe("cloud devices route", () => {
   });
 
   it("requires a confirmed authenticated user", async () => {
-    mocks.getUserFromBearer.mockResolvedValue(null);
+    mocks.companyAuth.mockResolvedValue(null);
     const response = await GET(request("GET"));
     expect(response.status).toBe(401);
     expect(mocks.listCloudDevicesForUser).not.toHaveBeenCalled();
   });
 
   it("requires verified session claims before claiming a device", async () => {
-    mocks.getUserSessionFromBearer.mockResolvedValue(null);
+    mocks.companyAuth.mockResolvedValue(null);
 
     const response = await POST(request("POST", JSON.stringify({})));
 

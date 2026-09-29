@@ -4,6 +4,7 @@ import {
   type CentralBusinessBootstrapEntityInput,
 } from "./bootstrap-preview";
 import { decodeCentralBusinessBootstrapRequestBody } from "./bootstrap-request-body";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 assertServerOnlyModule();
 
@@ -32,8 +33,12 @@ export interface CentralBusinessBootstrapPreviewRouteResponse {
 export interface CentralBusinessBootstrapPreviewRouteDependencies {
   authenticate(
     authorization: string | null,
+    companyId?: string | null,
   ): Promise<{
     userId: string;
+    actorUserId?: string;
+    billingUserId?: string;
+    companyId?: string;
     sessionId: string;
     userEmail?: string | null;
   } | null>;
@@ -81,7 +86,7 @@ function privateHeaders(extra: Record<string, string> = {}) {
     "CDN-Cache-Control": "no-store",
     "Vercel-CDN-Cache-Control": "no-store",
     Pragma: "no-cache",
-    Vary: "Authorization, X-Factu-Device-Token",
+    Vary: `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
     ...extra,
   };
 }
@@ -138,16 +143,19 @@ export function createCentralBusinessBootstrapPreviewRouteHandler(
 
       const auth = await dependencies.authenticate(
         request.headers.get("authorization"),
+        request.headers.get(FACTU_COMPANY_HEADER),
       );
       if (!auth) {
         return json(401, { ok: false, error: { code: "UNAUTHORIZED" } });
       }
-      const limited = await dependencies.rateLimit(request, auth.userId);
+      const actorUserId = auth.actorUserId ?? auth.userId;
+      const billingUserId = auth.billingUserId ?? auth.userId;
+      const limited = await dependencies.rateLimit(request, actorUserId);
       if (!limited.allowed) {
         return json(limited.status, limited.body, limited.headers);
       }
       const device = await dependencies.verifyDevice({
-        userId: auth.userId,
+        userId: billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
@@ -160,7 +168,7 @@ export function createCentralBusinessBootstrapPreviewRouteHandler(
       }
       if (
         !(await dependencies.authorize({
-          userId: auth.userId,
+          userId: billingUserId,
           userEmail: auth.userEmail,
         }))
       ) {

@@ -4,7 +4,8 @@ import {
   SCAN_PACK_FULFILLMENT_CONTRACT,
   SCAN_PACK_SIZE,
 } from "@/lib/billing/scan-packs";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { isProPlan, type PlanId } from "@/lib/billing/plans";
 import { getStripe, scanPackPriceId } from "@/lib/billing/stripe";
@@ -15,10 +16,11 @@ import {
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const rateLimit = await checkRateLimit(
@@ -28,7 +30,7 @@ export async function POST(request: Request) {
       limit: 10,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
@@ -52,13 +54,13 @@ export async function POST(request: Request) {
   const { data: subRow } = await admin
     .from("user_subscriptions")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", auth.billingUserId)
     .maybeSingle();
 
   const plan = resolveEffectivePlan(
     subRow
       ? {
-          userId: user.id,
+          userId: auth.billingUserId,
           plan: (subRow.plan as PlanId) ?? "free",
           status: subRow.status ?? "inactive",
           stripeCustomerId: subRow.stripe_customer_id,
@@ -82,12 +84,12 @@ export async function POST(request: Request) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer: customerId,
-    customer_email: customerId ? undefined : (user.email ?? undefined),
+    customer_email: customerId ? undefined : (auth.userEmail ?? undefined),
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/gastos/nuevo?checkout=scan_pack_success`,
     cancel_url: `${appUrl}/gastos/nuevo?checkout=scan_pack_cancel`,
     metadata: {
-      user_id: user.id,
+      user_id: auth.billingUserId,
       checkout_type: "scan_pack",
       scan_credits: String(SCAN_PACK_SIZE),
       fulfillment_contract: SCAN_PACK_FULFILLMENT_CONTRACT,

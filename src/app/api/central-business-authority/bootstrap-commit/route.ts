@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import {
   ensureCloudDeviceAccess,
   hashCloudDeviceToken,
   normalizeCloudDeviceToken,
 } from "@/lib/cloud/devices";
-import {
-  createCentralBusinessBootstrapCommitRouteHandler,
-} from "@/lib/central-business-authority/bootstrap-commit-route-handler";
+import { createCentralBusinessBootstrapCommitRouteHandler } from "@/lib/central-business-authority/bootstrap-commit-route-handler";
 import { listAllCentralBusinessBootstrapEntities } from "@/lib/central-business-authority/bootstrap-central-entities";
 import { evaluateCentralBusinessAuthorityActivation } from "@/lib/central-business-authority/activation";
 import {
@@ -28,16 +26,8 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
 const handler = createCentralBusinessBootstrapCommitRouteHandler({
-  async authenticate(authorization) {
-    const identity = await getUserSessionFromBearer(authorization, {
-      requireEmailConfirmed: true,
-    });
-    if (!identity) return null;
-    return {
-      userId: identity.user.id,
-      userEmail: identity.user.email ?? null,
-      sessionId: identity.sessionId,
-    };
+  authenticate(authorization, companyId) {
+    return getCompanyRouteAuthFromBearer(authorization, companyId);
   },
   async authorize({ userId, userEmail }) {
     const activation = evaluateCentralBusinessAuthorityActivation({
@@ -136,9 +126,7 @@ const handler = createCentralBusinessBootstrapCommitRouteHandler({
       async loadPage({ from, to }) {
         const { data, error } = await admin
           .from("central_business_entities")
-          .select(
-            "entity_type,entity_id,current_version,deleted,content_hash",
-          )
+          .select("entity_type,entity_id,current_version,deleted,content_hash")
           .eq("user_id", userId)
           .in("entity_type", [
             "customer",

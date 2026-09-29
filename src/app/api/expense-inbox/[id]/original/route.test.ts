@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import { getExpenseInboxOriginalAttachment } from "@/lib/expense-inbox-server";
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import { GET } from "./route";
 
-vi.mock("@/lib/billing/server-auth", () => ({
-  getUserFromBearer: vi.fn(),
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(),
 }));
 
 vi.mock("@/lib/expense-inbox-server", () => ({
@@ -14,7 +14,8 @@ vi.mock("@/lib/expense-inbox-server", () => ({
 }));
 
 vi.mock("@/lib/server/rate-limit", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/server/rate-limit")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/server/rate-limit")>();
   return {
     ...actual,
     checkRateLimit: vi.fn(),
@@ -35,10 +36,14 @@ function context(id = "inbox-item-1") {
 describe("GET /api/expense-inbox/[id]/original", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getUserFromBearer).mockResolvedValue({
-      id: "user-1",
-      email: "ana@example.com",
-    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue({
+      userId: "company-1",
+      actorUserId: "user-1",
+      billingUserId: "billing-owner-1",
+      companyId: "company-1",
+      sessionId: "session-1",
+      userEmail: "ana@example.com",
+    });
     vi.mocked(checkRateLimit).mockResolvedValue({
       allowed: true,
       limit: 30,
@@ -50,7 +55,7 @@ describe("GET /api/expense-inbox/[id]/original", () => {
   });
 
   it("exige una cuenta autenticada y confirmada", async () => {
-    vi.mocked(getUserFromBearer).mockResolvedValue(null);
+    vi.mocked(getCompanyRouteAuthFromBearer).mockResolvedValue(null);
 
     const response = await GET(request(""), context());
 
@@ -95,7 +100,7 @@ describe("GET /api/expense-inbox/[id]/original", () => {
     expect(response.headers.get("X-Factu-Source-Sha256")).toBe("a".repeat(64));
     expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
     expect(getExpenseInboxOriginalAttachment).toHaveBeenCalledWith({
-      userId: "user-1",
+      userId: "company-1",
       itemId: "inbox-item-1",
     });
   });

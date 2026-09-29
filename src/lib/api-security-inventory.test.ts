@@ -48,7 +48,11 @@ const expectedMethods: Record<string, string[]> = {
   "central-business-authority/bootstrap-commit/route.ts": ["POST"],
   "central-business-authority/bootstrap-preview/route.ts": ["POST"],
   "central-business-authority/events/route.ts": ["GET", "OPTIONS", "POST"],
-  "central-business-authority/mutate-batch/route.ts": ["GET", "OPTIONS", "POST"],
+  "central-business-authority/mutate-batch/route.ts": [
+    "GET",
+    "OPTIONS",
+    "POST",
+  ],
   "central-business-authority/mutate/route.ts": ["GET", "OPTIONS", "POST"],
   "central-business-authority/numbered-document/route.ts": [
     "GET",
@@ -70,6 +74,9 @@ const expectedMethods: Record<string, string[]> = {
   "cloud/devices/[id]/route.ts": ["DELETE"],
   "cloud/devices/session/route.ts": ["DELETE"],
   "cloud/devices/route.ts": ["DELETE", "GET", "POST"],
+  "companies/[companyId]/access/route.ts": ["DELETE", "GET", "POST"],
+  "companies/[companyId]/route.ts": ["PATCH"],
+  "companies/route.ts": ["GET", "POST"],
   "customers/parse/route.ts": ["POST"],
   "document-sync/route.ts": [
     "DELETE",
@@ -177,6 +184,9 @@ const bearerRoutes = [
   "cloud/devices/[id]/route.ts",
   "cloud/devices/session/route.ts",
   "cloud/devices/route.ts",
+  "companies/[companyId]/access/route.ts",
+  "companies/[companyId]/route.ts",
+  "companies/route.ts",
   "customers/parse/route.ts",
   "email/payment-reminder/route.ts",
   "email/welcome/route.ts",
@@ -261,6 +271,9 @@ const boundedBodyRoutes = [
   "central-invoice-authority/issue/route.ts",
   "central-invoice-authority/reconcile/route.ts",
   "cloud/devices/route.ts",
+  "companies/[companyId]/access/route.ts",
+  "companies/[companyId]/route.ts",
+  "companies/route.ts",
   "customers/parse/route.ts",
   "email/payment-reminder/route.ts",
   "email/welcome/route.ts",
@@ -348,7 +361,9 @@ describe("API security inventory", () => {
       );
     }
     for (const route of bearerRoutes) {
-      expect(sourceFor(route), route).toMatch(/getUser(?:Session)?FromBearer/);
+      expect(sourceFor(route), route).toMatch(
+        /getUser(?:Session)?FromBearer|getCompanyRouteAuthFromBearer/,
+      );
     }
     for (const route of partnerRoutes) {
       expect(sourceFor(route), route).toContain("getPartnerAccessFromRequest");
@@ -442,9 +457,7 @@ describe("API security inventory", () => {
     const source = sourceFor("admin/expense-learning-insights/route.ts");
     expect(source).toContain("getAdminAccessFromRequest(request)");
     expect(source).toContain("checkRateLimit(");
-    expect(source).toContain(
-      '"read_expense_learning_closed_week_metrics_v1"',
-    );
+    expect(source).toContain('"read_expense_learning_closed_week_metrics_v1"');
     expect(source).not.toContain(".from(");
     expect(source).not.toContain("supporting_contributors");
   });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getUserSessionFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import {
   normalizeCloudDeviceToken,
   releaseCloudDeviceSessionForUser,
@@ -14,7 +15,10 @@ export const dynamic = "force-dynamic";
 function markPrivate<T extends Response>(response: T): T {
   response.headers.set("Cache-Control", "private, no-store, max-age=0");
   response.headers.set("Pragma", "no-cache");
-  response.headers.set("Vary", "Authorization, X-Factu-Device-Token");
+  response.headers.set(
+    "Vary",
+    `Authorization, X-Factu-Device-Token, ${FACTU_COMPANY_HEADER}`,
+  );
   return response;
 }
 
@@ -23,11 +27,11 @@ function privateJson(body: unknown, init?: ResponseInit) {
 }
 
 export async function DELETE(request: Request) {
-  const identity = await getUserSessionFromBearer(
+  const auth = await getCompanyRouteAuthFromBearer(
     request.headers.get("authorization"),
-    { requireEmailConfirmed: true },
+    request.headers.get(FACTU_COMPANY_HEADER),
   );
-  if (!identity) {
+  if (!auth) {
     return privateJson({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -38,7 +42,7 @@ export async function DELETE(request: Request) {
       limit: 30,
       windowMs: 10 * 60_000,
     },
-    identity.user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     return markPrivate(rateLimitExceededResponse(rateLimit));
@@ -56,9 +60,9 @@ export async function DELETE(request: Request) {
 
   try {
     await releaseCloudDeviceSessionForUser({
-      userId: identity.user.id,
+      userId: auth.billingUserId,
       currentToken: token,
-      sessionId: identity.sessionId,
+      sessionId: auth.sessionId,
     });
     return privateJson({ ok: true });
   } catch {

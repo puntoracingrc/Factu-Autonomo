@@ -8,6 +8,7 @@ import {
   captureActiveWorkspaceOwnerScope,
   getActiveWorkspaceAccessToken,
 } from "@/lib/cloud/active-workspace-session";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 import type {
   CentralBusinessEntityType,
@@ -146,9 +147,8 @@ export async function pullCentralBusinessEventsFromBrowser(
   dependencies: CentralBusinessEventsClientDependencies = {},
 ): Promise<CentralBusinessEventsPullResult> {
   const afterSequence =
-    Number.isSafeInteger(input.afterSequence) &&
-    (input.afterSequence ?? 0) >= 0
-      ? input.afterSequence ?? 0
+    Number.isSafeInteger(input.afterSequence) && (input.afterSequence ?? 0) >= 0
+      ? (input.afterSequence ?? 0)
       : 0;
   const limit =
     Number.isInteger(input.limit) && (input.limit ?? 0) > 0
@@ -170,8 +170,7 @@ export async function pullCentralBusinessEventsFromBrowser(
   }
   const deviceToken = (
     dependencies.getDeviceToken ??
-    (() =>
-      ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null)
+    (() => (ownerScope ? getOrCreateLocalCloudDeviceToken(ownerScope) : null))
   )();
   if (!deviceToken) {
     return failure(
@@ -189,6 +188,7 @@ export async function pullCentralBusinessEventsFromBrowser(
         method: "GET",
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          ...(ownerScope ? { [FACTU_COMPANY_HEADER]: ownerScope } : {}),
           [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
         },
         cache: "no-store",
