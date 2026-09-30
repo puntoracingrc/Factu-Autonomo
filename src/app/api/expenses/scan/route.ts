@@ -8,7 +8,7 @@ import {
 } from "@/lib/billing/scan-usage-server";
 import {
   buildUnlimitedAiQuota,
-  hasUnlimitedAiAccess,
+  hasUnlimitedAiAccessForCompany,
   unlimitedAiUsageResult,
 } from "@/lib/billing/unlimited-ai-access";
 import {
@@ -69,7 +69,12 @@ export async function GET(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  if (hasUnlimitedAiAccess({ email: auth.userEmail ?? undefined })) {
+  if (
+    await hasUnlimitedAiAccessForCompany({
+      user: { email: auth.userEmail ?? undefined },
+      companyId: auth.companyId,
+    })
+  ) {
     return NextResponse.json({ quota: buildUnlimitedAiQuota() });
   }
 
@@ -121,8 +126,14 @@ export async function POST(request: Request) {
   }
 
   const userId = auth?.billingUserId ?? "dev";
+  const unlimitedAiAccess = auth
+    ? await hasUnlimitedAiAccessForCompany({
+        user: { email: auth.userEmail ?? undefined },
+        companyId: auth.companyId,
+      })
+    : false;
   const gate =
-    auth && hasUnlimitedAiAccess({ email: auth.userEmail ?? undefined })
+    auth && unlimitedAiAccess
       ? unlimitedAiUsageResult()
       : await consumeExpenseScan(userId);
   if (!gate.allowed) {

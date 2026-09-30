@@ -3,7 +3,7 @@ import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { consumeFiscalAiFallback } from "@/lib/billing/scan-usage-server";
-import { hasUnlimitedAiAccess } from "@/lib/billing/unlimited-ai-access";
+import { hasUnlimitedAiAccessForCompany } from "@/lib/billing/unlimited-ai-access";
 import {
   fiscalAiFallbackTriggerFor,
   runFiscalAiFallbackAfterLocal,
@@ -18,6 +18,23 @@ vi.mock("@/lib/billing/server-auth", () => ({
   getUserFromBearer: vi.fn(),
 }));
 
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(async (authorization: string | null) => {
+    const user = await getUserFromBearer(authorization, {
+      requireEmailConfirmed: true,
+    });
+    if (!user) return null;
+    return {
+      userId: user.id,
+      actorUserId: user.id,
+      billingUserId: user.id,
+      companyId: user.id,
+      sessionId: "test-session",
+      userEmail: user.email ?? null,
+    };
+  }),
+}));
+
 vi.mock("@/lib/billing/config", () => ({
   isBillingEnforced: vi.fn(),
 }));
@@ -29,7 +46,7 @@ vi.mock("@/lib/billing/scan-usage-server", () => ({
 vi.mock("@/lib/billing/unlimited-ai-access", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/lib/billing/unlimited-ai-access")>();
-  return { ...actual, hasUnlimitedAiAccess: vi.fn() };
+  return { ...actual, hasUnlimitedAiAccessForCompany: vi.fn() };
 });
 
 vi.mock("@/lib/expense-deductibility/ai-fallback/orchestrator", () => ({
@@ -226,7 +243,7 @@ describe("POST /api/expense-deductibility/evaluate", () => {
     vi.mocked(isBillingEnforced).mockReturnValue(false);
     vi.mocked(isOpenAiConfigured).mockReturnValue(true);
     vi.mocked(consumeFiscalAiFallback).mockResolvedValue(ALLOWED_USAGE);
-    vi.mocked(hasUnlimitedAiAccess).mockReturnValue(false);
+    vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(false);
     vi.mocked(runFiscalAiFallbackAfterLocal).mockImplementation(
       async ({ localResult }) => aiProposal(localResult),
     );

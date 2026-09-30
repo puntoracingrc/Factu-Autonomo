@@ -9,6 +9,10 @@ const companyListConflictHotfixMigration = readFileSync(
   "supabase/migrations/20260929150510_fix_company_list_conflict_target.sql",
   "utf8",
 );
+const companyAiEntitlementsMigration = readFileSync(
+  "supabase/migrations/20260930005016_company_ai_entitlements.sql",
+  "utf8",
+);
 
 const sensitiveRouteHandlers = [
   "src/lib/central-business-authority/mutation-route-handler.ts",
@@ -108,5 +112,37 @@ describe("company workspace security contract", () => {
     }
     expect(inbox).toContain("ensureExpenseInboxAlias(auth.userId)");
     expect(inbox).toContain("listExpenseInboxItems(auth.userId)");
+  });
+
+  it("stores permanent AI access on the company without exposing grants to clients", () => {
+    expect(companyAiEntitlementsMigration).toMatch(/^begin;/);
+    expect(companyAiEntitlementsMigration.trimEnd()).toMatch(/commit;$/);
+    expect(companyAiEntitlementsMigration).toContain(
+      "create table if not exists public.app_company_ai_entitlements",
+    );
+    expect(companyAiEntitlementsMigration).toContain(
+      "references public.app_companies(id) on delete cascade",
+    );
+    expect(companyAiEntitlementsMigration).toContain(
+      "alter table public.app_company_ai_entitlements enable row level security",
+    );
+    expect(companyAiEntitlementsMigration).toContain(
+      "from public, anon, authenticated",
+    );
+    expect(companyAiEntitlementsMigration).toContain("to service_role");
+    expect(companyAiEntitlementsMigration).not.toMatch(
+      /grant\s+(?:all|select|insert|update|delete)[^;]*app_company_ai_entitlements[^;]*authenticated/i,
+    );
+  });
+
+  it("resolves inbound expense scans through company billing without mixing inbox data", () => {
+    const server = readFileSync("src/lib/expense-inbox-server.ts", "utf8");
+
+    expect(server).toContain("resolveCompanyBillingFromDataOwner(alias.user_id)");
+    expect(server).toContain("userId: alias.user_id");
+    expect(server).toContain("billingUserId: billing.billingUserId");
+    expect(server).toContain("companyId: billing.companyId");
+    expect(server).toContain("consumeExpenseScan(input.billingUserId)");
+    expect(server).not.toContain("consumeExpenseScan(input.userId)");
   });
 });

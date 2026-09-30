@@ -49,6 +49,7 @@ interface BillingContextValue {
   billingEnabled: boolean;
   plan: PlanId;
   isPro: boolean;
+  unlimitedAi: boolean;
   limits: ReturnType<typeof getPlanLimits>;
   documentsThisMonth: number;
   showUsageWarning: boolean;
@@ -149,6 +150,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
 
   const limits = getPlanLimits(plan);
   const isPro = isProPlan(plan);
+  const unlimitedAi = subscription?.unlimitedAi === true;
   const trialDaysLeft = trialDaysRemaining(subscription);
 
   const getAccessToken = useCallback(async () => {
@@ -495,6 +497,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       billingEnabled,
       plan,
       isPro,
+      unlimitedAi,
       limits,
       documentsThisMonth,
       showUsageWarning,
@@ -530,6 +533,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       reserveQuota,
       showUsageWarning,
       trialDaysLeft,
+      unlimitedAi,
     ],
   );
 

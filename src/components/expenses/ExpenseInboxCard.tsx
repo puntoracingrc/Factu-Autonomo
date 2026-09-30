@@ -107,13 +107,15 @@ export function ExpenseInboxCard({
         usageResponse && usageResponse.ok
           ? ((await usageResponse.json().catch(() => ({}))) as AiUsageResponse)
           : null;
-      const percentRemaining = usageBody?.meter?.percentRemaining;
+      const meter = usageBody?.meter;
       setUsageLabel(
-        typeof percentRemaining === "number"
-          ? `IA ${percentRemaining}% restante`
+        meter?.mode === "unlimited"
+          ? "IA sin límite"
+          : typeof meter?.percentRemaining === "number"
+            ? `IA ${meter.percentRemaining}% restante`
           : null,
       );
-      setUsageMode(usageBody?.meter?.mode ?? null);
+      setUsageMode(meter?.mode ?? null);
 
       if (!response.ok) {
         setError(body.error ?? "No se pudo cargar el buzón.");

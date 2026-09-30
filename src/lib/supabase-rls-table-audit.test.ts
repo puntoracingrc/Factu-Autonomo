@@ -198,6 +198,13 @@ const companyWorkspacesMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const companyAiEntitlementsMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260930005016_company_ai_entitlements.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -274,6 +281,9 @@ const companyWorkspaceServiceTables = [
   "app_company_invitations",
   "app_company_access_audit",
 ] as const;
+const companyAiEntitlementServiceTables = [
+  "app_company_ai_entitlements",
+] as const;
 const serverDocumentTables = [
   "server_documents",
   "server_document_versions",
@@ -306,6 +316,7 @@ const classifiedTables = new Set([
   ...centralVerifactuServiceReadOnlyTables,
   ...centralWorkspaceHistoricalArchiveServiceOnlyTables,
   ...companyWorkspaceServiceTables,
+  ...companyAiEntitlementServiceTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -689,6 +700,32 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         ),
       );
       expect(companyWorkspacesMigrationSource).toMatch(
+        new RegExp(
+          `grant\\s+[^;]*on table public\\.${escapedTable(table)}[^;]*to\\s+service_role`,
+          "iu",
+        ),
+      );
+    }
+  });
+
+  it("keeps company AI entitlements server-only", () => {
+    for (const table of companyAiEntitlementServiceTables) {
+      expect(companyAiEntitlementsMigrationSource).toContain(
+        `alter table public.${table} enable row level security`,
+      );
+      expect(companyAiEntitlementsMigrationSource).toMatch(
+        new RegExp(
+          `revoke all on table public\\.${escapedTable(table)}[\\s\\S]*?from public, anon, authenticated`,
+          "i",
+        ),
+      );
+      expect(companyAiEntitlementsMigrationSource).not.toMatch(
+        new RegExp(
+          `grant\\s+[^;]*on table public\\.${escapedTable(table)}[^;]*to\\s+(?:anon|authenticated)`,
+          "iu",
+        ),
+      );
+      expect(companyAiEntitlementsMigrationSource).toMatch(
         new RegExp(
           `grant\\s+[^;]*on table public\\.${escapedTable(table)}[^;]*to\\s+service_role`,
           "iu",

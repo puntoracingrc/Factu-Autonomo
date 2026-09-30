@@ -15,6 +15,7 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import {
   adaptExistingExpenseForEvaluation,
   parseEuroInputToCents,
@@ -431,7 +432,7 @@ export function ExpenseDeductibilityAnalyzer({
       if (controller.signal.aborted) return;
       const response = await fetch("/api/expense-deductibility/evaluate", {
         method: "POST",
-        headers,
+        headers: activeCompanyRequestHeaders(headers),
         body: JSON.stringify({ ...payload, allowAiFallback }),
         signal: controller.signal,
       });

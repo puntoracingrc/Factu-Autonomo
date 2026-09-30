@@ -17,6 +17,7 @@ import {
 } from "@/components/legal/AiProcessingConsentNotice";
 import { Button } from "@/components/ui/Button";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import {
   FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1,
   FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MODEL_V1,
@@ -164,11 +165,11 @@ export function FiscalNotificationLibraryAiAudit({
       }
       const response = await fetch("/api/fiscal-notifications/audit", {
         method: "POST",
-        headers: {
+        headers: activeCompanyRequestHeaders({
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
           "X-AI-Consent-Version": AI_PROCESSING_CONSENT_VERSION,
-        },
+        }),
         body: auditPayloadTransportJson,
         signal: controller.signal,
       });

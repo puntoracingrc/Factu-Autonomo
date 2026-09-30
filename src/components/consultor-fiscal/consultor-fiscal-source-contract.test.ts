@@ -250,7 +250,9 @@ describe("contratos estáticos de servidor y seguridad", () => {
     const localEngineIndex = route.indexOf(
       "const localResult = evaluateExpense(",
     );
-    const authIndex = route.indexOf("const user = await getUserFromBearer(");
+    const authIndex = route.indexOf(
+      "const auth = await getCompanyRouteAuthFromBearer(",
+    );
     const providerIndex = route.indexOf("runFiscalAiFallbackAfterLocal({");
 
     expect(
@@ -268,7 +270,8 @@ describe("contratos estáticos de servidor y seguridad", () => {
     expect(route).toContain("parseEvaluationRequest(body.data)");
     expect(localEngineIndex).toBeGreaterThan(bodyReadIndex);
     expect(providerIndex).toBeGreaterThan(localEngineIndex);
-    expect(route).toContain("getUserFromBearer");
+    expect(route).toContain("getCompanyRouteAuthFromBearer");
+    expect(route).toContain("FACTU_COMPANY_HEADER");
     expect(route).toContain('namespace: "expense_deductibility_ai_fallback"');
     expect(route).toContain("AI_PROCESSING_CONSENT_VERSION");
     expect(route).toContain(

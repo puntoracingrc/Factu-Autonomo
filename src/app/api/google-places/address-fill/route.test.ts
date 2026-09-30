@@ -1,11 +1,32 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeAddressAutofill } from "@/lib/billing/scan-usage-server";
+import {
+  hasUnlimitedAiAccessForCompany,
+  unlimitedAiUsageResult,
+} from "@/lib/billing/unlimited-ai-access";
 
 vi.mock("@/lib/billing/server-auth", () => ({
   getUserFromBearer: vi.fn(),
+}));
+
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(async (authorization: string | null) => {
+    const user = await getUserFromBearer(authorization, {
+      requireEmailConfirmed: true,
+    });
+    if (!user) return null;
+    return {
+      userId: user.id,
+      actorUserId: user.id,
+      billingUserId: user.id,
+      companyId: user.id,
+      sessionId: "test-session",
+      userEmail: user.email ?? null,
+    };
+  }),
 }));
 
 vi.mock("@/lib/billing/server-repository", () => ({
@@ -15,6 +36,16 @@ vi.mock("@/lib/billing/server-repository", () => ({
 vi.mock("@/lib/billing/scan-usage-server", () => ({
   consumeAddressAutofill: vi.fn(),
 }));
+
+vi.mock("@/lib/billing/unlimited-ai-access", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/billing/unlimited-ai-access")>();
+  return {
+    ...actual,
+    hasUnlimitedAiAccessForCompany: vi.fn(),
+    unlimitedAiUsageResult: vi.fn(actual.unlimitedAiUsageResult),
+  };
+});
 
 function request(token: string | null) {
   return new Request("http://localhost/api/google-places/address-fill", {
@@ -37,6 +68,10 @@ function subscription(plan: "free" | "pro" | "pro_plus" | "trial") {
 }
 
 describe("POST /api/google-places/address-fill", () => {
+  beforeEach(() => {
+    vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(false);
+  });
+
   afterEach(() => {
     vi.resetAllMocks();
     vi.unstubAllEnvs();
@@ -97,6 +132,26 @@ describe("POST /api/google-places/address-fill", () => {
 
     expect(response.status).toBe(200);
     expect(consumeAddressAutofill).toHaveBeenCalledWith("user-pro");
+  });
+
+  it("no consulta plan ni consume credito cuando la empresa tiene IA ilimitada", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-admin",
+      email: "socio@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(true);
+
+    const response = await POST(request("token-admin"));
+
+    expect(response.status).toBe(200);
+    expect(hasUnlimitedAiAccessForCompany).toHaveBeenCalledWith({
+      user: { email: "socio@example.com" },
+      companyId: "user-admin",
+    });
+    expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
+    expect(consumeAddressAutofill).not.toHaveBeenCalled();
+    expect(unlimitedAiUsageResult).toHaveBeenCalledOnce();
   });
 
   it("devuelve pago requerido si el usuario Pro no tiene saldo IA", async () => {

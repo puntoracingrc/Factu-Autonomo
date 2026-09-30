@@ -5,7 +5,7 @@ import { buildAiUsageMeter } from "@/lib/billing/scan-limits";
 import { getExpenseScanQuota } from "@/lib/billing/scan-usage-server";
 import {
   buildUnlimitedAiQuota,
-  hasUnlimitedAiAccess,
+  hasUnlimitedAiAccessForCompany,
 } from "@/lib/billing/unlimited-ai-access";
 import {
   checkRateLimit,
@@ -31,7 +31,11 @@ export async function GET(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const quota = hasUnlimitedAiAccess({ email: auth.userEmail ?? undefined })
+  const unlimitedAiAccess = await hasUnlimitedAiAccessForCompany({
+    user: { email: auth.userEmail ?? undefined },
+    companyId: auth.companyId,
+  });
+  const quota = unlimitedAiAccess
     ? buildUnlimitedAiQuota()
     : await getExpenseScanQuota(auth.billingUserId);
   const meter = buildAiUsageMeter(quota);

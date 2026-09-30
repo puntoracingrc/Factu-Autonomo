@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeCustomerAiAutofill } from "@/lib/billing/scan-usage-server";
 import {
-  hasUnlimitedAiAccess,
+  hasUnlimitedAiAccessForCompany,
   unlimitedAiUsageResult,
 } from "@/lib/billing/unlimited-ai-access";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
@@ -42,11 +43,12 @@ async function canUseCustomerAi(userId: string): Promise<{
 }
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
 
-  if (isAiRouteAuthenticationRequired(request) && !user) {
+  if (isAiRouteAuthenticationRequired(request) && !auth) {
     return NextResponse.json(
       {
         error:
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
       limit: 30,
       windowMs: 10 * 60_000,
     },
-    user?.id,
+    auth?.actorUserId,
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
@@ -114,16 +116,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const unlimitedAccess = hasUnlimitedAiAccess(user);
+  const unlimitedAccess = auth
+    ? await hasUnlimitedAiAccessForCompany({
+        user: { email: auth.userEmail ?? undefined },
+        companyId: auth.companyId,
+      })
+    : false;
   const gate =
-    user && !unlimitedAccess
-      ? await canUseCustomerAi(user.id)
+    auth && !unlimitedAccess
+      ? await canUseCustomerAi(auth.billingUserId)
       : { allowed: true };
   if (!gate.allowed) {
     return NextResponse.json({ error: gate.reason }, { status: 402 });
   }
 
-  const userId = user?.id ?? "dev";
+  const userId = auth?.billingUserId ?? "dev";
   const usage = unlimitedAccess
     ? unlimitedAiUsageResult()
     : await consumeCustomerAiAutofill(userId);
