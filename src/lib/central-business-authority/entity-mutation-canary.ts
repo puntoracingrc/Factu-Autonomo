@@ -7,6 +7,7 @@ import type {
 import type { AppData } from "@/lib/types";
 
 import {
+  CentralBusinessDurableQueueError,
   discardCentralBusinessOperation,
   drainCentralBusinessDurableQueue,
   enqueueCentralBusinessOperation,
@@ -343,11 +344,13 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
         delivery: "central_confirmed",
       };
     });
-  } catch {
+  } catch (error) {
     return {
       ok: false,
       error:
-        "No se pudo preparar y verificar la cola segura. No se aplicó el cambio.",
+        error instanceof CentralBusinessDurableQueueError
+          ? error.message
+          : "No se pudo preparar y verificar la cola segura. No se aplicó el cambio.",
     };
   }
 }

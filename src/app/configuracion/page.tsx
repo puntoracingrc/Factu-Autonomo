@@ -89,6 +89,10 @@ import {
   normalizeBusinessProfileForSave,
 } from "@/lib/business-profile";
 import {
+  BusinessLogoPreparationError,
+  prepareBusinessLogo,
+} from "@/lib/business-logo";
+import {
   DEFAULT_QUOTE_VALIDITY_DAYS,
   MAX_QUOTE_VALIDITY_DAYS,
   normalizeQuoteValidityDays,
@@ -367,22 +371,23 @@ export default function ConfiguracionPage() {
     return true;
   }
 
-  function handleLogoFile(file: File | undefined) {
+  async function handleLogoFile(file: File | undefined) {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert("El logo debe pesar menos de 2 MB.");
-      return;
+    setSaved(false);
+    setSaveError(null);
+    setSaveBusy(true);
+    try {
+      const logoUrl = await prepareBusinessLogo(file);
+      setSaveBusy(false);
+      await persistProfile({ ...form, logoUrl });
+    } catch (error) {
+      setSaveBusy(false);
+      setSaveError(
+        error instanceof BusinessLogoPreparationError
+          ? error.message
+          : "No se pudo preparar el logo. Comprueba que sea un PNG, JPG o WebP válido.",
+      );
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        const next = { ...form, logoUrl: result };
-        setForm(next);
-        void persistProfile(next);
-      }
-    };
-    reader.readAsDataURL(file);
   }
 
   async function handleRemoveLogo() {
@@ -909,8 +914,8 @@ export default function ConfiguracionPage() {
             <div className="space-y-3">
               <Input
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/*"
-                onChange={(e) => handleLogoFile(e.target.files?.[0])}
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => void handleLogoFile(e.target.files?.[0])}
               />
               {form.logoUrl && (
                 <div className="flex flex-wrap items-center gap-4">
