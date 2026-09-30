@@ -280,6 +280,41 @@ export async function getCompanyRouteAuthFromBearer(
   }
 }
 
+export async function resolveCompanyBillingFromDataOwner(
+  dataOwnerId: string,
+): Promise<{ companyId: string; billingUserId: string }> {
+  const normalizedDataOwnerId = normalizeCompanyId(dataOwnerId);
+  if (!normalizedDataOwnerId) {
+    return { companyId: dataOwnerId, billingUserId: dataOwnerId };
+  }
+
+  const { data, error } = await adminClient()
+    .from("app_companies")
+    .select("id, billing_owner_user_id")
+    .eq("data_owner_id", normalizedDataOwnerId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  const row = data as
+    | { id?: unknown; billing_owner_user_id?: unknown }
+    | null;
+  if (
+    typeof row?.id === "string" &&
+    typeof row.billing_owner_user_id === "string"
+  ) {
+    return {
+      companyId: row.id,
+      billingUserId: row.billing_owner_user_id,
+    };
+  }
+
+  return {
+    companyId: normalizedDataOwnerId,
+    billingUserId: normalizedDataOwnerId,
+  };
+}
+
 export async function inviteCompanyAdmin(
   identity: VerifiedUserSession,
   companyId: string,

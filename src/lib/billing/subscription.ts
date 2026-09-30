@@ -17,6 +17,7 @@ export interface UserSubscription {
   currentPeriodEnd?: string | null;
   promotionalPlan?: PaidPlanId | null;
   promotionalPlanEndsAt?: string | null;
+  unlimitedAi?: boolean;
 }
 
 export function resolveEffectivePlan(

@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExpenseScanPayload } from "./expense-scan/schema";
+import { consumeExpenseScan } from "@/lib/billing/scan-usage-server";
+import { hasUnlimitedAiAccessForCompany } from "@/lib/billing/unlimited-ai-access";
+import { resolveCompanyBillingFromDataOwner } from "@/lib/companies/server";
+
+const COMPANY_ID = "ebf7802a-d38c-4fb0-9dd1-fb387f7fa092";
+const DATA_OWNER_ID = "ebf7802a-d38c-4fb0-9dd1-fb387f7fa092";
+const BILLING_OWNER_ID = "31fd96e3-5eda-4d35-ba6f-79719e1d4d8c";
 
 const aliasRows: Array<Record<string, unknown>> = [
   {
-    user_id: "user-1",
+    user_id: DATA_OWNER_ID,
     alias_token: "pa-inbox01",
     active: true,
   },
@@ -16,6 +23,23 @@ vi.mock("@/lib/billing/config", () => ({
 
 vi.mock("@/lib/billing/scan-usage-server", () => ({
   consumeExpenseScan: vi.fn(async () => ({ allowed: true })),
+}));
+
+vi.mock("@/lib/billing/unlimited-ai-access", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/billing/unlimited-ai-access")>();
+  return {
+    ...actual,
+    hasUnlimitedAiAccessForCompany: vi.fn(async () => false),
+    unlimitedAiUsageResult: vi.fn(actual.unlimitedAiUsageResult),
+  };
+});
+
+vi.mock("@/lib/companies/server", () => ({
+  resolveCompanyBillingFromDataOwner: vi.fn(async () => ({
+    companyId: COMPANY_ID,
+    billingUserId: BILLING_OWNER_ID,
+  })),
 }));
 
 vi.mock("@/lib/expense-scan/openai", () => ({
@@ -182,6 +206,8 @@ vi.mock("@/lib/supabase/admin", () => ({
 describe("expense inbox server", () => {
   beforeEach(() => {
     inboxRows.splice(0, inboxRows.length);
+    vi.clearAllMocks();
+    vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(false);
   });
 
   it("acumula adjuntos de emails distintos y cierra solo la entrada indicada", async () => {
@@ -219,7 +245,7 @@ describe("expense inbox server", () => {
     expect(first).toMatchObject({ accepted: 1, pending: 1, duplicates: 0 });
     expect(second).toMatchObject({ accepted: 1, pending: 1, duplicates: 0 });
 
-    const items = await listExpenseInboxItems("user-1");
+    const items = await listExpenseInboxItems(DATA_OWNER_ID);
 
     expect(items).toHaveLength(2);
     expect(items.map((item) => item.attachmentFilename).sort()).toEqual([
@@ -229,15 +255,48 @@ describe("expense inbox server", () => {
     expect(new Set(items.map((item) => item.id)).size).toBe(2);
 
     await updateExpenseInboxItemStatus({
-      userId: "user-1",
+      userId: DATA_OWNER_ID,
       itemId: items[0]!.id,
       status: "processed",
     });
 
-    const remaining = await listExpenseInboxItems("user-1");
+    const remaining = await listExpenseInboxItems(DATA_OWNER_ID);
 
     expect(remaining).toHaveLength(1);
     expect(remaining[0]!.id).toBe(items[1]!.id);
     expect(remaining[0]!.status).toBe("pending");
+    expect(resolveCompanyBillingFromDataOwner).toHaveBeenCalledWith(
+      DATA_OWNER_ID,
+    );
+    expect(consumeExpenseScan).toHaveBeenCalledTimes(2);
+    expect(consumeExpenseScan).toHaveBeenNthCalledWith(1, BILLING_OWNER_ID);
+    expect(consumeExpenseScan).toHaveBeenNthCalledWith(2, BILLING_OWNER_ID);
+  });
+
+  it("mantiene el buzon separado pero no consume cuota si la empresa tiene IA ilimitada", async () => {
+    vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(true);
+    const { ingestExpenseInboxEmail, listExpenseInboxItems } = await import(
+      "./expense-inbox-server"
+    );
+
+    const result = await ingestExpenseInboxEmail({
+      To: "gastos-pa-inbox01@mail.facturacion-autonomos.app",
+      From: "Proveedor tres <tres@example.test>",
+      Subject: "Factura ilimitada",
+      Attachments: [
+        {
+          Name: "factura-ilimitada.pdf",
+          ContentType: "application/pdf",
+          Content: Buffer.from("factura ilimitada").toString("base64"),
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({ accepted: 1, pending: 1, errors: 0 });
+    expect(await listExpenseInboxItems(DATA_OWNER_ID)).toHaveLength(1);
+    expect(hasUnlimitedAiAccessForCompany).toHaveBeenCalledWith({
+      companyId: COMPANY_ID,
+    });
+    expect(consumeExpenseScan).not.toHaveBeenCalled();
   });
 });

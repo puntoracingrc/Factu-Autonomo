@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureFreeSubscriptionServer } from "@/lib/billing/server-repository";
 import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
 import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
+import { hasUnlimitedAiAccessForCompany } from "@/lib/billing/unlimited-ai-access";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -35,8 +36,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const unlimitedAi = await hasUnlimitedAiAccessForCompany({
+    user: { email: auth.userEmail ?? undefined },
+    companyId: auth.companyId,
+  });
+
   return NextResponse.json(
-    { subscription },
+    { subscription: { ...subscription, unlimitedAi } },
     {
       headers: {
         "Cache-Control": "private, no-store",

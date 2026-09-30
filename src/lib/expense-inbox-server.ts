@@ -3,6 +3,11 @@ import { resolveMx } from "node:dns/promises";
 import { isBillingEnforced } from "@/lib/billing/config";
 import { isProPlan } from "@/lib/billing/plans";
 import { consumeExpenseScan } from "@/lib/billing/scan-usage-server";
+import {
+  hasUnlimitedAiAccessForCompany,
+  unlimitedAiUsageResult,
+} from "@/lib/billing/unlimited-ai-access";
+import { resolveCompanyBillingFromDataOwner } from "@/lib/companies/server";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "@/lib/expense-scan/limits";
@@ -802,6 +807,8 @@ async function saveAttachmentFailure(input: {
 
 async function processAttachment(input: {
   userId: string;
+  billingUserId: string;
+  unlimitedAiAccess: boolean;
   aliasToken: string;
   email: ExpenseInboxInboundEmail;
   attachment: ExpenseInboxAttachmentInput;
@@ -844,7 +851,9 @@ async function processAttachment(input: {
     retryItemId = existing.id;
   }
 
-  const access = await canUseExpenseInbox(input.userId);
+  const access = input.unlimitedAiAccess
+    ? { allowed: true as const }
+    : await canUseExpenseInbox(input.billingUserId);
   if (!access.allowed) {
     await saveAttachmentFailure({
       ...input,
@@ -867,7 +876,9 @@ async function processAttachment(input: {
     return "error";
   }
 
-  const gate = await consumeExpenseScan(input.userId);
+  const gate = input.unlimitedAiAccess
+    ? unlimitedAiUsageResult()
+    : await consumeExpenseScan(input.billingUserId);
   if (!gate.allowed) {
     await saveAttachmentFailure({
       ...input,
@@ -1009,6 +1020,9 @@ async function recoverRetryAttachment(
 export async function retryExpenseInboxItem(input: {
   userId: string;
   itemId: string;
+  billingUserId?: string;
+  companyId?: string;
+  unlimitedAiAccess?: boolean;
 }): Promise<ExpenseInboxItem> {
   const admin = ensureAdmin();
   const { data, error } = await admin
@@ -1027,8 +1041,19 @@ export async function retryExpenseInboxItem(input: {
   }
 
   const attachment = await recoverRetryAttachment(row);
+  const billing =
+    input.billingUserId && input.companyId
+      ? { billingUserId: input.billingUserId, companyId: input.companyId }
+      : await resolveCompanyBillingFromDataOwner(input.userId);
+  const unlimitedAiAccess =
+    input.unlimitedAiAccess ??
+    (await hasUnlimitedAiAccessForCompany({
+      companyId: billing.companyId,
+    }));
   const result = await processAttachment({
     userId: input.userId,
+    billingUserId: billing.billingUserId,
+    unlimitedAiAccess,
     aliasToken: row.alias_token,
     email: {
       to: [buildExpenseInboxAddress(row.alias_token, getExpenseInboxDomain())],
@@ -1075,12 +1100,19 @@ async function ingestNormalizedExpenseInboxEmailResolved(
     message: "Email procesado.",
   };
 
+  const billing = await resolveCompanyBillingFromDataOwner(alias.user_id);
+  const unlimitedAiAccess = await hasUnlimitedAiAccessForCompany({
+    companyId: billing.companyId,
+  });
+
   const { selected: attachments, overflow } = splitResendAttachmentBatch(
     email.attachments,
   );
   for (const attachment of attachments) {
     const status = await processAttachment({
       userId: alias.user_id,
+      billingUserId: billing.billingUserId,
+      unlimitedAiAccess,
       aliasToken: alias.alias_token,
       email,
       attachment,

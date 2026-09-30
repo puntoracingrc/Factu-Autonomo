@@ -4,7 +4,7 @@ import { isBillingEnforced } from "@/lib/billing/config";
 import { consumeFiscalNotificationLibraryAudit } from "@/lib/billing/scan-usage-server";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
-  hasUnlimitedAiAccess,
+  hasUnlimitedAiAccessForCompany,
   unlimitedAiUsageResult,
 } from "@/lib/billing/unlimited-ai-access";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
@@ -24,11 +24,27 @@ vi.mock("@/lib/billing/scan-usage-server", () => ({
 vi.mock("@/lib/billing/server-auth", () => ({
   getUserFromBearer: vi.fn(),
 }));
+vi.mock("@/lib/companies/server", () => ({
+  getCompanyRouteAuthFromBearer: vi.fn(async (authorization: string | null) => {
+    const user = await getUserFromBearer(authorization, {
+      requireEmailConfirmed: true,
+    });
+    if (!user) return null;
+    return {
+      userId: user.id,
+      actorUserId: user.id,
+      billingUserId: user.id,
+      companyId: user.id,
+      sessionId: "test-session",
+      userEmail: user.email ?? null,
+    };
+  }),
+}));
 vi.mock("@/lib/billing/server-repository", () => ({
   fetchUserSubscriptionServer: vi.fn(),
 }));
 vi.mock("@/lib/billing/unlimited-ai-access", () => ({
-  hasUnlimitedAiAccess: vi.fn(),
+  hasUnlimitedAiAccessForCompany: vi.fn(),
   unlimitedAiUsageResult: vi.fn(),
 }));
 vi.mock("@/lib/expense-deductibility/config", () => ({
@@ -159,7 +175,7 @@ beforeEach(() => {
     backend: "memory",
   });
   vi.mocked(isBillingEnforced).mockReturnValue(false);
-  vi.mocked(hasUnlimitedAiAccess).mockReturnValue(true);
+  vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(true);
   vi.mocked(unlimitedAiUsageResult).mockReturnValue(USAGE);
   vi.mocked(isOpenAiConfigured).mockReturnValue(true);
   vi.mocked(reviewFiscalNotificationLibraryWithAiV1).mockResolvedValue({
@@ -246,7 +262,7 @@ describe("POST /api/fiscal-notifications/audit", () => {
   });
 
   it("respeta el límite de consumo antes de ejecutar gpt-4o", async () => {
-    vi.mocked(hasUnlimitedAiAccess).mockReturnValue(false);
+    vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(false);
     vi.mocked(consumeFiscalNotificationLibraryAudit).mockResolvedValue({
       allowed: false,
       blockedByQuota: true,

@@ -46,7 +46,7 @@ interface AiUsageResponse {
 }
 
 export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
-  const { billingEnabled, isPro, limits } = useBilling();
+  const { billingEnabled, isPro, limits, unlimitedAi } = useBilling();
   const { user } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
   const [text, setText] = useState("");
@@ -64,7 +64,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
   );
   const aiConsent = useAiProcessingConsent();
 
-  const locked = billingEnabled && !limits.aiTextAutofill;
+  const locked = billingEnabled && !limits.aiTextAutofill && !unlimitedAi;
 
   const loadUsage = useCallback(async () => {
     if (demoMode) {
@@ -106,6 +106,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     if (!billingEnabled || !user) return null;
     if (usageLoading && !usage) return "calculando";
     if (!usage) return null;
+    if (usage.meter.mode === "unlimited") return "sin límite";
     return `${usage.meter.percentRemaining}% restante`;
   }, [billingEnabled, usage, usageLoading, user]);
 
@@ -155,7 +156,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
 
       const res = await fetch("/api/customers/parse", {
         method: "POST",
-        headers,
+        headers: activeCompanyRequestHeaders(headers),
         body: JSON.stringify({ text: rawText }),
       });
       const body = (await res.json()) as {

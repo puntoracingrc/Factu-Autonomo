@@ -4,11 +4,12 @@ import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmati
 import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { consumeFiscalNotificationLibraryAudit } from "@/lib/billing/scan-usage-server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import { getCompanyRouteAuthFromBearer } from "@/lib/companies/server";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import {
-  hasUnlimitedAiAccess,
+  hasUnlimitedAiAccessForCompany,
   unlimitedAiUsageResult,
 } from "@/lib/billing/unlimited-ai-access";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
@@ -31,7 +32,7 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
   Pragma: "no-cache",
   "X-Robots-Tag": "noindex, nofollow, noarchive",
-  Vary: "Authorization, X-AI-Consent-Version",
+  Vary: `Authorization, X-AI-Consent-Version, ${FACTU_COMPANY_HEADER}`,
 };
 
 function json(body: unknown, init: { readonly status?: number } = {}) {
@@ -56,16 +57,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const auth = await getCompanyRouteAuthFromBearer(
+    request.headers.get("authorization"),
+    request.headers.get(FACTU_COMPANY_HEADER),
+  );
+  if (!auth) {
     return json(
       { error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE },
       { status: 401 },
     );
   }
-  if (!hasPrivatePreviewAccess(user.email)) {
+  if (!hasPrivatePreviewAccess(auth.userEmail)) {
     return json(
       { error: "El Consultor fiscal no está disponible." },
       { status: 404 },
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
       limit: 4,
       windowMs: 10 * 60_000,
     },
-    user.id,
+    auth.actorUserId,
   );
   if (!rateLimit.allowed) {
     const response = rateLimitExceededResponse(
@@ -121,8 +123,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const unlimitedAccess = hasUnlimitedAiAccess(user);
-  if (!unlimitedAccess && !(await canUseLibraryAudit(user.id))) {
+  const unlimitedAccess = await hasUnlimitedAiAccessForCompany({
+    user: { email: auth.userEmail ?? undefined },
+    companyId: auth.companyId,
+  });
+  if (!unlimitedAccess && !(await canUseLibraryAudit(auth.billingUserId))) {
     return json(
       { error: "La revisión de fichas con IA requiere un plan con IA." },
       { status: 402 },
@@ -137,7 +142,7 @@ export async function POST(request: Request) {
 
   const usage = unlimitedAccess
     ? unlimitedAiUsageResult()
-    : await consumeFiscalNotificationLibraryAudit(user.id);
+    : await consumeFiscalNotificationLibraryAudit(auth.billingUserId);
   if (!usage.allowed && usage.blockedByQuota) {
     return json({ error: usage.reason, quota: usage.quota }, { status: 402 });
   }

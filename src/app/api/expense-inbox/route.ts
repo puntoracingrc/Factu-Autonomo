@@ -12,6 +12,7 @@ import {
   rotateExpenseInboxAlias,
   updateExpenseInboxItemStatus,
 } from "@/lib/expense-inbox-server";
+import { hasUnlimitedAiAccessForCompany } from "@/lib/billing/unlimited-ai-access";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -75,7 +76,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const access = await canUseExpenseInbox(auth.billingUserId);
+    const unlimitedAiAccess = await hasUnlimitedAiAccessForCompany({
+      user: { email: auth.userEmail ?? undefined },
+      companyId: auth.companyId,
+    });
+    const access = unlimitedAiAccess
+      ? { allowed: true as const }
+      : await canUseExpenseInbox(auth.billingUserId);
     if (!access.allowed) {
       return privateJson({ error: access.reason }, { status: 402 });
     }
@@ -162,7 +169,13 @@ export async function PATCH(request: Request) {
         return withPrivateHeaders(rateLimitExceededResponse(rotateRateLimit));
       }
 
-      const access = await canUseExpenseInbox(auth.billingUserId);
+      const unlimitedAiAccess = await hasUnlimitedAiAccessForCompany({
+        user: { email: auth.userEmail ?? undefined },
+        companyId: auth.companyId,
+      });
+      const access = unlimitedAiAccess
+        ? { allowed: true as const }
+        : await canUseExpenseInbox(auth.billingUserId);
       if (!access.allowed) {
         return privateJson({ error: access.reason }, { status: 402 });
       }
@@ -195,6 +208,12 @@ export async function PATCH(request: Request) {
       const item = await retryExpenseInboxItem({
         userId: auth.userId,
         itemId: id,
+        billingUserId: auth.billingUserId,
+        companyId: auth.companyId,
+        unlimitedAiAccess: await hasUnlimitedAiAccessForCompany({
+          user: { email: auth.userEmail ?? undefined },
+          companyId: auth.companyId,
+        }),
       });
       return privateJson({ item });
     }

@@ -9,6 +9,7 @@ import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { isProPlan } from "@/lib/billing/plans";
 import { buildAiUsageMeter, type ScanQuota } from "@/lib/billing/scan-limits";
+import { activeCompanyRequestHeaders } from "@/lib/companies/client-headers";
 import {
   type GooglePlaceAddressComponent,
   type GooglePlaceAddressSuggestion,
@@ -119,7 +120,10 @@ function addressFillAppliedMessage(
 ): string {
   if (!billingEnabled) return "Dirección aplicada.";
   if (!quota) return "Dirección aplicada. IA actualizada.";
-  return `Dirección aplicada. IA ${buildAiUsageMeter(quota).percentRemaining}% restante.`;
+  const meter = buildAiUsageMeter(quota);
+  return meter.mode === "unlimited"
+    ? "Dirección aplicada. IA sin límite."
+    : `Dirección aplicada. IA ${meter.percentRemaining}% restante.`;
 }
 
 export function GoogleAddressAutocomplete({
@@ -140,7 +144,7 @@ export function GoogleAddressAutocomplete({
   const onAddressSelectedRef = useRef(onAddressSelected);
   const pendingRawGoogleAddressRef = useRef<string | null>(null);
   const pendingCleanGoogleAddressRef = useRef<string | null>(null);
-  const { billingEnabled, isPro } = useBilling();
+  const { billingEnabled, isPro, unlimitedAi } = useBilling();
   const { user } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
   const [status, setStatus] = useState<string | null>(null);
@@ -156,7 +160,9 @@ export function GoogleAddressAutocomplete({
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [loadError, setLoadError] = useState<string | null>(null);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
-  const lockedByPlan = Boolean(enabled && !demoMode && billingEnabled && !isPro);
+  const lockedByPlan = Boolean(
+    enabled && !demoMode && billingEnabled && !isPro && !unlimitedAi,
+  );
   const canUsePlaces = Boolean(
     enabled && !demoMode && apiKey && !lockedByPlan && !disabled,
   );
@@ -194,7 +200,7 @@ export function GoogleAddressAutocomplete({
 
       const res = await fetch("/api/google-places/address-fill", {
         method: "POST",
-        headers,
+        headers: activeCompanyRequestHeaders(headers),
       });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -306,6 +312,7 @@ export function GoogleAddressAutocomplete({
     displayStreetLineOnly,
     isPro,
     lockedByPlan,
+    unlimitedAi,
     user,
   ]);
 
