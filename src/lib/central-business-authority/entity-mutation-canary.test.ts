@@ -15,12 +15,14 @@ import type { CentralBusinessAuthorityStatusResult } from "./status-client";
 
 class MemoryStorage implements CentralBusinessQueueStorage {
   private readonly values = new Map<string, string>();
+  failWrites = false;
 
   getItem(key: string) {
     return this.values.get(key) ?? null;
   }
 
   setItem(key: string, value: string) {
+    if (this.failWrites) throw new Error("synthetic storage failure");
     this.values.set(key, value);
   }
 }
@@ -105,6 +107,43 @@ function successSync() {
 }
 
 describe("central business entity mutation canary", () => {
+  it("muestra el fallo concreto si no puede conservar la operación", async () => {
+    const storage = new MemoryStorage();
+    await seedVersion(storage);
+    storage.failWrites = true;
+
+    const result = await mutateCentralBusinessEntityWithCanary({
+      enabled: true,
+      userId: ownerScope,
+      entityType: "customer",
+      entityId,
+      operationKind: "upsert",
+      operationIdPrefix: "CENTRAL_CUSTOMER_UPDATE",
+      entityLabel: "este cliente",
+      dependencies: {
+        storage,
+        getCurrentData: () => EMPTY_DATA,
+        fallback: () => ({ ok: false, error: "not expected" }),
+        prepareLocal: ({ data }) => ({
+          ok: true,
+          payload: { id: entityId, name: "Cambio local" },
+          transition: { data, value: entityId },
+        }),
+        commitLocal: () => {
+          throw new Error("not expected");
+        },
+        syncEventsBeforeWrite: async () => successSync(),
+        fetchStatus: async () => readyStatus(),
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        "No se pudo guardar y verificar la cola central. El cambio local debe cancelarse.",
+    });
+  });
+
   it("explica que el servidor confirmó aunque falle la caché local", async () => {
     const storage = new MemoryStorage();
     await seedVersion(storage);

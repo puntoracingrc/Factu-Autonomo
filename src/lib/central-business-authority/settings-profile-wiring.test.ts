@@ -18,6 +18,18 @@ describe("central settings profile wiring", () => {
     expect(settings).not.toContain("updateProfile({");
   });
 
+  it("optimizes and validates logos before entering the central queue", () => {
+    const settings = source("src/app/configuracion/page.tsx");
+    const logoPreparation = source("src/lib/business-logo.ts");
+
+    expect(settings).toContain("prepareBusinessLogo(file)");
+    expect(settings).toContain("BusinessLogoPreparationError");
+    expect(settings).not.toContain("reader.readAsDataURL(file)");
+    expect(logoPreparation).toContain("MAX_BUSINESS_LOGO_INPUT_BYTES");
+    expect(logoPreparation).toContain("MAX_BUSINESS_LOGO_DATA_URL_BYTES");
+    expect(logoPreparation).toContain("El formato de este logo no es compatible");
+  });
+
   it("saves template changes centrally with explicit feedback", () => {
     const templates = source("src/app/configuracion/plantillas/page.tsx");
 
