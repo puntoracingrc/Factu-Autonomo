@@ -6,6 +6,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import {
   registerCurrentCloudDevice,
   revokeCloudDevice,
@@ -36,6 +37,8 @@ function activeCount(devices: readonly CloudDeviceRecord[]) {
 export function CloudDevicesCard() {
   const { user, emailConfirmed } = useCloudSync();
   const { billingEnabled, plan, limits } = useBilling();
+  const workspace = useWorkspaceStorage();
+  const ownerScope = workspace.kind === "user" ? workspace.ownerScope : null;
   const [payload, setPayload] = useState<CloudDeviceApiPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyDeviceId, setBusyDeviceId] = useState<string | null>(null);
@@ -44,10 +47,18 @@ export function CloudDevicesCard() {
   const maxDevices = limits.maxCloudDevices;
 
   useEffect(() => {
-    if (!billingEnabled || !user || !emailConfirmed || !canUseCloud) return;
+    setPayload(null);
+    if (
+      !billingEnabled ||
+      !user ||
+      !emailConfirmed ||
+      !canUseCloud ||
+      !ownerScope
+    )
+      return;
     let cancelled = false;
     setLoading(true);
-    void registerCurrentCloudDevice()
+    void registerCurrentCloudDevice({ expectedOwnerScope: ownerScope })
       .then((next) => {
         if (!cancelled) setPayload(next);
       })
@@ -57,7 +68,7 @@ export function CloudDevicesCard() {
     return () => {
       cancelled = true;
     };
-  }, [billingEnabled, canUseCloud, emailConfirmed, user]);
+  }, [billingEnabled, canUseCloud, emailConfirmed, ownerScope, user]);
 
   async function revoke(device: CloudDeviceRecord) {
     setBusyDeviceId(device.id);
@@ -119,7 +130,11 @@ export function CloudDevicesCard() {
         </div>
         <Button
           variant="secondary"
-          onClick={() => void registerCurrentCloudDevice().then(setPayload)}
+          onClick={() =>
+            void registerCurrentCloudDevice({
+              expectedOwnerScope: ownerScope,
+            }).then(setPayload)
+          }
           disabled={loading}
         >
           <RefreshCw className="h-4 w-4" />

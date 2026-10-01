@@ -45,7 +45,7 @@ const handler = createCentralBusinessAuthorityStatusRouteHandler({
       headers: { "Retry-After": String(result.retryAfterSeconds) },
     };
   },
-  async verifyDevice({ userId, sessionId, token, userAgent }) {
+  async verifyDevice({ userId, billingUserId, sessionId, token, userAgent }) {
     const normalized = normalizeCloudDeviceToken(token);
     if (!normalized) {
       return {
@@ -57,6 +57,7 @@ const handler = createCentralBusinessAuthorityStatusRouteHandler({
     }
     const access = await ensureCloudDeviceAccess({
       userId,
+      billingUserId,
       sessionId,
       token: normalized,
       userAgent: userAgent ?? undefined,

@@ -52,7 +52,8 @@ export async function GET(request: Request) {
   }
 
   const payload = await listCloudDevicesForUser({
-    userId: auth.billingUserId,
+    userId: auth.userId,
+    billingUserId: auth.billingUserId,
     token: deviceTokenFromRequest(request) ?? undefined,
   });
   return privateJson(payload);
@@ -93,7 +94,8 @@ export async function POST(request: Request) {
   if (!bodyResult.ok) return markPrivate(bodyResult.response);
   const body = bodyResult.data;
   const result = await ensureCloudDeviceAccess({
-    userId: auth.billingUserId,
+    userId: auth.userId,
+    billingUserId: auth.billingUserId,
     token,
     sessionId: auth.sessionId,
     name: typeof body.name === "string" ? body.name : undefined,
@@ -139,11 +141,12 @@ export async function DELETE(request: Request) {
     );
   }
   const result = await revokeCurrentCloudDeviceForUser({
-    userId: auth.billingUserId,
+    userId: auth.userId,
     currentToken: token,
   });
   const overview = await listCloudDevicesForUser({
-    userId: auth.billingUserId,
+    userId: auth.userId,
+    billingUserId: auth.billingUserId,
     token,
   });
   return privateJson(

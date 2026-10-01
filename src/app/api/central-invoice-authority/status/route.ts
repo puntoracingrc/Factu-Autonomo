@@ -46,7 +46,7 @@ const routeHandler = createCentralInvoiceAuthorityStatusRouteHandler({
       },
     };
   },
-  async verifyDevice({ userId, sessionId, token, userAgent }) {
+  async verifyDevice({ userId, billingUserId, sessionId, token, userAgent }) {
     const normalizedToken = normalizeCloudDeviceToken(token);
     if (!normalizedToken) {
       return {
@@ -59,6 +59,7 @@ const routeHandler = createCentralInvoiceAuthorityStatusRouteHandler({
 
     const access = await ensureCloudDeviceAccess({
       userId,
+      billingUserId,
       sessionId,
       token: normalizedToken,
       userAgent: userAgent ?? undefined,

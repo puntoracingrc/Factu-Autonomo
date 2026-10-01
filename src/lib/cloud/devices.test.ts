@@ -234,6 +234,44 @@ describe("cloud devices", () => {
     expect(fake.rows.filter((row) => row.status === "active")).toHaveLength(2);
   });
 
+  it("keeps device slots independent for companies with the same billing owner", async () => {
+    const fake = createFakeAdmin();
+    supabaseAdmin.getSupabaseAdmin.mockReturnValue(fake.client);
+    serverRepository.fetchUserSubscriptionServer.mockResolvedValue({
+      userId: "billing-owner",
+      plan: "pro",
+      status: "active",
+    });
+
+    for (const token of ["one", "two"]) {
+      const result = await ensureCloudDeviceAccess({
+        userId: "company-a",
+        billingUserId: "billing-owner",
+        token: `${token}-company-a-token-token-token-token`,
+        sessionId: SESSION_ONE,
+      });
+      expect(result.allowed).toBe(true);
+    }
+
+    const companyB = await ensureCloudDeviceAccess({
+      userId: "company-b",
+      billingUserId: "billing-owner",
+      token: "first-company-b-token-token-token-token",
+      sessionId: SESSION_ONE,
+    });
+
+    expect(companyB.allowed).toBe(true);
+    expect(serverRepository.fetchUserSubscriptionServer).toHaveBeenCalledWith(
+      "billing-owner",
+    );
+    expect(fake.rows.filter((row) => row.user_id === "company-a")).toHaveLength(
+      2,
+    );
+    expect(fake.rows.filter((row) => row.user_id === "company-b")).toHaveLength(
+      1,
+    );
+  });
+
   it("reconciles concurrent registration of the same browser", async () => {
     const fake = createFakeAdmin([], { failFirstInsertAfterPersist: true });
     supabaseAdmin.getSupabaseAdmin.mockReturnValue(fake.client);
@@ -277,7 +315,8 @@ describe("cloud devices", () => {
 
     expect(first.allowed).toBe(true);
     expect(copied.allowed).toBe(false);
-    if (copied.allowed) throw new Error("expected copied session to be blocked");
+    if (copied.allowed)
+      throw new Error("expected copied session to be blocked");
     expect(copied.reason).toBe("device_session_conflict");
     expect(copied.message).toContain("cambios siguen guardados");
     expect(fake.leases.get(hashCloudDeviceToken(token))).toBe(

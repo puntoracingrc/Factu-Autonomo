@@ -28,7 +28,7 @@ const AUTOMATIC_RETRY_DELAYS_MS = [2_000, 5_000, 15_000] as const;
 type GateState =
   | { status: "checking"; phase: "checking" | "restoring" }
   | { status: "ready" }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; reason: string | null };
 
 type CachedArchive = {
   ownerScope: string;
@@ -42,6 +42,15 @@ function wait(delayMs: number): Promise<void> {
 }
 
 function recoveryFailureMessage(reason: string | null): string {
+  if (reason === "device_limit_reached") {
+    return "Esta empresa ya tiene ocupadas todas las plazas de dispositivos de su plan. El propietario debe desactivar un dispositivo antiguo de esta empresa desde Cuenta.";
+  }
+  if (reason === "device_revoked") {
+    return "Este dispositivo está desactivado para esta empresa. El propietario debe revisar sus dispositivos desde Cuenta.";
+  }
+  if (reason === "device_session_conflict") {
+    return "Otra sesión está usando temporalmente esta misma plaza. Cierra la otra sesión o espera dos minutos antes de volver a intentarlo.";
+  }
   if (reason === "quota_exceeded") {
     return "Este dispositivo no tiene espacio local suficiente para completar ahora el histórico. Tus facturas siguen protegidas en el servidor.";
   }
@@ -59,6 +68,10 @@ function recoveryFailureMessage(reason: string | null): string {
     return "El dispositivo todavía está terminando de recibir la copia central. Factu continuará automáticamente cuando esté lista.";
   }
   return "No hemos podido completar todavía la recuperación automática. Tus facturas siguen protegidas en el servidor y el problema ha quedado registrado para soporte.";
+}
+
+function recoveryNeedsManualAction(reason: string | null): boolean {
+  return reason === "device_limit_reached" || reason === "device_revoked";
 }
 
 function receiptMatches(
@@ -159,7 +172,7 @@ export function WorkspaceHistoricalArchiveGate({
       });
       if (!isCurrent()) return;
       if (device.error || device.allowed === false) {
-        failureReason = "device_verification_failed";
+        failureReason = device.reason ?? "device_verification_failed";
         throw new Error(
           device.message ??
             device.error ??
@@ -334,6 +347,7 @@ export function WorkspaceHistoricalArchiveGate({
       }
       setCurrentState({
         status: "error",
+        reason: failureReason,
         message: failureReason
           ? recoveryFailureMessage(failureReason)
           : error instanceof Error
@@ -342,6 +356,7 @@ export function WorkspaceHistoricalArchiveGate({
       });
       if (
         isCurrent() &&
+        !recoveryNeedsManualAction(failureReason) &&
         navigator.onLine &&
         automaticRetryCountRef.current < AUTOMATIC_RETRY_DELAYS_MS.length
       ) {
@@ -434,7 +449,12 @@ export function WorkspaceHistoricalArchiveGate({
               : "Estamos comprobando si este dispositivo necesita recuperar facturas anteriores al servidor central."
             : state.message}
         </p>
-        {state.status === "error" ? (
+        {state.status === "error" && recoveryNeedsManualAction(state.reason) ? (
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">
+            No se ha borrado ni modificado ningún dato. Cuando el propietario
+            resuelva el acceso, pulsa Intentar ahora.
+          </p>
+        ) : state.status === "error" ? (
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">
             No cierres sesión ni restaures nada. Factu volverá a intentarlo
             automáticamente.

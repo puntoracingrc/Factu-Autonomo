@@ -133,7 +133,8 @@ export async function POST(request: Request) {
 
   try {
     const deviceAccess = await ensureCloudDeviceAccess({
-      userId: auth.billingUserId,
+      userId: auth.userId,
+      billingUserId: auth.billingUserId,
       sessionId: auth.sessionId,
       token: deviceToken,
       userAgent: request.headers.get("user-agent") ?? undefined,

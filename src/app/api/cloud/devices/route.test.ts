@@ -60,10 +60,10 @@ describe("cloud devices route", () => {
       sessionId: "22222222-2222-4222-8222-222222222222",
     });
     mocks.companyAuth.mockResolvedValue({
-      userId: "user-1",
+      userId: "company-owner-scope",
       actorUserId: "user-1",
       billingUserId: "user-1",
-      companyId: "user-1",
+      companyId: "company-1",
       sessionId: "22222222-2222-4222-8222-222222222222",
       userEmail: "owner@example.com",
     });
@@ -99,7 +99,8 @@ describe("cloud devices route", () => {
     const response = await GET(request("GET"));
     expect(response.status).toBe(200);
     expect(mocks.listCloudDevicesForUser).toHaveBeenCalledWith({
-      userId: "user-1",
+      userId: "company-owner-scope",
+      billingUserId: "user-1",
       token: "device-token-token-token-token-token-token",
     });
     expect(response.headers.get("cache-control")).toContain("no-store");
@@ -109,7 +110,7 @@ describe("cloud devices route", () => {
     const response = await DELETE(request("DELETE"));
     expect(response.status).toBe(200);
     expect(mocks.revokeCurrentCloudDeviceForUser).toHaveBeenCalledWith({
-      userId: "user-1",
+      userId: "company-owner-scope",
       currentToken: "device-token-token-token-token-token-token",
     });
     expect(response.headers.get("cache-control")).toContain("no-store");
@@ -128,7 +129,8 @@ describe("cloud devices route", () => {
     expect(response.status).toBe(409);
     expect(mocks.ensureCloudDeviceAccess).toHaveBeenCalledWith(
       expect.objectContaining({
-        userId: "user-1",
+        userId: "company-owner-scope",
+        billingUserId: "user-1",
         token: "device-token-token-token-token-token-token",
         sessionId: "22222222-2222-4222-8222-222222222222",
       }),

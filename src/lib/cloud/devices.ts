@@ -59,7 +59,10 @@ interface UserDeviceRow {
 }
 
 interface EnsureCloudDeviceInput {
+  /** Workspace/data-owner scope. Device slots are isolated per company. */
   userId: string;
+  /** Account that owns the subscription funding this workspace. */
+  billingUserId?: string;
   token: string;
   sessionId: string;
   name?: string;
@@ -68,7 +71,10 @@ interface EnsureCloudDeviceInput {
 }
 
 interface ListCloudDevicesInput {
+  /** Workspace/data-owner scope. Device slots are isolated per company. */
   userId: string;
+  /** Account that owns the subscription funding this workspace. */
+  billingUserId?: string;
   token?: string;
 }
 
@@ -317,13 +323,14 @@ function rejectedSessionClaimResult(
 
 export async function listCloudDevicesForUser({
   userId,
+  billingUserId = userId,
   token,
 }: ListCloudDevicesInput): Promise<{
   plan: PlanId;
   limit: number | null;
   devices: CloudDeviceRecord[];
 }> {
-  const plan = await effectivePlanForUser(userId);
+  const plan = await effectivePlanForUser(billingUserId);
   const admin = getSupabaseAdmin();
   if (!admin)
     return { plan, limit: cloudDeviceLimitForPlan(plan), devices: [] };
@@ -340,6 +347,7 @@ export async function listCloudDevicesForUser({
 
 export async function ensureCloudDeviceAccess({
   userId,
+  billingUserId = userId,
   token,
   sessionId,
   name,
@@ -351,7 +359,7 @@ export async function ensureCloudDeviceAccess({
     throw new Error("Identificador de dispositivo no valido");
   }
 
-  const plan = await effectivePlanForUser(userId);
+  const plan = await effectivePlanForUser(billingUserId);
   const limit = cloudDeviceLimitForPlan(plan);
   const currentHash = hashCloudDeviceToken(normalizedToken);
   const admin = getSupabaseAdmin();
@@ -408,12 +416,7 @@ export async function ensureCloudDeviceAccess({
       sessionId,
     );
     if (claimStatus !== "claimed") {
-      return rejectedSessionClaimResult(
-        claimStatus,
-        plan,
-        currentHash,
-        rows,
-      );
+      return rejectedSessionClaimResult(claimStatus, plan, currentHash, rows);
     }
     const { error } = await admin
       .from(USER_DEVICES_TABLE)
@@ -520,7 +523,7 @@ export async function ensureCloudDeviceAccess({
       };
     }
     if (/cloud_not_in_plan/i.test(error.message)) {
-      const currentPlan = await effectivePlanForUser(userId);
+      const currentPlan = await effectivePlanForUser(billingUserId);
       return unavailableResult(currentPlan, currentHash, refreshed);
     }
     throw new Error(error.message);
