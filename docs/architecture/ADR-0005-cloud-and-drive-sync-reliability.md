@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 13
-- Fecha: 2026-09-29
+- Versión: 14
+- Fecha: 2026-10-01
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
@@ -10,7 +10,9 @@
 > No existe rollback al escritor genérico del navegador. Desde V13, la
 > durabilidad local de una cuenta bajo ADR-0011 es caché reconstruible o
 > recuperación técnica de una respuesta ambigua: nunca confirma por sí sola
-> una escritura operativa ni habilita un guardado offline.
+> una escritura operativa ni habilita un guardado offline. Desde V14, el
+> registro y el límite de dispositivos se aíslan por empresa aunque varias
+> empresas compartan propietario de facturación.
 
 ## Contexto
 
@@ -132,21 +134,26 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 1. Gratis conserva los datos solo en el navegador actual y no crea registros
    de dispositivo cloud. Sus protecciones son la copia manual y, de forma
    opcional, Google Drive; ninguna de las dos convierte el JSON en estado vivo.
-2. Pro admite hasta 2 dispositivos activos y Pro+ hasta 5. La prueba Pro usa
-   provisionalmente el límite de 2. Un cambio de plan se aplica en servidor y
-   nunca amplía el límite por información aportada por el navegador.
+2. Pro admite hasta 2 dispositivos activos por empresa y Pro+ hasta 5 por
+   empresa. La prueba Pro usa provisionalmente el límite de 2. El plan se
+   resuelve desde el propietario de facturación de la empresa, pero sus plazas
+   no se comparten con las demás empresas de ese propietario. Un cambio de
+   plan se aplica en servidor y nunca amplía el límite por información aportada
+   por el navegador.
 3. Cada navegador genera un token aleatorio local. El servidor solo conserva
    su SHA-256, nombre corto, tipo aproximado y marcas de actividad; no persiste
    IP, user-agent completo, NIF ni fingerprint de hardware.
 4. Alta, listado y revocación pasan por API autenticada con email confirmado.
-   La tabla es privada al servidor. Si se pierde un dispositivo, una sesión
-   nueva puede listar los dispositivos de la cuenta, revocar el perdido y
-   reclamar la plaza liberada.
+   La tabla es privada al servidor y cada fila se liga al `data_owner_id` de la
+   empresa activa. Si se pierde un dispositivo, una sesión nueva puede listar
+   solo los dispositivos de esa empresa, revocar el perdido y reclamar la
+   plaza liberada.
 5. Las APIs y tablas centrales exigen a la vez propietario, plan con nube y
    token de dispositivo activo. La comprobación se realiza en servidor para
    que un cliente manipulado no pueda saltarse el límite visual.
-6. El alta se serializa por usuario en base de datos. Dos navegadores que
-   intenten ocupar la última plaza a la vez no pueden superar el límite.
+6. El alta se serializa por empresa en base de datos. Dos navegadores que
+   intenten ocupar la última plaza de la misma empresa a la vez no pueden
+   superar el límite; la actividad de otra empresa no consume esa plaza.
 7. Si un downgrade deja más dispositivos registrados que plazas, solo los más
    recientes dentro del límite pueden sincronizar. Los demás siguen visibles
    para su revocación, pero toda lectura o escritura cloud queda bloqueada.

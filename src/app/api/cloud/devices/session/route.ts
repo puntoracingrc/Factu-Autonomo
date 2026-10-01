@@ -60,7 +60,7 @@ export async function DELETE(request: Request) {
 
   try {
     await releaseCloudDeviceSessionForUser({
-      userId: auth.billingUserId,
+      userId: auth.userId,
       currentToken: token,
       sessionId: auth.sessionId,
     });

@@ -55,12 +55,13 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   const result = await revokeCloudDeviceForUser({
-    userId: auth.billingUserId,
+    userId: auth.userId,
     deviceId: id,
     currentToken: deviceTokenFromRequest(request) ?? undefined,
   });
   const overview = await listCloudDevicesForUser({
-    userId: auth.billingUserId,
+    userId: auth.userId,
+    billingUserId: auth.billingUserId,
     token: deviceTokenFromRequest(request) ?? undefined,
   });
 

@@ -53,4 +53,16 @@ describe("historical workspace archive automatic recovery wiring", () => {
     expect(component).toContain("localInvoiceCount");
     expect(component).not.toContain("documents: getCurrentData()");
   });
+
+  it("shows the real device rejection instead of hiding it as recovery support", () => {
+    expect(component).toContain(
+      'failureReason = device.reason ?? "device_verification_failed"',
+    );
+    expect(component).toContain('reason === "device_limit_reached"');
+    expect(component).toContain(
+      "Esta empresa ya tiene ocupadas todas las plazas",
+    );
+    expect(component).toContain("No se ha borrado ni modificado ningún dato");
+    expect(component).toContain("!recoveryNeedsManualAction(failureReason)");
+  });
 });

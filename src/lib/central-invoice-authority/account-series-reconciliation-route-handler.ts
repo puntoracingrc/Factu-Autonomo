@@ -54,6 +54,7 @@ export interface CentralInvoiceAuthorityAccountSeriesReconciliationRouteDependen
   ): Promise<CentralInvoiceAuthorityAccountSeriesReconciliationRateLimitResult>;
   verifyDevice(input: {
     userId: string;
+    billingUserId: string;
     sessionId: string;
     token: string | null;
     userAgent: string | null;
@@ -200,7 +201,8 @@ export function createCentralInvoiceAuthorityAccountSeriesReconciliationRouteHan
       }
 
       const device = await dependencies.verifyDevice({
-        userId: billingUserId,
+        userId: auth.userId,
+        billingUserId,
         sessionId: auth.sessionId,
         token: request.headers.get("x-factu-device-token"),
         userAgent: request.headers.get("user-agent"),
