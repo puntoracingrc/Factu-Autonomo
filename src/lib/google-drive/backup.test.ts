@@ -9,15 +9,18 @@ vi.mock("@/lib/security/protected-backup", () => ({
 }));
 import {
   buildGoogleDriveAuthorizationUrl,
+  buildDriveBackupCompanyFolderName,
   buildDriveBackupFileName,
   buildDriveBackupSignature,
   cacheDriveAccessToken,
   clearDriveAccessToken,
   DRIVE_BACKUP_CALLBACK_PATH,
+  DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY,
   DRIVE_BACKUP_PENDING_KEY,
   DRIVE_BACKUP_SETTINGS_EVENT,
   DRIVE_BACKUP_SETTINGS_KEY,
   DRIVE_BACKUP_RETENTION_LIMIT,
+  DRIVE_BACKUP_KIND_PROPERTY,
   DRIVE_BACKUP_SCOPE,
   hasUsableDriveToken,
   loadPendingDriveBackupRequest,
@@ -33,6 +36,15 @@ import { DEFAULT_PROFILE, type AppData } from "@/lib/types";
 import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 const NOW = new Date("2026-06-29T12:00:00.000Z");
+const DRIVE_OWNER_SCOPE = "11111111-1111-4111-8111-111111111111";
+const DRIVE_FOLDER_PROPERTIES = {
+  [DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY]: DRIVE_OWNER_SCOPE,
+  [DRIVE_BACKUP_KIND_PROPERTY]: "company-folder-v1",
+};
+const DRIVE_FILE_PROPERTIES = {
+  [DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY]: DRIVE_OWNER_SCOPE,
+  [DRIVE_BACKUP_KIND_PROPERTY]: "encrypted-json-v1",
+};
 
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -143,7 +155,11 @@ describe("Google Drive backup", () => {
     protectionMocks.createProtectedBackupArtifact.mockReset();
     protectionMocks.createProtectedBackupArtifact.mockImplementation(
       async (data: AppData, exportedAt: string) => {
-        const text = JSON.stringify(createBackupPayload(data, exportedAt), null, 2);
+        const text = JSON.stringify(
+          createBackupPayload(data, exportedAt),
+          null,
+          2,
+        );
         return {
           blob: new Blob([text], { type: "application/json" }),
           text,
@@ -242,6 +258,17 @@ describe("Google Drive backup", () => {
     );
   });
 
+  it("crea un nombre legible y estable para la carpeta de cada empresa", () => {
+    const data = dataWithDocument("2026-06-29T10:00:00.000Z");
+    expect(
+      buildDriveBackupCompanyFolderName(
+        data,
+        DRIVE_OWNER_SCOPE,
+        "Persianas/Almar SL",
+      ),
+    ).toBe("Persianas-Almar SL (11111111)");
+  });
+
   it("construye el permiso de Drive con callback propio", () => {
     const url = new URL(
       buildGoogleDriveAuthorizationUrl({
@@ -315,9 +342,7 @@ describe("Google Drive backup", () => {
 
     clearDriveAccessToken();
 
-    expect(
-      storage.getItem("factura-autonomo-drive-access-token"),
-    ).toBeNull();
+    expect(storage.getItem("factura-autonomo-drive-access-token")).toBeNull();
   });
 
   it("no reutiliza el token de Drive al cambiar de cuenta", () => {
@@ -720,8 +745,28 @@ describe("Google Drive backup", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            id: "folder-id",
-            webViewLink: "https://drive.google.com/drive/folders/folder-id",
+            id: "root-folder-id",
+            webViewLink:
+              "https://drive.google.com/drive/folders/root-folder-id",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ files: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "company-folder-id",
+            webViewLink:
+              "https://drive.google.com/drive/folders/company-folder-id",
           }),
           {
             status: 200,
@@ -748,6 +793,7 @@ describe("Google Drive backup", () => {
                 id: "file-id",
                 name: "factu-autonomo-drive-backup-2026-06-29-1200.json",
                 createdTime: "2026-06-29T12:00:00.000Z",
+                appProperties: DRIVE_FILE_PROPERTIES,
               },
             ],
           }),
@@ -759,7 +805,11 @@ describe("Google Drive backup", () => {
     const result = await uploadAppBackupToGoogleDriveWithAccessToken(
       sourceData,
       "access-token",
-      { now: () => NOW },
+      {
+        ownerScope: DRIVE_OWNER_SCOPE,
+        companyName: "Persianas Almar SL",
+        now: () => NOW,
+      },
     );
 
     expect(result).toEqual({
@@ -767,7 +817,8 @@ describe("Google Drive backup", () => {
       fileId: "file-id",
       fileName: "factu-autonomo-drive-backup-2026-06-29-1200.json",
       webViewLink: "https://drive.google.com/file/d/file-id/view",
-      folderWebViewLink: "https://drive.google.com/drive/folders/folder-id",
+      folderWebViewLink:
+        "https://drive.google.com/drive/folders/company-folder-id",
       exportedAt: "2026-06-29T12:00:00.000Z",
       retention: {
         limit: DRIVE_BACKUP_RETENTION_LIMIT,
@@ -783,34 +834,50 @@ describe("Google Drive backup", () => {
       { requireEncryption: true },
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
       "https://www.googleapis.com/drive/v3/files",
     );
     expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
       "https://www.googleapis.com/drive/v3/files?fields=id,webViewLink",
     );
-    expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
+    expect(
+      new URL(String(fetchMock.mock.calls[2]?.[0])).searchParams.get("q"),
+    ).toContain("appProperties has");
+    expect(String(fetchMock.mock.calls[4]?.[0])).toContain(
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
     );
-    expect(String(fetchMock.mock.calls[3]?.[0])).toContain(
+    expect(String(fetchMock.mock.calls[5]?.[0])).toContain(
       "/drive/v3/files/file-id?alt=media",
     );
-    expect(String(fetchMock.mock.calls[4]?.[0])).toContain(
+    expect(String(fetchMock.mock.calls[6]?.[0])).toContain(
       "name+contains+%27factu-autonomo-drive-backup-",
     );
+    expect(
+      new URL(String(fetchMock.mock.calls[6]?.[0])).searchParams.get("q"),
+    ).toContain("appProperties has");
 
     const createFolderInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
     expect(createFolderInit.method).toBe("POST");
     expect(createFolderInit.body).toContain("Factu - copias de seguridad");
 
-    const uploadInit = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    const createCompanyFolderInit = fetchMock.mock.calls[3]?.[1] as RequestInit;
+    expect(createCompanyFolderInit.method).toBe("POST");
+    expect(createCompanyFolderInit.body).toContain("Persianas Almar SL");
+    expect(createCompanyFolderInit.body).toContain("root-folder-id");
+    expect(createCompanyFolderInit.body).toContain(
+      DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY,
+    );
+    expect(createCompanyFolderInit.body).toContain(DRIVE_OWNER_SCOPE);
+
+    const uploadInit = fetchMock.mock.calls[4]?.[1] as RequestInit;
     expect(uploadInit.method).toBe("POST");
     expect(uploadInit.body).toContain(
       "factu-autonomo-drive-backup-2026-06-29-1200.json",
     );
     expect(uploadInit.body).toContain('"documents"');
     expect(uploadInit.body).toContain('"exportVersion"');
+    expect(uploadInit.body).toContain(DRIVE_OWNER_SCOPE);
   });
 
   it("rechaza una copia de Drive si no puede confirmar que esta cifrada", async () => {
@@ -828,7 +895,7 @@ describe("Google Drive backup", () => {
       uploadAppBackupToGoogleDriveWithAccessToken(
         dataWithDocument("2026-06-29T10:00:00.000Z"),
         "access-token",
-        { now: () => NOW },
+        { ownerScope: DRIVE_OWNER_SCOPE, now: () => NOW },
       ),
     ).resolves.toEqual({
       ok: false,
@@ -850,6 +917,7 @@ describe("Google Drive backup", () => {
         id: `backup-${index + 1}`,
         name: `factu-autonomo-drive-backup-2026-06-${day}-1200.json`,
         createdTime: `2026-06-${day}T12:00:00.000Z`,
+        appProperties: DRIVE_FILE_PROPERTIES,
       };
     });
 
@@ -863,6 +931,22 @@ describe("Google Drive backup", () => {
                 id: "folder-id",
                 name: "Factu - copias de seguridad",
                 webViewLink: "https://drive.google.com/drive/folders/folder-id",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            files: [
+              {
+                id: "company-folder-id",
+                name: "Persianas Almar SL (11111111)",
+                webViewLink:
+                  "https://drive.google.com/drive/folders/company-folder-id",
+                appProperties: DRIVE_FOLDER_PROPERTIES,
               },
             ],
           }),
@@ -888,8 +972,19 @@ describe("Google Drive backup", () => {
                 id: "uploaded-file",
                 name: "factu-autonomo-drive-backup-2026-06-29-1200.json",
                 createdTime: "2026-06-29T12:00:00.000Z",
+                appProperties: DRIVE_FILE_PROPERTIES,
               },
               ...oldFiles,
+              {
+                id: "foreign-company-backup",
+                name: "factu-autonomo-drive-backup-2026-01-01-1200.json",
+                createdTime: "2026-01-01T12:00:00.000Z",
+                appProperties: {
+                  ...DRIVE_FILE_PROPERTIES,
+                  [DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY]:
+                    "22222222-2222-4222-8222-222222222222",
+                },
+              },
             ],
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
@@ -909,7 +1004,7 @@ describe("Google Drive backup", () => {
     const result = await uploadAppBackupToGoogleDriveWithAccessToken(
       sourceData,
       "access-token",
-      { now: () => NOW },
+      { ownerScope: DRIVE_OWNER_SCOPE, now: () => NOW },
     );
 
     expect(result).toMatchObject({
@@ -920,10 +1015,10 @@ describe("Google Drive backup", () => {
         removed: 3,
       },
     });
-    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(fetchMock).toHaveBeenCalledTimes(8);
 
     const trashedIds = fetchMock.mock.calls
-      .slice(4)
+      .slice(5)
       .map(([url]) => String(url));
     expect(trashedIds).toEqual([
       "https://www.googleapis.com/drive/v3/files/backup-3?fields=id,trashed",
@@ -931,7 +1026,9 @@ describe("Google Drive backup", () => {
       "https://www.googleapis.com/drive/v3/files/backup-1?fields=id,trashed",
     ]);
 
-    const trashBody = fetchMock.mock.calls[4]?.[1] as RequestInit;
+    expect(trashedIds.join(" ")).not.toContain("foreign-company-backup");
+
+    const trashBody = fetchMock.mock.calls[5]?.[1] as RequestInit;
     expect(trashBody.method).toBe("PATCH");
     expect(trashBody.body).toBe(JSON.stringify({ trashed: true }));
   });
@@ -943,6 +1040,20 @@ describe("Google Drive backup", () => {
         new Response(
           JSON.stringify({
             files: [{ id: "folder-id", name: "Factu - copias de seguridad" }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            files: [
+              {
+                id: "company-folder-id",
+                name: "Persianas Almar SL (11111111)",
+                appProperties: DRIVE_FOLDER_PROPERTIES,
+              },
+            ],
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         ),
@@ -965,14 +1076,14 @@ describe("Google Drive backup", () => {
       uploadAppBackupToGoogleDriveWithAccessToken(
         dataWithDocument("2026-06-29T10:00:00.000Z"),
         "access-token",
-        { now: () => NOW },
+        { ownerScope: DRIVE_OWNER_SCOPE, now: () => NOW },
       ),
     ).resolves.toEqual({
       ok: false,
       error:
         "Drive recibió el archivo, pero no devolvió una copia idéntica. No se ha marcado como copia válida.",
     });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("olvida el permiso temporal cuando Google responde no autorizado", async () => {
@@ -994,6 +1105,7 @@ describe("Google Drive backup", () => {
     const result = await uploadAppBackupToGoogleDriveWithAccessToken(
       dataWithDocument("2026-06-29T10:00:00.000Z"),
       "access-token",
+      { ownerScope: DRIVE_OWNER_SCOPE },
     );
 
     expect(result).toEqual({

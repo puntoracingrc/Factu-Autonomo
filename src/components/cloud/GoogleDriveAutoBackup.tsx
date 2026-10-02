@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCompany } from "@/context/CompanyContext";
 import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
@@ -29,6 +30,7 @@ const AUTO_BACKUP_RETRY_MS = 30_000;
 export function GoogleDriveAutoBackup() {
   const { data, ready } = useAppStore();
   const { user, emailConfirmed } = useCloudSync();
+  const { activeCompany } = useCompany();
   const workspace = useWorkspaceStorage();
   const ownerScope = workspace.ownerScope;
   const clientId = getGoogleDriveClientId();
@@ -129,6 +131,7 @@ export function GoogleDriveAutoBackup() {
           prompt: "",
           automatic: true,
           expectedOwnerScope: ownerScope,
+          companyName: activeCompany?.name,
         }),
       );
       runningRef.current = false;
@@ -179,6 +182,7 @@ export function GoogleDriveAutoBackup() {
     };
   }, [
     data,
+    activeCompany?.name,
     driveAccountReady,
     driveConfigured,
     hydrated,

@@ -18,14 +18,16 @@ export const DRIVE_BACKUP_CALLBACK_PATH = "/drive/callback";
 export const DRIVE_BACKUP_PENDING_KEY = "factura-autonomo-drive-backup-pending";
 export const DRIVE_BACKUP_FILE_PREFIX = "factu-autonomo-drive-backup-";
 export const DRIVE_BACKUP_RETENTION_LIMIT = 10;
+export const DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY = "factuCompanyScope";
+export const DRIVE_BACKUP_KIND_PROPERTY = "factuBackupKind";
 export const DRIVE_BACKUP_SETTINGS_EVENT =
   "factura-autonomo-drive-backup-settings-changed";
 
+const DRIVE_BACKUP_COMPANY_FOLDER_KIND = "company-folder-v1";
+const DRIVE_BACKUP_JSON_KIND = "encrypted-json-v1";
+
 export type DriveBackupFrequency =
-  | "manual"
-  | "daily"
-  | "important"
-  | "every_change";
+  "manual" | "daily" | "important" | "every_change";
 
 export type DriveBackupReturnPath = "/";
 
@@ -73,8 +75,7 @@ export type DriveBackupUploadResult =
   | { ok: false; error: string };
 
 export type DriveBackupTokenRestoreResult =
-  | { ok: true }
-  | { ok: false; error: string };
+  { ok: true } | { ok: false; error: string };
 
 interface GoogleTokenResponse {
   access_token?: string;
@@ -102,6 +103,7 @@ interface DriveBackupFile {
   name: string;
   createdTime?: string;
   modifiedTime?: string;
+  appProperties?: Record<string, string>;
 }
 
 interface GoogleAccountsOauth2 {
@@ -275,7 +277,8 @@ export async function loadPendingDriveBackupRequest(
     if (expectedState) {
       const expectedDigest = await hashOauthState(expectedState);
       if (ownerScope && !isActiveWorkspaceOwnerScope(ownerScope)) return null;
-      if (!expectedDigest || pending.stateDigest !== expectedDigest) return null;
+      if (!expectedDigest || pending.stateDigest !== expectedDigest)
+        return null;
     }
     return pending;
   } catch {
@@ -411,6 +414,44 @@ export function buildDriveBackupFileName(
 ): string {
   const stamp = exportedAt.slice(0, 16).replace("T", "-").replace(":", "");
   return `${DRIVE_BACKUP_FILE_PREFIX}${stamp}.json`;
+}
+
+function normalizedDriveCompanyScope(ownerScope: string): string {
+  const normalized = ownerScope.trim();
+  if (
+    normalized.length < 8 ||
+    normalized.length > 200 ||
+    /[\u0000-\u001f\u007f]/u.test(normalized)
+  ) {
+    throw new Error(
+      "No se pudo identificar la empresa activa para guardar la copia en Drive.",
+    );
+  }
+  return normalized;
+}
+
+function driveCompanyFolderLabel(data: AppData, companyName?: string): string {
+  const candidate =
+    companyName?.trim() ||
+    data.profile.commercialName?.trim() ||
+    data.profile.name.trim() ||
+    "Empresa";
+  const normalized = candidate
+    .replace(/[\\/]+/g, "-")
+    .replace(/[\u0000-\u001f\u007f]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (normalized || "Empresa").slice(0, 80).trim();
+}
+
+export function buildDriveBackupCompanyFolderName(
+  data: AppData,
+  ownerScope: string,
+  companyName?: string,
+): string {
+  const scope = normalizedDriveCompanyScope(ownerScope);
+  const scopeSuffix = scope.replace(/[^a-z0-9]/gi, "").slice(-8) || "empresa";
+  return `${driveCompanyFolderLabel(data, companyName)} (${scopeSuffix})`;
 }
 
 function stableBackupValue(value: unknown): unknown {
@@ -758,7 +799,7 @@ async function readDriveBackupFile(
   );
 }
 
-async function findOrCreateBackupFolder(
+async function findOrCreateBackupRootFolder(
   accessToken: string,
 ): Promise<{ id: string; webViewLink?: string }> {
   const query = [
@@ -792,17 +833,80 @@ async function findOrCreateBackupFolder(
   );
 }
 
+async function findOrCreateCompanyBackupFolder(
+  accessToken: string,
+  rootFolderId: string,
+  data: AppData,
+  ownerScope: string,
+  companyName?: string,
+): Promise<{ id: string; webViewLink?: string }> {
+  const scope = normalizedDriveCompanyScope(ownerScope);
+  const query = [
+    "mimeType='application/vnd.google-apps.folder'",
+    `'${escapeDriveQueryValue(rootFolderId)}' in parents`,
+    `appProperties has { key='${DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY}' and value='${escapeDriveQueryValue(scope)}' }`,
+    `appProperties has { key='${DRIVE_BACKUP_KIND_PROPERTY}' and value='${DRIVE_BACKUP_COMPANY_FOLDER_KIND}' }`,
+    "trashed=false",
+  ].join(" and ");
+  const searchUrl =
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}` +
+    "&spaces=drive&fields=files(id,name,webViewLink,appProperties)&pageSize=1";
+
+  const found = await driveFetch<{
+    files?: Array<{
+      id: string;
+      name: string;
+      webViewLink?: string;
+      appProperties?: Record<string, string>;
+    }>;
+  }>(searchUrl, accessToken);
+  const existing = found.files?.find(
+    (folder) =>
+      folder.id &&
+      folder.appProperties?.[DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY] === scope &&
+      folder.appProperties?.[DRIVE_BACKUP_KIND_PROPERTY] ===
+        DRIVE_BACKUP_COMPANY_FOLDER_KIND,
+  );
+  if (existing?.id) {
+    return { id: existing.id, webViewLink: existing.webViewLink };
+  }
+
+  return await driveFetch<{ id: string; webViewLink?: string }>(
+    "https://www.googleapis.com/drive/v3/files?fields=id,webViewLink",
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({
+        name: buildDriveBackupCompanyFolderName(data, scope, companyName),
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [rootFolderId],
+        appProperties: {
+          [DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY]: scope,
+          [DRIVE_BACKUP_KIND_PROPERTY]: DRIVE_BACKUP_COMPANY_FOLDER_KIND,
+        },
+      }),
+    },
+  );
+}
+
 async function uploadJsonBackup(
   accessToken: string,
   folderId: string,
   fileName: string,
   jsonText: string,
+  ownerScope: string,
 ): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const scope = normalizedDriveCompanyScope(ownerScope);
   const boundary = `factu_drive_backup_${Date.now()}`;
   const metadata = {
     name: fileName,
     mimeType: "application/json",
     parents: [folderId],
+    appProperties: {
+      [DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY]: scope,
+      [DRIVE_BACKUP_KIND_PROPERTY]: DRIVE_BACKUP_JSON_KIND,
+    },
   };
   const body = [
     `--${boundary}`,
@@ -839,10 +943,14 @@ function backupFileSortValue(file: DriveBackupFile): string {
 async function listDriveBackupFiles(
   accessToken: string,
   folderId: string,
+  ownerScope: string,
 ): Promise<DriveBackupFile[]> {
+  const scope = normalizedDriveCompanyScope(ownerScope);
   const query = [
     `'${escapeDriveQueryValue(folderId)}' in parents`,
     `name contains '${escapeDriveQueryValue(DRIVE_BACKUP_FILE_PREFIX)}'`,
+    `appProperties has { key='${DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY}' and value='${escapeDriveQueryValue(scope)}' }`,
+    `appProperties has { key='${DRIVE_BACKUP_KIND_PROPERTY}' and value='${DRIVE_BACKUP_JSON_KIND}' }`,
     "mimeType='application/json'",
     "trashed=false",
   ].join(" and ");
@@ -856,7 +964,7 @@ async function listDriveBackupFiles(
     searchUrl.searchParams.set("spaces", "drive");
     searchUrl.searchParams.set(
       "fields",
-      "nextPageToken,files(id,name,createdTime,modifiedTime)",
+      "nextPageToken,files(id,name,createdTime,modifiedTime,appProperties)",
     );
     searchUrl.searchParams.set("pageSize", "1000");
     if (pageToken) searchUrl.searchParams.set("pageToken", pageToken);
@@ -871,7 +979,14 @@ async function listDriveBackupFiles(
   } while (pageToken);
 
   return files
-    .filter((file) => file.id && file.name.startsWith(DRIVE_BACKUP_FILE_PREFIX))
+    .filter(
+      (file) =>
+        file.id &&
+        file.name.startsWith(DRIVE_BACKUP_FILE_PREFIX) &&
+        file.appProperties?.[DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY] === scope &&
+        file.appProperties?.[DRIVE_BACKUP_KIND_PROPERTY] ===
+          DRIVE_BACKUP_JSON_KIND,
+    )
     .sort((a, b) =>
       backupFileSortValue(b).localeCompare(backupFileSortValue(a)),
     );
@@ -897,8 +1012,9 @@ async function trashDriveFile(
 async function pruneOldDriveBackups(
   accessToken: string,
   folderId: string,
+  ownerScope: string,
 ): Promise<{ limit: number; kept: number; removed: number }> {
-  const files = await listDriveBackupFiles(accessToken, folderId);
+  const files = await listDriveBackupFiles(accessToken, folderId, ownerScope);
   const oldFiles = files.slice(DRIVE_BACKUP_RETENTION_LIMIT);
 
   await Promise.all(
@@ -920,6 +1036,7 @@ export async function uploadAppBackupToGoogleDrive(
     now?: () => Date;
     automatic?: boolean;
     expectedOwnerScope?: string | null;
+    companyName?: string;
   },
 ): Promise<DriveBackupUploadResult> {
   try {
@@ -927,10 +1044,20 @@ export async function uploadAppBackupToGoogleDrive(
       return { ok: false, error: "Google Drive no está configurado." };
     }
 
+    const ownerScope = normalizedDriveCompanyScope(
+      options.expectedOwnerScope ?? getActiveWorkspaceOwnerScope() ?? "",
+    );
+    if (!isActiveWorkspaceOwnerScope(ownerScope)) {
+      return {
+        ok: false,
+        error: "La empresa ha cambiado. Vuelve a intentarlo.",
+      };
+    }
+
     const accessToken = await requestDriveAccessToken(
       options.clientId,
       options.prompt ?? "",
-      options.expectedOwnerScope,
+      ownerScope,
     );
     return await uploadAppBackupToGoogleDriveWithAccessToken(
       data,
@@ -938,6 +1065,8 @@ export async function uploadAppBackupToGoogleDrive(
       {
         now: options.now,
         automatic: options.automatic,
+        ownerScope,
+        companyName: options.companyName,
       },
     );
   } catch (error) {
@@ -955,14 +1084,17 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
   data: AppData,
   accessToken: string,
   options: {
+    ownerScope: string;
+    companyName?: string;
     now?: () => Date;
     automatic?: boolean;
-  } = {},
+  },
 ): Promise<DriveBackupUploadResult> {
   try {
     if (!accessToken.trim()) {
       return { ok: false, error: "Google Drive no ha devuelto permiso." };
     }
+    const ownerScope = normalizedDriveCompanyScope(options.ownerScope);
 
     const exportedAt = (options.now?.() ?? new Date()).toISOString();
     const fileName = buildDriveBackupFileName(exportedAt);
@@ -976,12 +1108,20 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
       };
     }
     const jsonText = artifact.text;
-    const folder = await findOrCreateBackupFolder(accessToken);
+    const rootFolder = await findOrCreateBackupRootFolder(accessToken);
+    const folder = await findOrCreateCompanyBackupFolder(
+      accessToken,
+      rootFolder.id,
+      data,
+      ownerScope,
+      options.companyName,
+    );
     const uploaded = await uploadJsonBackup(
       accessToken,
       folder.id,
       fileName,
       jsonText,
+      ownerScope,
     );
     const readback = await readDriveBackupFile(accessToken, uploaded.id);
     if (readback !== jsonText) {
@@ -1005,7 +1145,11 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
     };
 
     try {
-      retention = await pruneOldDriveBackups(accessToken, folder.id);
+      retention = await pruneOldDriveBackups(
+        accessToken,
+        folder.id,
+        ownerScope,
+      );
     } catch (error) {
       cleanupWarning =
         error instanceof Error

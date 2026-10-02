@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 14
-- Fecha: 2026-10-01
+- Versión: 15
+- Fecha: 2026-10-02
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
@@ -12,7 +12,8 @@
 > recuperación técnica de una respuesta ambigua: nunca confirma por sí sola
 > una escritura operativa ni habilita un guardado offline. Desde V14, el
 > registro y el límite de dispositivos se aíslan por empresa aunque varias
-> empresas compartan propietario de facturación.
+> empresas compartan propietario de facturación. Desde V15, las copias JSON de
+> Drive se archivan y retienen en una subcarpeta estable por empresa.
 
 ## Contexto
 
@@ -197,6 +198,12 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 6. La retención se ejecuta después de verificar la copia nueva, solo sobre
    archivos JSON creados por la app dentro de su carpeta y con su prefijo. Un
    fallo de limpieza no invalida la copia verificada.
+7. Cada empresa usa una subcarpeta propia bajo `Factu - copias de seguridad`,
+   ligada a su `ownerScope` mediante propiedades privadas de la app. El mismo
+   alcance se marca también en cada JSON y se vuelve a comprobar antes de la
+   retención. Las diez copias se calculan por empresa: una empresa nunca envía
+   a la papelera copias de otra. Las copias antiguas de la carpeta general se
+   conservan sin mover, reescribir ni incluir en la limpieza nueva.
 
 ### Guardado de los escáneres en Factu
 
@@ -269,6 +276,9 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
   inesperado solo retiene la concesión durante un máximo de 2 minutos.
 - Drive no puede mostrar una copia como válida basándose únicamente en la
   aceptación de la subida.
+- Dos empresas conectadas al mismo Google Drive conservan carpetas y retención
+  independientes; adoptar el nuevo esquema no mueve ni elimina las copias
+  anteriores de la carpeta general.
 - Guardar desde los escáneres no espera a Drive ni vuelve a comparar toda la
   cuenta contra una referencia capturada antes del análisis.
 - Factu conserva la ficha o el gasto estructurado, pero no el original; los
