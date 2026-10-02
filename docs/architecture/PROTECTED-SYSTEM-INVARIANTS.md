@@ -129,6 +129,9 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 - Aislamiento por usuario, CAS e integridad fiscal continúan fail-closed.
 - Drive usa `drive.file`, compara por readback exacto antes de confirmar y solo
   después aplica retención. Manual, automático y callback no se solapan.
+- Las copias JSON de Drive se aíslan por `ownerScope` en una subcarpeta por
+  empresa y la retención se limita a los archivos marcados de esa empresa. Las
+  copias anteriores de la carpeta general no se mueven ni se limpian.
 - Los escáneres de Notificaciones y Gastos persisten solo la ficha o el gasto
   estructurado en Factu y no esperan una operación de Drive. Notificaciones
   guarda sobre el estado vigente y no reutiliza una precondición completa

@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, HardDrive, Loader2 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
+import { useCompany } from "@/context/CompanyContext";
 import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE } from "@/lib/auth/email-confirmation";
 import {
@@ -90,9 +91,9 @@ async function exchangeCodeForAccessToken(input: {
 
 export default function GoogleDriveCallbackPage() {
   const { data, ready } = useAppStore();
+  const { activeCompany } = useCompany();
   const workspace = useWorkspaceStorage();
-  const ownerScope =
-    workspace.kind === "user" ? workspace.ownerScope : null;
+  const ownerScope = workspace.kind === "user" ? workspace.ownerScope : null;
   const handledRef = useRef(false);
   const [status, setStatus] = useState<CallbackStatus>({
     state: "working",
@@ -165,14 +166,13 @@ export default function GoogleDriveCallbackPage() {
           ownerScope,
         });
         ensureOwnerIsActive();
-        cacheDriveAccessToken(
-          token.accessToken,
-          token.expiresIn,
-          ownerScope,
-        );
+        cacheDriveAccessToken(token.accessToken, token.expiresIn, ownerScope);
 
         const execution = await runExclusiveDriveBackup(() =>
-          uploadAppBackupToGoogleDriveWithAccessToken(data, token.accessToken),
+          uploadAppBackupToGoogleDriveWithAccessToken(data, token.accessToken, {
+            ownerScope,
+            companyName: activeCompany?.name,
+          }),
         );
         ensureOwnerIsActive();
         if (!execution.started) {
@@ -233,7 +233,7 @@ export default function GoogleDriveCallbackPage() {
     }
 
     void completeDriveBackup();
-  }, [data, ownerScope, ready]);
+  }, [activeCompany?.name, data, ownerScope, ready]);
 
   const icon =
     status.state === "success" ? (
@@ -273,7 +273,8 @@ export default function GoogleDriveCallbackPage() {
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
             <p className="font-semibold">{status.fileName}</p>
             <p className="mt-1">
-              Se ha guardado en la carpeta “Factu - copias de seguridad”.
+              Se ha guardado dentro de “Factu - copias de seguridad”, en la
+              carpeta independiente de esta empresa.
             </p>
             {status.folderWebViewLink ? (
               <a
@@ -299,9 +300,7 @@ export default function GoogleDriveCallbackPage() {
         ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <ButtonLink
-            href={returnsToOnboarding ? "/" : "/cuenta#drive-backup"}
-          >
+          <ButtonLink href={returnsToOnboarding ? "/" : "/cuenta#drive-backup"}>
             {returnsToOnboarding ? "Volver al inicio" : "Volver a Cuenta"}
           </ButtonLink>
           {status.state === "error" && !returnsToOnboarding ? (

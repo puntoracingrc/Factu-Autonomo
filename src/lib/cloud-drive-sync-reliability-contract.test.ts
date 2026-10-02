@@ -60,6 +60,20 @@ describe("central authority and Drive reliability contract", () => {
     expect(manual).toContain("runExclusiveDriveBackup");
   });
 
+  it("aísla carpetas y retención de Drive por empresa", () => {
+    const backup = source("src/lib/google-drive/backup.ts");
+    const adr = source(
+      "docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md",
+    );
+
+    expect(backup).toContain("findOrCreateCompanyBackupFolder");
+    expect(backup).toContain("DRIVE_BACKUP_COMPANY_SCOPE_PROPERTY");
+    expect(backup).toContain("appProperties has");
+    expect(backup).toContain("pruneOldDriveBackups(");
+    expect(adr).toContain("subcarpeta propia");
+    expect(adr).toContain("una empresa nunca envía");
+  });
+
   it("mantiene la politica protegida en la raiz", () => {
     const agents = source("AGENTS.md");
     const codeowners = source(".github/CODEOWNERS");

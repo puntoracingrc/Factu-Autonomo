@@ -220,6 +220,9 @@ La decisión obligatoria y versionada está en
 - Drive usa solo `drive.file`, callback propio con `state`, token temporal en
   sesión y destinos oficiales de Google. Una copia solo se marca válida tras
   releer el archivo recién creado y comparar exactamente el JSON exportado.
+- Las copias JSON se guardan en una subcarpeta estable por empresa y la
+  retención solo puede considerar archivos marcados con el mismo `ownerScope`.
+  Las copias antiguas de la carpeta general no se mueven ni se limpian.
 - Los escáneres de Notificaciones y Gastos guardan únicamente datos
   estructurados en Factu. No consultan ni suben originales a Drive durante el
   guardado. Notificaciones construye sobre el estado vigente sin la

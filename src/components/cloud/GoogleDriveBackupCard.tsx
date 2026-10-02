@@ -18,6 +18,7 @@ import { Field, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useCompany } from "@/context/CompanyContext";
 import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import { BACKUP_SCOPE_NOTICE } from "@/lib/backup";
 import {
@@ -100,6 +101,7 @@ export function GoogleDriveBackupCard({
   const { data } = useAppStore();
   const { limits, loading: billingLoading } = useBilling();
   const { user, emailConfirmed } = useCloudSync();
+  const { activeCompany } = useCompany();
   const workspace = useWorkspaceStorage();
   const ownerScope = workspace.ownerScope;
   const cloudSyncEnabled = limits.cloudSync;
@@ -193,6 +195,7 @@ export function GoogleDriveBackupCard({
           prompt: settings.enabled ? "" : "consent",
           automatic: options.automatic,
           expectedOwnerScope: ownerScope,
+          companyName: activeCompany?.name,
         }),
       );
 
@@ -245,6 +248,7 @@ export function GoogleDriveBackupCard({
     },
     [
       clientId,
+      activeCompany?.name,
       data,
       driveAccountReady,
       driveConfigured,
@@ -442,7 +446,9 @@ export function GoogleDriveBackupCard({
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
           Las copias se cifran antes de salir del navegador. Guardamos las{" "}
           {DRIVE_BACKUP_RETENTION_LIMIT} últimas; al subir una nueva, las más
-          antiguas se retiran de la carpeta de Drive.
+          antiguas se retiran únicamente de la carpeta propia de esta empresa.
+          Las demás empresas y las copias anteriores de la carpeta general no se
+          modifican.
         </div>
         {!cloudSyncEnabled ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
@@ -450,10 +456,10 @@ export function GoogleDriveBackupCard({
               En el plan Gratuito, Factu no guarda tus facturas ni datos de
               trabajo en su nube.
             </strong>{" "}
-            Tus datos están solo en este dispositivo. Si lo pierdes o se
-            avería sin tener una copia externa, puedes perder toda la
-            información. Descarga copias manuales y guárdalas fuera del
-            dispositivo, o mantén activadas estas copias automáticas en Drive.
+            Tus datos están solo en este dispositivo. Si lo pierdes o se avería
+            sin tener una copia externa, puedes perder toda la información.
+            Descarga copias manuales y guárdalas fuera del dispositivo, o mantén
+            activadas estas copias automáticas en Drive.
           </div>
         ) : null}
         <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
