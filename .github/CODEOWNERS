@@ -12,6 +12,7 @@
 /docs/architecture/ADR-0007-paid-affiliate-rewards.md @puntoracingrc
 /docs/architecture/ADR-0010-central-invoice-authority.md @puntoracingrc
 /docs/architecture/ADR-0011-central-business-authority.md @puntoracingrc
+/docs/architecture/ADR-0012-internal-irpf-estimate-history.md @puntoracingrc
 /docs/architecture/central-invoice-authority-schema-v1.md @puntoracingrc
 /docs/architecture/central-invoice-authority-production-baseline-*.json @puntoracingrc
 /docs/architecture/central-invoice-authority-phase2-readiness-gates.md @puntoracingrc
@@ -24,6 +25,9 @@
 /src/lib/billing/fiscal-export-documents.ts            @puntoracingrc
 /src/lib/billing/export-quarterly.ts                   @puntoracingrc
 /src/lib/billing/export-annual-pdf.ts                  @puntoracingrc
+/src/lib/irpf-estimate-policy.ts                       @puntoracingrc
+/src/lib/irpf-estimate-policy.test.ts                  @puntoracingrc
+/src/lib/irpf-estimate-storage.test.ts                 @puntoracingrc
 
 # Expense inbox webhook, provider download and alias lifecycle.
 # ADR-0004 and its contract tests must be reviewed before these paths change.

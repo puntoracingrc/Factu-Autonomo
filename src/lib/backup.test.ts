@@ -500,6 +500,34 @@ describe("backup", () => {
     });
   });
 
+  it("conserva el historial interno de IRPF de la empresa sin tocar documentos", () => {
+    const payload = createBackupPayload(
+      {
+        ...EMPTY_DATA,
+        profile: {
+          ...EMPTY_DATA.profile,
+          irpfPercent: 20,
+          irpfEstimatePolicy: {
+            schemaVersion: 1,
+            baselinePercent: 15,
+            changes: [
+              { effectiveAt: "2027-01-01T09:00:00.000Z", percent: 20 },
+            ],
+          },
+        },
+      },
+      NOW,
+    );
+    const restored = parseBackupJson(JSON.parse(JSON.stringify(payload)));
+
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.profile.irpfEstimatePolicy).toEqual(
+      payload.data.profile.irpfEstimatePolicy,
+    );
+    expect(restored.documents).toEqual([]);
+  });
+
   it("incluye clientes, documentos, gastos, proveedores y configuración del perfil", () => {
     const payload = createBackupPayload(
       {

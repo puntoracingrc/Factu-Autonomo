@@ -316,6 +316,136 @@ describe("isTaxableSaleDocument", () => {
 });
 
 describe("calculateTaxSummary", () => {
+  it("keeps the SL invoices already issued at 15% and applies 20% only afterwards", () => {
+    const profileWithHistory: BusinessProfile = {
+      ...TEST_PROFILE,
+      irpfPercent: 20,
+      irpfEstimatePolicy: {
+        schemaVersion: 1,
+        baselinePercent: 15,
+        changes: [
+          { effectiveAt: "2026-07-01T09:00:00.000Z", percent: 20 },
+        ],
+      },
+    };
+    const firstAtFifteen = issueDocument(
+      invoice("borrador", 1_000, { id: "sl-f-1", number: "F-SL-0001" }),
+      profileWithHistory,
+      "2026-06-09T10:00:00.000Z",
+    );
+    const secondAtFifteen = issueDocument(
+      invoice("borrador", 500, { id: "sl-f-2", number: "F-SL-0002" }),
+      profileWithHistory,
+      "2026-06-10T10:00:00.000Z",
+    );
+    const laterAtTwenty = issueDocument(
+      invoice("borrador", 1_000, {
+        id: "sl-f-3",
+        number: "F-SL-0003",
+        date: "2026-07-02",
+      }),
+      profileWithHistory,
+      "2026-07-02T10:00:00.000Z",
+    );
+
+    const summary = calculateTaxSummary(
+      [firstAtFifteen, secondAtFifteen, laterAtTwenty],
+      [],
+      { profile: profileWithHistory, irpfPercent: 20 },
+    );
+
+    expect(summary.irpfRateBreakdown).toEqual([
+      {
+        percent: 15,
+        salesBase: 1_500,
+        expenseBase: 0,
+        estimatedBase: 1_500,
+        estimate: 225,
+      },
+      {
+        percent: 20,
+        salesBase: 1_000,
+        expenseBase: 0,
+        estimatedBase: 1_000,
+        estimate: 200,
+      },
+    ]);
+    expect(summary.irpfEstimate).toBe(425);
+    expect(firstAtFifteen).not.toHaveProperty("irpfPercent");
+    expect(firstAtFifteen.documentSnapshot?.fiscalContext).not.toHaveProperty(
+      "irpfPercent",
+    );
+  });
+
+  it("orders expenses through the same detached internal history", () => {
+    const profileWithHistory: BusinessProfile = {
+      ...TEST_PROFILE,
+      irpfPercent: 20,
+      irpfEstimatePolicy: {
+        schemaVersion: 1,
+        baselinePercent: 15,
+        changes: [
+          { effectiveAt: "2026-07-01T09:00:00.000Z", percent: 20 },
+        ],
+      },
+    };
+    const saleAtFifteen = issueDocument(
+      invoice("borrador", 1_000, {
+        id: "sale-15",
+        number: "F-RATE-0015",
+      }),
+      profileWithHistory,
+      "2026-06-09T10:00:00.000Z",
+    );
+    const saleAtTwenty = issueDocument(
+      invoice("borrador", 1_000, {
+        id: "sale-20",
+        number: "F-RATE-0020",
+        date: "2026-07-02",
+      }),
+      profileWithHistory,
+      "2026-07-02T10:00:00.000Z",
+    );
+    const expenseAtFifteen: Expense = {
+      ...expense,
+      id: "expense-15",
+      amount: 100,
+      createdAt: "2026-06-10T10:00:00.000Z",
+    };
+    const expenseAtTwenty: Expense = {
+      ...expense,
+      id: "expense-20",
+      date: "2026-07-03",
+      amount: 100,
+      createdAt: "2026-07-03T10:00:00.000Z",
+    };
+
+    const summary = calculateTaxSummary(
+      [saleAtFifteen, saleAtTwenty],
+      [expenseAtFifteen, expenseAtTwenty],
+      { profile: profileWithHistory, irpfPercent: 20 },
+    );
+
+    expect(summary.irpfRateBreakdown).toEqual([
+      {
+        percent: 15,
+        salesBase: 1_000,
+        expenseBase: 100,
+        estimatedBase: 900,
+        estimate: 135,
+      },
+      {
+        percent: 20,
+        salesBase: 1_000,
+        expenseBase: 100,
+        estimatedBase: 900,
+        estimate: 180,
+      },
+    ]);
+    expect(summary.irpfEstimate).toBe(315);
+    expect(expenseAtFifteen).not.toHaveProperty("irpfPercent");
+  });
+
   it("mantiene el IVA separado del resultado tras reservar el IRPF", () => {
     const summary = calculateTaxSummary(
       [issuedInvoice("pagado", 1000)],

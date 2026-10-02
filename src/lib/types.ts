@@ -1227,6 +1227,23 @@ export interface AdvisorContact {
   phone: string;
 }
 
+/**
+ * Historial interno de porcentajes usados únicamente para la estimación de
+ * IRPF. No forma parte de la factura, su PDF, sus importes ni Veri*Factu.
+ */
+export interface IrpfEstimateRateChangeV1 {
+  effectiveAt: string;
+  percent: number;
+}
+
+export interface IrpfEstimatePolicyV1 {
+  schemaVersion: 1;
+  /** Porcentaje que ya regía antes del primer cambio registrado. */
+  baselinePercent: number;
+  /** Cambios ordenados por el momento en que se confirmaron en esta empresa. */
+  changes: IrpfEstimateRateChangeV1[];
+}
+
 export interface BusinessProfile {
   commercialName?: string;
   name: string;
@@ -1269,6 +1286,8 @@ export interface BusinessProfile {
   fiscalAdvisoryModelPreferences?: FiscalAdvisoryModelPreferencesV1;
   /** % IRPF estimado sobre el beneficio (modelo 130 orientativo) */
   irpfPercent?: number;
+  /** Cronología interna; nunca se proyecta al documento fiscal ni a su PDF. */
+  irpfEstimatePolicy?: IrpfEstimatePolicyV1;
   /** Días de validez aplicados por defecto a presupuestos nuevos; 0 desactiva la fecha automática. */
   quoteValidityDays?: number;
   numbering: NumberingSettings;

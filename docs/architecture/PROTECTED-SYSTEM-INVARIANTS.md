@@ -269,6 +269,22 @@ Regresiones mínimas: `central-business-authority/activation.test.ts`,
 `central-business-authority/events-app-data-sync.test.ts` y
 `protected-system-invariants-contract.test.ts`.
 
+### 10. Historial interno de estimación de IRPF
+
+Contrato: [ADR-0012](ADR-0012-internal-irpf-estimate-history.md).
+
+- El porcentaje es una preferencia interna orientativa, no una retención de la
+  factura ni contenido de su PDF, snapshot o registro VeriFactu.
+- Cada empresa conserva como baseline el porcentaje que ya tenía antes del
+  primer cambio y añade tramos posteriores sin reescribir los anteriores.
+- Facturas, recibos y gastos solo aportan su instante de emisión o alta para
+  ordenar el cálculo. Los históricos importados conservan su fecha fiscal.
+- Un cambio en una empresa nunca afecta a otra ni recalcula sus movimientos.
+
+Regresiones mínimas: `irpf-estimate-policy.test.ts`,
+`irpf-estimate-storage.test.ts`, `taxes.test.ts` y
+`central-business-authority/settings-profile-wiring.test.ts`.
+
 ## Prohibido sin autorización expresa
 
 - Debilitar el fail-closed de documentos nuevos emitidos por la app.
@@ -291,6 +307,8 @@ Regresiones mínimas: `central-business-authority/activation.test.ts`,
   fallo del servidor.
 - Sobrescribir una entidad operativa central sin `expectedVersion`, limpiar su
   cola antes de confirmar o tratar una operación masiva parcial como atómica.
+- Guardar el porcentaje orientativo de IRPF dentro de una factura, su snapshot,
+  PDF o evidencia VeriFactu, o reescribir tramos históricos al cambiarlo.
 
 ## Procedimiento para cualquier task nuevo
 

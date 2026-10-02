@@ -5,7 +5,10 @@ import type { ReactNode } from "react";
 import { Landmark, Receipt } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { formatMoney } from "@/lib/calculations";
-import type { TaxSummary } from "@/lib/taxes";
+import {
+  formatIrpfEstimateRateLabel,
+  type TaxSummary,
+} from "@/lib/taxes";
 
 interface TaxSummaryCardProps {
   taxes: TaxSummary;
@@ -136,7 +139,25 @@ function UnsupportedMixedVatNotice({ taxes }: { taxes: TaxSummary }) {
   );
 }
 
+function IrpfHistoricalBreakdown({ taxes }: { taxes: TaxSummary }) {
+  if (taxes.irpfRateBreakdown.length <= 1) return null;
+  return (
+    <>
+      {taxes.irpfRateBreakdown.map((entry) => (
+        <TaxRow
+          key={entry.percent}
+          label={`Tramo interno ${entry.percent}%`}
+          hint={`Base correspondiente: ${formatMoney(entry.estimatedBase)}`}
+          value={formatMoney(entry.estimate)}
+          valueClassName="text-orange-700"
+        />
+      ))}
+    </>
+  );
+}
+
 function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
+  const irpfRateLabel = formatIrpfEstimateRateLabel(taxes);
   return (
     <div className="space-y-4">
       <TaxSection
@@ -161,10 +182,11 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-slate-800"
         />
         <TaxRow
-          label={`Guarda para IRPF (${taxes.irpfPercent}%)`}
+          label={`Guarda para IRPF (${irpfRateLabel})`}
           value={formatMoney(taxes.irpfEstimate)}
           valueClassName="text-orange-700"
         />
+        <IrpfHistoricalBreakdown taxes={taxes} />
         <TaxRow
           label="Te queda aprox. después de guardar IRPF"
           value={formatMoney(taxes.profitAfterIrpfReserve)}
@@ -177,6 +199,7 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
 }
 
 function VatSummary({ taxes }: { taxes: TaxSummary }) {
+  const irpfRateLabel = formatIrpfEstimateRateLabel(taxes);
   const netLabel =
     taxes.ivaToPay > 0
       ? "IVA a pagar"
@@ -224,7 +247,11 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
 
       <TaxSection
         title="IRPF: dinero a guardar"
-        subtitle={`Aparta aproximadamente el ${taxes.irpfPercent}% de tu base para no llevarte sustos.`}
+        subtitle={
+          taxes.irpfRateBreakdown.length > 1
+            ? `Se respetan los porcentajes internos históricos (${irpfRateLabel}) según el momento de cada movimiento.`
+            : `Aparta aproximadamente el ${irpfRateLabel} de tu base para no llevarte sustos.`
+        }
         icon={Landmark}
         tone="orange"
       >
@@ -234,10 +261,11 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
           valueClassName="text-slate-800"
         />
         <TaxRow
-          label={`Guarda para IRPF (${taxes.irpfPercent}%)`}
+          label={`Guarda para IRPF (${irpfRateLabel})`}
           value={formatMoney(taxes.irpfEstimate)}
           valueClassName="text-orange-700"
         />
+        <IrpfHistoricalBreakdown taxes={taxes} />
         <TaxRow
           label="Te queda aprox. después de guardar IRPF"
           value={formatMoney(taxes.profitAfterIrpfReserve)}

@@ -7,6 +7,7 @@ import { triggerPdfBlobDownload } from "../pdf";
 import {
   assertTaxSummaryExportable,
   calculateTaxSummary,
+  formatIrpfEstimateRateLabel,
   taxableSaleDocumentsForPeriod,
 } from "../taxes";
 import type { BusinessProfile, Document, Expense } from "../types";
@@ -80,6 +81,14 @@ export function buildAnnualSummaryPdf(
     isDocumentDateInPeriod: (date) => isDateInYear(date, year),
   });
   assertTaxSummaryExportable(taxes);
+  const irpfRateLabel = formatIrpfEstimateRateLabel(taxes);
+  const irpfBreakdownRows =
+    taxes.irpfRateBreakdown.length > 1
+      ? taxes.irpfRateBreakdown.map((entry) => [
+          `Tramo interno IRPF ${entry.percent}% · base ${formatMoney(entry.estimatedBase)}`,
+          formatMoney(entry.estimate),
+        ])
+      : [];
   const periodInvoiced = taxes.salesBase + taxes.salesIva;
   const periodSpent = totalExpensesAmount(yearExpenses, vatExempt);
   const generated = new Date().toISOString().split("T")[0];
@@ -122,7 +131,8 @@ export function buildAnnualSummaryPdf(
           formatMoney(taxes.grossProfit),
         ],
         ["Base estimada para IRPF", formatMoney(taxes.estimatedIrpfBase)],
-        [`IRPF estimado (${taxes.irpfPercent}%)`, formatMoney(taxes.irpfEstimate)],
+        [`IRPF estimado (${irpfRateLabel})`, formatMoney(taxes.irpfEstimate)],
+        ...irpfBreakdownRows,
         [
           "Resultado económico tras reservar IRPF",
           formatMoney(taxes.profitAfterIrpfReserve),
@@ -149,7 +159,8 @@ export function buildAnnualSummaryPdf(
           formatMoney(taxes.grossProfit),
         ],
         ["Base estimada para IRPF", formatMoney(taxes.estimatedIrpfBase)],
-        [`IRPF estimado (${taxes.irpfPercent}%)`, formatMoney(taxes.irpfEstimate)],
+        [`IRPF estimado (${irpfRateLabel})`, formatMoney(taxes.irpfEstimate)],
+        ...irpfBreakdownRows,
         [
           "Resultado económico tras reservar IRPF",
           formatMoney(taxes.profitAfterIrpfReserve),
