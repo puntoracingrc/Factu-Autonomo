@@ -102,6 +102,20 @@ Esta política solo puede cambiar mediante una decisión explícita de producto 
 una migración versionada. Una auditoría de seguridad no puede eliminarla por
 considerarla menos estricta.
 
+## Historial interno de la estimación de IRPF
+
+La decisión obligatoria y versionada está en
+[`docs/architecture/ADR-0012-internal-irpf-estimate-history.md`](docs/architecture/ADR-0012-internal-irpf-estimate-history.md).
+
+- El porcentaje orientativo nunca se guarda en la factura, su PDF, snapshot o
+  registro VeriFactu.
+- Cada empresa conserva su propio baseline y sus cambios posteriores como una
+  cronología interna append-only.
+- Facturas, recibos y gastos ordenan el cálculo por su instante aplicable sin
+  que el cambio de porcentaje reescriba movimientos anteriores.
+- Cualquier cambio en configuración, impuestos o exportaciones debe ejecutar
+  las regresiones de ADR-0012.
+
 ## Retirada explícita de documentos descartados
 
 La decisión versionada está en

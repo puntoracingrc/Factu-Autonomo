@@ -62,6 +62,10 @@ import {
 } from "@/lib/numbering";
 import { DEFAULT_IRPF_PERCENT, normalizeIrpfPercent } from "@/lib/taxes";
 import {
+  applyIrpfEstimatePercentChange,
+  irpfEstimatePolicyDisplayEntries,
+} from "@/lib/irpf-estimate-policy";
+import {
   normalizeGooglePlacesSettings,
   type GooglePlaceAddressSuggestion,
 } from "@/lib/google-places";
@@ -129,6 +133,8 @@ const PROFILE_CONFLICT_LABELS: Partial<Record<keyof BusinessProfile, string>> = 
   documentTemplate: "plantilla",
   documentUnits: "unidades",
   fiscalProfile: "perfil fiscal",
+  irpfEstimatePolicy: "historial interno de IRPF",
+  irpfPercent: "porcentaje de IRPF",
   iva: "IVA",
   name: "nombre fiscal",
   nif: "NIF/CIF",
@@ -137,6 +143,18 @@ const PROFILE_CONFLICT_LABELS: Partial<Record<keyof BusinessProfile, string>> = 
   verifactu: "VeriFactu",
   website: "página web",
 };
+
+const IRPF_POLICY_DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "Europe/Madrid",
+});
+
+function formatIrpfPolicyEffectiveAt(value: string | null): string {
+  return value
+    ? IRPF_POLICY_DATE_FORMATTER.format(new Date(value))
+    : "antes del primer cambio";
+}
 
 function profileConflictMessage(paths: readonly string[]): string {
   const labels = [
@@ -269,6 +287,7 @@ export default function ConfiguracionPage() {
   const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
   const initialProfile = normalizeSettingsProfile(data.profile);
   const [form, setForm] = useState(initialProfile);
+  const irpfPolicyEntries = irpfEstimatePolicyDisplayEntries(form);
   const profileBaselineRef = useRef(initialProfile);
   const [saved, setSaved] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
@@ -341,6 +360,7 @@ export default function ConfiguracionPage() {
     setSaveBusy(true);
     const baseline = profileBaselineRef.current;
     const draft = normalizeSettingsProfile(next);
+    const irpfChangeEffectiveAt = new Date().toISOString();
     let conflicts: string[] = [];
     const result = await updateProfile((latestProfile) => {
       const latest = normalizeSettingsProfile(latestProfile);
@@ -350,9 +370,14 @@ export default function ConfiguracionPage() {
         draft,
       });
       if (conflicts.length > 0) return latest;
-      return normalizeSettingsProfile(
+      const rebased = normalizeSettingsProfile(
         rebaseBusinessProfileDraft({ latest, baseline, draft }),
       );
+      return applyIrpfEstimatePercentChange({
+        current: latest,
+        next: rebased,
+        effectiveAt: irpfChangeEffectiveAt,
+      });
     });
     setSaveBusy(false);
     if (!result.ok) {
@@ -1489,6 +1514,26 @@ export default function ConfiguracionPage() {
               }
             />
           </Field>
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+            <p className="font-semibold">Histórico protegido por empresa</p>
+            <p className="mt-1 leading-relaxed text-blue-900">
+              Al guardar un porcentaje distinto, el cambio se aplica solo a los
+              movimientos posteriores. Las facturas, recibos y gastos anteriores
+              mantienen su cálculo interno. Este dato no aparece en la factura,
+              el PDF ni VeriFactu.
+            </p>
+            {irpfPolicyEntries.length > 1 ? (
+              <ul className="mt-2 space-y-1 text-xs text-blue-800">
+                {irpfPolicyEntries.map((entry, index) => (
+                  <li key={`${entry.effectiveAt ?? "baseline"}-${entry.percent}`}>
+                    {index === 0
+                      ? `Antes del primer cambio: ${entry.percent}%`
+                      : `Desde ${formatIrpfPolicyEffectiveAt(entry.effectiveAt)}: ${entry.percent}%`}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </Card>
 
         <VerifactuSettingsCard

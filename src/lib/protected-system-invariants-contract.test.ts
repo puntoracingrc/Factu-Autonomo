@@ -19,6 +19,7 @@ const protectedAdrs = [
   "ADR-0007-paid-affiliate-rewards.md",
   "ADR-0010-central-invoice-authority.md",
   "ADR-0011-central-business-authority.md",
+  "ADR-0012-internal-irpf-estimate-history.md",
 ] as const;
 
 describe("mandatory protected-system registry", () => {
@@ -63,6 +64,10 @@ describe("mandatory protected-system registry", () => {
       "Un formulario de factura o presupuesto puede persistir como borrador local",
     );
     expect(registry).toContain("Realtime solo despierta al cliente");
+    expect(registry).toContain("Historial interno de estimación de IRPF");
+    expect(registry).toContain(
+      "El porcentaje es una preferencia interna orientativa",
+    );
     expect(registry).toContain(
       "La cola legacy de un dispositivo solo puede retirarse",
     );

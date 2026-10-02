@@ -586,6 +586,15 @@ describe("rentabilidad real read-only adapters", () => {
       ivaCredit: 0,
       grossProfit: 700,
       estimatedIrpfBase: 700,
+      irpfRateBreakdown: [
+        {
+          percent: 20,
+          salesBase: 1000,
+          expenseBase: 300,
+          estimatedBase: 700,
+          estimate: 140,
+        },
+      ],
       irpfPercent: 20,
       irpfEstimate: 140,
       profitAfterIrpfReserve: 560,

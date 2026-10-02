@@ -14,6 +14,8 @@ describe("central settings profile wiring", () => {
     expect(settings).toContain("rebaseBusinessProfileDraft");
     expect(settings).toContain("findBusinessProfileDraftConflictPaths");
     expect(settings).toContain("updateProfile((latestProfile) =>");
+    expect(settings).toContain("applyIrpfEstimatePercentChange");
+    expect(settings).toContain("Este dato no aparece en la factura");
     expect(settings).toContain("No se ha sobrescrito nada");
     expect(settings).not.toContain("updateProfile({");
   });

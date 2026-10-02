@@ -5,6 +5,7 @@ import { normalizeUserReminder } from "./reminder-team";
 import { countersFromDocuments } from "./documents";
 import { normalizeIvaSettings } from "./iva";
 import { normalizeIrpfPercent } from "./taxes";
+import { normalizeIrpfEstimatePolicy } from "./irpf-estimate-policy";
 import { normalizeVatExempt } from "./vat-regime";
 import { normalizeNumbering } from "./numbering";
 import { normalizeDocumentPhrases } from "./document-phrases";
@@ -107,6 +108,9 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     advisorContact: normalizeAdvisorContact(profile?.advisorContact),
     iva: normalizeIvaSettings(profile?.iva),
     irpfPercent: normalizeIrpfPercent(profile?.irpfPercent),
+    irpfEstimatePolicy: normalizeIrpfEstimatePolicy(
+      profile?.irpfEstimatePolicy,
+    ),
     vatExempt: normalizeVatExempt(profile?.vatExempt),
     fiscalProfile: normalizeBusinessFiscalProfile(profile?.fiscalProfile),
     taxModelDiagnostic: normalizeTaxModelDiagnosticSession(

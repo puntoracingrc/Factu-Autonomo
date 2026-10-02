@@ -1,6 +1,7 @@
 import { formatShortDate } from "../calculations";
 import {
   assertTaxSummaryExportable,
+  formatIrpfEstimateRateLabel,
   taxableSaleDocumentsForPeriod,
 } from "../taxes";
 import type { BusinessProfile, Document, Expense, Supplier } from "../types";
@@ -48,6 +49,16 @@ export function buildQuarterlyExportCsv(
       isDateInQuarter(date, year, quarter),
   });
   assertTaxSummaryExportable(taxes);
+  const irpfRateLabel = formatIrpfEstimateRateLabel(taxes);
+  const irpfBreakdownRows =
+    taxes.irpfRateBreakdown.length > 1
+      ? taxes.irpfRateBreakdown.map((entry) =>
+          csvRow([
+            `Tramo interno IRPF ${entry.percent}% (base ${formatCsvAmount(entry.estimatedBase)})`,
+            formatCsvAmount(entry.estimate),
+          ]),
+        )
+      : [];
 
   const taxableDocs = taxableSaleDocumentsForPeriod(quarterDocs).documents;
 
@@ -102,6 +113,10 @@ export function buildQuarterlyExportCsv(
       formatCsvAmount(taxes.estimatedIrpfBase),
     ]),
     csvRow(["IRPF estimado (orientativo)", formatCsvAmount(taxes.irpfEstimate)]),
+    ...(taxes.irpfRateBreakdown.length > 1
+      ? [csvRow(["Tipos internos IRPF aplicados", irpfRateLabel])]
+      : []),
+    ...irpfBreakdownRows,
     csvRow([
       "Resultado económico tras reservar IRPF",
       formatCsvAmount(taxes.profitAfterIrpfReserve),

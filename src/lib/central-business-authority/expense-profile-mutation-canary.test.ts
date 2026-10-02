@@ -242,7 +242,18 @@ describe("central expense and profile mutation canaries", () => {
       JSON.parse(JSON.stringify(profile)) as CentralBusinessJson,
     );
     const current: AppData = { ...EMPTY_DATA, profile };
-    const next = { ...profile, phone: "600000000" };
+    const next = {
+      ...profile,
+      phone: "600000000",
+      irpfPercent: 20,
+      irpfEstimatePolicy: {
+        schemaVersion: 1 as const,
+        baselinePercent: 15,
+        changes: [
+          { effectiveAt: "2027-01-01T09:00:00.000Z", percent: 20 },
+        ],
+      },
+    };
     const dependencies: CentralProfileMutationCanaryDependencies = {
       getCurrentData: () => current,
       updateProfileFallback: vi.fn(),
@@ -278,7 +289,16 @@ describe("central expense and profile mutation canaries", () => {
         entityType: "profile",
         entityId: "profile",
         expectedVersion: 1,
-        payload: expect.objectContaining({ phone: "600000000" }),
+        payload: expect.objectContaining({
+          phone: "600000000",
+          irpfEstimatePolicy: {
+            schemaVersion: 1,
+            baselinePercent: 15,
+            changes: [
+              { effectiveAt: "2027-01-01T09:00:00.000Z", percent: 20 },
+            ],
+          },
+        }),
       }),
     );
   });

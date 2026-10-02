@@ -49,6 +49,13 @@ describe("safe company copy profile", () => {
       taxModelDiagnostic: { schemaVersion: 1 },
       fiscalAdvisoryModelPreferences: { schemaVersion: 1 },
       irpfPercent: 7,
+      irpfEstimatePolicy: {
+        schemaVersion: 1,
+        baselinePercent: 15,
+        changes: [
+          { effectiveAt: "2027-01-01T09:00:00.000Z", percent: 20 },
+        ],
+      },
       numbering: {
         year: 2026,
         lastSequence: {
@@ -97,6 +104,7 @@ describe("safe company copy profile", () => {
     expect(copied).not.toHaveProperty("iban");
     expect(copied).not.toHaveProperty("taxModelDiagnostic");
     expect(copied).not.toHaveProperty("fiscalAdvisoryModelPreferences");
+    expect(copied).not.toHaveProperty("irpfEstimatePolicy");
   });
 
   it("returns detached objects and rejects non-object input", () => {
