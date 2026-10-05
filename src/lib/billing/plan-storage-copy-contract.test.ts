@@ -63,7 +63,7 @@ describe("copy público de almacenamiento por plan", () => {
     }
   });
 
-  it("explica de forma coherente Gratis local, Pro 2 y Pro+ 5", () => {
+  it("explica de forma coherente Gratis local y planes Pro sin límite de dispositivos", () => {
     const landing = source("src/components/marketing/PublicLanding.tsx");
     const ownership = source("src/components/settings/DataOwnershipCard.tsx");
     const privacy = source("src/app/legal/privacidad/page.tsx");
@@ -79,8 +79,9 @@ describe("copy público de almacenamiento por plan", () => {
     expect(combined).toContain(
       "Gratis guarda los datos de trabajo solo en el navegador de un dispositivo",
     );
-    expect(combined).toContain("Pro añade nube y hasta 2 dispositivos");
-    expect(combined).toContain("Pro+ permite hasta 5");
+    expect(combined).toContain(
+      "Los planes Pro añaden nube y dispositivos sincronizados sin límite de cantidad",
+    );
     expect(combined).toContain(
       "Crear o confirmar una cuenta Gratis no sube las facturas ni los datos de trabajo",
     );
@@ -111,14 +112,11 @@ describe("copy público de almacenamiento por plan", () => {
 
     expect(pricing).toContain("Un dispositivo local, sin nube de Factu");
     expect(pricing).toContain(
-      "Nube de Factu para hasta 2 dispositivos sincronizados",
+      "Nube de Factu para dispositivos ilimitados",
     );
-    expect(pricing).toContain(
-      "Nube de Factu para hasta 5 dispositivos sincronizados",
-    );
-    expect(upgrade).toContain("hasta 2 dispositivos");
+    expect(upgrade).toContain("dispositivos ilimitados");
     expect(account.replace(/\s+/gu, " ")).toContain(
-      "En Gratis, los datos siguen solo en este dispositivo; Pro sincroniza hasta 2 dispositivos y Pro+ hasta 5",
+      "En Gratis, los datos siguen solo en este dispositivo; los planes Pro sincronizan dispositivos sin límite de cantidad",
     );
     expect(account.replace(/\s+/gu, " ")).toContain(
       "En Gratis, lo que guardes seguirá solo en este navegador incluso después de iniciar sesión",
@@ -126,7 +124,7 @@ describe("copy público de almacenamiento por plan", () => {
     expect(account).toContain("Confirma tu cuenta de Factu");
     expect(account).not.toContain("mensaje de <strong>Supabase</strong>");
     expect(signup.replace(/\s+/gu, " ")).toContain(
-      "Pro sincroniza hasta 2 dispositivos y Pro+ hasta 5",
+      "los planes Pro sincronizan dispositivos sin límite de cantidad",
     );
     expect(combined).toContain(
       "Crear o confirmar la cuenta no los sube a la nube de Factu",

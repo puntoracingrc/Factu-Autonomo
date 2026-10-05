@@ -48,7 +48,7 @@ const PLAN_GUIDE = [
   {
     title: "Pasa a Pro cuando trabajes a diario",
     description:
-      "Añade almacenamiento en la nube de Factu y sincronización de hasta 2 dispositivos.",
+      "Añade almacenamiento en la nube de Factu y sincronización de dispositivos ilimitados.",
     Icon: Crown,
     tone: "bg-violet-50 text-violet-700",
   },
@@ -75,7 +75,7 @@ const TRUST_POINTS = [
   {
     title: "Tus datos bajo control",
     description:
-      "Gratis es local; Pro sincroniza 2 dispositivos y Pro+ hasta 5.",
+      "Gratis es local; los planes Pro sincronizan dispositivos sin límite de cantidad.",
     Icon: Database,
   },
   {
@@ -112,14 +112,14 @@ const PRO_FEATURES = [
   "Buzón inteligente básico para facturas de proveedores",
   "Importar clientes y proveedores desde otros programas",
   "Diseñador Pro de plantillas para facturas, presupuestos y recibos",
-  "Nube de Factu para hasta 2 dispositivos sincronizados",
+  "Nube de Factu para dispositivos ilimitados",
   "Copia automática opcional en Google Drive",
   "Resumen trimestral + export CSV",
   "Pruebas temporales mediante código promocional",
 ];
 
 const PRO_PLUS_FEATURES = [
-  "Nube de Factu para hasta 5 dispositivos sincronizados",
+  "Nube de Factu para dispositivos ilimitados",
   `IA avanzada para gastos y catálogo (${PRO_PLUS_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos)`,
   "Lee líneas de factura y permite elegir qué líneas crean producto",
   "Actualiza costes y referencias de proveedor con revisión previa",
@@ -269,8 +269,8 @@ export default function PreciosPage() {
                 </h2>
                 <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
                   Gratis guarda el trabajo en un único dispositivo. Si luego
-                  necesitas nube, Pro sincroniza hasta 2 dispositivos y Pro+
-                  hasta 5.
+                  necesitas nube, los planes Pro sincronizan dispositivos sin
+                  límite de cantidad.
                 </p>
               </div>
             </div>
@@ -299,8 +299,8 @@ export default function PreciosPage() {
                   Da el salto a Pro+ IA
                 </h2>
                 <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-                  Mantén todo lo de Pro, amplía la nube a 5 dispositivos y
-                  añade {PRO_PLUS_EXPENSE_SCANS_PER_MONTH} escaneos al mes,
+                  Mantén todo lo de Pro y añade {PRO_PLUS_EXPENSE_SCANS_PER_MONTH}
+                  escaneos al mes,
                   lectura de líneas, actualización de costes y márgenes por
                   familia.
                 </p>

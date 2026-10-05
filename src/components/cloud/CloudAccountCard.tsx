@@ -362,7 +362,7 @@ export function CloudAccountCard({
           <p className="mt-1 text-sm text-slate-600">
             {surface === "partner"
               ? "Crea tu acceso o inicia sesión con el mismo email que autorice el administrador."
-              : "Inicia sesión para gestionar tu cuenta. En Gratis, los datos siguen solo en este dispositivo; Pro sincroniza hasta 2 dispositivos y Pro+ hasta 5."}
+              : "Inicia sesión para gestionar tu cuenta. En Gratis, los datos siguen solo en este dispositivo; los planes Pro sincronizan dispositivos sin límite de cantidad."}
           </p>
         </div>
       </div>

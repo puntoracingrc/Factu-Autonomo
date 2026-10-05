@@ -60,7 +60,7 @@ describe("historical workspace archive automatic recovery wiring", () => {
     );
     expect(component).toContain('reason === "device_limit_reached"');
     expect(component).toContain(
-      "Esta empresa ya tiene ocupadas todas las plazas",
+      "El servidor todavía no ha podido registrar este dispositivo",
     );
     expect(component).toContain("No se ha borrado ni modificado ningún dato");
     expect(component).toContain("!recoveryNeedsManualAction(failureReason)");

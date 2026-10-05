@@ -118,7 +118,7 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
   entre pestañas. La adopción del snapshot reparado es solo en memoria y falla
   si otra pestaña cambió el estado durable o local. Una operación obsoleta no
   reemplaza, reescribe ni limpia estado.
-- Gratis permanece local; Pro/Pro+ limitan la nube a 2/5 dispositivos activos.
+- Gratis permanece local; los planes Pro permiten dispositivos ilimitados.
   Registro y revocación pasan por API privada y las policies de almacenamiento
   exigen propietario, plan cloud y token activo conservado solo como hash.
 - Cada token activo requiere además una concesión temporal ligada por hash a

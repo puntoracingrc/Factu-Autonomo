@@ -63,7 +63,7 @@ export const primerosPasosSection: ManualSection = {
       title: "6. Crea tu cuenta y confirma el email",
       paragraphs: [
         "En **Gratis**, los datos se guardan solo en el navegador de un dispositivo. Crear o confirmar la cuenta no los sube a la nube de Factu: protégelos con una copia manual fuera del dispositivo o con la copia automática opcional en Drive.",
-        "**Pro** añade nube de Factu y sincronización de hasta 2 dispositivos. **Pro+** permite hasta 5 dispositivos sincronizados.",
+        "Los planes **Pro** añaden nube de Factu y sincronización de dispositivos ilimitados.",
         "En **Cuenta** tienes bloques separados para **Acceso**, **Plan**, **Sincronización**, **Copias**, **Importación** y **Legal**. Así no tienes que buscar las copias o los documentos legales dentro de Ajustes.",
         "Hasta confirmar el email, la app puede dejarte seguir trabajando en este navegador, pero bloquea nube, Drive, envíos reales y acciones de cuenta.",
         "Si tu plan incluye nube y ya habías creado datos sin cuenta, al entrar podrás elegir **Guardar estos datos en mi cuenta**, descargar una copia o **Seguir solo en este navegador**. En Gratis el trabajo permanece local.",

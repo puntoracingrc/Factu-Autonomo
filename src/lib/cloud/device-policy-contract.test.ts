@@ -36,6 +36,13 @@ const sessionRollback = readFileSync(
   ),
   "utf8",
 );
+const unlimitedDevicesMigration = readFileSync(
+  new URL(
+    "../../../supabase/migrations/20261005213000_unlimited_cloud_devices.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const supabaseClient = readFileSync(
   new URL("../supabase/client.ts", import.meta.url),
   "utf8",
@@ -83,7 +90,7 @@ describe("cloud device policy contract", () => {
     );
   });
 
-  it("enforces plan and active-device access on every cloud storage policy", () => {
+  it("enforces the cloud plan and active-device access without a quantity cap", () => {
     expect(migration).toContain("cloud_device_limit_for_user");
     expect(migration).toContain("when subscription.plan = 'pro_plus' then 5");
     expect(migration).toContain("else 2");
@@ -93,6 +100,11 @@ describe("cloud device policy contract", () => {
     ).toHaveLength(8);
     expect(migration).toContain("pg_advisory_xact_lock");
     expect(migration).toContain("cloud_device_limit_reached");
+    expect(unlimitedDevicesMigration).toContain("then null::integer");
+    expect(unlimitedDevicesMigration).toContain("else 0");
+    expect(unlimitedDevicesMigration).toContain(
+      "los dispositivos son ilimitados",
+    );
   });
 
   it("sends the local token only to Supabase REST and restores owner policies", () => {

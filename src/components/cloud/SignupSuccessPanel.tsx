@@ -84,8 +84,8 @@ export function SignupSuccessPanel({
             <br />
             <span className="text-emerald-800">
               Vuelve aquí con la misma contraseña. En Gratis, tus datos siguen
-              en este dispositivo; Pro sincroniza hasta 2 dispositivos y Pro+
-              hasta 5.
+              en este dispositivo; los planes Pro sincronizan dispositivos sin
+              límite de cantidad.
             </span>
           </span>
         </li>

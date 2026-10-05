@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 15
-- Fecha: 2026-10-02
+- Versión: 16
+- Fecha: 2026-10-05
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
@@ -13,7 +13,9 @@
 > una escritura operativa ni habilita un guardado offline. Desde V14, el
 > registro y el límite de dispositivos se aíslan por empresa aunque varias
 > empresas compartan propietario de facturación. Desde V15, las copias JSON de
-> Drive se archivan y retienen en una subcarpeta estable por empresa.
+> Drive se archivan y retienen en una subcarpeta estable por empresa. Desde
+> V16, los planes con nube no limitan la cantidad de dispositivos; cada uno
+> sigue registrado, revocable y ligado a una sesión verificada.
 
 ## Contexto
 
@@ -135,32 +137,30 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 1. Gratis conserva los datos solo en el navegador actual y no crea registros
    de dispositivo cloud. Sus protecciones son la copia manual y, de forma
    opcional, Google Drive; ninguna de las dos convierte el JSON en estado vivo.
-2. Pro admite hasta 2 dispositivos activos por empresa y Pro+ hasta 5 por
-   empresa. La prueba Pro usa provisionalmente el límite de 2. El plan se
-   resuelve desde el propietario de facturación de la empresa, pero sus plazas
-   no se comparten con las demás empresas de ese propietario. Un cambio de
-   plan se aplica en servidor y nunca amplía el límite por información aportada
-   por el navegador.
+2. Pro, Pro+ y la prueba Pro admiten dispositivos activos sin límite de
+   cantidad. El plan se resuelve desde el propietario de facturación de la
+   empresa y se aplica en servidor; un navegador no puede atribuirse acceso a
+   nube por información aportada por el cliente.
 3. Cada navegador genera un token aleatorio local. El servidor solo conserva
    su SHA-256, nombre corto, tipo aproximado y marcas de actividad; no persiste
    IP, user-agent completo, NIF ni fingerprint de hardware.
 4. Alta, listado y revocación pasan por API autenticada con email confirmado.
    La tabla es privada al servidor y cada fila se liga al `data_owner_id` de la
    empresa activa. Si se pierde un dispositivo, una sesión nueva puede listar
-   solo los dispositivos de esa empresa, revocar el perdido y reclamar la
-   plaza liberada.
+   solo los dispositivos de esa empresa y revocar el perdido para retirar su
+   acceso.
 5. Las APIs y tablas centrales exigen a la vez propietario, plan con nube y
    token de dispositivo activo. La comprobación se realiza en servidor para
-   que un cliente manipulado no pueda saltarse el límite visual.
+   que un cliente manipulado no pueda saltarse el plan ni la revocación.
 6. El alta se serializa por empresa en base de datos. Dos navegadores que
-   intenten ocupar la última plaza de la misma empresa a la vez no pueden
-   superar el límite; la actividad de otra empresa no consume esa plaza.
-7. Si un downgrade deja más dispositivos registrados que plazas, solo los más
-   recientes dentro del límite pueden sincronizar. Los demás siguen visibles
-   para su revocación, pero toda lectura o escritura cloud queda bloqueada.
-8. Un rechazo de plan, token o límite se trata como fallo de sincronización:
+   registren el mismo token a la vez obtienen una única fila idempotente; la
+   actividad de otra empresa queda aislada.
+7. Un downgrade a un plan sin nube bloquea la sincronización de todos los
+   dispositivos. Cambiar entre planes con nube no desactiva dispositivos por
+   cantidad y todos siguen visibles para su revocación.
+8. Un rechazo de plan, token o sesión se trata como fallo de sincronización:
    mantiene la cola local, no confirma estado remoto y permite reintentar tras
-   liberar una plaza o recuperar el plan.
+   recuperar la autorización.
 9. «Cerrar y borrar este dispositivo» confirma primero la subida pendiente y
    revoca su plaza antes de cerrar una sesión con nube. Si cualquiera de esas
    operaciones falla, no borra los datos locales. En Gratis omite esas
@@ -267,12 +267,13 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 - Cerrar sesión o cambiar de cuenta durante una reparación no puede publicar el
   snapshot de la sesión anterior, y una segunda pestaña no puede continuar
   reintentando un conflicto ya detectado en el mismo navegador.
-- Gratis no depende de la nube de Factu y Pro/Pro+ aplican sus límites de 2/5
-  dispositivos también en las policies de almacenamiento.
+- Gratis no depende de la nube de Factu y los planes con nube admiten todos los
+  dispositivos registrados; las policies siguen exigiendo plan, token activo y
+  sesión verificada.
 - Perder un dispositivo no bloquea la cuenta: el usuario puede revocarlo desde
-  una sesión nueva sin que esta sincronice antes de obtener una plaza.
+  una sesión nueva para retirar su acceso.
 - Copiar el token local no permite sincronizar simultáneamente desde otra
-  sesión; las pestañas normales no consumen plazas adicionales y un cierre
+  sesión; las pestañas normales comparten token y un cierre
   inesperado solo retiene la concesión durante un máximo de 2 minutos.
 - Drive no puede mostrar una copia como válida basándose únicamente en la
   aceptación de la subida.
