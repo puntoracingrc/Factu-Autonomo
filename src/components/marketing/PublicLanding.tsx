@@ -61,7 +61,7 @@ const trustItems = [
   "Gratis real, sin tarjeta",
   "Información VeriFactu/SIF; registro y QR desactivados",
   "Email verificado antes de acciones reales",
-  "Gratis: 1 dispositivo local; Pro: 2 sincronizados; Pro+: 5",
+  "Gratis: 1 dispositivo local; planes Pro: dispositivos ilimitados",
   "Copias y sincronización según el plan contratado",
 ];
 
@@ -84,7 +84,7 @@ const visitorPath = [
   {
     title: "Confirma tu email",
     description:
-      "Con el correo confirmado se activan las acciones reales. La nube depende del plan: Pro admite 2 dispositivos y Pro+ hasta 5.",
+      "Con el correo confirmado se activan las acciones reales. Los planes Pro sincronizan dispositivos sin límite de cantidad.",
     Icon: ShieldCheck,
   },
 ];

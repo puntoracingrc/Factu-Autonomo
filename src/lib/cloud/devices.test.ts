@@ -199,7 +199,7 @@ describe("cloud devices", () => {
     expect(fake.rows).toHaveLength(0);
   });
 
-  it("limits Pro to two active devices", async () => {
+  it("allows unlimited active devices on Pro", async () => {
     const fake = createFakeAdmin();
     supabaseAdmin.getSupabaseAdmin.mockReturnValue(fake.client);
     serverRepository.fetchUserSubscriptionServer.mockResolvedValue({
@@ -228,10 +228,8 @@ describe("cloud devices", () => {
     });
     expect(first.allowed).toBe(true);
     expect(second.allowed).toBe(true);
-    expect(third.allowed).toBe(false);
-    if (third.allowed) throw new Error("expected third device to be blocked");
-    expect(third.reason).toBe("device_limit_reached");
-    expect(fake.rows.filter((row) => row.status === "active")).toHaveLength(2);
+    expect(third.allowed).toBe(true);
+    expect(fake.rows.filter((row) => row.status === "active")).toHaveLength(3);
   });
 
   it("keeps device slots independent for companies with the same billing owner", async () => {
@@ -354,7 +352,7 @@ describe("cloud devices", () => {
     expect(reclaimed.allowed).toBe(true);
   });
 
-  it("blocks devices outside the current limit after a downgrade", async () => {
+  it("keeps every registered device eligible on a cloud plan", async () => {
     const now = new Date("2026-07-20T10:00:00.000Z");
     const fake = createFakeAdmin([
       {
@@ -413,10 +411,7 @@ describe("cloud devices", () => {
       sessionId: SESSION_ONE,
     });
 
-    expect(result.allowed).toBe(false);
-    if (result.allowed)
-      throw new Error("expected downgraded device to be blocked");
-    expect(result.reason).toBe("device_limit_reached");
+    expect(result.allowed).toBe(true);
   });
 
   it("lets a new browser revoke a lost device and claim the released slot", async () => {
@@ -508,11 +503,11 @@ describe("cloud devices", () => {
     });
   });
 
-  it("keeps Pro Plus available for multiple devices", () => {
+  it("keeps Gratis local and cloud plans unlimited", () => {
     expect(cloudDeviceLimitForPlan("free")).toBe(0);
-    expect(cloudDeviceLimitForPlan("pro")).toBe(2);
-    expect(cloudDeviceLimitForPlan("trial")).toBe(2);
-    expect(cloudDeviceLimitForPlan("pro_plus")).toBe(5);
+    expect(cloudDeviceLimitForPlan("pro")).toBeNull();
+    expect(cloudDeviceLimitForPlan("trial")).toBeNull();
+    expect(cloudDeviceLimitForPlan("pro_plus")).toBeNull();
     expect(inferCloudDeviceKind("Mozilla/5.0 iPad")).toBe("tablet");
   });
 });

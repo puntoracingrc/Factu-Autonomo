@@ -36,8 +36,8 @@ export default function TerminosPage() {
         </p>
         <p>
           <strong>Planes:</strong> Gratis guarda los datos de trabajo solo en el
-          navegador de un dispositivo. Pro añade nube y hasta 2 dispositivos
-          sincronizados; Pro+ permite hasta 5. Los planes de pago se facturan
+          navegador de un dispositivo. Los planes Pro añaden nube y dispositivos
+          sincronizados sin límite de cantidad. Los planes de pago se facturan
           según los precios publicados en /precios (+ IVA aplicable). Puedes
           cancelar desde el portal de Stripe.
         </p>

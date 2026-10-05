@@ -7,7 +7,7 @@ export const cuentaSection: ManualSection = {
     "Alta gratis, email confirmado, plan, sincronización, copias JSON, Drive, importación y legal.",
   order: 12,
   intro: [
-    "La cuenta activa las acciones reales, pero el almacenamiento depende del plan. Gratis guarda el trabajo en un dispositivo; Pro usa la nube de Factu en hasta 2 y Pro+ en hasta 5. La copia manual JSON y Drive opcional son protecciones externas distintas.",
+    "La cuenta activa las acciones reales, pero el almacenamiento depende del plan. Gratis guarda el trabajo en un dispositivo; los planes Pro usan la nube de Factu en dispositivos ilimitados. La copia manual JSON y Drive opcional son protecciones externas distintas.",
   ],
   steps: [
     {
@@ -46,7 +46,7 @@ export const cuentaSection: ManualSection = {
       title: "4. Nube de Factu y dispositivos",
       paragraphs: [
         "En Gratis, **Acceso** muestra la cuenta, pero no ofrece controles de nube. Los datos permanecen en ese navegador y debes conservar una copia manual o en Drive fuera del dispositivo.",
-        "Pro guarda y sincroniza los datos en la nube de Factu para hasta 2 dispositivos; Pro+ permite hasta 5. **Acceso** muestra los controles de nube cuando el plan los incluye.",
+        "Los planes Pro guardan y sincronizan los datos en la nube de Factu en dispositivos ilimitados. **Acceso** muestra los controles de nube cuando el plan los incluye.",
         "La sección **Sincronización** explica cómo funciona la nube de Factu y te lleva de vuelta a **Acceso** para evitar duplicar botones.",
         "Si ya decidiste guardar los datos en tu cuenta y hay cambios pendientes, la app muestra cuántos quedan por subir. Normalmente se suben solos en unos segundos si la pestaña está abierta y tienes conexión.",
         "Si otro dispositivo tiene la copia buena y este no la refleja, abre **Problemas de sincronización** y usa **Comparar antes de reparar**. La vista muestra la fecha y hora registradas y compara cantidades de clientes, facturas, presupuestos, recibos, gastos, maestros y documentos de Notificaciones. La fecha solo orienta: no decide qué versión es correcta. Cualquier categoría con menos elementos en la nube queda destacada y debes aceptarla expresamente. Factu revalida exactamente ambos estados, solicita una copia cifrada local llamada `factu-autonomo-backup-antes-restaurar-…json` —búscala en Descargas o en la carpeta configurada en tu navegador— y descarga la nube completa sin subir antes la cola atascada. Si una versión cambió o no puede clasificarse con seguridad, no reemplaza nada. Solo termina cuando confirma el guardado local; si falla, conserva el estado anterior y deja la nube en pausa.",

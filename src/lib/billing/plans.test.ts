@@ -32,9 +32,9 @@ describe("billing plans", () => {
     expect(PLANS.pro.limits.aiTextAutofill).toBe(true);
     expect(PLANS.trial.limits.aiTextAutofill).toBe(true);
     expect(PLANS.pro.limits.quarterlyExport).toBe(true);
-    expect(PLANS.trial.limits.maxCloudDevices).toBe(2);
-    expect(PLANS.pro.limits.maxCloudDevices).toBe(2);
-    expect(PLANS.pro_plus.limits.maxCloudDevices).toBe(5);
+    expect(PLANS.trial.limits.maxCloudDevices).toBeNull();
+    expect(PLANS.pro.limits.maxCloudDevices).toBeNull();
+    expect(PLANS.pro_plus.limits.maxCloudDevices).toBeNull();
     expect(PLANS.pro_plus.limits.productCreationFromExpenses).toBe(true);
     expect(PLANS.pro.limits.productCreationFromExpenses).toBe(false);
   });

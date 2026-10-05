@@ -74,8 +74,8 @@ export default function PrivacidadPage() {
           En el plan Gratis, {APP_BRAND_NAME} guarda las facturas y datos de
           trabajo solo en el navegador de un dispositivo; crear o confirmar una
           cuenta no los sube a la nube. Pro añade almacenamiento en servidor y
-          sincronización de hasta 2 dispositivos. Pro+ permite hasta 5
-          dispositivos sincronizados.
+          los planes Pro permiten sincronizar dispositivos sin límite de
+          cantidad.
         </p>
         <h2>Proveedores</h2>
         <ul>

@@ -43,7 +43,7 @@ function wait(delayMs: number): Promise<void> {
 
 function recoveryFailureMessage(reason: string | null): string {
   if (reason === "device_limit_reached") {
-    return "Esta empresa ya tiene ocupadas todas las plazas de dispositivos de su plan. El propietario debe desactivar un dispositivo antiguo de esta empresa desde Cuenta.";
+    return "El servidor todavía no ha podido registrar este dispositivo. Factu volverá a intentarlo automáticamente.";
   }
   if (reason === "device_revoked") {
     return "Este dispositivo está desactivado para esta empresa. El propietario debe revisar sus dispositivos desde Cuenta.";
@@ -71,7 +71,7 @@ function recoveryFailureMessage(reason: string | null): string {
 }
 
 function recoveryNeedsManualAction(reason: string | null): boolean {
-  return reason === "device_limit_reached" || reason === "device_revoked";
+  return reason === "device_revoked";
 }
 
 function receiptMatches(

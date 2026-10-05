@@ -723,10 +723,7 @@ describe("MVP usability polish", () => {
     expect(pricingSource).toContain('fetch("/api/admin/capabilities"');
     expect(pricingSource).toContain("Un dispositivo local, sin nube de Factu");
     expect(pricingSource).toContain(
-      "Nube de Factu para hasta 2 dispositivos sincronizados",
-    );
-    expect(pricingSource).toContain(
-      "Nube de Factu para hasta 5 dispositivos sincronizados",
+      "Nube de Factu para dispositivos ilimitados",
     );
     expect(pricingSource).toContain("Crear cuenta gratis");
     expect(pricingSource).toContain("Pago gestionado por Stripe");

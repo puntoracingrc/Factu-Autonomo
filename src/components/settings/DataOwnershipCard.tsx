@@ -310,7 +310,7 @@ export function DataOwnershipCard({
                   {hasActiveCloudSession
                     ? "Solo entra quien tenga tu email y contraseña de esa cuenta."
                     : "Solo tú, con tu email y contraseña."}{" "}
-                  Pro admite hasta 2 dispositivos y Pro+ hasta 5. Otros usuarios
+                  Los planes Pro no limitan el número de dispositivos. Otros usuarios
                   de Factu no ven tus datos.
                 </span>
               </li>

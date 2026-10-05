@@ -292,7 +292,7 @@ function rejectedSessionClaimResult(
       limit,
       reason: "device_limit_reached",
       message:
-        "Este dispositivo queda fuera del limite actual de tu plan. Desactiva otro dispositivo desde Cuenta para liberar una plaza.",
+        "No se pudo registrar este dispositivo. Vuelve a intentarlo en unos instantes.",
       devices,
     };
   }
@@ -368,7 +368,7 @@ export async function ensureCloudDeviceAccess({
   }
 
   const rows = await selectDeviceRows(admin, userId);
-  if (!limit || limit <= 0) {
+  if (limit === 0) {
     return unavailableResult(plan, currentHash, rows);
   }
 
@@ -388,7 +388,9 @@ export async function ensureCloudDeviceAccess({
 
   const activeRows = activeDevices(rows);
   const activeDeviceIdsWithinPlan = new Set(
-    activeRows.slice(0, limit).map((row) => row.id),
+    (limit === null ? activeRows : activeRows.slice(0, limit)).map(
+      (row) => row.id,
+    ),
   );
   if (current && !activeDeviceIdsWithinPlan.has(current.id)) {
     return {
@@ -440,14 +442,14 @@ export async function ensureCloudDeviceAccess({
     };
   }
 
-  if (activeRows.length >= limit) {
+  if (limit !== null && activeRows.length >= limit) {
     return {
       allowed: false,
       plan,
       limit,
       reason: "device_limit_reached",
       message:
-        "Has alcanzado el limite de dispositivos de tu plan. Desactiva uno anterior desde Cuenta para sincronizar este dispositivo.",
+        "No se pudo registrar este dispositivo. Vuelve a intentarlo en unos instantes.",
       devices: rows.map((row) => mapDeviceRow(row, currentHash)),
     };
   }
@@ -483,10 +485,11 @@ export async function ensureCloudDeviceAccess({
         devices: refreshed.map((row) => mapDeviceRow(row, currentHash)),
       };
     }
+    const refreshedActive = activeDevices(refreshed);
     const authorizedIds = new Set(
-      activeDevices(refreshed)
-        .slice(0, limit)
-        .map((row) => row.id),
+      (limit === null ? refreshedActive : refreshedActive.slice(0, limit)).map(
+        (row) => row.id,
+      ),
     );
     if (racedCurrent && authorizedIds.has(racedCurrent.id)) {
       const claimStatus = await claimCloudDeviceSession(
@@ -518,7 +521,7 @@ export async function ensureCloudDeviceAccess({
         limit,
         reason: "device_limit_reached",
         message:
-          "Has alcanzado el limite de dispositivos de tu plan. Desactiva uno anterior desde Cuenta para sincronizar este dispositivo.",
+          "No se pudo registrar este dispositivo. Vuelve a intentarlo en unos instantes.",
         devices: refreshed.map((row) => mapDeviceRow(row, currentHash)),
       };
     }

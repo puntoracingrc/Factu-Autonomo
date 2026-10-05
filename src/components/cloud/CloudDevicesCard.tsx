@@ -124,8 +124,8 @@ export function CloudDevicesCard() {
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Plan {plan}: {count}
             {maxDevices === null ? "" : `/${maxDevices}`} dispositivos activos.
-            Si pierdes uno, inicia sesión en el nuevo y desactiva aquí el
-            anterior para liberar su plaza.
+            No hay límite de cantidad. Si pierdes uno, puedes desactivarlo aquí
+            para retirar su acceso.
           </p>
         </div>
         <Button
@@ -150,8 +150,8 @@ export function CloudDevicesCard() {
       {payload?.reason === "device_limit_reached" && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           <p>
-            Has alcanzado el límite de dispositivos. Desactiva uno antiguo para
-            sincronizar este navegador.
+            No se pudo registrar este dispositivo. Actualiza la página para
+            volver a intentarlo.
           </p>
         </div>
       )}
