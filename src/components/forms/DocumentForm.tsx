@@ -145,7 +145,9 @@ import {
   clearDocumentSessionDraft,
   getDocumentSessionDraft,
   saveDocumentSessionDraft,
+  shouldRestoreDocumentSessionDraft,
   type DocumentSessionDraft,
+  type DocumentSessionFormStateDraft,
 } from "@/lib/document-session-draft";
 import { productFamilyMarkupPercent } from "@/lib/product-family-markups";
 import type { WhatsappDocumentPrefill } from "@/lib/whatsapp-document-prefill";
@@ -722,11 +724,10 @@ export function DocumentForm({
   >({});
   const [pendingSessionDraft, setPendingSessionDraft] =
     useState<DocumentSessionDraft | null>(null);
-  const [sessionDraftChecked, setSessionDraftChecked] = useState(
-    Boolean(existing || initialPrefill),
-  );
+  const [sessionDraftChecked, setSessionDraftChecked] = useState(false);
   const productDocumentDraftApplied = useRef(false);
   const initialPrefillApplied = useRef(false);
+  const sessionDraftCompleted = useRef(false);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -758,6 +759,50 @@ export function DocumentForm({
       );
     },
     [data.profile.productFamilyMarkups],
+  );
+
+  const applySessionDraft = useCallback(
+    (draft: DocumentSessionDraft) => {
+      const form = draft.form;
+      if (draft.localDocumentId) {
+        localDocumentIdRef.current = draft.localDocumentId;
+      }
+      const restoredItems = form.items.length
+        ? form.items
+        : [emptyLine(effectiveDocumentIva, defaultUnit)];
+      const normalizedRestoredItems = normalizeLineItemUnits(
+        vatExempt ? zeroIvaItems(restoredItems) : restoredItems,
+        unitsSettings,
+      );
+
+      defaultSalesTermsApplied.current = true;
+      defaultPaymentApplied.current = true;
+      itemsRef.current = normalizedRestoredItems;
+      setClientForm({
+        ...EMPTY_CLIENT,
+        ...form.clientForm,
+      } as ClientFormValues);
+      setSelectedCustomerId(form.selectedCustomerId);
+      setDate(form.date || todayISO());
+      setDueDate(form.dueDate);
+      setNotes(form.notes);
+      setSalesTerms(form.salesTerms ?? "");
+      setPaymentTerms(form.paymentTerms);
+      setStatus(form.status);
+      setDocumentIvaPercent(vatExempt ? 0 : form.documentIvaPercent);
+      setItems(normalizedRestoredItems);
+      setLineProductPricing(form.lineProductPricing ?? {});
+      setLineAreaDrafts(
+        ensureMeasureDraftsForMeasuredLines(
+          normalizedRestoredItems,
+          form.lineAreaDrafts ?? {},
+        ),
+      );
+      setFocusedProductLineId(null);
+      setPendingSessionDraft(null);
+      setFormError(null);
+    },
+    [defaultUnit, effectiveDocumentIva, unitsSettings, vatExempt],
   );
 
   useEffect(() => {
@@ -873,17 +918,42 @@ export function DocumentForm({
   ]);
 
   useEffect(() => {
-    if (existing || productDocumentDraftApplied.current) return;
+    if (productDocumentDraftApplied.current) return;
     if (initialPrefill) {
       productDocumentDraftApplied.current = true;
       setPendingSessionDraft(null);
       setSessionDraftChecked(true);
       return;
     }
+
+    const sessionDraft = getDocumentSessionDraft(type);
+    if (existing) {
+      productDocumentDraftApplied.current = true;
+      if (
+        sessionDraft &&
+        shouldRestoreDocumentSessionDraft(sessionDraft, {
+          documentType: type,
+          existingDocumentId: existing.id,
+          existingDocumentUpdatedAt: existing.updatedAt,
+        })
+      ) {
+        applySessionDraft(sessionDraft);
+      }
+      setSessionDraftChecked(true);
+      return;
+    }
+
     const draft = consumeProductDocumentDraft();
     productDocumentDraftApplied.current = true;
     if (!draft || draft.documentType !== type) {
-      setPendingSessionDraft(getDocumentSessionDraft(type));
+      if (
+        sessionDraft &&
+        shouldRestoreDocumentSessionDraft(sessionDraft, {
+          documentType: type,
+        })
+      ) {
+        applySessionDraft(sessionDraft);
+      }
       setSessionDraftChecked(true);
       return;
     }
@@ -955,6 +1025,7 @@ export function DocumentForm({
       ),
     );
   }, [
+    applySessionDraft,
     defaultMarkupForProductLine,
     effectiveDocumentIva,
     existing,
@@ -1009,44 +1080,6 @@ export function DocumentForm({
     unitsSettings,
   ]);
 
-  function applySessionDraft(draft: DocumentSessionDraft) {
-    const form = draft.form;
-    if (draft.localDocumentId) {
-      localDocumentIdRef.current = draft.localDocumentId;
-    }
-    const restoredItems = form.items.length
-      ? form.items
-      : [emptyLine(effectiveDocumentIva, defaultUnit)];
-    const normalizedRestoredItems = normalizeLineItemUnits(
-      vatExempt ? zeroIvaItems(restoredItems) : restoredItems,
-      unitsSettings,
-    );
-
-    defaultSalesTermsApplied.current = true;
-    defaultPaymentApplied.current = true;
-    itemsRef.current = normalizedRestoredItems;
-    setClientForm({ ...EMPTY_CLIENT, ...form.clientForm } as ClientFormValues);
-    setSelectedCustomerId(form.selectedCustomerId);
-    setDate(form.date || todayISO());
-    setDueDate(form.dueDate);
-    setNotes(form.notes);
-    setSalesTerms(form.salesTerms ?? "");
-    setPaymentTerms(form.paymentTerms);
-    setStatus(form.status);
-    setDocumentIvaPercent(vatExempt ? 0 : form.documentIvaPercent);
-    setItems(normalizedRestoredItems);
-    setLineProductPricing(form.lineProductPricing ?? {});
-    setLineAreaDrafts(
-      ensureMeasureDraftsForMeasuredLines(
-        normalizedRestoredItems,
-        form.lineAreaDrafts ?? {},
-      ),
-    );
-    setFocusedProductLineId(null);
-    setPendingSessionDraft(null);
-    setFormError(null);
-  }
-
   function handleRestoreSessionDraft() {
     if (!pendingSessionDraft) return;
     applySessionDraft(pendingSessionDraft);
@@ -1058,47 +1091,63 @@ export function DocumentForm({
     setSessionDraftChecked(true);
   }
 
+  const currentSessionDraft = useMemo<DocumentSessionFormStateDraft>(
+    () => ({
+      clientForm: clientFormToDraft(clientForm),
+      selectedCustomerId,
+      date,
+      dueDate,
+      notes,
+      salesTerms,
+      paymentTerms,
+      status,
+      documentIvaPercent: effectiveDocumentIva,
+      items,
+      lineProductPricing,
+      lineAreaDrafts,
+    }),
+    [
+      clientForm,
+      selectedCustomerId,
+      date,
+      dueDate,
+      notes,
+      salesTerms,
+      paymentTerms,
+      status,
+      effectiveDocumentIva,
+      items,
+      lineProductPricing,
+      lineAreaDrafts,
+    ],
+  );
+
   useEffect(() => {
-    if (existing || !sessionDraftChecked || pendingSessionDraft) return;
-    const timer = window.setTimeout(() => {
-      saveDocumentSessionDraft(
-        type,
-        {
-          clientForm: clientFormToDraft(clientForm),
-          selectedCustomerId,
-          date,
-          dueDate,
-          notes,
-          salesTerms,
-          paymentTerms,
-          status,
-          documentIvaPercent: effectiveDocumentIva,
-          items: itemsRef.current,
-          lineProductPricing,
-          lineAreaDrafts,
-        },
-        { localDocumentId: localDocumentIdRef.current },
-      );
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [
-    existing,
-    sessionDraftChecked,
-    pendingSessionDraft,
-    type,
-    clientForm,
-    selectedCustomerId,
-    date,
-    dueDate,
-    notes,
-    salesTerms,
-    paymentTerms,
-    status,
-    effectiveDocumentIva,
-    items,
-    lineProductPricing,
-    lineAreaDrafts,
-  ]);
+    if (
+      !sessionDraftChecked ||
+      pendingSessionDraft ||
+      sessionDraftCompleted.current
+    ) {
+      return;
+    }
+    const persistDraft = () => {
+      if (sessionDraftCompleted.current) return;
+      saveDocumentSessionDraft(type, currentSessionDraft, {
+        localDocumentId: localDocumentIdRef.current,
+      });
+    };
+    const persistWhenHidden = () => {
+      if (document.visibilityState === "hidden") persistDraft();
+    };
+    const timer = window.setTimeout(persistDraft, 500);
+    document.addEventListener("visibilitychange", persistWhenHidden);
+    window.addEventListener("pagehide", persistDraft);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", persistWhenHidden);
+      window.removeEventListener("pagehide", persistDraft);
+    };
+  }, [sessionDraftChecked, pendingSessionDraft, type, currentSessionDraft]);
 
   useEffect(() => {
     if (!vatExempt) return;
@@ -2030,7 +2079,8 @@ export function DocumentForm({
       verifactuOutcome.outcome === "saved_with_safety_block";
 
     maybeCelebrateFirstInvoice(data.documents, saved);
-    if (!existing) clearDocumentSessionDraft(type);
+    sessionDraftCompleted.current = true;
+    clearDocumentSessionDraft(type);
     setFormError(null);
     setSaveAction("idle");
     await finishDocumentSave({
@@ -2966,7 +3016,6 @@ export function DocumentForm({
           </Button>
         </div>
       </div>
-
     </div>
   );
 }
