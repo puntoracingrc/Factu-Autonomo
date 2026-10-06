@@ -490,6 +490,33 @@ function sameEntity(
   return stableJson(left) === stableJson(right);
 }
 
+const LOCAL_QUOTE_WORKFLOW_FIELDS = [
+  "status",
+  "deliveryStatus",
+  "acceptanceStatus",
+  "sentAt",
+  "acceptedAt",
+  "updatedAt",
+] as const;
+
+function sameFirstCentralQuoteBusinessContent(
+  left: Document,
+  right: Document,
+): boolean {
+  const projectBusinessContent = (document: Document) => {
+    const content = { ...document } as Record<string, unknown>;
+    for (const field of LOCAL_QUOTE_WORKFLOW_FIELDS) {
+      delete content[field];
+    }
+    return content;
+  };
+
+  return (
+    stableJson(projectBusinessContent(left)) ===
+    stableJson(projectBusinessContent(right))
+  );
+}
+
 function localConflict(message: string): never {
   throw new CentralBusinessLocalApplyError(
     "CENTRAL_BUSINESS_LOCAL_ENTITY_CONFLICT",
@@ -899,6 +926,14 @@ export function buildCentralBusinessEventAppDataTransition(input: {
       };
     }
     if (sameEntity(existing, incoming)) {
+      return { data, value: value("unchanged") };
+    }
+    if (
+      event.entityType === "quote" &&
+      event.entityVersion === 1 &&
+      !knownPrevious &&
+      sameFirstCentralQuoteBusinessContent(existing, incoming)
+    ) {
       return { data, value: value("unchanged") };
     }
     if (!knownPrevious) {
