@@ -864,6 +864,96 @@ describe("central business events app data sync", () => {
     ).toThrow("El servidor devolvió un presupuesto o recibo incompleto.");
   });
 
+  it("conserva el estado operativo local al confirmar la primera versión del presupuesto", () => {
+    const centralQuote = quote({
+      deliveryStatus: "not_sent",
+      acceptanceStatus: "pending",
+    });
+    const locallySentQuote = quote({
+      status: "enviado",
+      deliveryStatus: "sent",
+      acceptanceStatus: "pending",
+      sentAt: "2026-07-29T19:01:00.000Z",
+      updatedAt: "2026-07-29T19:01:00.000Z",
+    });
+    const data = { ...EMPTY_DATA, documents: [locallySentQuote] };
+
+    const unchanged = buildCentralBusinessEventAppDataTransition({
+      data,
+      event: event(centralQuote),
+    });
+
+    expect(unchanged.value.action).toBe("unchanged");
+    expect(unchanged.data).toBe(data);
+    expect(unchanged.data.documents[0]).toEqual(locallySentQuote);
+
+    expect(() =>
+      buildCentralBusinessEventAppDataTransition({
+        data,
+        event: event({ ...centralQuote, notes: "Contenido distinto" }),
+      }),
+    ).toThrow(
+      "El documento local difiere de la primera versión recibida del servidor.",
+    );
+  });
+
+  it("avanza el cursor tras reconocer un estado operativo local del presupuesto", async () => {
+    const centralQuote = quote({
+      deliveryStatus: "not_sent",
+      acceptanceStatus: "pending",
+    });
+    const locallySentQuote = quote({
+      status: "enviado",
+      deliveryStatus: "sent",
+      acceptanceStatus: "pending",
+      sentAt: "2026-07-29T19:01:00.000Z",
+      updatedAt: "2026-07-29T19:01:00.000Z",
+    });
+    const target = harness({
+      ...EMPTY_DATA,
+      documents: [locallySentQuote],
+      customers: [],
+    });
+    const result = await syncCentralBusinessEventsIntoAppData(
+      { ownerScope },
+      {
+        ...target.dependencies,
+        pull: async () => ({
+          ok: true,
+          schema: "CENTRAL_BUSINESS_EVENTS_CLIENT_V1",
+          events: [
+            event(centralQuote),
+            event(customer(), {
+              eventId: "event-2",
+              eventSequence: 2,
+            }),
+          ],
+          nextSequence: 2,
+          hasMore: false,
+        }),
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      pulled: 2,
+      applied: 1,
+      skipped: 1,
+      nextSequence: 2,
+    });
+    expect(target.data.documents[0]).toEqual(locallySentQuote);
+    expect(target.data.customers).toEqual([expect.objectContaining(customer())]);
+    expect(
+      loadCentralBusinessDurableQueue(ownerScope, target.storage),
+    ).toMatchObject({
+      lastAppliedEventSequence: 2,
+      entityVersions: {
+        "quote:quote-1": { version: 1 },
+        "customer:customer-1": { version: 1 },
+      },
+    });
+  });
+
   it("materializa recibos centrales, enlaza su factura y reconoce el replay", () => {
     const source = paidReceiptSourceInvoice();
     const initial: AppData = {
