@@ -19,6 +19,8 @@ describe("central authority and Drive reliability contract", () => {
     expect(context).toContain("syncCentralBusinessEvents");
     expect(context).toContain("syncCentralInvoiceAuthorityEvents");
     expect(context).toContain("syncFiscalNotificationsWorkspace");
+    expect(context).toContain("runCloudSyncSingleFlight");
+    expect(context).not.toContain("if (syncingRef.current) return false");
     expect(context).not.toContain("pushSyncChanges");
     expect(context).not.toContain("pullSyncChanges");
     expect(workspace).toContain('TABLE = "workspace_auxiliary_entities"');

@@ -31,6 +31,10 @@ import {
   releaseCurrentCloudDeviceSession,
   retireCurrentCloudDevice,
 } from "@/lib/cloud/device-client";
+import {
+  runCloudSyncSingleFlight,
+  type CloudSyncFlightState,
+} from "@/lib/cloud/sync-single-flight";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -124,7 +128,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const [online, setOnline] = useState(true);
-  const syncingRef = useRef(false);
+  const syncFlightRef = useRef<CloudSyncFlightState<boolean>>(null);
   const welcomeRequestedForUser = useRef<string | null>(null);
   const welcomeRetryUser = useRef<string | null>(null);
   const welcomeRetryAttempts = useRef(0);
@@ -223,110 +227,112 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
       };
       ensureOwnerIsActive();
-      if (!navigator.onLine) {
-        setSyncStatus("offline");
-        setSyncMessage(
-          "Sin conexion. Las operaciones centrales siguen en cola.",
-        );
-        return false;
-      }
-      if (syncingRef.current) return false;
-      syncingRef.current = true;
-      setSyncStatus("syncing");
-      setSyncMessage("Comprobando el servidor central...");
-      try {
-        const cloudAccess = await canUseCloudForUser(
-          activeCompany.billingOwnerUserId,
-        );
+      return runCloudSyncSingleFlight(syncFlightRef, ownerScope, async () => {
         ensureOwnerIsActive();
-        setCloudAccessAllowed(cloudAccess.allowed);
-        if (!cloudAccess.allowed) {
-          setSyncStatus("idle");
+        if (!navigator.onLine) {
+          setSyncStatus("offline");
           setSyncMessage(
-            cloudAccess.reason ??
-              "La sincronizacion entre dispositivos requiere un plan con nube.",
+            "Sin conexion. Las operaciones centrales siguen en cola.",
           );
           return false;
         }
-        const device = await registerCurrentCloudDevice({
-          notifyReactivated: false,
-          expectedOwnerScope: ownerScope,
-        });
-        ensureOwnerIsActive();
-        if (device.error || device.allowed === false) {
-          throw new Error(
-            device.message ??
-              device.error ??
-              "Este dispositivo no puede usar el servidor central.",
-          );
-        }
 
-        for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
-          const business = await syncCentralBusinessEvents(ownerScope, {
-            limit: BUSINESS_EVENT_LIMIT,
+        setSyncStatus("syncing");
+        setSyncMessage("Comprobando el servidor central...");
+        try {
+          const cloudAccess = await canUseCloudForUser(
+            activeCompany.billingOwnerUserId,
+          );
+          ensureOwnerIsActive();
+          setCloudAccessAllowed(cloudAccess.allowed);
+          if (!cloudAccess.allowed) {
+            setSyncStatus("idle");
+            setSyncMessage(
+              cloudAccess.reason ??
+                "La sincronizacion entre dispositivos requiere un plan con nube.",
+            );
+            return false;
+          }
+          const device = await registerCurrentCloudDevice({
+            notifyReactivated: false,
+            expectedOwnerScope: ownerScope,
           });
           ensureOwnerIsActive();
-          if (!business.ok) throw new Error(business.message);
-          if (!business.hasMore) break;
-          if (page === MAX_SYNC_PAGES - 1) {
+          if (device.error || device.allowed === false) {
             throw new Error(
-              "Quedan demasiados eventos de negocio por revisar.",
+              device.message ??
+                device.error ??
+                "Este dispositivo no puede usar el servidor central.",
             );
           }
-        }
 
-        for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
-          const invoices = await syncCentralInvoiceAuthorityEvents(
-            getCurrentData(),
-            { limit: INVOICE_EVENT_LIMIT },
-          );
+          for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
+            const business = await syncCentralBusinessEvents(ownerScope, {
+              limit: BUSINESS_EVENT_LIMIT,
+            });
+            ensureOwnerIsActive();
+            if (!business.ok) throw new Error(business.message);
+            if (!business.hasMore) break;
+            if (page === MAX_SYNC_PAGES - 1) {
+              throw new Error(
+                "Quedan demasiados eventos de negocio por revisar.",
+              );
+            }
+          }
+
+          for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
+            const invoices = await syncCentralInvoiceAuthorityEvents(
+              getCurrentData(),
+              { limit: INVOICE_EVENT_LIMIT },
+            );
+            ensureOwnerIsActive();
+            if (invoices.status !== "applied") {
+              throw new Error(
+                "No se pudo confirmar la lectura de facturas centrales.",
+              );
+            }
+            if (!invoices.value.localSync.ok) {
+              throw new Error(
+                invoices.value.localSync.message ??
+                  "Las facturas centrales requieren revision.",
+              );
+            }
+            if (invoices.value.localSync.pulledEvents < INVOICE_EVENT_LIMIT) {
+              break;
+            }
+            if (page === MAX_SYNC_PAGES - 1) {
+              throw new Error(
+                "Quedan demasiados eventos fiscales por revisar.",
+              );
+            }
+          }
+
+          const fiscalWorkspace =
+            await syncFiscalNotificationsWorkspace(ownerScope);
           ensureOwnerIsActive();
-          if (invoices.status !== "applied") {
-            throw new Error(
-              "No se pudo confirmar la lectura de facturas centrales.",
-            );
+          if (!fiscalWorkspace.ok) {
+            throw new Error(fiscalWorkspace.message);
           }
-          if (!invoices.value.localSync.ok) {
-            throw new Error(
-              invoices.value.localSync.message ??
-                "Las facturas centrales requieren revision.",
-            );
-          }
-          if (invoices.value.localSync.pulledEvents < INVOICE_EVENT_LIMIT) {
-            break;
-          }
-          if (page === MAX_SYNC_PAGES - 1) {
-            throw new Error("Quedan demasiados eventos fiscales por revisar.");
-          }
-        }
 
-        const fiscalWorkspace =
-          await syncFiscalNotificationsWorkspace(ownerScope);
-        ensureOwnerIsActive();
-        if (!fiscalWorkspace.ok) {
-          throw new Error(fiscalWorkspace.message);
+          await registerCurrentCloudDevice({
+            markSynced: true,
+            notifyReactivated: false,
+            expectedOwnerScope: ownerScope,
+          });
+          ensureOwnerIsActive();
+          setSyncStatus("synced");
+          setSyncMessage("Servidor central comprobado.");
+          return true;
+        } catch (error) {
+          setSyncStatus(navigator.onLine ? "error" : "offline");
+          setSyncMessage(
+            error instanceof Error
+              ? error.message
+              : "No se pudo comprobar el servidor central.",
+          );
+          return false;
         }
-
-        await registerCurrentCloudDevice({
-          markSynced: true,
-          notifyReactivated: false,
-          expectedOwnerScope: ownerScope,
-        });
-        ensureOwnerIsActive();
-        setSyncStatus("synced");
-        setSyncMessage("Servidor central comprobado.");
-        return true;
-      } catch (error) {
-        setSyncStatus(navigator.onLine ? "error" : "offline");
-        setSyncMessage(
-          error instanceof Error
-            ? error.message
-            : "No se pudo comprobar el servidor central.",
-        );
-        return false;
-      } finally {
-        syncingRef.current = false;
-      }
+      });
     },
     [
       demoMode,
