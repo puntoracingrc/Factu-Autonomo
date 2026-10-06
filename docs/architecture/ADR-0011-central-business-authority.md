@@ -1,8 +1,8 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 28
-- Fecha: 2026-09-29
+- Version: 29
+- Fecha: 2026-10-06
 
 ## Contexto
 
@@ -109,7 +109,10 @@ por marcas de tiempo ni accede directamente a las tablas centrales.
 
 El despertar de negocio usa Broadcast privado por propietario y solo contiene
 `event_sequence`; no publica fichas, importes, NIF, hashes ni el contenido del
-outbox. Si el WebSocket falla, el sondeo por cursor continua como respaldo.
+outbox. La autorizacion del canal resuelve el propietario central contra la
+membresia activa de la empresa, porque en un workspace compartido ese
+propietario no tiene por que coincidir con `auth.uid()`. Si el WebSocket falla,
+el sondeo por cursor continua como respaldo.
 
 El preflight autenticado de la fase 2 comprueba todas las tablas requeridas con
 lecturas `HEAD` sin filas y ejecuta cada RPC con entradas invalidas a
