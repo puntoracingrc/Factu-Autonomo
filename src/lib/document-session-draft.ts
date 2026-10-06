@@ -56,7 +56,7 @@ export function hasMeaningfulDocumentSessionDraft(
 ): boolean {
   const hasClient = Boolean(
     form.selectedCustomerId ||
-      Object.values(form.clientForm ?? {}).some((value) => hasText(value)),
+    Object.values(form.clientForm ?? {}).some((value) => hasText(value)),
   );
   const hasLines =
     hasMeaningfulLine(form) ||
@@ -92,7 +92,10 @@ export function saveDocumentSessionDraft(
       updatedAt: new Date().toISOString(),
       form,
     };
-    target.setItem(documentSessionDraftKey(documentType), JSON.stringify(draft));
+    target.setItem(
+      documentSessionDraftKey(documentType),
+      JSON.stringify(draft),
+    );
     return true;
   } catch {
     return false;
@@ -113,6 +116,7 @@ export function getDocumentSessionDraft(
       parsed?.source !== "document-session" ||
       parsed.schemaVersion !== 1 ||
       parsed.documentType !== documentType ||
+      !Number.isFinite(Date.parse(parsed.updatedAt)) ||
       (parsed.localDocumentId !== undefined &&
         (typeof parsed.localDocumentId !== "string" ||
           parsed.localDocumentId.length < 1 ||
@@ -128,6 +132,26 @@ export function getDocumentSessionDraft(
   } catch {
     return null;
   }
+}
+
+export function shouldRestoreDocumentSessionDraft(
+  draft: DocumentSessionDraft,
+  options: {
+    documentType: DocumentType;
+    existingDocumentId?: string;
+    existingDocumentUpdatedAt?: string;
+  },
+): boolean {
+  if (draft.documentType !== options.documentType) return false;
+  if (!options.existingDocumentId) return true;
+  if (draft.localDocumentId !== options.existingDocumentId) return false;
+
+  const draftUpdatedAt = Date.parse(draft.updatedAt);
+  const existingUpdatedAt = Date.parse(options.existingDocumentUpdatedAt ?? "");
+  return (
+    Number.isFinite(draftUpdatedAt) &&
+    (!Number.isFinite(existingUpdatedAt) || draftUpdatedAt > existingUpdatedAt)
+  );
 }
 
 export function clearDocumentSessionDraft(documentType: DocumentType): void {

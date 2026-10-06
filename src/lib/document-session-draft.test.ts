@@ -4,6 +4,7 @@ import {
   getDocumentSessionDraft,
   hasMeaningfulDocumentSessionDraft,
   saveDocumentSessionDraft,
+  shouldRestoreDocumentSessionDraft,
   type DocumentSessionFormStateDraft,
 } from "./document-session-draft";
 import { setActiveWorkspaceOwnerScope } from "./workspace-owner-runtime";
@@ -108,6 +109,58 @@ describe("document session draft", () => {
       form: { clientForm: { firstName: "Cliente privado A" } },
     });
   });
+
+  it("restaura automaticamente un documento nuevo en la misma sesión", () => {
+    saveDocumentSessionDraft(
+      "factura",
+      formDraft({ clientForm: { firstName: "Cliente recuperado" } }),
+      { localDocumentId: "new-invoice-local-id" },
+    );
+
+    const draft = getDocumentSessionDraft("factura");
+    expect(draft).not.toBeNull();
+    expect(
+      shouldRestoreDocumentSessionDraft(draft!, {
+        documentType: "factura",
+      }),
+    ).toBe(true);
+  });
+
+  it("solo restaura la edición del mismo borrador si es más reciente", () => {
+    saveDocumentSessionDraft(
+      "presupuesto",
+      formDraft({ clientForm: { firstName: "Cambio no guardado" } }),
+      { localDocumentId: "quote-123" },
+    );
+    const savedDraft = getDocumentSessionDraft("presupuesto");
+    expect(savedDraft).not.toBeNull();
+    const draft = {
+      ...savedDraft!,
+      updatedAt: "2026-10-06T10:05:00.000Z",
+    };
+
+    expect(
+      shouldRestoreDocumentSessionDraft(draft, {
+        documentType: "presupuesto",
+        existingDocumentId: "quote-123",
+        existingDocumentUpdatedAt: "2026-10-06T10:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      shouldRestoreDocumentSessionDraft(draft, {
+        documentType: "presupuesto",
+        existingDocumentId: "quote-other",
+        existingDocumentUpdatedAt: "2026-10-06T10:00:00.000Z",
+      }),
+    ).toBe(false);
+    expect(
+      shouldRestoreDocumentSessionDraft(draft, {
+        documentType: "presupuesto",
+        existingDocumentId: "quote-123",
+        existingDocumentUpdatedAt: "2026-10-06T10:10:00.000Z",
+      }),
+    ).toBe(false);
+  });
 });
 
 function formDraft(
@@ -128,7 +181,7 @@ function formDraft(
         id: "line-1",
         description: "",
         quantity: 1,
-    unit: "ud",
+        unit: "ud",
         unitPrice: 0,
         ivaPercent: 21,
       },
