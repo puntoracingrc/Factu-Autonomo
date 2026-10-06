@@ -176,9 +176,9 @@ describe("first-use onboarding", () => {
     });
   });
 
-  it("separa por usuario la decision de omitir la copia extra en Drive", () => {
-    expect(firstUseDriveDismissedStorageKey("user-123")).toBe(
-      "factu:first-use-onboarding:drive-backup-dismissed:user-123",
+  it("separa por empresa la decision de omitir la copia extra en Drive", () => {
+    expect(firstUseDriveDismissedStorageKey("company-owner-123")).toBe(
+      "factu:first-use-onboarding:drive-backup-dismissed:company-owner-123",
     );
   });
 

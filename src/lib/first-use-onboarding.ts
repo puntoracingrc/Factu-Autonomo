@@ -55,8 +55,8 @@ export function firstUseDocumentDismissedStorageKey(userId: string): string {
   return `${FIRST_USE_ONBOARDING_DOCUMENT_DISMISSED_STORAGE_PREFIX}:${userId}`;
 }
 
-export function firstUseDriveDismissedStorageKey(userId: string): string {
-  return `${FIRST_USE_ONBOARDING_DRIVE_DISMISSED_STORAGE_PREFIX}:${userId}`;
+export function firstUseDriveDismissedStorageKey(ownerScope: string): string {
+  return `${FIRST_USE_ONBOARDING_DRIVE_DISMISSED_STORAGE_PREFIX}:${ownerScope}`;
 }
 
 export function shouldShowFirstUseDriveBackup(input: {
