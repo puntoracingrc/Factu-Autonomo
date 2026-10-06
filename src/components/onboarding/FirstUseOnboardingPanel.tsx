@@ -81,7 +81,7 @@ export function FirstUseOnboardingPanel() {
 
   if (!state.visible) {
     return user && state.emailConfirmed && state.profileReady ? (
-      <FirstUseDriveBackupPanel userId={user.id} />
+      <FirstUseDriveBackupPanel />
     ) : null;
   }
 

@@ -5,6 +5,7 @@ import { HardDrive, ShieldCheck } from "lucide-react";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { Button } from "@/components/ui/Button";
 import { useBilling } from "@/context/BillingContext";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
   DRIVE_BACKUP_SETTINGS_EVENT,
@@ -19,12 +20,13 @@ import {
   shouldShowFirstUseDriveBackup,
 } from "@/lib/first-use-onboarding";
 
-export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
+export function FirstUseDriveBackupPanel() {
   const { limits, loading: billingLoading } = useBilling();
+  const { ownerScope } = useWorkspaceStorage();
   const cloudSyncEnabled = limits.cloudSync;
   const driveConfigured = isGoogleDriveBackupEnabled();
-  const dismissedStorageKey = firstUseDriveDismissedStorageKey(userId);
-  const driveSettingsStorageKey = driveBackupSettingsStorageKey(userId);
+  const dismissedStorageKey = firstUseDriveDismissedStorageKey(ownerScope);
+  const driveSettingsStorageKey = driveBackupSettingsStorageKey(ownerScope);
   const [settings, setSettings] = useState<DriveBackupSettings>(
     DEFAULT_DRIVE_BACKUP_SETTINGS,
   );
@@ -34,7 +36,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
 
   useEffect(() => {
     function syncDriveState() {
-      setSettings(loadDriveBackupSettings(userId));
+      setSettings(loadDriveBackupSettings(ownerScope));
       try {
         setDismissed(
           window.localStorage.getItem(dismissedStorageKey) === "1",
@@ -62,7 +64,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
       window.removeEventListener(DRIVE_BACKUP_SETTINGS_EVENT, syncDriveState);
       window.removeEventListener("storage", syncDriveStateFromStorage);
     };
-  }, [dismissedStorageKey, driveSettingsStorageKey, userId]);
+  }, [dismissedStorageKey, driveSettingsStorageKey, ownerScope]);
 
   function dismissDriveSuggestion() {
     setDismissed(true);
@@ -76,7 +78,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
   function openDriveConfiguration() {
     if (settings.frequency === "manual") {
       const nextSettings = { ...settings, frequency: "daily" as const };
-      saveDriveBackupSettings(nextSettings, userId);
+      saveDriveBackupSettings(nextSettings, ownerScope);
       setSettings(nextSettings);
     }
     setExpanded(true);

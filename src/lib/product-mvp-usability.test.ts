@@ -618,6 +618,20 @@ describe("MVP usability polish", () => {
       "factu:first-use-onboarding:first-document-dismissed",
     );
     expect(onboardingSource).toContain("FirstUseDriveBackupPanel");
+    expect(onboardingSource).toContain("<FirstUseDriveBackupPanel />");
+    expect(driveOnboardingSource).toContain("useWorkspaceStorage");
+    expect(driveOnboardingSource).toContain(
+      "driveBackupSettingsStorageKey(ownerScope)",
+    );
+    expect(driveOnboardingSource).toContain(
+      "loadDriveBackupSettings(ownerScope)",
+    );
+    expect(driveOnboardingSource).toContain(
+      "saveDriveBackupSettings(nextSettings, ownerScope)",
+    );
+    expect(driveOnboardingSource).not.toContain(
+      "driveBackupSettingsStorageKey(userId)",
+    );
     expect(driveOnboardingSource).toContain("limits.cloudSync");
     expect(driveOnboardingSource).toContain(
       "Con el plan Gratuito, Factu no guarda tus facturas ni datos",
