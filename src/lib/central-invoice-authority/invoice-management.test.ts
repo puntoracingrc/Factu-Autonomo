@@ -39,6 +39,7 @@ describe("central ordinary invoice management", () => {
     const detail = readFileSync(new URL("../../components/documents/DocumentDetailView.tsx", import.meta.url), "utf8");
     expect(form).toContain("centralEditBaseRef = useRef(existing?.centralInvoiceAuthority)");
     expect(form).toContain("centralInvoiceAuthority: centralEditBaseRef.current");
+    expect(form).toContain("customerId: findCustomerByClient(data.customers, correctedClient)?.id");
     expect(detail).toContain("<DocumentForm key={doc.id}");
   });
   it("changes tenant to landlord, rebuilds PDF and preserves number, issuer, payment and sent state", () => {

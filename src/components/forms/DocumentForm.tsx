@@ -1781,10 +1781,13 @@ export function DocumentForm({
       // An amendment is NOT another emission: no quota, number allocation,
       // master-customer rewrite, legacy cloud preflight or VeriFactu registration.
       try {
+        const correctedClient = clientInputToSnapshot(clientForm);
         const saved = await updateIssuedInvoiceCentrally({
           ...existing, centralInvoiceAuthority: centralEditBaseRef.current,
           date, dueDate: effectiveDueDate || undefined,
-          customerId: activeCustomerId, client: clientInputToSnapshot(clientForm),
+          // Do not retain the tenant's master ID when typing a new landlord.
+          customerId: findCustomerByClient(data.customers, correctedClient)?.id,
+          client: correctedClient,
           items: normalizeLineItemUnits(safeItems, unitsSettings),
           notes: notes || undefined, salesTerms: salesTerms.trim() || undefined,
           paymentTerms: paymentTerms.trim() || undefined,
