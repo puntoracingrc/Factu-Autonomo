@@ -483,6 +483,8 @@ export function DocumentForm({
 }: DocumentFormProps) {
   const router = useRouter();
   const localDocumentIdRef = useRef(existing?.id ?? crypto.randomUUID());
+  // The fields belong to the version opened, not a newer background pull.
+  const centralEditBaseRef = useRef(existing?.centralInvoiceAuthority);
   const {
     data,
     ready,
@@ -1780,7 +1782,8 @@ export function DocumentForm({
       // master-customer rewrite, legacy cloud preflight or VeriFactu registration.
       try {
         const saved = await updateIssuedInvoiceCentrally({
-          ...existing, date, dueDate: effectiveDueDate || undefined,
+          ...existing, centralInvoiceAuthority: centralEditBaseRef.current,
+          date, dueDate: effectiveDueDate || undefined,
           customerId: activeCustomerId, client: clientInputToSnapshot(clientForm),
           items: normalizeLineItemUnits(safeItems, unitsSettings),
           notes: notes || undefined, salesTerms: salesTerms.trim() || undefined,

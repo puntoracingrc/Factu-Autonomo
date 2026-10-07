@@ -49,7 +49,7 @@ export function DocumentDetailView({
   return (
     <div>
       <PageHeader title={`Editar ${doc.number}`} subtitle={doc.client.name} />
-      <DocumentForm type={type} existing={doc} />
+      <DocumentForm key={doc.id} type={type} existing={doc} />
     </div>
   );
 }

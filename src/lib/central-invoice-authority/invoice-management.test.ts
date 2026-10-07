@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
 import { assertDocumentSnapshotsIntegrity } from "@/lib/document-integrity/snapshots";
 import { DEFAULT_PROFILE, type Document } from "@/lib/types";
@@ -33,6 +34,13 @@ function event(doc: Document, overrides: Partial<CentralInvoiceAuthorityPulledBr
     emittedHash: "server-hash", safeSummary: {}, ...overrides };
 }
 describe("central ordinary invoice management", () => {
+  it("pins an edit to the version opened instead of a later realtime prop", () => {
+    const form = readFileSync(new URL("../../components/forms/DocumentForm.tsx", import.meta.url), "utf8");
+    const detail = readFileSync(new URL("../../components/documents/DocumentDetailView.tsx", import.meta.url), "utf8");
+    expect(form).toContain("centralEditBaseRef = useRef(existing?.centralInvoiceAuthority)");
+    expect(form).toContain("centralInvoiceAuthority: centralEditBaseRef.current");
+    expect(detail).toContain("<DocumentForm key={doc.id}");
+  });
   it("changes tenant to landlord, rebuilds PDF and preserves number, issuer, payment and sent state", () => {
     const current = invoice(); const next = amended(current);
     expect(canManageCentralIssuedInvoice(current)).toBe(true);
