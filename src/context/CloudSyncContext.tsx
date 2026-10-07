@@ -288,7 +288,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             ensureOwnerIsActive();
             if (invoices.status !== "applied") {
               throw new Error(
-                "No se pudo confirmar la lectura de facturas centrales.",
+                invoices.status === "blocked" &&
+                  invoices.reason === "quota_exceeded"
+                  ? "Las facturas están en el servidor, pero el navegador ha rechazado guardar su copia local (quota_exceeded). No borres datos ni vuelvas a emitirlas."
+                  : "No se pudo confirmar la lectura de facturas centrales.",
               );
             }
             if (!invoices.value.localSync.ok) {

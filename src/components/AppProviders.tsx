@@ -19,11 +19,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <CloudAuthProvider>
       <CompanyProvider>
         <WorkspaceStorageBoundary>
-          {(scope) => (
+          {(scope, recoveryOwnerScopes) => (
             <AppStoreProvider
               key={scope.storageKey}
               ownerScope={scope.ownerScope}
               storageKey={scope.storageKey}
+              recoveryOwnerScopes={recoveryOwnerScopes}
             >
               <CloudSyncProvider>
                 <WorkspaceHistoricalArchiveGate>

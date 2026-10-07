@@ -93,15 +93,23 @@ function claimLegacyAuxiliaryData(ownerScope: string): void {
 export function WorkspaceStorageBoundary({
   children,
 }: {
-  children: (scope: WorkspaceStorageScope) => React.ReactNode;
+  children: (
+    scope: WorkspaceStorageScope,
+    recoveryOwnerScopes: readonly string[],
+  ) => React.ReactNode;
 }) {
   const { authReady, user, signOutAuthSession } = useCloudAuth();
   const {
     ready: companyReady,
     error: companyError,
     activeCompany,
+    companies,
     refreshCompanies,
   } = useCompany();
+  const recoveryOwnerScopes = useMemo(
+    () => user ? companies.map((company) => company.dataOwnerId) : [],
+    [companies, user],
+  );
   const demoMode = useDemoWorkspaceMode();
   const [state, setState] = useState<BoundaryState>({ status: "loading" });
   const [confirmed, setConfirmed] = useState(false);
@@ -321,7 +329,7 @@ export function WorkspaceStorageBoundary({
   if (state.status === "ready" && readyMatchesSession) {
     return (
       <WorkspaceStorageProvider scope={state.scope}>
-        {children(state.scope)}
+        {children(state.scope, recoveryOwnerScopes)}
       </WorkspaceStorageProvider>
     );
   }
