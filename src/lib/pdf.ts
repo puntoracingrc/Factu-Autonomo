@@ -518,10 +518,53 @@ export function buildDocumentPdfFromViewModel(
     clientRightY += clientLineHeight;
   });
 
+  const pageBottom = pdf.internal.pageSize.getHeight() - (options.freePlanBranding || options.websiteFooter ? 16 : 10);
+  let tableStartY = clientBoxY + clientBoxHeight + 8;
+  if (doc.notes?.trim()) {
+    pdf.setFont(pdfFont, "normal");
+    pdf.setFontSize(bodyFontSize);
+    const noteLines: string[] = pdf.splitTextToSize(doc.notes, pageRight - pageLeft - 8);
+    const noteLineHeight = Math.max(5.5, bodyFontSize * 0.5);
+    let noteY = clientBoxY + clientBoxHeight + 6;
+    let lineIndex = 0;
+    const fullHeight = 14 + noteLines.length * noteLineHeight;
+    // Keep ordinary notes together; paginate exceptionally long notes without clipping.
+    if (noteY + fullHeight > pageBottom - 8 && fullHeight <= pageBottom - 28) {
+      pdf.addPage();
+      noteY = 20;
+    }
+    while (lineIndex < noteLines.length) {
+      let capacity = Math.floor((pageBottom - 8 - noteY - 14) / noteLineHeight);
+      if (capacity < 1) {
+        pdf.addPage();
+        noteY = 20;
+        capacity = Math.floor((pageBottom - 8 - noteY - 14) / noteLineHeight);
+      }
+      const chunk = noteLines.slice(lineIndex, lineIndex + capacity);
+      const boxHeight = 14 + chunk.length * noteLineHeight;
+      pdf.setFillColor(softAccent[0], softAccent[1], softAccent[2]);
+      pdf.roundedRect(pageLeft, noteY, pageRight - pageLeft, boxHeight, 2, 2, "F");
+      pdf.setFont(pdfFont, "bold");
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(lineIndex === 0 ? "Notas" : "Notas (continuación)", pageLeft + 4, noteY + 8);
+      pdf.setFont(pdfFont, "normal");
+      pdf.setTextColor(0, 0, 0);
+      chunk.forEach((line, index) => {
+        pdf.text(line, pageLeft + 4, noteY + 15 + index * noteLineHeight);
+      });
+      lineIndex += chunk.length;
+      tableStartY = noteY + boxHeight + 8;
+      if (lineIndex < noteLines.length) {
+        pdf.addPage();
+        noteY = 20;
+      }
+    }
+  }
+
   const tablePadding = documentTemplateDensityPadding(template.density);
   const totalsRightX = pageRight - tablePadding;
   autoTable(pdf, {
-    startY: clientBoxY + clientBoxHeight + 8,
+    startY: tableStartY,
     head: vatExempt
       ? [["Concepto", "Cant.", "Precio", "Total"]]
       : [["Concepto", "Cant.", "Precio", "IVA", "Total"]],
@@ -589,7 +632,6 @@ export function buildDocumentPdfFromViewModel(
     iva,
   }).flatMap((line) => pdf.splitTextToSize(line, totalsRightX - pageLeft));
   const totalsHeight = vatExempt ? 12 : vatTotalLines.length * 6 + 10;
-  const pageBottom = pdf.internal.pageSize.getHeight() - (options.freePlanBranding || options.websiteFooter ? 16 : 10);
   let totalsY = finalY;
   if (totalsY + totalsHeight > pageBottom) {
     pdf.addPage();
@@ -659,17 +701,6 @@ export function buildDocumentPdfFromViewModel(
       180,
     );
     for (const line of salesTermLines) {
-      pdf.text(line, 14, footerY + 4);
-      footerY += 5.5;
-    }
-    footerY += 5;
-  }
-
-  if (doc.notes) {
-    pdf.setFont(pdfFont, "normal");
-    pdf.setFontSize(bodyFontSize);
-    const noteLines = pdf.splitTextToSize(`Notas: ${doc.notes}`, 180);
-    for (const line of noteLines) {
       pdf.text(line, 14, footerY + 4);
       footerY += 5.5;
     }
