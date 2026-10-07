@@ -337,24 +337,33 @@ export function buildDocumentPdfFromViewModel(
     });
   }
 
-  let logoBottomY = 14;
+  const pageLeft = 14;
+  const pageRight = 196;
+  const headerTopY = y;
+  let logoHeight = 0;
   if (renderArtifacts.logo && template.showLogo) {
     const { width: logoW, height: logoH } = pdfLogoDrawSize(renderArtifacts.logo);
-    const logoX = 196 - logoW;
+    const logoX = pageRight - logoW;
     try {
-      pdf.addImage(renderArtifacts.logo.dataUrl, "PNG", logoX, 14, logoW, logoH);
-      logoBottomY = 14 + logoH;
+      pdf.addImage(renderArtifacts.logo.dataUrl, "PNG", logoX, headerTopY, logoW, logoH);
+      logoHeight = logoH;
     } catch {
       // Logo opcional: si falla la decodificación, seguimos sin imagen
     }
   }
 
-  const contentStartY = Math.max(y, logoBottomY) + 6;
-
   pdf.setFont(pdfFont, "bold");
   pdf.setFontSize(titleFontSize);
   pdf.setTextColor(accent[0], accent[1], accent[2]);
-  pdf.text(label, 14, contentStartY);
+  const titleLines: string[] = pdf.splitTextToSize(label, 132);
+  const titleLineHeight = titleFontSize / pdf.internal.scaleFactor * 1.15;
+  const titleHeight = titleLines.length * titleLineHeight;
+  const headerHeight = Math.max(logoHeight, titleHeight);
+  const titleFirstY = headerTopY + (headerHeight - titleHeight) / 2 + titleLineHeight / 2;
+  titleLines.forEach((line, index) => {
+    pdf.text(line, pageLeft, titleFirstY + index * titleLineHeight, { baseline: "middle" });
+  });
+  const contentStartY = headerTopY + headerHeight;
 
   pdf.setFont(pdfFont, "normal");
   pdf.setFontSize(bodyFontSize);
@@ -421,23 +430,31 @@ export function buildDocumentPdfFromViewModel(
 
   pdf.setFontSize(bodyFontSize + 1);
   pdf.setTextColor(0, 0, 0);
-  pdf.text(`Nº ${doc.number}`, 140, contentStartY + 4);
-  pdf.text(`Fecha: ${formatShortDate(doc.date)}`, 140, contentStartY + 10);
-  let documentMetaY = contentStartY + 16;
+  const documentMetaLines = [
+    `Nº ${doc.number}`,
+    `Fecha: ${formatShortDate(doc.date)}`,
+  ];
   if (isDraftInvoiceNumber(doc)) {
-    pdf.setTextColor(180, 83, 9);
-    pdf.text("No emitida", 140, documentMetaY);
-    pdf.setTextColor(0, 0, 0);
-    documentMetaY += 6;
+    documentMetaLines.push("No emitida");
   }
   if (doc.dueDate && doc.type === "factura" && !isRect) {
-    pdf.text(`Vencimiento: ${formatShortDate(doc.dueDate)}`, 140, documentMetaY);
+    documentMetaLines.push(`Vencimiento: ${formatShortDate(doc.dueDate)}`);
   }
   if (doc.dueDate && doc.type === "presupuesto") {
-    pdf.text(`Válido hasta: ${formatShortDate(doc.dueDate)}`, 140, contentStartY + 16);
+    documentMetaLines.push(`Válido hasta: ${formatShortDate(doc.dueDate)}`);
   }
+  let documentMetaY = contentStartY + 10;
+  for (const line of documentMetaLines) {
+    if (line === "No emitida") pdf.setTextColor(180, 83, 9);
+    else pdf.setTextColor(0, 0, 0);
+    for (const wrapped of pdf.splitTextToSize(line, 70)) {
+      pdf.text(wrapped, pageRight, documentMetaY, { align: "right" });
+      documentMetaY += 6;
+    }
+  }
+  pdf.setTextColor(0, 0, 0);
 
-  let clientBoxY = issuerBoxY + issuerBoxHeight + 5;
+  let clientBoxY = Math.max(issuerBoxY + issuerBoxHeight + 5, documentMetaY + 3);
   if (isRect && doc.rectification) {
     pdf.setFontSize(Math.max(8, bodyFontSize - 0.2));
     pdf.setTextColor(120, 53, 15);
@@ -501,6 +518,8 @@ export function buildDocumentPdfFromViewModel(
     clientRightY += clientLineHeight;
   });
 
+  const tablePadding = documentTemplateDensityPadding(template.density);
+  const totalsRightX = pageRight - tablePadding;
   autoTable(pdf, {
     startY: clientBoxY + clientBoxHeight + 8,
     head: vatExempt
@@ -530,13 +549,21 @@ export function buildDocumentPdfFromViewModel(
     styles: {
       font: pdfFont,
       fontSize: template.style === "futuro" ? bodyFontSize - 0.4 : bodyFontSize,
-      cellPadding: documentTemplateDensityPadding(template.density),
+      cellPadding: tablePadding,
       lineColor: template.style === "clasico" ? [230, 230, 230] : softAccent,
     },
     headStyles: {
       fillColor: accent,
       textColor: [255, 255, 255],
       fontStyle: "bold",
+    },
+    columnStyles: vatExempt
+      ? { 2: { halign: "right" }, 3: { halign: "right" } }
+      : { 2: { halign: "right" }, 4: { halign: "right" } },
+    didParseCell: ({ section, column, cell }) => {
+      if (section === "head" && (column.index === 2 || column.index === (vatExempt ? 3 : 4))) {
+        cell.styles.halign = "right";
+      }
     },
     alternateRowStyles:
       template.style === "clasico"
@@ -545,6 +572,8 @@ export function buildDocumentPdfFromViewModel(
             fillColor: [248, 250, 252],
           },
     margin: {
+      left: pageLeft,
+      right: 14,
       bottom: options.freePlanBranding || options.websiteFooter ? 16 : 10,
     },
   });
@@ -552,25 +581,34 @@ export function buildDocumentPdfFromViewModel(
   const finalY = (pdf as jsPDF & { lastAutoTable: { finalY: number } })
     .lastAutoTable.finalY + 10;
 
+  pdf.setFont(pdfFont, "normal");
+  pdf.setFontSize(bodyFontSize);
+  const vatTotalLines: string[] = vatExempt ? [] : pdfVatTotalLines({
+    breakdown: pdfVatBreakdown(viewModel),
+    subtotal,
+    iva,
+  }).flatMap((line) => pdf.splitTextToSize(line, totalsRightX - pageLeft));
+  const totalsHeight = vatExempt ? 12 : vatTotalLines.length * 6 + 10;
+  const pageBottom = pdf.internal.pageSize.getHeight() - (options.freePlanBranding || options.websiteFooter ? 16 : 10);
   let totalsY = finalY;
+  if (totalsY + totalsHeight > pageBottom) {
+    pdf.addPage();
+    totalsY = 20;
+  }
 
   if (vatExempt) {
     pdf.setFontSize(totalFontSize);
     pdf.setFont(pdfFont, "bold");
-    pdf.text(`TOTAL: ${formatMoney(total)}`, 120, totalsY);
+    pdf.text(`TOTAL: ${formatMoney(total)}`, totalsRightX, totalsY, { align: "right" });
     pdf.setFont(pdfFont, "normal");
     pdf.setFontSize(Math.max(8, bodyFontSize - 1));
-    pdf.text("Operación exenta de IVA", 120, totalsY + 8);
+    pdf.text("Operación exenta de IVA", totalsRightX, totalsY + 8, { align: "right" });
     totalsY += 8;
   } else {
     pdf.setFontSize(bodyFontSize);
     pdf.setFont(pdfFont, "normal");
-    for (const line of pdfVatTotalLines({
-      breakdown: pdfVatBreakdown(viewModel),
-      subtotal,
-      iva,
-    })) {
-      pdf.text(line, 120, totalsY);
+    for (const line of vatTotalLines) {
+      pdf.text(line, totalsRightX, totalsY, { align: "right" });
       totalsY += 6;
     }
     pdf.setFontSize(totalFontSize);
@@ -580,7 +618,7 @@ export function buildDocumentPdfFromViewModel(
       pdf.roundedRect(118, totalsY - 2, 78, 10, 2, 2, "F");
       pdf.setTextColor(255, 255, 255);
     }
-    pdf.text(`TOTAL: ${formatMoney(total)}`, 120, totalsY + 4);
+    pdf.text(`TOTAL: ${formatMoney(total)}`, totalsRightX, totalsY + 4, { align: "right" });
     pdf.setTextColor(0, 0, 0);
     totalsY += 10;
   }
