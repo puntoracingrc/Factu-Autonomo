@@ -1,8 +1,55 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 4
-- Fecha: 2026-08-03
+- Version: 5
+- Fecha: 2026-10-07
+
+## Decision de producto V5: correccion y borrado central ordinarios
+
+El propietario autoriza expresamente editar facturas ordinarias emitidas,
+cambiar su cliente, regenerar su PDF, borrar facturas y reutilizar su numero.
+Esta decision reemplaza la inmutabilidad absoluta y la reserva perpetua de
+numeros de V4 solo mediante el nuevo comando `manage_central_invoice_v1`.
+No habilita el mutador ni el borrado genericos del navegador.
+
+- Se exige empresa autenticada, miembro owner/admin, plan/dispositivo vigentes,
+  autoridad central activa, identidad tecnica y `expectedVersion`.
+- Editar conserva ID, numero, emisor original, instante original de emision,
+  ejercicio, cobro y entrega. Solo cambia fecha dentro del ejercicio, cliente,
+  conceptos y textos; snapshot, sello y configuracion PDF se regeneran en
+  servidor. No es otra emision, no consume cuota y no vuelve a registrar VeriFactu.
+- Una version obsoleta produce conflicto, nunca una sobrescritura silenciosa.
+  Reintentar la misma correccion o borrado es idempotente.
+- Borrar elimina contenido y snapshot del estado canonico. No crea una copia
+  before/after ni obliga a descargar backups. Quedan solo tombstone tecnico,
+  hashes de auditoria y eventos sin contenido para impedir resurrecciones.
+- La identidad tecnica eliminada no se reutiliza. Su numero queda libre: bajo
+  el candado de la serie la siguiente emision toma el menor numero explicitamente
+  liberado en la misma empresa/entorno/NIF/serie/ejercicio. Nunca se rellenan
+  huecos historicos por conjetura ni se renumeran otras facturas. Entre borrar y
+  emitir de nuevo existe un hueco temporal. Los indices unicos protegen reservas
+  activas y el contador maximo no retrocede.
+- Los dispositivos reciben el estado actual, incluidas correcciones y borrados;
+  una fila antigua del outbox nunca reconstruye contenido ya eliminado. El
+  cursor no avanza por una confirmacion de escritura, solo tras pull durable.
+- Antes de corregir/borrar una factura con recibo activo debe borrarse ese
+  recibo. Rectificativas, originales rectificados, historicos atestados,
+  recuperaciones y registros externos de produccion permanecen en sus flujos
+  especializados. Un artefacto local TEST no acredita el contenido corregido.
+
+Regresiones V5: `invoice-management.test.ts`,
+`invoice-management-postgres-acceptance.test.ts`, eventos centrales, integridad,
+durabilidad y aislamiento de empresas. La migracion no modifica ninguna factura
+ni libera numeros hasta una accion explicita del usuario.
+
+Publicacion V5: CI completo y aceptacion PostgreSQL sintetica antes de merge;
+aplicar solo la migracion nueva, nunca un `db push` del historial antiguo no
+reconciliado. Verificar RPC privado, indices parciales, proyeccion de eventos y
+estado READY del commit publico, sin modificar facturas reales para hacer QA.
+La migracion es transaccional y aborta si las funciones desplegadas no contienen
+el contrato esperado. Ante un incidente, pausar escrituras centrales y mantener
+lectura; no revertir los indices ni restaurar contenido borrado, y no desplegar
+un lector antiguo incapaz de reconocer los nuevos eventos tras el primer uso.
 
 ## Contexto
 
@@ -36,8 +83,9 @@ dispone todavia de esas tablas ni de una transaccion de emision autoritativa.
    confirmado. Reutilizarla con contenido distinto se rechaza y se audita.
 7. Un timeout posterior al commit no crea otra factura: el reintento recupera el
    resultado del primer comando.
-8. Una factura emitida queda inmutable. Las correcciones se representan mediante
-   rectificacion o anulacion; nunca mediante edicion, borrado o renumeracion.
+8. El mutador generico sigue rechazando facturas emitidas. V5 permite su
+   correccion o borrado mediante el comando central separado descrito arriba;
+   nunca mediante renumeracion del resto del conjunto.
 9. Los retiros y reparaciones identifican documentos por ID tecnico, version y
    huella. Compartir numero nunca autoriza a retirar otro documento.
 10. Realtime solo comunica que existe una version nueva. El cliente vuelve a
@@ -79,7 +127,7 @@ Supabase con Git y aprobar una linea base reproducible.
 Los documentos existentes se registraran como historicos sin reemitirlos,
 renumerarlos ni fabricar evidencia. Las colisiones previas se clasificaran de
 forma explicita y conservaran todos sus IDs y copias. Una identidad que haya
-estado emitida o retirada queda reservada.
+estado emitida o retirada queda reservada salvo liberacion explicita V5.
 
 La aplicacion durable de eventos fiscales centrales no vuelve a publicar el
 documento recibido en la cola legacy pausada. El cursor solo avanza despues del

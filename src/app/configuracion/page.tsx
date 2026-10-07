@@ -1536,15 +1536,7 @@ export default function ConfiguracionPage() {
           </div>
         </Card>
 
-        <VerifactuSettingsCard
-          form={form}
-          onChange={(verifactu) =>
-            setForm((prev) => ({
-              ...prev,
-              verifactu: normalizeVerifactuSettings(verifactu),
-            }))
-          }
-        />
+        <VerifactuSettingsCard form={form} />
       </SettingsSection>
 
       <SettingsSection

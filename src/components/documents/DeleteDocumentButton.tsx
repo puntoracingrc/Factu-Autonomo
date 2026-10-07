@@ -9,18 +9,28 @@ import { useAppStore } from "@/context/AppStore";
 import { hasLegacyImportProtectionClaim } from "@/lib/document-integrity/legacy-import-attestation";
 import { getDeletePolicy } from "@/lib/rectificativas";
 import type { Document } from "@/lib/types";
+import { canManageCentralIssuedInvoice, canDeleteReceiptCentrally } from "@/lib/central-invoice-authority/management-policy";
 
 interface DeleteDocumentButtonProps {
   doc: Document;
 }
 
 export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
-  const { deleteDocument } = useAppStore();
+  const { deleteDocument, deleteIssuedDocumentCentrally } = useAppStore();
   const [open, setOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const titleId = useId();
   const descriptionId = useId();
-  const policy = getDeletePolicy(doc);
+  const centralDelete = canManageCentralIssuedInvoice(doc) ||
+    (doc.status !== "borrador" && canDeleteReceiptCentrally(doc));
+  const policy = centralDelete ? {
+    allowed: true, level: "simple" as const, title: `¿Borrar ${doc.number}?`,
+    message: doc.type === "factura"
+      ? "El servidor eliminará esta factura. No se conservará una copia de recuperación. Su número quedará libre para la próxima factura de la misma serie y empresa; las demás no cambiarán."
+      : "El servidor eliminará este recibo y quitará su vínculo con la factura. La factura y su estado de cobro se conservan. No se renumerarán los demás recibos.",
+  } : getDeletePolicy(doc);
 
   const needsCheckbox =
     policy.level === "legal" || policy.level === "legal_strict";
@@ -83,14 +93,24 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
   }
 
   function handleClose() {
+    if (busy) return;
     setOpen(false);
     setConfirmed(false);
+    setError(null);
   }
 
-  function handleConfirm() {
-    if (needsCheckbox && !confirmed) return;
-    deleteDocument(doc.id);
-    handleClose();
+  async function handleConfirm() {
+    if (busy || (needsCheckbox && !confirmed)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const deleted = centralDelete ? await deleteIssuedDocumentCentrally(doc) : deleteDocument(doc.id);
+      if (!deleted) throw new Error("No se pudo confirmar el borrado.");
+      setOpen(false);
+      setConfirmed(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo confirmar el borrado central.");
+    } finally { setBusy(false); }
   }
 
   return (
@@ -153,11 +173,13 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
           </label>
         )}
 
+        {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <Button
             variant="secondary"
             fullWidth
             onClick={handleClose}
+            disabled={busy}
             data-modal-initial-focus
           >
             Cancelar
@@ -166,9 +188,9 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
             variant="danger"
             fullWidth
             onClick={handleConfirm}
-            disabled={needsCheckbox && !confirmed}
+            disabled={busy || (needsCheckbox && !confirmed)}
           >
-            Sí, borrar
+            {busy ? "Confirmando con servidor…" : "Sí, borrar"}
           </Button>
         </div>
       </Modal>

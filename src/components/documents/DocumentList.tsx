@@ -30,6 +30,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
+import { canManageCentralIssuedInvoice } from "@/lib/central-invoice-authority/management-policy";
 import { useBilling } from "@/context/BillingContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
@@ -1051,7 +1052,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                 : null;
             const rect = isRectificativa(doc);
             const rectifiable = type === "factura" && canRectifyInvoice(doc);
-            const editable = isDocumentEditable(doc);
+            const editable = isDocumentEditable(doc) || canManageCentralIssuedInvoice(doc);
             const legacyImportAttested = isUsableLegacyImportedDocument(doc);
             const legacyImportedAccepted =
               legacyImportAttested &&

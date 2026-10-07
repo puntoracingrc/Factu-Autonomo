@@ -118,6 +118,12 @@ La decisión obligatoria y versionada está en
 
 ## Retirada explícita de documentos descartados
 
+Excepcion autorizada por el propietario el 2026-10-07: ADR-0010 V5 permite
+corregir/borrar facturas ordinarias centrales con CAS, permiso servidor y
+reutilizacion de numeros explicitamente liberados; ADR-0011 V30 permite borrar
+recibos enviados. Son comandos centrales separados, sin copia before/after,
+no una relajacion de `DeletePolicy` ni del archivo reversible siguiente.
+
 La decisión versionada está en
 [`docs/architecture/ADR-0003-explicit-test-document-retirement.md`](docs/architecture/ADR-0003-explicit-test-document-retirement.md).
 

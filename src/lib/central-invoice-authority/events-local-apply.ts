@@ -1,4 +1,5 @@
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import { assertDocumentSnapshotsIntegrity } from "@/lib/document-integrity/snapshots";
 import { originalStatusAfterRectification } from "@/lib/rectificativas";
 import type {
   BusinessProfile,
@@ -18,7 +19,9 @@ export type CentralInvoiceAuthorityEventsLocalApplyAction =
   | "draft_completed"
   | "metadata_attached"
   | "collection_updated"
-  | "relationship_updated";
+  | "relationship_updated"
+  | "invoice_updated"
+  | "invoice_deleted";
 
 export type CentralInvoiceAuthorityEventsLocalSkipCode =
   | "unsupported_event_type"
@@ -92,7 +95,8 @@ function kindForEvent(
   if (
     event.eventType === "invoice_issued" ||
     event.eventType === "invoice_collection_updated" ||
-    event.eventType === "invoice_relationship_updated"
+    event.eventType === "invoice_relationship_updated" ||
+    event.eventType === "invoice_updated"
   ) {
     return "factura";
   }
@@ -285,10 +289,15 @@ function applyRelationshipFromEvent(
           sourceQuoteNumber: undefined,
         };
 
+  const receiptRelationship = isRecord(event.safeSummary) && event.safeSummary.relationship === "receipt_deleted"
+    ? { receiptDocumentId: incoming.receiptDocumentId }
+    : {};
+
   return attachCentralMetadata(
     {
       ...existing,
       ...relationship,
+      ...receiptRelationship,
       updatedAt: incoming.updatedAt,
     },
     event,
@@ -434,7 +443,65 @@ export function applyCentralInvoiceAuthorityPulledEventsToDocuments(
   const skipped: CentralInvoiceAuthorityEventsLocalSkipped[] = [];
   const conflicts: CentralInvoiceAuthorityEventsLocalConflict[] = [];
 
+  // Process tombstones first: a page may also contain a new invoice using the
+  // released number. Deletion is by both technical IDs, NEVER by number.
+  for (const event of input.events.filter((item) => item.eventType === "invoice_deleted")) {
+    const existing = documents.find((doc) =>
+      doc.centralInvoiceAuthority?.serverDocumentId === event.documentId &&
+      doc.centralInvoiceAuthority.identityId === event.identityId);
+    if (existing && existing.centralInvoiceAuthority!.documentVersion > event.documentVersion) {
+      skipped.push({ eventId: event.eventId, fullNumber: event.fullNumber, code: "existing_document_newer" });
+      continue;
+    }
+    if (!isRecord(event.documentPayload) || event.documentPayload.deleted !== true ||
+        typeof event.documentPayload.localDocumentId !== "string" ||
+        (existing && existing.id !== event.documentPayload.localDocumentId)) {
+      skipped.push({ eventId: event.eventId, fullNumber: event.fullNumber, code: "invalid_document_payload" });
+      continue;
+    }
+    documents = existing ? documents.filter((doc) => doc !== existing) : documents;
+    applied.push({ eventId: event.eventId, documentId: existing?.id ?? event.documentPayload.localDocumentId,
+      fullNumber: event.fullNumber, action: "invoice_deleted" });
+  }
+
   for (const event of input.events) {
+    if (event.eventType === "invoice_deleted") continue;
+    // A historical outbox row is a wake-up for CURRENT canonical state. After
+    // an amendment, even an old issue/collection event must apply that content.
+    if (isRecord(event.documentPayload) && event.documentPayload.centralAmendmentVersion === 1) {
+      const incoming = documentFromEventPayload(event);
+      const existing = documents.find((doc) => matchesCentralIdentity(doc, event));
+      if (existing?.centralInvoiceAuthority && existing.centralInvoiceAuthority.documentVersion >= event.documentVersion) {
+        skipped.push({ eventId: event.eventId, fullNumber: event.fullNumber, code: "existing_document_current" });
+        continue;
+      }
+      try {
+        if (!incoming || incoming.number !== event.fullNumber || incoming.type !== "factura" ||
+            (existing && existing.id !== incoming.id)) throw new Error("identity mismatch");
+        assertDocumentSnapshotsIntegrity(incoming, {
+          requireDocumentSnapshot: true, requirePdfSnapshot: true, requireSnapshotSeal: true,
+        });
+        if (documents.some((doc) => doc !== existing &&
+          (doc.id === incoming.id || hasSameFiscalNumber(doc, event)))) {
+          conflicts.push({ eventId: event.eventId, fullNumber: event.fullNumber,
+            code: "duplicate_fiscal_number", centralDocumentId: event.documentId });
+          continue;
+        }
+        // Sending was historically recorded only on the sending browser. A
+        // canonical content correction must not erase that independent marker.
+        const amended = attachCentralMetadata({
+          ...incoming,
+          sentAt: incoming.sentAt ?? existing?.sentAt,
+          deliveryStatus: incoming.deliveryStatus ?? existing?.deliveryStatus,
+        }, event, receivedAt);
+        documents = existing ? documents.map((doc) => doc === existing ? amended : doc) : [...documents, amended];
+        applied.push({ eventId: event.eventId, documentId: incoming.id, fullNumber: event.fullNumber, action: "invoice_updated" });
+      } catch {
+        conflicts.push({ eventId: event.eventId, fullNumber: event.fullNumber,
+          code: "central_identity_number_mismatch", centralDocumentId: event.documentId });
+      }
+      continue;
+    }
     const eventKind = kindForEvent(event);
     if (!eventKind) {
       skipped.push({

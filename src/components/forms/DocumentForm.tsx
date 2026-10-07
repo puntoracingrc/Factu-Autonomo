@@ -109,6 +109,7 @@ import { showFactuToast } from "@/lib/factu/occasional";
 import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
 import { DocumentIntegrityError } from "@/lib/document-integrity";
 import { resolveDocumentFormBusinessProfile } from "@/lib/document-integrity/document-form-profile";
+import { canManageCentralIssuedInvoice } from "@/lib/central-invoice-authority/management-policy";
 import {
   buildCentralInvoiceAuthorityDocumentFormIssueRequest,
   shouldUseCentralInvoiceAuthorityDocumentFormCanary,
@@ -482,12 +483,15 @@ export function DocumentForm({
 }: DocumentFormProps) {
   const router = useRouter();
   const localDocumentIdRef = useRef(existing?.id ?? crypto.randomUUID());
+  // The fields belong to the version opened, not a newer background pull.
+  const centralEditBaseRef = useRef(existing?.centralInvoiceAuthority);
   const {
     data,
     ready,
     addDocument,
     addDocumentWithCentralIdentity,
     updateDocument,
+    updateIssuedInvoiceCentrally,
     registerVerifactuForDocument,
     syncCentralInvoiceAuthorityEvents,
   } = useAppStore();
@@ -548,6 +552,7 @@ export function DocumentForm({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const saving = saveAction !== "idle";
+  const editingCentralInvoice = Boolean(existing && canManageCentralIssuedInvoice(existing));
   const label = TYPE_LABELS[type];
   const article = TYPE_ARTICLES[type];
   const sourceQuote = useMemo(
@@ -1261,13 +1266,13 @@ export function DocumentForm({
     );
   }, [estimatedIrpfPercent, measuredItems, lineProductPricing, vatExempt]);
   const isDraftStatus = status === "borrador";
-  const canSaveDraft = !existing || isDraftStatus;
+  const canSaveDraft = !editingCentralInvoice && (!existing || isDraftStatus);
   const finalStatusOverride: Document["status"] = isDraftStatus
     ? "enviado"
     : status;
   const previewButtonLabel = "Vista previa PDF";
   const primarySaveButtonLabel =
-    type === "factura" && isDraftStatus
+    editingCentralInvoice ? "Guardar cambios" : type === "factura" && isDraftStatus
       ? isRectificationDraft
         ? "Emitir rectificativa"
         : "Emitir factura"
@@ -1278,7 +1283,7 @@ export function DocumentForm({
     (!existing ||
       (existing.status === "borrador" && !existing.centralInvoiceAuthority));
   const downloadButtonLabel =
-    type === "factura" && isDraftStatus
+    editingCentralInvoice ? "Guardar cambios y descargar PDF" : type === "factura" && isDraftStatus
       ? isRectificationDraft
         ? "Emitir rectificativa y descargar PDF"
         : "Emitir y descargar PDF"
@@ -1772,6 +1777,32 @@ export function DocumentForm({
 
     setSaveAction(download ? "save-pdf" : "save");
 
+    if (editingCentralInvoice && existing) {
+      // An amendment is NOT another emission: no quota, number allocation,
+      // master-customer rewrite, legacy cloud preflight or VeriFactu registration.
+      try {
+        const correctedClient = clientInputToSnapshot(clientForm);
+        const saved = await updateIssuedInvoiceCentrally({
+          ...existing, centralInvoiceAuthority: centralEditBaseRef.current,
+          date, dueDate: effectiveDueDate || undefined,
+          // Do not retain the tenant's master ID when typing a new landlord.
+          customerId: findCustomerByClient(data.customers, correctedClient)?.id,
+          client: correctedClient,
+          items: normalizeLineItemUnits(safeItems, unitsSettings),
+          notes: notes || undefined, salesTerms: salesTerms.trim() || undefined,
+          paymentTerms: paymentTerms.trim() || undefined,
+        });
+        sessionDraftCompleted.current = true;
+        clearDocumentSessionDraft(type);
+        setFormError(null);
+        await finishDocumentSave({ type, number: saved.number, router,
+          download: download ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions } : undefined });
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : "No se pudo confirmar la corrección central.");
+      } finally { setSaveAction("idle"); }
+      return;
+    }
+
     const pendingDocumentId = existing?.id ?? localDocumentIdRef.current;
     const becomesDefinitive =
       resolvedStatus !== "borrador" &&
@@ -2202,6 +2233,7 @@ export function DocumentForm({
           {existing && (
             <Field label="Estado">
               <Select
+                disabled={editingCentralInvoice}
                 value={
                   type === "presupuesto" && status === "pagado"
                     ? "aceptado"
@@ -2222,12 +2254,13 @@ export function DocumentForm({
                 )}
                 {type === "factura" && <option value="vencido">Vencido</option>}
               </Select>
+              {editingCentralInvoice && <span className="text-xs text-slate-500">La corrección conserva el estado de envío y cobro.</span>}
               {type === "presupuesto" && status !== "borrador" && (
                 <span className="text-xs text-amber-700">
                   Estado comercial local. No crea firma ni portal de cliente.
                 </span>
               )}
-              {type === "factura" && status !== "borrador" && (
+              {type === "factura" && status !== "borrador" && !editingCentralInvoice && (
                 <span className="text-xs text-amber-700">
                   Al guardar, la factura se emitirá, tendrá número definitivo y
                   quedará bloqueada.

@@ -22,7 +22,7 @@ describe("explicit discarded document retirement governance", () => {
     expect(agents).toContain("no se\n  regeneran ni reinterpretan");
     expect(agents).toContain("No se suben tombstones");
 
-    expect(adr).toContain("Versión: 2");
+    expect(adr).toContain("Versión: 3");
     expect(adr).toContain("documentos descartados");
     expect(adr).toContain("importaciones históricas");
     expect(adr).toContain("rectificativa superviviente");

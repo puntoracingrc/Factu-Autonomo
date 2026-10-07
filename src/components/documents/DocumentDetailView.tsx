@@ -9,6 +9,7 @@ import {
   isDocumentEditable,
 } from "@/lib/documents";
 import type { Document, DocumentType } from "@/lib/types";
+import { canManageCentralIssuedInvoice } from "@/lib/central-invoice-authority/management-policy";
 
 interface DocumentDetailViewProps {
   doc: Document | undefined;
@@ -29,7 +30,7 @@ export function DocumentDetailView({
     return <p className="text-slate-500">{notFoundMessage}</p>;
   }
 
-  if (!isDocumentEditable(doc)) {
+  if (!isDocumentEditable(doc) && !canManageCentralIssuedInvoice(doc)) {
     return (
       <div>
         <PageHeader title={doc.number} subtitle={doc.client.name} />
@@ -48,7 +49,7 @@ export function DocumentDetailView({
   return (
     <div>
       <PageHeader title={`Editar ${doc.number}`} subtitle={doc.client.name} />
-      <DocumentForm type={type} existing={doc} />
+      <DocumentForm key={doc.id} type={type} existing={doc} />
     </div>
   );
 }

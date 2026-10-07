@@ -96,8 +96,9 @@ describe("central invoice authority form canary presentation", () => {
       title: "Emisión definitiva",
     });
     expect(notice.message).toContain("número definitivo");
-    expect(notice.message).toContain("datos fiscales ni borrarla");
-    expect(notice.message).toContain("factura rectificativa");
+    expect(notice.message).toContain("podrás corregirla o borrarla");
+    expect(notice.message).toContain("confirmación del servidor");
+    expect(notice.message).not.toContain("ya no podrás cambiar");
     expect(notice.message).not.toContain("canario");
     expect(notice.message).not.toContain("preflight");
     expect(notice.message).not.toContain("servidor central");

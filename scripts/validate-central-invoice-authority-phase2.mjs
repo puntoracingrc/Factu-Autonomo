@@ -135,6 +135,8 @@ const allowedQuoteRelationshipAssignmentMigration =
   "20260826073420_central_invoice_quote_relationship_assignment.sql";
 const allowedTargetedEventRecoveryMigration =
   "20260916071037_central_invoice_event_targeted_recovery.sql";
+const allowedInvoiceManagementMigration =
+  "20261007163403_central_invoice_management_v1.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -154,6 +156,7 @@ const allowedCentralMigrations = new Set([
   allowedClosedDocumentEventPullMigration,
   allowedQuoteRelationshipAssignmentMigration,
   allowedTargetedEventRecoveryMigration,
+  allowedInvoiceManagementMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -178,6 +181,17 @@ assert.deepEqual(
   [],
   "Phase 2 only allows explicitly reviewed central authority migrations.",
 );
+
+if (centralMigrations.includes(allowedInvoiceManagementMigration)) {
+  const management = read(`supabase/migrations/${allowedInvoiceManagementMigration}`);
+  assert.match(management, /CENTRAL_INVOICE_MANAGEMENT_V1/);
+  assert.match(management, /p_expected_version/);
+  assert.match(management, /where released_at is null/i);
+  assert.match(management, /revoke all on function public\.manage_central_invoice_v1/i);
+  assert.match(management, /to service_role/i);
+  assert.doesNotMatch(management, /\bgrant\s+.+\bto\s+(?:anon|authenticated)\b/i);
+  assert.doesNotMatch(management, /\buser_backups\b|\bsync_entities\b/i);
+}
 
 if (centralMigrations.includes(allowedLocalLedgerSchemaMigration)) {
   const localLedgerSchema = read(

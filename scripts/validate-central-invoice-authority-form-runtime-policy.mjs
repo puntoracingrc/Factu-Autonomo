@@ -80,7 +80,7 @@ for (const required of [
   "CentralInvoiceAuthorityFormPolicyNotice",
   "Emisión definitiva",
   "datos fiscales ni borrarla",
-  "factura rectificativa",
+  "confirmación del servidor",
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY=false",
   "NEXT_PUBLIC_CENTRAL_INVOICE_AUTHORITY_FORM_CANARY_USERS=",
   "CENTRAL_INVOICE_AUTHORITY_CANARY_USER_EMAILS=",

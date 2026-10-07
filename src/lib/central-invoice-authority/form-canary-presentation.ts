@@ -72,17 +72,17 @@ export function describeCentralInvoiceAuthorityFormPolicyNotice({
   }
 
   if (policy.shouldUseCentralAuthority) {
-    const correctionMessage =
+    const completionMessage =
       documentLabel === "factura"
-        ? " Si necesitas corregirla, deberás emitir una factura rectificativa."
-        : " Revisa la vista previa antes de continuar.";
+        ? "quedará registrada. Después podrás corregirla o borrarla con confirmación del servidor. Si tiene un recibo vinculado, bórralo primero."
+        : "quedará registrada y ya no podrás cambiar sus datos fiscales ni borrarla. Revisa la vista previa antes de continuar.";
     return {
       schema: CENTRAL_INVOICE_AUTHORITY_FORM_POLICY_NOTICE,
       visible: true,
       tone: "info",
       title: "Emisión definitiva",
       message:
-        `Al emitir, Factu comprobará y asignará el número definitivo. Cuando termine, esta ${documentLabel} quedará registrada y ya no podrás cambiar sus datos fiscales ni borrarla.${correctionMessage}`,
+        `Al emitir, Factu comprobará y asignará el número definitivo. Cuando termine, esta ${documentLabel} ${completionMessage}`,
     };
   }
 

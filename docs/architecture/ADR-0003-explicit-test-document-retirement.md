@@ -1,8 +1,18 @@
 # ADR-0003 — Retirada explícita y reversible de documentos descartados
 
 - Estado: aceptada
-- Versión: 2
-- Fecha: 2026-07-18
+- Versión: 3
+- Fecha: 2026-10-07
+
+## Alcance V3
+
+El archivo reversible descrito aqui no cambia. La decision expresa de producto
+ADR-0010 V5 introduce un flujo distinto de correccion/borrado central ordinario,
+sin archivo before/after ni backup obligatorio; ADR-0011 V30 permite borrar
+recibos por comando central. Esas acciones no se implementan relajando el
+borrado generico ni este archivo. Solo el borrado central ordinario de una
+factura libera su numero; las identidades de lotes retirados aqui siguen
+reservadas y su rollback conserva las garantias existentes.
 - Ámbito: documentos que el propietario descarta expresamente de la vista activa
 
 ## Contexto
