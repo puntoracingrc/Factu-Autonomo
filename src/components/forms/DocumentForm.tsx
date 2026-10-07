@@ -2257,7 +2257,7 @@ export function DocumentForm({
                   Estado comercial local. No crea firma ni portal de cliente.
                 </span>
               )}
-              {type === "factura" && status !== "borrador" && (
+              {type === "factura" && status !== "borrador" && !editingCentralInvoice && (
                 <span className="text-xs text-amber-700">
                   Al guardar, la factura se emitirá, tendrá número definitivo y
                   quedará bloqueada.
