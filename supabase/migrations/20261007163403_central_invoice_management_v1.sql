@@ -244,6 +244,31 @@ begin
       'case when d.content_revision > 0 then d.current_payload || jsonb_build_object(''centralAmendmentVersion'', 1) else d.current_payload end as document_payload,');
     execute v_def;
   end loop;
+  -- A fresh device must not replay an old receipt creation whose source invoice
+  -- has since been deleted. Project the current receipt tombstone on every old
+  -- receipt wake-up while retaining ordered event sequence/technical identity.
+  v_signature := 'public.list_central_business_events_v1(uuid,text,bigint,integer)';
+  v_def := pg_catalog.pg_get_functiondef(v_signature::regprocedure);
+  if position('outbox.entity_version,' in v_def) = 0 or
+    position('outbox.operation_kind,' in v_def) = 0 or
+    position('outbox.payload,' in v_def) = 0 or
+    position('outbox.content_hash,' in v_def) = 0 or
+    position('from public.central_business_outbox as outbox' in v_def) = 0 then
+    raise exception 'unexpected business event pull definition';
+  end if;
+  v_def := replace(v_def, 'outbox.entity_version,',
+    'case when outbox.entity_type = ''receipt'' and current_entity.deleted then current_entity.current_version else outbox.entity_version end,');
+  v_def := replace(v_def, 'outbox.operation_kind,',
+    'case when outbox.entity_type = ''receipt'' and current_entity.deleted then ''delete'' else outbox.operation_kind end,');
+  v_def := replace(v_def, 'outbox.payload,',
+    'case when outbox.entity_type = ''receipt'' and current_entity.deleted then null::jsonb else outbox.payload end,');
+  v_def := replace(v_def, 'outbox.content_hash,',
+    'case when outbox.entity_type = ''receipt'' and current_entity.deleted then current_entity.content_hash else outbox.content_hash end,');
+  v_def := replace(v_def, 'from public.central_business_outbox as outbox',
+    'from public.central_business_outbox as outbox left join public.central_business_entities as current_entity
+      on current_entity.user_id = outbox.user_id and current_entity.entity_type = outbox.entity_type
+      and current_entity.entity_id = outbox.entity_id and outbox.entity_type = ''receipt''');
+  execute v_def;
 end;
 $$;
 

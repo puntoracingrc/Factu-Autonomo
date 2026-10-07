@@ -176,7 +176,8 @@ acceptance("invoice management PostgreSQL acceptance (synthetic localhost only)"
     })).error).toBeNull();
     expect((await admin.rpc("manage_central_invoice_v1", args(row, "delete", 2))).error?.code).toBe("P4141");
     const deletion = { ...receiptArgs, p_idempotency_key_hash: deletionHash, p_request_hash: deletionHash,
-      p_expected_version: 1, p_operation_kind: "delete", p_payload: null };
+      p_expected_version: 1, p_operation_kind: "delete", p_payload: null,
+      p_content_hash: createHash("sha256").update("null").digest("hex") };
     expect((await admin.rpc("mutate_central_business_entity_v1", deletion)).error).toBeNull();
     const invoiceAfter = await admin.from("central_invoice_documents").select("current_payload,emitted_snapshot,current_version").eq("id", row.document_id).single();
     expect(invoiceAfter.data!.current_payload.document.receiptDocumentId).toBeUndefined();
@@ -187,5 +188,14 @@ acceptance("invoice management PostgreSQL acceptance (synthetic localhost only)"
     expect(pull.some((item) => item.documentId === row.document_id && (item.safeSummary as Record<string, unknown>).relationship === "receipt_deleted")).toBe(true);
     expect((await admin.rpc("manage_central_invoice_v1", args(row, "delete", 2))).error?.code).toBe("P4103");
     expect((await admin.rpc("manage_central_invoice_v1", args(row, "delete", 3))).error).toBeNull();
+    const freshDevice = await admin.rpc("list_central_business_events_v1", {
+      p_user_id: owner, p_device_id: "synthetic-fresh-device", p_after_sequence: 0, p_limit: 100,
+    });
+    expect(freshDevice.error).toBeNull();
+    const receiptEvents = freshDevice.data.filter((item: { entity_id: string }) => item.entity_id === receiptId);
+    expect(receiptEvents).toHaveLength(2);
+    for (const item of receiptEvents) expect(item).toMatchObject({
+      operation_kind: "delete", entity_version: 2, payload: null, content_hash: deletion.p_content_hash,
+    });
   });
 });

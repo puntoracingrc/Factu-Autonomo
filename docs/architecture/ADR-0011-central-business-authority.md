@@ -15,6 +15,12 @@ No exige ni crea copias before/after. Los historicos atestados y recuperaciones
 conservan sus flujos propios. ADR-0010 V5 permite editar/borrar facturas solo
 con su comando fiscal separado, nunca mediante esta RPC operativa.
 
+Para un recibo eliminado, el pull proyecta su tombstone actual tambien sobre
+sus eventos de alta antiguos (version/hash actuales, payload nulo). Asi un
+dispositivo nuevo no reconstruye un recibo cuyo origen ya se borro y no queda
+bloqueado por `RECEIPT_SOURCE_MISSING`. La secuencia y los IDs de eventos no
+cambian; el resto de entidades mantiene su replay ordenado original.
+
 ## Contexto
 
 La emision fiscal ya dispone de una autoridad central transaccional, pero las
