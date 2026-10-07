@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 16
-- Fecha: 2026-10-05
+- Versión: 17
+- Fecha: 2026-10-07
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
@@ -131,6 +131,15 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     documentos, payloads, identidad ni contenido fiscal. Admin conserva la
     fecha y el origen de esa confirmación y permite archivarla después sin
     borrar el historial.
+20. Un `quota_exceeded` al recibir facturas centrales puede archivar copias
+    técnicas de recuperación de las empresas accesibles en la sesión en el
+    vault IndexedDB existente. Cada original se conserva íntegro, con empresa,
+    clave de origen y SHA-256, y solo se libera de `localStorage` después del
+    readback exacto y de comprobar que no cambió durante la copia. Nunca se
+    retiran workspaces activos, colas, comandos ni datos de otras cuentas.
+    Solo después de liberar espacio se reintenta una vez el mismo commit CAS;
+    un cambio de empresa o precondición obsoleta bloquea el reintento. El cursor
+    sigue avanzando únicamente después de confirmar el guardado de la página.
 
 ### Planes y dispositivos de nube
 

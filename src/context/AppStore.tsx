@@ -128,6 +128,7 @@ import {
   type SaveDataResult,
 } from "@/lib/storage";
 import { schedulePersistedAppDataCacheRefresh } from "@/lib/persisted-app-data-cache-refresh";
+import { commitAppDataWithQuotaRecovery } from "@/lib/app-data-quota-recovery";
 import {
   commitLatestAppDataDurably,
   commitAppDataDurablyWithStorageRecovery,
@@ -976,10 +977,12 @@ export function AppStoreProvider({
   children,
   ownerScope,
   storageKey,
+  recoveryOwnerScopes,
 }: {
   children: React.ReactNode;
   ownerScope?: string;
   storageKey?: string;
+  recoveryOwnerScopes?: readonly string[];
 }) {
   const workspaceIsActive = useCallback(
     () => !ownerScope || isActiveWorkspaceOwnerScope(ownerScope),
@@ -1645,21 +1648,29 @@ export function AppStoreProvider({
           replayFromStartWhenNoActiveInvoices:
             options.replayFromStartWhenNoActiveInvoices,
         });
-        return commitDurableAppData(
-          baseline,
-          (previous) =>
-            buildCentralInvoiceAuthorityEventsAppDataTransition({
-              data: previous,
-              pulled,
-            }),
-          { trackLegacyChanges: false },
-        );
+        return commitAppDataWithQuotaRecovery({
+          ownerScope,
+          storageKey,
+          recoveryOwnerScopes,
+          isCurrent: workspaceIsActive,
+          attempt: () => commitDurableAppData(
+            baseline,
+            (previous) =>
+              buildCentralInvoiceAuthorityEventsAppDataTransition({
+                data: previous,
+                pulled,
+              }),
+            { trackLegacyChanges: false },
+          ),
+        });
       });
     },
     [
       commitDurableAppData,
       inspectPersistedData,
       ownerScope,
+      storageKey,
+      recoveryOwnerScopes,
       readPersistedDataSnapshot,
       workspaceIsActive,
     ],
