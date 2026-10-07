@@ -11,7 +11,9 @@ export type CentralInvoiceAuthorityEventType =
   | "rectification_issued"
   | "document_repaired"
   | "invoice_collection_updated"
-  | "invoice_relationship_updated";
+  | "invoice_relationship_updated"
+  | "invoice_updated"
+  | "invoice_deleted";
 
 export interface CentralInvoiceAuthorityEventsRpcClient {
   rpc(
@@ -143,7 +145,8 @@ function eventType(value: unknown): CentralInvoiceAuthorityEventType | null {
     value === "rectification_issued" ||
     value === "document_repaired" ||
     value === "invoice_collection_updated" ||
-    value === "invoice_relationship_updated"
+    value === "invoice_relationship_updated" ||
+    value === "invoice_updated" || value === "invoice_deleted"
   ) {
     return value;
   }

@@ -1,8 +1,19 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 29
-- Fecha: 2026-10-06
+- Version: 30
+- Fecha: 2026-10-07
+
+## Cambio V30: borrado central de recibos
+
+El propietario autoriza borrar recibos incluso emitidos, pagados o enviados.
+Se usa el comando operativo `delete` existente con version esperada, diario
+idempotente y confirmacion servidor-primero. El evento elimina el recibo de todos
+los dispositivos y limpia exclusivamente `receiptDocumentId` de su factura;
+no borra la factura, no deshace un cobro y no renumera los recibos supervivientes.
+No exige ni crea copias before/after. Los historicos atestados y recuperaciones
+conservan sus flujos propios. ADR-0010 V5 permite editar/borrar facturas solo
+con su comando fiscal separado, nunca mediante esta RPC operativa.
 
 ## Contexto
 
@@ -37,7 +48,8 @@ distinta ni explicar con precision cual de las dos escrituras debe aceptarse.
    los eventos centrales y solo incorpora automaticamente un snapshot aditivo
    o ya identico; cualquier conflicto queda para revision explicita.
 8. Las facturas y rectificativas emitidas siguen bajo ADR-0010. Esta autoridad
-   operativa no puede editar, borrar ni renumerar un documento fiscal emitido.
+   operativa no puede editar, borrar ni renumerar un documento fiscal emitido;
+   la correccion y el borrado de ADR-0010 V5 usan su RPC separada.
 9. El escritor y lector genéricos del navegador quedan retirados para todas las
    cuentas autenticadas. El porcentaje de rollout puede pausar o limitar la
    autoridad central, pero nunca reactiva la ruta anterior.

@@ -592,6 +592,8 @@ interface AppStoreValue {
     > & { rectification: RectificationInfo },
   ) => Promise<Document | null>;
   updateDocument: (doc: Document) => Promise<Document>;
+  updateIssuedInvoiceCentrally: (doc: Document) => Promise<Document>;
+  deleteIssuedDocumentCentrally: (doc: Document) => Promise<boolean>;
   repairDocumentCustomer: (
     documentId: string,
     customerId: string,
@@ -3195,6 +3197,62 @@ export function AppStoreProvider({
     [setAppData],
   );
 
+  const updateIssuedInvoiceCentrally = useCallback(async (doc: Document): Promise<Document> => {
+    const { canManageCentralIssuedInvoice } = await import("@/lib/central-invoice-authority/management-policy");
+    if (!ownerScope || !workspaceIsActive() || !canManageCentralIssuedInvoice(doc)) {
+      throw new Error("Esta factura no permite edición central desde esta sesión.");
+    }
+    const { manageCentralInvoiceFromBrowser } = await import("@/lib/central-invoice-authority/management-client");
+    const eventId = await manageCentralInvoiceFromBrowser({ action: "update", document: doc, expectedOwnerScope: ownerScope });
+    if (!workspaceIsActive()) throw new Error("El cambio se confirmó en servidor, pero has cambiado de empresa. Vuelve a abrirla.");
+    const received = await syncCentralInvoiceAuthorityEvents(dataRef.current, { eventId });
+    const confirmed = dataRef.current.documents.find((item) => item.id === doc.id);
+    if (received.status !== "applied" || !received.value.localSync.ok || !confirmed ||
+        !confirmed.centralInvoiceAuthority || confirmed.centralInvoiceAuthority.documentVersion <= doc.centralInvoiceAuthority!.documentVersion) {
+      throw new Error("El servidor confirmó la corrección, pero falta recibirla aquí. Pulsa Sincronizar ahora; no emitas otra factura.");
+    }
+    return confirmed;
+  }, [ownerScope, syncCentralInvoiceAuthorityEvents, workspaceIsActive]);
+
+  const deleteIssuedDocumentCentrally = useCallback(async (doc: Document): Promise<boolean> => {
+    if (!ownerScope || !workspaceIsActive()) throw new Error("La empresa activa ha cambiado.");
+    const { canManageCentralIssuedInvoice, canDeleteReceiptCentrally } = await import("@/lib/central-invoice-authority/management-policy");
+    if (canManageCentralIssuedInvoice(doc)) {
+      const { manageCentralInvoiceFromBrowser } = await import("@/lib/central-invoice-authority/management-client");
+      const eventId = await manageCentralInvoiceFromBrowser({ action: "delete", document: doc, expectedOwnerScope: ownerScope });
+      if (!workspaceIsActive()) throw new Error("El borrado se confirmó en servidor. Vuelve a abrir la empresa para recibirlo.");
+      const received = await syncCentralInvoiceAuthorityEvents(dataRef.current, { eventId });
+      if (received.status !== "applied" || !received.value.localSync.ok || dataRef.current.documents.some((item) => item.id === doc.id)) {
+        throw new Error("El servidor confirmó el borrado, pero falta recibirlo aquí. Pulsa Sincronizar ahora.");
+      }
+      return true;
+    }
+    if (!canDeleteReceiptCentrally(doc)) throw new Error("Este documento no admite borrado central.");
+    const { mutateCentralBusinessEntityWithCanary } = await import("@/lib/central-business-authority/entity-mutation-canary");
+    const result = await mutateCentralBusinessEntityWithCanary<boolean>({
+      enabled: true, userId: ownerScope, entityType: "receipt", entityId: doc.id,
+      operationKind: "delete", operationIdPrefix: "DELETE_RECEIPT", entityLabel: "recibo",
+      dependencies: {
+        getCurrentData: () => dataRef.current,
+        fallback: () => ({ ok: false, error: "El recibo necesita una versión confirmada por el servidor central." }),
+        syncEventsBeforeWrite: () => syncCentralBusinessEvents(ownerScope),
+        prepareLocal: ({ data: previous }) => ({
+          ok: true, payload: null, transition: {
+            data: { ...previous, documents: previous.documents.filter((item) => item.id !== doc.id).map((item) => {
+              if (item.receiptDocumentId !== doc.id) return item;
+              const next = { ...item }; delete next.receiptDocumentId; return next;
+            }) }, value: true,
+          },
+        }),
+        commitLocal: (expected, transition) => workspaceIsActive()
+          ? commitDurableAppData(expected, () => transition, { trackLegacyChanges: false })
+          : { status: "blocked", reason: "stale_precondition" },
+      },
+    });
+    if (!result.ok) throw new Error(result.error);
+    return result.value;
+  }, [commitDurableAppData, ownerScope, syncCentralBusinessEvents, syncCentralInvoiceAuthorityEvents, workspaceIsActive]);
+
   const addExpense = useCallback(
     (expense: Omit<Expense, "id" | "createdAt">) => {
       setAppData((prev) => ({
@@ -4217,6 +4275,8 @@ export function AppStoreProvider({
       markDocumentSent,
       addRectificativa,
       updateDocument,
+      updateIssuedInvoiceCentrally,
+      deleteIssuedDocumentCentrally,
       repairDocumentCustomer,
       updateDocumentLink,
       setDocumentQuote,
@@ -4314,6 +4374,8 @@ export function AppStoreProvider({
       markDocumentSent,
       addRectificativa,
       updateDocument,
+      updateIssuedInvoiceCentrally,
+      deleteIssuedDocumentCentrally,
       repairDocumentCustomer,
       updateDocumentLink,
       setDocumentQuote,

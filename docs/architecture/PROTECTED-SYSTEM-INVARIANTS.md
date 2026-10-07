@@ -37,6 +37,20 @@ Regresiones mínimas: `legacy-import-governance.test.ts`,
 `legacy-import-attestation.test.ts` y las pruebas de consumidores/persistencia
 del histórico importado.
 
+### Excepcion de producto autorizada: correccion y borrado central (2026-10-07)
+
+ADR-0010 V5 autoriza editar/borrar facturas ordinarias centrales y reutilizar
+solo sus numeros explicitamente liberados en la misma serie y empresa. La
+identidad tecnica no se reutiliza y el contador maximo no retrocede. Se exige
+CAS, idempotencia, permisos owner/admin y confirmacion transaccional antes de
+publicar la cache. Cambiar cliente regenera snapshot, sello y PDF; no reemite
+ni cambia emisor, numero, cobro o instante original de emision. No crea una
+copia before/after. Los eventos de borrado nunca se emparejan por numero.
+ADR-0011 V30 permite borrar recibos enviados/emitidos mediante el comando
+central y quitar su backlink sin borrar ni desmarcar el cobro de la factura.
+Los mutadores genericos, historicos atestados, recuperaciones, rectificativas,
+registros externos de produccion y archivo reversible mantienen sus contratos.
+
 ### 2. Recuperación de documentos emitidos por la app
 
 Contrato: [ADR-0002](ADR-0002-app-issued-document-recovery.md).

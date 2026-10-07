@@ -995,8 +995,7 @@ describe("central business events app data sync", () => {
     expect(replayed.value.action).toBe("unchanged");
     expect(replayed.data).toBe(created.data);
 
-    expect(() =>
-      buildCentralBusinessEventAppDataTransition({
+    const deleted = buildCentralBusinessEventAppDataTransition({
         data: created.data,
         event: event(payload, {
           operationKind: "delete",
@@ -1010,8 +1009,13 @@ describe("central business events app data sync", () => {
           deleted: false,
           contentHash: "hash-v1",
         },
-      }),
-    ).toThrow("no se puede borrar");
+      });
+    expect(deleted.value.action).toBe("deleted");
+    expect(deleted.data.documents).toHaveLength(1);
+    expect(deleted.data.documents[0].receiptDocumentId).toBeUndefined();
+    const { receiptDocumentId: removedLink, ...invoiceBefore } = created.data.documents[0];
+    expect(removedLink).toBe("receipt-central-1");
+    expect(deleted.data.documents[0]).toEqual(invoiceBefore);
   });
 
   it("deja reintentable un recibo cuyo evento llega antes que la factura", () => {

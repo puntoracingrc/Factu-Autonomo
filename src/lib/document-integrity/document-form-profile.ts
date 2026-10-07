@@ -1,5 +1,7 @@
 import { profileForRectificationSource } from "./rectification-issuance";
 import type { BusinessProfile, Document } from "../types";
+import { profileForHistoricalDerivedDocument } from "./derived-issuance";
+import { canManageCentralIssuedInvoice } from "../central-invoice-authority/management-policy";
 
 export interface DocumentFormProfileResolution {
   profile: BusinessProfile;
@@ -17,6 +19,13 @@ export function resolveDocumentFormBusinessProfile(
   documents: Document[],
   currentProfile: BusinessProfile,
 ): DocumentFormProfileResolution {
+  if (existing && canManageCentralIssuedInvoice(existing) && existing.documentSnapshot) {
+    try {
+      return { profile: profileForHistoricalDerivedDocument(existing.documentSnapshot, {
+        ...currentProfile, nif: existing.documentSnapshot.issuer.nif,
+      }), blocked: false };
+    } catch { return { profile: currentProfile, blocked: true }; }
+  }
   if (!existing?.rectification || existing.status !== "borrador") {
     return { profile: currentProfile, blocked: false };
   }

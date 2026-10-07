@@ -17,11 +17,10 @@ import {
   resolveVerifactuConnectionStatus,
   type VerifactuRuntimeState,
 } from "@/lib/verifactu/runtime-status";
-import type { BusinessProfile, VerifactuSettings } from "@/lib/types";
+import type { BusinessProfile } from "@/lib/types";
 
 interface Props {
   form: BusinessProfile;
-  onChange: (settings: VerifactuSettings) => void;
 }
 
 export function VerifactuSettingsCard({ form }: Props) {
@@ -144,21 +143,12 @@ export function VerifactuSettingsCard({ form }: Props) {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="flex items-center gap-3">
-        <input
-          type="checkbox"
-          checked={false}
-          disabled
-          readOnly
-          className="h-4 w-4 rounded border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-        />
-        <span className="text-sm font-medium text-slate-800">
+        <p className="text-sm font-medium text-slate-800">
           Registro Veri*Factu no disponible. Las facturas se guardan sin envío,
           QR tributario ni distintivo de aceptación.
-        </span>
-        </div>
+        </p>
         {settings.enabled && (
-          <p className="mt-2 pl-7 text-xs text-slate-600">
+          <p className="mt-2 text-xs text-slate-600">
             Tu preferencia anterior se conserva como dato histórico, pero no
             activa ninguna operación mientras el servicio siga deshabilitado.
           </p>

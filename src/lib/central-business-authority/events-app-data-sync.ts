@@ -846,12 +846,6 @@ export function buildCentralBusinessEventAppDataTransition(input: {
     const existing = matches[0];
     if (event.operationKind === "delete") {
       if (!existing) return { data, value: value("unchanged") };
-      if (event.entityType === "receipt" && isCentralBusinessReceipt(existing)) {
-        throw new CentralBusinessLocalApplyError(
-          "CENTRAL_BUSINESS_RECEIPT_DELETE_NOT_SUPPORTED",
-          "Un recibo central emitido no se puede borrar mediante sincronizacion.",
-        );
-      }
       if (!knownPrevious) {
         return localConflict(
           "El documento local no tiene una versión central confirmada para borrarlo.",
@@ -862,7 +856,12 @@ export function buildCentralBusinessEventAppDataTransition(input: {
           ...data,
           documents: data.documents.filter(
             (document) => document.id !== event.entityId,
-          ),
+          ).map((document) => {
+            if (event.entityType !== "receipt" || document.receiptDocumentId !== event.entityId) return document;
+            const unlinked = { ...document };
+            delete unlinked.receiptDocumentId;
+            return unlinked;
+          }),
         },
         value: value("deleted"),
       };

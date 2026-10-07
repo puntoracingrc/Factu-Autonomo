@@ -56,6 +56,9 @@ describe("public VeriFactu containment", () => {
     expect(settingsCard).toContain('href="/legal/verifactu"');
     expect(settingsCard).toContain("Registro Veri*Factu no disponible");
     expect(settingsCard).not.toContain("Activar Veri*Factu");
+    expect(settingsCard).not.toContain('type="checkbox"');
+    expect(settingsCard).not.toContain("onChange:");
+    expect(settingsCard).toContain("Tu preferencia anterior se conserva como dato histórico");
     expect(settingsCard).not.toContain("Obligatorio para autónomos");
   });
 

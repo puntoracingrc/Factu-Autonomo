@@ -38,7 +38,9 @@ export interface DocumentCentralInvoiceAuthorityLinkV1 {
     | "rectification_issued"
     | "document_repaired"
     | "invoice_collection_updated"
-    | "invoice_relationship_updated";
+    | "invoice_relationship_updated"
+    | "invoice_updated"
+    | "invoice_deleted";
   fullNumber: string;
   sequence: number;
   documentVersion: number;
