@@ -24,6 +24,7 @@ const invoice: Document = {
   date: "2026-10-07", dueDate: "2026-11-07", status: "borrador",
   client: { name: "Cliente de ejemplo", nif: "12345678Z", address: "Calle de prueba, 20, Barcelona" },
   items: [{ id: "line-1", description: "Servicio de ejemplo", quantity: 1, unitPrice: 80, ivaPercent: 21 }],
+  notes: "Trabajo realizado en la vivienda. Gracias por confiar en nosotros.",
   createdAt: "2026-10-07T10:00:00Z", updatedAt: "2026-10-07T10:00:00Z",
 };
 const examples: Array<{ filename: string; title: string; doc: Document }> = [
@@ -68,6 +69,16 @@ describe("shared document PDF alignment", () => {
         const template = { ...DEFAULT_DOCUMENT_TEMPLATE, style };
         const pdf = buildDocumentPdf(example.doc, { ...profile, documentTemplate: template }, logo);
         const title = textPosition(pdf, example.title);
+        const client = textPosition(pdf, "Cliente:");
+        const notes = textPosition(pdf, "Notas");
+        const noteBody = textPosition(pdf, "Trabajo realizado");
+        const concepts = textPosition(pdf, "Concepto");
+        expect(notes.page).toBe(client.page);
+        expect(notes.y).toBeGreaterThan(client.y);
+        expect(noteBody.y).toBeGreaterThan(notes.y);
+        expect(concepts.y).toBeGreaterThan(noteBody.y + 8);
+        expect(noteBody.x).toBeCloseTo(18);
+        expect(pdf.output().match(/\(Trabajo realizado/g)).toHaveLength(1);
         const logoTop = style === "futuro" ? 24 : 14;
         expect(title.x).toBeCloseTo(14);
         expect(title.y).toBeGreaterThan(logoTop);
@@ -172,6 +183,28 @@ describe("shared document PDF alignment", () => {
     const before = JSON.stringify({ invoice, profile });
     buildDocumentPdf(invoice, profile, logo);
     expect(JSON.stringify({ invoice, profile })).toBe(before);
+  });
+
+  it("does not add an empty notes box when notes are absent or whitespace", () => {
+    for (const notes of [undefined, "", "   "]) {
+      const pdf = buildDocumentPdf({ ...invoice, notes }, profile, logo);
+      expect(pdf.output()).not.toContain("(Notas)");
+      expect(textPosition(pdf, "Concepto").page).toBe(1);
+    }
+  });
+
+  it("paginates long note boxes before the concepts without losing or repeating text", () => {
+    const notes = Array.from({ length: 120 }, (_, i) => `Nota de prueba ${String(i).padStart(3, "0")}`).join("\n");
+    const pdf = buildDocumentPdf({ ...invoice, notes }, profile, logo, { websiteFooter: true });
+    const lastNote = textPosition(pdf, "Nota de prueba 119");
+    const concepts = textPosition(pdf, "Concepto");
+    expect(lastNote.page).toBeGreaterThan(1);
+    expect(concepts.page > lastNote.page || concepts.y > lastNote.y + 8).toBe(true);
+    for (let i = 0; i < 120; i += 1) {
+      const prefix = `Nota de prueba ${String(i).padStart(3, "0")}`;
+      expect(textPosition(pdf, prefix).y).toBeLessThan(281);
+      expect(pdf.output().split(`(${prefix})`).length - 1).toBe(1);
+    }
   });
 
   it.skipIf(!process.env.PDF_LAYOUT_OUTPUT_DIR)("renders four synthetic examples for visual review", () => {
