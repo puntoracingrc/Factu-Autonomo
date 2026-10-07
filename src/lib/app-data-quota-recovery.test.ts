@@ -55,7 +55,7 @@ describe("central invoice cache quota recovery", () => {
     storage.setItem(recoveryA, "a".repeat(12000));
     storage.setItem(recoveryB, "b".repeat(12000));
     storage.setItem(unrelated, "unrelated recovery");
-    storage.quota = [...storage.values.values()].reduce((sum, raw) => sum + raw.length, 0) + 10;
+    storage.quota = [...storage.values.values()].reduce((sum, raw) => sum + raw.length, 0) - previousRaw.length + 1;
     const preserved = new Map<string, string>();
     const cursor = { afterCreatedAt: "2026-10-07T10:00:00.000Z", afterEventId: "event-new" };
     const incoming: AppData = {

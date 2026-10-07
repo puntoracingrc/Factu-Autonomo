@@ -1,7 +1,7 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 17
+- Versión: 18
 - Fecha: 2026-10-07
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
@@ -140,6 +140,16 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     Solo después de liberar espacio se reintenta una vez el mismo commit CAS;
     un cambio de empresa o precondición obsoleta bloquea el reintento. El cursor
     sigue avanzando únicamente después de confirmar el guardado de la página.
+21. La representación de caché `factu-gzip-utf16-v1` conserva los mismos bytes
+    gzip en caracteres UTF-16 de 15 bits en lugar de Base64. Reduce el tamaño de
+    esa representación aproximadamente un 60%, no los datos de negocio. Se
+    activa solo tras un rechazo de cuota que dejó intacto el original, se
+    mantiene en los guardados posteriores y sigue exigiendo readback exacto,
+    precondición y rollback seguro. JSON y gzip Base64 anteriores siguen siendo
+    legibles; el nuevo formato exige una versión actualizada de la aplicación.
+    Nunca se reducen colecciones, snapshots, PDF, colas ni evidencia fiscal
+    para hacer caber la copia. Si tampoco cabe el formato compacto, el fallo
+    sigue bloqueado y visible, sin adelantar cursores ni reemitir documentos.
 
 ### Planes y dispositivos de nube
 
