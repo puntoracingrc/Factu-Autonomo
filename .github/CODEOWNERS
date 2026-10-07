@@ -18,6 +18,7 @@
 /docs/architecture/central-invoice-authority-phase2-readiness-gates.md @puntoracingrc
 /docs/architecture/central-invoice-authority-production-readiness-*.json @puntoracingrc
 /src/lib/storage.ts                                    @puntoracingrc
+/src/lib/packed-gzip-storage*                          @puntoracingrc
 /src/lib/document-integrity/**                         @puntoracingrc
 /src/lib/importers/**                                  @puntoracingrc
 /src/lib/taxes.ts                                      @puntoracingrc

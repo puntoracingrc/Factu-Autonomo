@@ -1,5 +1,10 @@
 import { migrateCustomer } from "./customers";
 import { gzipSync, gunzipSync, strFromU8, strToU8 } from "fflate";
+import {
+  decodePackedGzipStorage,
+  encodePackedGzipStorage,
+  PACKED_GZIP_STORAGE_PREFIX,
+} from "./packed-gzip-storage";
 import { normalizeQuoteDocument } from "./quotes";
 import { normalizeUserReminder } from "./reminder-team";
 import { countersFromDocuments } from "./documents";
@@ -181,6 +186,13 @@ function serializeStoredData(data: unknown): string {
   return `${COMPRESSED_STORAGE_PREFIX}${bytesToBase64(compressed)}`;
 }
 
+function compactSerializedStoredData(serialized: string): string {
+  const bytes = serialized.startsWith(COMPRESSED_STORAGE_PREFIX)
+    ? base64ToBytes(serialized.slice(COMPRESSED_STORAGE_PREFIX.length))
+    : gzipSync(strToU8(serialized), { level: 6 });
+  return encodePackedGzipStorage(bytes);
+}
+
 function safeRejectedFiscalPayload(): Record<string, string> {
   return {
     status: "rejected",
@@ -309,7 +321,10 @@ function needsBaseAwareFiscalProjection(data: AppData): boolean {
   );
 }
 
-function parseStoredData(raw: string): unknown {
+export function parseStoredData(raw: string): unknown {
+  if (raw.startsWith(PACKED_GZIP_STORAGE_PREFIX)) {
+    return JSON.parse(strFromU8(gunzipSync(decodePackedGzipStorage(raw))));
+  }
   if (!raw.startsWith(COMPRESSED_STORAGE_PREFIX)) return JSON.parse(raw);
 
   const encoded = raw.slice(COMPRESSED_STORAGE_PREFIX.length);
@@ -2118,6 +2133,16 @@ export function saveData(
     }
   }
 
+  // Once a workspace needs the compact representation, keep it compact on
+  // subsequent writes instead of retrying an unnecessarily larger Base64.
+  if (beforeRaw?.startsWith(PACKED_GZIP_STORAGE_PREFIX)) {
+    try {
+      serialized = compactSerializedStoredData(serialized);
+    } catch {
+      return { status: "blocked", reason: "serialization_failed" };
+    }
+  }
+
   if (beforeRaw === serialized) {
     rememberPersistedSnapshot(storage, storageKey, serialized, {
       parsed: projected,
@@ -2143,6 +2168,31 @@ export function saveData(
     storage.setItem(storageKey, serialized);
   } catch (error) {
     writeError = error;
+  }
+
+  if (
+    writeError !== undefined &&
+    storageWriteFailureReason(writeError) === "quota_exceeded" &&
+    !serialized.startsWith(PACKED_GZIP_STORAGE_PREFIX)
+  ) {
+    try {
+      const compact = compactSerializedStoredData(serialized);
+      if (compact.length < serialized.length) {
+        // The failed write must have left the original untouched. Neither a
+        // concurrent writer nor an ambiguous failure permits this retry.
+        if (storage.getItem(storageKey) === beforeRaw) {
+          serialized = compact;
+          writeError = undefined;
+          try {
+            storage.setItem(storageKey, serialized);
+          } catch (error) {
+            writeError = error;
+          }
+        }
+      }
+    } catch {
+      // Keep the original quota failure; no data has been removed to make room.
+    }
   }
 
   let writtenRaw: string | null | undefined;
