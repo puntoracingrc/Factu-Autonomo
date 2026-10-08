@@ -76,6 +76,18 @@ describe("central authority and Drive reliability contract", () => {
     expect(adr).toContain("una empresa nunca envía");
   });
 
+  it("no inicia OAuth de Drive al abrir la app ni desde una copia automática", () => {
+    const backup = source("src/lib/google-drive/backup.ts");
+    const restore = backup.slice(
+      backup.indexOf("export async function restoreDriveAccessToken("),
+      backup.indexOf("function loadGoogleIdentityServices("),
+    );
+    expect(restore).toContain("hasUsableDriveToken(ownerScope)");
+    expect(restore).not.toContain("requestDriveAccessToken(");
+    expect(backup).toContain("options.automatic\n      ? getCachedToken(ownerScope)");
+    expect(restore).toContain("Pulsa Reconectar Drive");
+  });
+
   it("mantiene la politica protegida en la raiz", () => {
     const agents = source("AGENTS.md");
     const codeowners = source(".github/CODEOWNERS");

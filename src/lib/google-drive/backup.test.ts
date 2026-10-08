@@ -29,6 +29,7 @@ import {
   saveDriveBackupSettings,
   startGoogleDriveBackupRedirect,
   shouldRunAutomaticDriveBackup,
+  uploadAppBackupToGoogleDrive,
   uploadAppBackupToGoogleDriveWithAccessToken,
 } from "./backup";
 import { createBackupPayload } from "@/lib/backup";
@@ -397,7 +398,7 @@ describe("Google Drive backup", () => {
     });
   });
 
-  it("recupera el permiso de Drive sin pedir consentimiento si Google lo mantiene activo", async () => {
+  it("no abre Google al recuperar Drive durante el arranque sin un token activo", async () => {
     const requestAccessToken = vi.fn();
     const initTokenClient = vi.fn(
       (config: {
@@ -430,16 +431,54 @@ describe("Google Drive backup", () => {
 
     const result = await restoreDriveAccessToken("google-client-id");
 
-    expect(result).toEqual({ ok: true });
-    expect(initTokenClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        client_id: "google-client-id",
-        scope: DRIVE_BACKUP_SCOPE,
-        include_granted_scopes: true,
-      }),
-    );
-    expect(requestAccessToken).toHaveBeenCalledWith({ prompt: "" });
-    expect(hasUsableDriveToken()).toBe(true);
+    expect(result).toEqual({
+      ok: false,
+      error: "Drive necesita reconectar. Pulsa Reconectar Drive cuando quieras reanudar las copias.",
+    });
+    expect(initTokenClient).not.toHaveBeenCalled();
+    expect(requestAccessToken).not.toHaveBeenCalled();
+    expect(hasUsableDriveToken()).toBe(false);
+  });
+
+  it("recupera un permiso vigente sin OAuth y no lo revive después de cerrar la app", async () => {
+    setActiveWorkspaceOwnerScope(DRIVE_OWNER_SCOPE);
+    const initTokenClient = vi.fn();
+    vi.stubGlobal("window", { google: { accounts: { oauth2: { initTokenClient } } } });
+    cacheDriveAccessToken("existing-drive-token", 3600, DRIVE_OWNER_SCOPE);
+
+    await expect(restoreDriveAccessToken("google-client-id", DRIVE_OWNER_SCOPE))
+      .resolves.toEqual({ ok: true });
+
+    clearDriveAccessToken();
+    const reopened = await restoreDriveAccessToken("google-client-id", DRIVE_OWNER_SCOPE);
+    expect(reopened.ok).toBe(false);
+    expect(initTokenClient).not.toHaveBeenCalled();
+  });
+
+  it("una copia automática sin permiso no abre Google ni marca una copia como guardada", async () => {
+    setActiveWorkspaceOwnerScope(DRIVE_OWNER_SCOPE);
+    const requestAccessToken = vi.fn();
+    const initTokenClient = vi.fn((config: { callback: (response: { access_token: string }) => void }) => ({
+      requestAccessToken: () => {
+        requestAccessToken();
+        config.callback({ access_token: "unexpected-drive-token" });
+      },
+    }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("document", {});
+    vi.stubGlobal("window", { google: { accounts: { oauth2: { initTokenClient } } } });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await uploadAppBackupToGoogleDrive(dataWithDocument(NOW.toISOString()), {
+      clientId: "google-client-id",
+      automatic: true,
+      expectedOwnerScope: DRIVE_OWNER_SCOPE,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(initTokenClient).not.toHaveBeenCalled();
+    expect(requestAccessToken).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(protectionMocks.createProtectedBackupArtifact).not.toHaveBeenCalled();
   });
 
   it("no intenta reactivar Drive si falta la configuracion de Google", async () => {
@@ -447,6 +486,29 @@ describe("Google Drive backup", () => {
       ok: false,
       error: "Google Drive no está configurado.",
     });
+  });
+
+  it("permite solicitar OAuth al guardar manualmente por acción del usuario", async () => {
+    setActiveWorkspaceOwnerScope(DRIVE_OWNER_SCOPE);
+    const requestAccessToken = vi.fn();
+    const initTokenClient = vi.fn((config: { callback: (response: { access_token: string }) => void }) => ({
+      requestAccessToken: (options: { prompt?: string }) => {
+        requestAccessToken(options);
+        config.callback({ access_token: "manual-drive-token" });
+      },
+    }));
+    vi.stubGlobal("document", {});
+    vi.stubGlobal("window", { google: { accounts: { oauth2: { initTokenClient } } } });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await uploadAppBackupToGoogleDrive(dataWithDocument(NOW.toISOString()), {
+      clientId: "google-client-id",
+      automatic: false,
+      expectedOwnerScope: DRIVE_OWNER_SCOPE,
+    });
+
+    expect(initTokenClient).toHaveBeenCalledTimes(1);
+    expect(requestAccessToken).toHaveBeenCalledWith({ prompt: "" });
+    expect(hasUsableDriveToken(DRIVE_OWNER_SCOPE)).toBe(true);
   });
 
   it("evita repetir la copia diaria en el mismo día", () => {
@@ -727,7 +789,7 @@ describe("Google Drive backup", () => {
     ).toBe(buildDriveBackupSignature(initial, "every_change", NOW));
   });
 
-  it("crea carpeta y sube un JSON de copia usando el permiso de Drive", async () => {
+  it.each(["explicit-token", "automatic"] as const)("crea carpeta y verifica el JSON con permiso vigente (%s)", async (mode) => {
     const sourceData = dataWithDocument("2026-06-29T10:00:00.000Z");
     const expectedJson = JSON.stringify(
       createBackupPayload(sourceData, NOW.toISOString()),
@@ -802,15 +864,25 @@ describe("Google Drive backup", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await uploadAppBackupToGoogleDriveWithAccessToken(
-      sourceData,
-      "access-token",
-      {
-        ownerScope: DRIVE_OWNER_SCOPE,
-        companyName: "Persianas Almar SL",
-        now: () => NOW,
-      },
-    );
+    setActiveWorkspaceOwnerScope(DRIVE_OWNER_SCOPE);
+    cacheDriveAccessToken("access-token", 3600, DRIVE_OWNER_SCOPE);
+    const result = mode === "automatic"
+      ? await uploadAppBackupToGoogleDrive(sourceData, {
+          clientId: "google-client-id",
+          automatic: true,
+          expectedOwnerScope: DRIVE_OWNER_SCOPE,
+          companyName: "Persianas Almar SL",
+          now: () => NOW,
+        })
+      : await uploadAppBackupToGoogleDriveWithAccessToken(
+          sourceData,
+          "access-token",
+          {
+            ownerScope: DRIVE_OWNER_SCOPE,
+            companyName: "Persianas Almar SL",
+            now: () => NOW,
+          },
+        );
 
     expect(result).toEqual({
       ok: true,
