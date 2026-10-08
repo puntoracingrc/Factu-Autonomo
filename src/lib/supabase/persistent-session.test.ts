@@ -57,6 +57,24 @@ describe("persistent browser/PWA session recovery", () => {
     f.recovery.dispose();
   });
 
+  it("reads a valid cached session or guest mode even when reopening offline", async () => {
+    for (const value of [session, null]) {
+      const onUser = vi.fn();
+      const onReady = vi.fn();
+      const recovery = recoverPersistentSession({
+        getAuth: vi.fn().mockResolvedValue({
+          getSession: vi.fn().mockResolvedValue({ data: { session: value }, error: null }),
+          onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+        }),
+        onUser, onReady, canRetry: () => false,
+      });
+      await flush();
+      expect(onUser).toHaveBeenCalledExactlyOnceWith(value?.user ?? null);
+      expect(onReady).toHaveBeenCalledOnce();
+      recovery.dispose();
+    }
+  });
+
   it("does not turn a refresh error or empty INITIAL_SESSION into a logout", async () => {
     const f = fixture();
     f.getSession.mockResolvedValueOnce({

@@ -45,9 +45,11 @@ export function recoverPersistentSession({
     delay = Math.min(delay * 2, 30_000);
   }
 
-  async function attempt() {
+  async function attempt(initial = false) {
     if (disposed || settled || running) return;
-    if (!canRetry()) {
+    // The first read can recover a valid cached session (or guest mode) offline.
+    // Only subsequent recovery attempts wait for connectivity/foreground.
+    if (!initial && !canRetry()) {
       scheduleRetry();
       return;
     }
@@ -88,7 +90,7 @@ export function recoverPersistentSession({
     }
   }
 
-  void attempt();
+  void attempt(true);
   return {
     retry() {
       if (disposed || settled || running) return;
