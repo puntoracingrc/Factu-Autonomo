@@ -14,6 +14,7 @@ import type { User } from "@supabase/supabase-js";
 import { clearDriveAccessToken } from "@/lib/google-drive/backup";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled } from "@/lib/supabase/config";
+import { recoverPersistentSession } from "@/lib/supabase/persistent-session";
 import { setActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 
 interface CloudAuthValue {
@@ -49,47 +50,29 @@ export function CloudAuthProvider({ children }: { children: React.ReactNode }) {
       setAuthReady(true);
       return;
     }
-    let unsubscribe: (() => void) | undefined;
-    let cancelled = false;
-    let authEventSeen = false;
-
-    void getSupabaseClientAsync().then((supabase) => {
-      if (cancelled) return;
-      if (!supabase) {
-        setAuthReady(true);
-        return;
-      }
-      void supabase.auth
-        .getUser()
-        .then(({ data }) => {
-          if (!cancelled && !authEventSeen) {
-            setAuthenticatedUser(data.user);
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setAuthReady(true);
-        });
-      const { data: listener } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          if (cancelled) return;
-          authEventSeen = true;
-          setAuthenticatedUser(session?.user ?? null);
-          setAuthReady(true);
-        },
-      );
-      unsubscribe = () => listener.subscription.unsubscribe();
+    const recovery = recoverPersistentSession({
+      getAuth: async () => (await getSupabaseClientAsync())?.auth ?? null,
+      onUser: setAuthenticatedUser,
+      onReady: () => setAuthReady(true),
+      canRetry: () => navigator.onLine && document.visibilityState !== "hidden",
     });
+    const resume = () => recovery.retry();
+    window.addEventListener("online", resume);
+    window.addEventListener("pageshow", resume);
+    document.addEventListener("visibilitychange", resume);
 
     return () => {
-      cancelled = true;
-      unsubscribe?.();
+      recovery.dispose();
+      window.removeEventListener("online", resume);
+      window.removeEventListener("pageshow", resume);
+      document.removeEventListener("visibilitychange", resume);
     };
   }, [cloudEnabled, setAuthenticatedUser]);
 
   const signOutAuthSession = useCallback(async (): Promise<string | null> => {
     const supabase = await getSupabaseClientAsync();
     if (supabase) {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) return error.message;
     }
     setAuthenticatedUser(null);
