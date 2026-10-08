@@ -588,6 +588,7 @@ export function hasUsableDriveToken(
   return Boolean(getCachedToken(ownerScope));
 }
 
+/** Recuperación pasiva al abrir una vista: nunca inicia el diálogo de Google. */
 export async function restoreDriveAccessToken(
   clientId: string,
   ownerScope: string | null = getActiveWorkspaceOwnerScope(),
@@ -599,18 +600,12 @@ export async function restoreDriveAccessToken(
     return { ok: false, error: "Google Drive no está configurado." };
   }
 
-  try {
-    await requestDriveAccessToken(cleanClientId, "", ownerScope);
-    return { ok: true };
-  } catch (error) {
-    return {
-      ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Google necesita renovar el permiso de Drive.",
-    };
-  }
+  // prompt: "" no es una renovación silenciosa: GIS puede abrir el selector
+  // de cuenta. Solo conectar/reconectar por acción del usuario inicia OAuth.
+  return {
+    ok: false,
+    error: "Drive necesita reconectar. Pulsa Reconectar Drive cuando quieras reanudar las copias.",
+  };
 }
 
 function loadGoogleIdentityServices(): Promise<void> {
@@ -1054,11 +1049,21 @@ export async function uploadAppBackupToGoogleDrive(
       };
     }
 
-    const accessToken = await requestDriveAccessToken(
-      options.clientId,
-      options.prompt ?? "",
-      ownerScope,
-    );
+    // El permiso puede caducar después del gate del componente automático.
+    // Nunca abrimos Google desde un timer ni marcamos esa copia como hecha.
+    const accessToken = options.automatic
+      ? getCachedToken(ownerScope)
+      : await requestDriveAccessToken(
+          options.clientId,
+          options.prompt ?? "",
+          ownerScope,
+        );
+    if (!accessToken) {
+      return {
+        ok: false,
+        error: "Drive necesita reconectar. Pulsa Reconectar Drive cuando quieras reanudar las copias.",
+      };
+    }
     return await uploadAppBackupToGoogleDriveWithAccessToken(
       data,
       accessToken,

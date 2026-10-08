@@ -1,7 +1,7 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 19
+- Versión: 20
 - Fecha: 2026-10-08
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
@@ -235,6 +235,17 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    retención. Las diez copias se calculan por empresa: una empresa nunca envía
    a la papelera copias de otra. Las copias antiguas de la carpeta general se
    conservan sin mover, reescribir ni incluir en la limpieza nueva.
+8. Abrir/reabrir la aplicación, montar Cuenta o ejecutar una copia automática
+   nunca inicia OAuth de Google. `prompt: ""` no es una renovación silenciosa:
+   puede abrir el selector de cuenta. Recuperar Drive al arrancar solo consulta
+   el permiso temporal ya vigente; sin él, las copias quedan pendientes y se
+   muestra «Reconectar Drive», sin alterar la sesión Supabase ni la nube de
+   Factu. Solo conectar/reconectar o guardar manualmente por acción del usuario
+   puede solicitar un permiso nuevo. Si el token caduca entre el gate y el
+   timer automático, la operación falla de forma visible y reintentable, sin
+   abrir Google ni actualizar `lastBackupAt` o la firma de éxito. Con un token
+   vigente se conserva el flujo automático, cifrado, aislamiento, exclusión
+   mutua, readback exacto y retención anteriores.
 
 ### Guardado de los escáneres en Factu
 
