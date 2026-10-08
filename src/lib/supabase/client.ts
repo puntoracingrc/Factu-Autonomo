@@ -50,9 +50,15 @@ export async function getSupabaseClientAsync(): Promise<SupabaseClient | null> {
       client = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { fetch: deviceAwareFetch } },
+        {
+          auth: { persistSession: true, autoRefreshToken: true },
+          global: { fetch: deviceAwareFetch },
+        },
       );
       return client;
+    }).catch((error: unknown) => {
+      loading = null;
+      throw error;
     });
   }
 

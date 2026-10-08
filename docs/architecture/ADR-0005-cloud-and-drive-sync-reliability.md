@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 18
-- Fecha: 2026-10-07
+- Versión: 19
+- Fecha: 2026-10-08
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
@@ -198,6 +198,18 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     un bloqueo permanente. El despliegue de esta exigencia usa primero una
     ventana de compatibilidad versionada y la cierra con una migración separada
     una vez que el cliente capaz de reclamar concesiones está en producción.
+13. La sesión de acceso persiste con el almacenamiento y renovación del SDK
+    Supabase, sin cambiar su clave existente ni prolongar la validez del JWT.
+    Reabrir la PWA recupera la sesión con `getSession`; esto solo hidrata la UI,
+    nunca sustituye la verificación de usuario, sesión, empresa y permisos en
+    servidor. Un fallo de red al renovar o un `INITIAL_SESSION` vacío no se
+    interpreta como cierre: se reintenta sin borrar credenciales ni datos,
+    también al recuperar conexión o volver a primer plano. Un cierre real o
+    revocación `SIGNED_OUT` invalida inmediatamente el estado de esta sesión.
+    «Cerrar sesión» y «Cerrar y borrar este dispositivo» usan `scope: local`:
+    no revocan sesiones de otros navegadores o equipos. Las pestañas que
+    comparten la misma sesión sí reciben su cierre. Drive conserva su token
+    temporal separado y no se vuelve persistente por este cambio.
 
 ### Copias en Google Drive
 
@@ -315,6 +327,8 @@ Los cambios en nube, AppStore, almacenamiento, Supabase, Drive, OAuth o copias
 deben superar:
 
 - `src/lib/cloud-drive-sync-reliability-contract.test.ts`
+- `src/lib/supabase/persistent-session.test.ts`
+- `src/lib/supabase/persistent-session-sdk.test.ts`
 - `src/lib/app-data-durability.test.ts`
 - `src/lib/fiscal-notifications/structured-review-save-command.v1.test.ts`
 - `src/components/fiscal-notifications/FiscalNotificationIntakeView.test.tsx`
