@@ -1001,7 +1001,7 @@ describe("storage", () => {
     ).toEqual({ status: "blocked", reason: "write_failed" });
   });
 
-  it("bloquea una serialización circular antes de consultar storage", () => {
+  it("bloquea una serialización circular antes de escribir storage", () => {
     const getItem = vi.fn();
     const setItem = vi.fn();
     vi.stubGlobal("localStorage", {
@@ -1016,7 +1016,6 @@ describe("storage", () => {
       status: "blocked",
       reason: "serialization_failed",
     });
-    expect(getItem).not.toHaveBeenCalled();
     expect(setItem).not.toHaveBeenCalled();
   });
 
@@ -1045,7 +1044,6 @@ describe("storage", () => {
       status: "blocked",
       reason: "serialization_failed",
     });
-    expect(getItem).not.toHaveBeenCalled();
     expect(setItem).not.toHaveBeenCalled();
   });
 

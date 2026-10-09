@@ -1978,7 +1978,7 @@ export function DocumentForm({
           try {
             return {
               ok: true as const,
-              document: addDocumentWithCentralIdentity(
+              document: await addDocumentWithCentralIdentity(
                 payload,
                 centralResult.identity,
                 {

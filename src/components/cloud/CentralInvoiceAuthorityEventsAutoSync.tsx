@@ -172,6 +172,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     schedule(CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_START_DELAY_MS);
     window.addEventListener("online", wake);
     window.addEventListener("focus", wake);
+    window.addEventListener("pageshow", wake);
     window.addEventListener(CLOUD_DEVICE_REACTIVATED_EVENT, wake);
     document.addEventListener("visibilitychange", wake);
 
@@ -182,10 +183,15 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       clearTimer();
       window.removeEventListener("online", wake);
       window.removeEventListener("focus", wake);
+      window.removeEventListener("pageshow", wake);
       window.removeEventListener(CLOUD_DEVICE_REACTIVATED_EVENT, wake);
       document.removeEventListener("visibilitychange", wake);
     };
   }, [enabled, userCanaryAllowed]);
+
+  useEffect(() => {
+    if (enabled && ready && userId) realtimeWakeRef.current();
+  }, [enabled, ready, userId]);
 
   useEffect(() => {
     const decision =
@@ -235,7 +241,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
             realtimeStateRef.current = next;
             if (
               (next === "degraded" && previous !== "degraded") ||
-              (next === "subscribed" && previous === "degraded")
+              (next === "subscribed" && previous !== "subscribed")
             ) {
               realtimeWakeRef.current();
             }

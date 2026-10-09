@@ -248,6 +248,7 @@ export function nextCentralInvoiceAuthorityEventsAutoSyncDelay(
     return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_CONFLICT_RETRY_MS;
   }
   if (!sync.ok) return CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS;
+  if (sync.pulledEvents >= CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT) return 0;
   return centralAuthorityIdlePollDelay(
     options.realtimeState ?? "subscribed",
     options.jitterFraction,

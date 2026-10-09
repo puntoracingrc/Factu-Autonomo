@@ -175,7 +175,7 @@ export interface CentralBusinessEventsAppDataSyncDependencies {
     build: (
       previous: AppData,
     ) => AppDataTransition<CentralBusinessEventLocalApplyValue>,
-  ): AppDataDurabilityResult<CentralBusinessEventLocalApplyValue>;
+  ): AppDataDurabilityResult<CentralBusinessEventLocalApplyValue> | Promise<AppDataDurabilityResult<CentralBusinessEventLocalApplyValue>>;
   pull?: (input: {
     afterSequence: number;
     limit: number;
@@ -1211,7 +1211,7 @@ async function applyIndependentEventsFromBlockedPage(input: {
 
   if (!lastAppliedValue) return { applied: 0, skipped, error: null };
 
-  const committed = input.commit(input.baseline, () => ({
+  const committed = await input.commit(input.baseline, () => ({
     data: workingData,
     value: lastAppliedValue!,
   }));
@@ -1324,7 +1324,7 @@ export async function syncCentralBusinessEventsIntoAppData(
         },
         commitPage: async () => {
           if (!lastAppliedValue) return;
-          const committed = dependencies.commit(baseline, () => ({
+          const committed = await dependencies.commit(baseline, () => ({
             data: workingData,
             value: lastAppliedValue!,
           }));
@@ -1518,7 +1518,7 @@ export async function adoptCentralBusinessEventsFromServerIntoAppData(
           commitPage: async () => {
             if (!firstPage && !lastAppliedValue) return;
             workingData = alignCentralBusinessAdoptionCounters(workingData);
-            const committed = dependencies.commit(pageBaseline, () => ({
+            const committed = await dependencies.commit(pageBaseline, () => ({
               data: workingData,
               value: lastAppliedValue ?? serverAdoptionValue(),
             }));

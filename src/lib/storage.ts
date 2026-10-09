@@ -85,6 +85,13 @@ import {
   readPersistedAppDataCache,
 } from "./persisted-app-data-cache";
 import { deletePersistedAppEntityShadow } from "./persisted-app-entity-shadow";
+import {
+  INDEXED_APP_DATA_PREFIX,
+  hydrateIndexedAppData,
+  parseIndexedAppData,
+  prepareIndexedAppData,
+  serializeIndexedAppData,
+} from "./indexed-app-data-storage";
 
 type NormalizedCentralInvoiceAuthorityEventsSyncState = NonNullable<
   AppData["centralInvoiceAuthorityEventsSync"]
@@ -321,7 +328,8 @@ function needsBaseAwareFiscalProjection(data: AppData): boolean {
   );
 }
 
-export function parseStoredData(raw: string): unknown {
+export function parseStoredData(raw: string, storageKey?: string): unknown {
+  if (raw.startsWith(INDEXED_APP_DATA_PREFIX)) return parseIndexedAppData(raw, storageKey);
   if (raw.startsWith(PACKED_GZIP_STORAGE_PREFIX)) {
     return JSON.parse(strFromU8(gunzipSync(decodePackedGzipStorage(raw))));
   }
@@ -404,7 +412,7 @@ function readCachedParsedStoredData(
   }
 
   try {
-    const parsed = parseStoredData(raw);
+    const parsed = parseStoredData(raw, storageKey);
     persistedSnapshotCache = {
       ...(cached ?? { storage, storageKey, raw }),
       parsed,
@@ -1559,6 +1567,9 @@ export function loadData(storageKeyOverride?: string): AppData {
 
   const parsedResult = readCachedParsedStoredData(storage, storageKey, raw);
   if (!parsedResult.ok) {
+    // A missing external base is never an empty workspace and must never be
+    // quarantined/rewritten. The asynchronous loader hydrates it first.
+    if (raw.startsWith(INDEXED_APP_DATA_PREFIX)) throw new Error("indexed_snapshot_not_loaded");
     const quarantined: AppData = {
       ...EMPTY_DATA,
       workspaceIntegrityQuarantine: [
@@ -1618,6 +1629,12 @@ export async function loadDataPreferPersistentCache(
     raw = storage.getItem(storageKey);
   } catch {
     return loadData(options.storageKey);
+  }
+
+  if (raw?.startsWith(INDEXED_APP_DATA_PREFIX)) {
+    await hydrateIndexedAppData(raw, storageKey);
+    // Another tab may have published a different base while IDB was loading.
+    if (storage.getItem(storageKey) !== raw) return loadDataPreferPersistentCache(options);
   }
 
   const memoryCache = matchingPersistedSnapshotCache(
@@ -1683,6 +1700,11 @@ export async function readPersistedDataSnapshotPreferPersistentCache(
     raw = storage.getItem(storageKey);
   } catch {
     return readPersistedDataSnapshot(options.storageKey);
+  }
+
+  if (raw?.startsWith(INDEXED_APP_DATA_PREFIX)) {
+    await hydrateIndexedAppData(raw, storageKey);
+    if (storage.getItem(storageKey) !== raw) return readPersistedDataSnapshotPreferPersistentCache(options);
   }
 
   const memoryCache = matchingPersistedSnapshotCache(
@@ -2046,11 +2068,9 @@ export function saveData(
   }
 
   let projectedWithoutBase: unknown;
-  let serializedWithoutBase: string | undefined;
   if (!options.fiscalNotificationsBaseAwareProjection) {
     try {
       projectedWithoutBase = projectAppDataForPersistence(data);
-      serializedWithoutBase = serializeStoredData(projectedWithoutBase);
     } catch {
       return { status: "blocked", reason: "serialization_failed" };
     }
@@ -2081,12 +2101,17 @@ export function saveData(
 
   let projected: unknown;
   let serialized: string;
+  const serialize = (value: unknown) => beforeRaw?.startsWith(INDEXED_APP_DATA_PREFIX)
+    ? serializeIndexedAppData(beforeRaw, storageKey, value)
+    : serializeStoredData(value);
   if (
     !options.fiscalNotificationsBaseAwareProjection &&
     !needsBaseAwareFiscalProjection(data)
   ) {
     projected = projectedWithoutBase;
-    serialized = serializedWithoutBase!;
+    try { serialized = serialize(projected); } catch {
+      return { status: "blocked", reason: "serialization_failed" };
+    }
   } else {
     let baseValue: unknown;
     if (beforeRaw !== null) {
@@ -2108,7 +2133,7 @@ export function saveData(
       };
     }
     try {
-      serialized = serializeStoredData(projected);
+      serialized = serialize(projected);
     } catch {
       return {
         status: "blocked",
@@ -2173,7 +2198,8 @@ export function saveData(
   if (
     writeError !== undefined &&
     storageWriteFailureReason(writeError) === "quota_exceeded" &&
-    !serialized.startsWith(PACKED_GZIP_STORAGE_PREFIX)
+    !serialized.startsWith(PACKED_GZIP_STORAGE_PREFIX) &&
+    !serialized.startsWith(INDEXED_APP_DATA_PREFIX)
   ) {
     try {
       const compact = compactSerializedStoredData(serialized);
@@ -2235,6 +2261,59 @@ export function saveData(
     return { status: "blocked", reason: storageWriteFailureReason(writeError) };
   }
   return { status: "blocked", reason: "verification_failed" };
+}
+
+/** Move a quota-blocked full snapshot to verified IndexedDB, not another
+ * compressed localStorage copy. No cursor/state is published before readback.
+ * The original remains intact until the small pointer is safely committed.
+ */
+export async function saveDataAsync(
+  data: AppData,
+  options: SaveDataOptions & { isCurrent?: () => boolean } = {},
+): Promise<SaveDataResult> {
+  const first = saveData(data, options);
+  if (first.status !== "blocked" || first.reason !== "quota_exceeded") return first;
+  let storage: Storage;
+  const storageKey = currentStorageKey(options.storageKey);
+  let beforeRaw: string | null;
+  try {
+    storage = localStorage;
+    beforeRaw = storage.getItem(storageKey);
+  } catch {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+  if (options.isCurrent?.() === false) return { status: "blocked", reason: "stale_precondition" };
+  try {
+    if (options.expected && !storedRawMatchesExpected(beforeRaw, options.expected, storageKey, storage)) {
+      return { status: "blocked", reason: "stale_precondition" };
+    }
+    const base = beforeRaw === null ? undefined : parseStoredData(beforeRaw, storageKey);
+    const projected = projectAppDataForPersistence(data, base);
+    const raw = await prepareIndexedAppData(storageKey, projected);
+    if (options.isCurrent?.() === false || storage.getItem(storageKey) !== beforeRaw) {
+      return { status: "blocked", reason: "stale_precondition" };
+    }
+    let error: unknown;
+    try { storage.setItem(storageKey, raw); } catch (caught) { error = caught; }
+    const readback = storage.getItem(storageKey);
+    if (error === undefined && readback === raw) {
+      rememberPersistedSnapshot(storage, storageKey, raw, { parsed: projected, equivalentData: data });
+      return { status: "applied" };
+    }
+    if (readback === beforeRaw) return first;
+    if (readback !== raw || !restoreStoredRaw(storage, storageKey, beforeRaw, raw)) {
+      return { status: "indeterminate", reason: "storage_state_unknown" };
+    }
+    return { status: "blocked", reason: "verification_failed" };
+  } catch {
+    // Never delete the original or pretend a failed IDB write is durable.
+    try {
+      if (storage.getItem(storageKey) === beforeRaw) return first;
+    } catch {
+      // A failed read cannot establish which snapshot is durable.
+    }
+    return { status: "indeterminate", reason: "storage_state_unknown" };
+  }
 }
 
 export function clearPersistedAppData(

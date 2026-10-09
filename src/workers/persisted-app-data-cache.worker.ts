@@ -3,6 +3,7 @@ import { buildPersistedAppDerivedCache } from "../lib/persisted-app-derived-cach
 import { writePersistedAppEntityShadow } from "../lib/persisted-app-entity-shadow";
 import { evaluatePersistedAppEntityShadowCanary } from "../lib/persisted-app-entity-shadow-canary";
 import { normalizeLoadedData, parseStoredData } from "../lib/storage";
+import { INDEXED_APP_DATA_PREFIX, hydrateIndexedAppData } from "../lib/indexed-app-data-storage";
 
 interface CacheWorkerRequest {
   storageKey: string;
@@ -22,6 +23,9 @@ interface CacheWorkerResponse {
 self.onmessage = (event: MessageEvent<CacheWorkerRequest>) => {
   void (async () => {
     try {
+      if (event.data.raw.startsWith(INDEXED_APP_DATA_PREFIX)) {
+        await hydrateIndexedAppData(event.data.raw, event.data.storageKey);
+      }
       const normalized = normalizeLoadedData(parseStoredData(event.data.raw));
       const derived = buildPersistedAppDerivedCache(normalized);
       const written = await writePersistedAppDataCache(

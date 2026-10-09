@@ -31,7 +31,12 @@ describe("central invoice authority form store bridge", () => {
     expect(bridge).toContain("identity.documentVersion");
     expect(bridge).toContain("options.localDocumentId");
     expect(bridge).toContain("bumpNumberingAfterAssign");
-    expect(bridge).toContain("commitDurableAppData");
+    expect(bridge).toContain("await commitCentralAppDataAsync");
+    expect(bridge).toContain("Promise<Document>");
+    expect(bridge).toContain("trackLegacyChanges: true");
+    const persistence = functionSource("commitCentralAppDataAsync", "commitLatestDurableAppData");
+    expect(persistence).toContain("commitDurableAppData");
+    expect(persistence).toContain("await saveDataAsync");
     expect(bridge).not.toContain("assignNextDocumentNumber");
   });
 
@@ -46,7 +51,7 @@ describe("central invoice authority form store bridge", () => {
     expect(bridge).toContain('identity.kind !== "factura_rectificativa"');
     expect(bridge).toContain('identity.kind !== "factura"');
     expect(bridge.indexOf("throw new Error")).toBeLessThan(
-      bridge.indexOf("commitDurableAppData"),
+      bridge.indexOf("await commitCentralAppDataAsync"),
     );
   });
 

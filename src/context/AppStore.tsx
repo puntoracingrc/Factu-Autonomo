@@ -122,7 +122,9 @@ import {
   inspectPersistedData as inspectPersistedDataWithoutWorkspace,
   loadDataPreferPersistentCache,
   readPersistedDataSnapshot as readPersistedDataSnapshotWithoutWorkspace,
+  readPersistedDataSnapshotPreferPersistentCache,
   saveData as saveDataWithoutPersistentCacheRefresh,
+  saveDataAsync,
   touchAppData,
   type SaveDataOptions,
   type SaveDataResult,
@@ -581,7 +583,7 @@ interface AppStoreValue {
       localDocumentId?: string;
       requireExistingDraft?: boolean;
     },
-  ) => Document;
+  ) => Promise<Document>;
   issueDocument: (id: string) => Promise<Document>;
   markDocumentSent: (id: string) => Document | null;
   addRectificativa: (
@@ -1137,6 +1139,48 @@ export function AppStoreProvider({
     ],
   );
 
+  // Central reception is asynchronous already. Overflow must not be forced
+  // back into the small synchronous localStorage quota after a successful pull.
+  const commitCentralAppDataAsync = useCallback(
+    async <T,>(
+      expected: AppData,
+      build: (previous: AppData) => AppDataTransition<T>,
+      options: { trackLegacyChanges?: boolean } = { trackLegacyChanges: false },
+    ): Promise<AppDataDurabilityResult<T>> => {
+      const first = commitDurableAppData(expected, build, options);
+      if (first.status !== "blocked" || first.reason !== "quota_exceeded") return first;
+      if (writeBlockRef.current || !workspaceIsActive() || dataRef.current !== expected ||
+          durableStorageBaselineRef.current.status !== "known") return first;
+      let transition: AppDataTransition<T>;
+      let resolved: AppData;
+      try {
+        transition = build(expected);
+        const touched = touchAppData(transition.data);
+        resolved = options.trackLegacyChanges === false
+          ? touched
+          : trackDataDiff(expected, touched);
+      } catch {
+        return { status: "blocked", reason: "transition_failed" };
+      }
+      const result = await saveDataAsync(resolved, {
+        storageKey,
+        expected: durableStorageBaselineRef.current.data,
+        isCurrent: () => workspaceIsActive() && !writeBlockRef.current && dataRef.current === expected,
+      });
+      if (result.status === "indeterminate") durableStorageBaselineRef.current = result;
+      if (result.status !== "applied") return result;
+      if (!workspaceIsActive() || dataRef.current !== expected) return { status: "blocked", reason: "stale_precondition" };
+      durableStorageBaselineRef.current = { status: "known", data: resolved };
+      lastKnownDurableDataRef.current = resolved;
+      durablyPersistedDataRef.current = resolved;
+      dataRef.current = resolved;
+      setData(resolved);
+      schedulePersistedAppDataCacheRefresh(storageKey);
+      return { status: "applied", data: resolved, value: transition.value, replayed: false };
+    },
+    [commitDurableAppData, storageKey, workspaceIsActive],
+  );
+
   const commitLatestDurableAppData = useCallback(
     <T,>(
       _expected: AppData,
@@ -1617,6 +1661,8 @@ export function AppStoreProvider({
         await import("@/lib/central-invoice-authority/client-operation-lock");
 
       return runCentralInvoiceAuthorityClientOperation(async () => {
+        await readPersistedDataSnapshotPreferPersistentCache({ storageKey });
+        if (!workspaceIsActive()) return { status: "blocked", reason: "stale_precondition" } as const;
         const memory = dataRef.current;
         const baseline = selectCentralInvoiceAuthorityEventsSyncBaseline({
           memory,
@@ -1655,20 +1701,19 @@ export function AppStoreProvider({
           storageKey,
           recoveryOwnerScopes,
           isCurrent: workspaceIsActive,
-          attempt: () => commitDurableAppData(
+          attempt: () => commitCentralAppDataAsync(
             baseline,
             (previous) =>
               buildCentralInvoiceAuthorityEventsAppDataTransition({
                 data: previous,
                 pulled,
               }),
-            { trackLegacyChanges: false },
           ),
         });
       });
     },
     [
-      commitDurableAppData,
+      commitCentralAppDataAsync,
       inspectPersistedData,
       ownerScope,
       storageKey,
@@ -1688,6 +1733,8 @@ export function AppStoreProvider({
         selectCentralBusinessEventsSyncBaseline,
         syncCentralBusinessEventsIntoAppData,
       } = await import("@/lib/central-business-authority/events-app-data-sync");
+      await readPersistedDataSnapshotPreferPersistentCache({ storageKey });
+      if (!workspaceIsActive()) return { ok: false, schema: "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1", code: "WORKSPACE_CHANGED", message: "La empresa activa ha cambiado.", retryable: false, nextSequence: 0 };
       const memory = dataRef.current;
       const baselineInput = {
         memory,
@@ -1724,13 +1771,11 @@ export function AppStoreProvider({
         {
           getCurrentData: () => baseline,
           commit: (expected, build) =>
-            commitDurableAppData(expected, build, {
-              trackLegacyChanges: false,
-            }),
+            commitCentralAppDataAsync(expected, build),
         },
       );
     },
-    [commitDurableAppData, inspectPersistedData, readPersistedDataSnapshot],
+    [commitCentralAppDataAsync, inspectPersistedData, readPersistedDataSnapshot, storageKey, workspaceIsActive],
   );
 
   const syncCentralBusinessEvents = useCallback(
@@ -2103,14 +2148,14 @@ export function AppStoreProvider({
   );
 
   const addDocumentWithCentralIdentity = useCallback(
-    (
+    async (
       doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
       identity: CentralInvoiceAuthorityFormIssueIdentity,
       options: {
         localDocumentId?: string;
         requireExistingDraft?: boolean;
       } = {},
-    ): Document => {
+    ): Promise<Document> => {
       if (doc.type !== "factura" || doc.status === "borrador") {
         throw new Error(
           "La identidad central solo se aplica al emitir facturas.",
@@ -2126,7 +2171,7 @@ export function AppStoreProvider({
       }
 
       const expected = dataRef.current;
-      const result = commitDurableAppData(expected, (prev) => {
+      const result = await commitCentralAppDataAsync(expected, (prev) => {
         const now = new Date().toISOString();
         const centralInvoiceAuthority: Document["centralInvoiceAuthority"] = {
           schemaVersion: 1,
@@ -2278,7 +2323,7 @@ export function AppStoreProvider({
           },
           value: created,
         };
-      });
+      }, { trackLegacyChanges: true });
       if (result.status !== "applied") {
         void reportAppError({
           severity: "error",
@@ -2300,7 +2345,7 @@ export function AppStoreProvider({
       }
       return result.value;
     },
-    [commitDurableAppData],
+    [commitCentralAppDataAsync],
   );
 
   const updateDocument = useCallback(

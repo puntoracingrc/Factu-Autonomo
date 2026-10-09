@@ -83,8 +83,15 @@ const bridgeEnd = appStore.indexOf(
 assert.ok(bridgeStart > -1, "AppStore bridge callback must exist");
 assert.ok(bridgeEnd > bridgeStart, "AppStore bridge callback must precede value");
 const bridge = appStore.slice(bridgeStart, bridgeEnd);
-assert.match(bridge, /commitDurableAppData\(\s*baseline,/);
-assert.match(bridge, /trackLegacyChanges:\s*false/);
+assert.match(bridge, /commitCentralAppDataAsync\(\s*baseline,/);
+const persistence = appStore.slice(
+  appStore.indexOf("const commitCentralAppDataAsync"),
+  appStore.indexOf("const commitLatestDurableAppData"),
+);
+assert.match(persistence, /trackLegacyChanges:\s*false/);
+assert.match(persistence, /commitDurableAppData\(expected, build, options\)/);
+assert.match(persistence, /options\.trackLegacyChanges === false/);
+assert.match(appStore, /await saveDataAsync\(resolved,/);
 assert.doesNotMatch(bridge, /setAppData\s*\(/);
 assert.doesNotMatch(bridge, /useEffect/);
 assert.doesNotMatch(bridge, /setInterval/);

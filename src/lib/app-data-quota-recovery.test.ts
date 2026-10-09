@@ -173,8 +173,8 @@ describe("central invoice cache quota recovery", () => {
     const block = store.slice(start, store.indexOf("const pullCentralBusinessEvents = useCallback", start));
     expect(block).toContain("commitAppDataWithQuotaRecovery({");
     expect(block).toContain("isCurrent: workspaceIsActive");
-    expect(block).toContain("attempt: () => commitDurableAppData(");
-    expect(block).toContain("trackLegacyChanges: false");
+    expect(block).toContain("attempt: () => commitCentralAppDataAsync(");
+    expect(store).toContain("commitDurableAppData(expected, build, { trackLegacyChanges: false })");
     const boundary = readFileSync(new URL("../components/workspace/WorkspaceStorageBoundary.tsx", import.meta.url), "utf8");
     expect(boundary).toContain("companies.map((company) => company.dataOwnerId)");
     const context = readFileSync(new URL("../context/CloudSyncContext.tsx", import.meta.url), "utf8");

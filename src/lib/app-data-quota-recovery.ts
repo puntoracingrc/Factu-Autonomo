@@ -14,7 +14,7 @@ interface RecoveryStorage {
  * commit once. Active workspaces and pending commands are never removed.
  */
 export async function commitAppDataWithQuotaRecovery<T>(input: {
-  attempt: () => AppDataDurabilityResult<T>;
+  attempt: () => AppDataDurabilityResult<T> | Promise<AppDataDurabilityResult<T>>;
   isCurrent: () => boolean;
   ownerScope?: string;
   storageKey?: string;
@@ -26,7 +26,7 @@ export async function commitAppDataWithQuotaRecovery<T>(input: {
     storage: RecoveryStorage;
   }) => Promise<WorkspaceLocalRecoveryReleaseSummary>;
 }): Promise<AppDataDurabilityResult<T>> {
-  const first = input.attempt();
+  const first = await input.attempt();
   if (
     first.status !== "blocked" ||
     first.reason !== "quota_exceeded" ||

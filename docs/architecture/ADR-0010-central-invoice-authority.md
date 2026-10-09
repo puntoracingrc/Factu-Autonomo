@@ -1,8 +1,19 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 5
-- Fecha: 2026-10-07
+- Version: 6
+- Fecha: 2026-10-09
+
+## Fiabilidad V6: lectura y avisos por empresa
+
+Los avisos de facturas usan la misma comprobacion de membresia activa por
+empresa que los avisos operativos: `data_owner_id` puede diferir de `auth.uid()`.
+La tabla solo expone IDs opacos y fechas, nunca payload fiscal. No cambian los
+permisos de escritura, la autenticacion de las APIs ni la asignacion central.
+La suscripcion inicial y `pageshow` fuerzan una lectura por cursor. Una pagina
+completa programa inmediatamente la siguiente, no el sondeo ocioso de tres
+minutos. La recepcion usa el overflow verificado de ADR-0005 V21 cuando la
+copia completa excede la cuota pequeña de `localStorage`.
 
 ## Decision de producto V5: correccion y borrado central ordinarios
 
