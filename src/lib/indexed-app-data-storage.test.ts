@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_DATA, type AppData } from "./types";
@@ -45,6 +46,14 @@ async function overflow() {
 }
 
 describe("verified IndexedDB workspace overflow", () => {
+  it("verifies the active external base before mounting AppStore, using the safe error boundary", () => {
+    const boundary = readFileSync(new URL("../components/workspace/WorkspaceStorageBoundary.tsx", import.meta.url), "utf8");
+    const verification = boundary.indexOf("storageKey: resolution.scope.storageKey,");
+    expect(verification).toBeGreaterThan(0);
+    expect(verification).toBeLessThan(boundary.indexOf('setCurrentState({ status: "ready", scope: resolution.scope })'));
+    expect(boundary.slice(verification)).toContain('status: "blocked"');
+  });
+
   it("receives the complete snapshot with a tiny pointer, preserving the other company and pending data", async () => {
     storage.setItem("other-company", "untouched other company");
     const next = await overflow();
