@@ -137,6 +137,8 @@ const allowedTargetedEventRecoveryMigration =
   "20260916071037_central_invoice_event_targeted_recovery.sql";
 const allowedInvoiceManagementMigration =
   "20261007163403_central_invoice_management_v1.sql";
+const allowedCompanyRealtimeMigration =
+  "20261009154804_company_scoped_central_invoice_realtime.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -157,6 +159,7 @@ const allowedCentralMigrations = new Set([
   allowedQuoteRelationshipAssignmentMigration,
   allowedTargetedEventRecoveryMigration,
   allowedInvoiceManagementMigration,
+  allowedCompanyRealtimeMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -181,6 +184,16 @@ assert.deepEqual(
   [],
   "Phase 2 only allows explicitly reviewed central authority migrations.",
 );
+
+if (centralMigrations.includes(allowedCompanyRealtimeMigration)) {
+  const companyRealtime = read(`supabase/migrations/${allowedCompanyRealtimeMigration}`);
+  assert.match(companyRealtime, /COMPANY_SCOPED_CENTRAL_INVOICE_REALTIME_V1/);
+  assert.match(companyRealtime, /for select to authenticated/i);
+  assert.match(companyRealtime, /public\.can_receive_central_business_realtime_v1\(/);
+  assert.match(companyRealtime, /'central-business:' \|\| user_id::text/);
+  assert.doesNotMatch(companyRealtime, /\b(?:insert|update|delete|truncate|grant)\b/i);
+  assert.doesNotMatch(companyRealtime, /\binvoice_documents\b|\buser_backups\b|\bsync_entities\b/i);
+}
 
 if (centralMigrations.includes(allowedInvoiceManagementMigration)) {
   const management = read(`supabase/migrations/${allowedInvoiceManagementMigration}`);

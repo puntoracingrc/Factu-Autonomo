@@ -401,6 +401,7 @@
     "csv-parse": "^6.1.0",
     "eslint": "^9",
     "eslint-config-next": "^15.5.24",
+    "fake-indexeddb": "6.2.5",
     "playwright": "^1.61.1",
     "pngjs": "^7.0.0",
     "tailwindcss": "^4",

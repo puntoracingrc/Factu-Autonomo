@@ -48,7 +48,7 @@ for (const required of [
 }
 
 assert.match(form, /shouldUseCentralInvoiceAuthorityDocumentFormCanary\(\{/);
-assert.match(form, /document: addDocumentWithCentralIdentity\(/);
+assert.match(form, /document: await addDocumentWithCentralIdentity\(/);
 assert.match(form, /saved = centralSave\.document/);
 assert.match(form, /saved = addDocument\(payload\)/);
 assert.match(doc, /no cae a numeracion local si la autoridad central rechaza/);

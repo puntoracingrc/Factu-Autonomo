@@ -207,6 +207,14 @@ export function WorkspaceStorageBoundary({
       ) {
         claimLegacyAuxiliaryData(resolution.scope.ownerScope);
       }
+      // Verify external workspace storage before mounting the store. A missing
+      // or rejected IndexedDB base must show the existing safe error screen,
+      // not leave AppStore startup waiting forever or expose an empty company.
+      await readPersistedDataSnapshotPreferPersistentCache({
+        storageKey: resolution.scope.storageKey,
+        onCacheMissLoaded: schedulePersistedAppDataCacheRefresh,
+      });
+      if (resolutionSequence.current !== sequence) return;
       setCurrentState({ status: "ready", scope: resolution.scope });
     } catch {
       setCurrentState({

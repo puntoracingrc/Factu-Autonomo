@@ -18,12 +18,15 @@ describe("aislamiento de la cola legacy durante la migracion central", () => {
         "const syncCentralInvoiceAuthorityEvents",
         "const pullCentralBusinessEvents",
       ),
-    ).toContain("trackLegacyChanges: false");
+    ).toContain("commitCentralAppDataAsync");
     expect(
       section(
         "const pullCentralBusinessEvents",
         "const syncCentralBusinessEvents",
       ),
+    ).toContain("commitCentralAppDataAsync");
+    expect(
+      section("const commitCentralAppDataAsync", "const commitLatestDurableAppData"),
     ).toContain("trackLegacyChanges: false");
     expect(
       section(

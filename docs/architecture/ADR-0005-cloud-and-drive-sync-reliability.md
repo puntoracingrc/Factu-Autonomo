@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 20
-- Fecha: 2026-10-08
+- Versión: 21
+- Fecha: 2026-10-09
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
@@ -150,6 +150,19 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     Nunca se reducen colecciones, snapshots, PDF, colas ni evidencia fiscal
     para hacer caber la copia. Si tampoco cabe el formato compacto, el fallo
     sigue bloqueado y visible, sin adelantar cursores ni reemitir documentos.
+22. V21 elimina el techo pequeño de `localStorage` para la recepción central:
+    si el commit falla por cuota, conserva el snapshot completo en una base
+    IndexedDB estable, separada de las cachés derivadas regenerables. Confirma
+    transacción, JSON exacto, empresa y SHA-256 antes de publicar un puntero
+    pequeño con CAS y readback en `localStorage`. Los guardados síncronos
+    posteriores conservan solo un delta exacto contra esa base inmutable;
+    nunca recortan documentos, snapshots, borradores ni pendientes. La carga
+    asíncrona hidrata/verifica la base antes de normalizar, también en workers
+    y tras un cambio de otra pestaña. Una base ausente o inválida no se convierte
+    en un workspace vacío ni se reescribe como cuarentena. Cambiar empresa o
+    editar durante la espera aborta el reemplazo. La autoridad sigue en
+    PostgreSQL: IndexedDB solo es almacenamiento del cliente y no confirma
+    escrituras centrales. El cursor sigue avanzando tras el commit verificado.
 
 ### Planes y dispositivos de nube
 
@@ -341,6 +354,7 @@ deben superar:
 - `src/lib/supabase/persistent-session.test.ts`
 - `src/lib/supabase/persistent-session-sdk.test.ts`
 - `src/lib/app-data-durability.test.ts`
+- `src/lib/indexed-app-data-storage.test.ts`
 - `src/lib/fiscal-notifications/structured-review-save-command.v1.test.ts`
 - `src/components/fiscal-notifications/FiscalNotificationIntakeView.test.tsx`
 - `src/lib/cloud/sync-errors.test.ts`

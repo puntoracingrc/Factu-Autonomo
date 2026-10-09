@@ -186,7 +186,7 @@ export function CentralBusinessAuthorityEventsAutoSync() {
             realtimeStateRef.current = next;
             if (
               (next === "degraded" && previous !== "degraded") ||
-              (next === "subscribed" && previous === "degraded")
+              (next === "subscribed" && previous !== "subscribed")
             ) {
               realtimeWakeRef.current();
             }

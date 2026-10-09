@@ -531,7 +531,7 @@ export function RectificativaForm({
             try {
               return {
                 ok: true as const,
-                document: addDocumentWithCentralIdentity(
+                document: await addDocumentWithCentralIdentity(
                   payload,
                   centralResult.identity,
                   { localDocumentId },
