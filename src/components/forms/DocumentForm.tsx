@@ -485,6 +485,7 @@ export function DocumentForm({
   const localDocumentIdRef = useRef(existing?.id ?? crypto.randomUUID());
   // The fields belong to the version opened, not a newer background pull.
   const centralEditBaseRef = useRef(existing?.centralInvoiceAuthority);
+  const centralSharedEditBaseRef = useRef(existing);
   const {
     data,
     ready,
@@ -1921,7 +1922,8 @@ export function DocumentForm({
       sourceQuoteNumber: existing?.sourceQuoteNumber,
       sourceDocumentId: existing?.sourceDocumentId,
       receiptDocumentId: existing?.receiptDocumentId,
-      centralBusinessDraftVersion: existing?.centralBusinessDraftVersion,
+      centralBusinessDraftVersion:
+        centralSharedEditBaseRef.current?.centralBusinessDraftVersion,
     };
 
     if (resolvedStatus !== "borrador") {
@@ -2066,11 +2068,17 @@ export function DocumentForm({
       };
       try {
         if (saved.type === "presupuesto") {
-          const result = await updateQuote(saved, existing);
+          const result = await updateQuote(
+            saved,
+            centralSharedEditBaseRef.current,
+          );
           if (!result.ok) throw new Error(result.error);
           saved = result.value;
         } else if (saved.status === "borrador") {
-          const result = await saveDraft(saved, existing);
+          const result = await saveDraft(
+            saved,
+            centralSharedEditBaseRef.current,
+          );
           if (!result.ok) throw new Error(result.error);
           saved = result.value;
         } else if (

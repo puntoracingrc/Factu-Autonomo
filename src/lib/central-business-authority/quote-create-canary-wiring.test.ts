@@ -12,10 +12,27 @@ const environment = source("../../../.env.example");
 const nextConfig = source("../../../next.config.ts");
 
 describe("central quote create canary wiring", () => {
+  it("conserva la version abierta para no emitir ni guardar encima de un pull posterior", () => {
+    expect(form).toContain("centralSharedEditBaseRef = useRef(existing)");
+    expect(form).toMatch(
+      /updateQuote\(\s*saved,\s*centralSharedEditBaseRef.current/u,
+    );
+    expect(form).toMatch(
+      /saveDraft\(\s*saved,\s*centralSharedEditBaseRef.current/u,
+    );
+    expect(form).toMatch(
+      /centralBusinessDraftVersion:\s*centralSharedEditBaseRef.current\?\.centralBusinessDraftVersion/u,
+    );
+    expect(form).not.toContain(
+      "centralBusinessDraftVersion: existing?.centralBusinessDraftVersion",
+    );
+  });
   it("conecta solo las altas nuevas de presupuesto al hook canario", () => {
     expect(form).toContain("useCentralQuoteCreate");
     expect(form).toContain('type === "presupuesto" ||');
-    expect(form).toContain('type === "recibo" && resolvedStatus !== "borrador"');
+    expect(form).toContain(
+      'type === "recibo" && resolvedStatus !== "borrador"',
+    );
     expect(form).toContain("const quoteSave = await createQuote(");
     expect(form).toContain("{ id: pendingDocumentId }");
     expect(form).toContain("saved = quoteSave.document");
@@ -26,13 +43,9 @@ describe("central quote create canary wiring", () => {
   });
 
   it("usa el commit durable y la recepcion central antes de escribir", () => {
-    expect(hook).toContain(
-      "addCentralBusinessNumberedDocumentDurably",
-    );
+    expect(hook).toContain("addCentralBusinessNumberedDocumentDurably");
     expect(hook).toContain("syncCentralBusinessEvents(userId)");
-    expect(store).toContain(
-      "addCentralBusinessNumberedDocumentDurably",
-    );
+    expect(store).toContain("addCentralBusinessNumberedDocumentDurably");
   });
 
   it("documenta un flag cerrado por UUID y no reutiliza el canario fiscal", () => {

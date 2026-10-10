@@ -132,7 +132,7 @@ export function useCentralSharedBusinessMutations() {
   );
 
   const updateQuote = useCallback(
-    async (requested: Document, expected: Document) => {
+    async (requested: Document, expected: Document | undefined) => {
       const { editSharedQuote } =
         await import("@/lib/central-business-authority/shared-business-transitions");
       return run(
