@@ -6,10 +6,14 @@ import { IconActionButton } from "@/components/ui/IconAction";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 import { hasLegacyImportProtectionClaim } from "@/lib/document-integrity/legacy-import-attestation";
 import { getDeletePolicy } from "@/lib/rectificativas";
 import type { Document } from "@/lib/types";
-import { canManageCentralIssuedInvoice, canDeleteReceiptCentrally } from "@/lib/central-invoice-authority/management-policy";
+import {
+  canManageCentralIssuedInvoice,
+  canDeleteReceiptCentrally,
+} from "@/lib/central-invoice-authority/management-policy";
 
 interface DeleteDocumentButtonProps {
   doc: Document;
@@ -17,20 +21,35 @@ interface DeleteDocumentButtonProps {
 
 export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
   const { deleteDocument, deleteIssuedDocumentCentrally } = useAppStore();
+  const { deleteQuote, deleteDraft, isCentralWorkspace } =
+    useCentralSharedBusinessMutations();
   const [open, setOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleId = useId();
   const descriptionId = useId();
-  const centralDelete = canManageCentralIssuedInvoice(doc) ||
+  const centralDelete =
+    canManageCentralIssuedInvoice(doc) ||
     (doc.status !== "borrador" && canDeleteReceiptCentrally(doc));
-  const policy = centralDelete ? {
-    allowed: true, level: "simple" as const, title: `¿Borrar ${doc.number}?`,
-    message: doc.type === "factura"
-      ? "El servidor eliminará esta factura. No se conservará una copia de recuperación. Su número quedará libre para la próxima factura de la misma serie y empresa; las demás no cambiarán."
-      : "El servidor eliminará este recibo y quitará su vínculo con la factura. La factura y su estado de cobro se conservan. No se renumerarán los demás recibos.",
-  } : getDeletePolicy(doc);
+  const policy = centralDelete
+    ? {
+        allowed: true,
+        level: "simple" as const,
+        title: `¿Borrar ${doc.number}?`,
+        message:
+          doc.type === "factura"
+            ? "El servidor eliminará esta factura. No se conservará una copia de recuperación. Su número quedará libre para la próxima factura de la misma serie y empresa; las demás no cambiarán."
+            : "El servidor eliminará este recibo y quitará su vínculo con la factura. La factura y su estado de cobro se conservan. No se renumerarán los demás recibos.",
+      }
+    : isCentralWorkspace &&
+        (doc.type === "presupuesto" || doc.status === "borrador")
+      ? {
+          ...getDeletePolicy(doc),
+          message:
+            "Se borrará únicamente este documento. No cambiarán los números de los demás documentos.",
+        }
+      : getDeletePolicy(doc);
 
   const needsCheckbox =
     policy.level === "legal" || policy.level === "legal_strict";
@@ -104,13 +123,30 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
     setBusy(true);
     setError(null);
     try {
-      const deleted = centralDelete ? await deleteIssuedDocumentCentrally(doc) : deleteDocument(doc.id);
+      const quoteResult =
+        doc.type === "presupuesto"
+          ? await deleteQuote(doc.id)
+          : doc.status === "borrador"
+            ? await deleteDraft(doc.id)
+            : null;
+      if (quoteResult && !quoteResult.ok) throw new Error(quoteResult.error);
+      const deleted = quoteResult?.ok
+        ? quoteResult.value
+        : centralDelete
+          ? await deleteIssuedDocumentCentrally(doc)
+          : deleteDocument(doc.id);
       if (!deleted) throw new Error("No se pudo confirmar el borrado.");
       setOpen(false);
       setConfirmed(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo confirmar el borrado central.");
-    } finally { setBusy(false); }
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "No se pudo confirmar el borrado central.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -173,7 +209,11 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
           </label>
         )}
 
-        {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <Button
             variant="secondary"

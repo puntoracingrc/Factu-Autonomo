@@ -1,4 +1,5 @@
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import { markDocumentSent } from "@/lib/document-integrity";
 import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import { profileForHistoricalDerivedDocument } from "@/lib/document-integrity/derived-issuance";
 import { withDocumentRelationshipIntegritySignals } from "@/lib/document-integrity/relationships";
@@ -9,9 +10,12 @@ import {
 } from "@/lib/receipts";
 import type {
   AppData,
+  BusinessProfile,
   Document,
   DocumentCentralBusinessReceiptAuthorityV1,
 } from "@/lib/types";
+import { isSharedDocumentDraft } from "./shared-document-drafts";
+import { normalizeDocumentTemplate } from "@/lib/document-templates";
 
 export const CENTRAL_BUSINESS_RECEIPT_AUTHORITY =
   "CENTRAL_BUSINESS_RECEIPT_AUTHORITY_V1";
@@ -49,9 +53,21 @@ function validAuthority(
 ): value is DocumentCentralBusinessReceiptAuthorityV1 {
   return Boolean(
     value?.schemaVersion === 1 &&
-      value.source === "central_business_authority" &&
-      typeof value.issuedAt === "string" &&
-      !Number.isNaN(Date.parse(value.issuedAt)),
+    value.source === "central_business_authority" &&
+    typeof value.issuedAt === "string" &&
+    !Number.isNaN(Date.parse(value.issuedAt)) &&
+    (value.sentAt === undefined ||
+      (typeof value.sentAt === "string" &&
+        !Number.isNaN(Date.parse(value.sentAt)))) &&
+    (value.manualContext === undefined ||
+      (Array.isArray(value.manualContext?.iva?.rates) &&
+        value.manualContext.iva.rates.every(
+          (rate) => typeof rate === "number" && Number.isFinite(rate),
+        ) &&
+        Number.isFinite(value.manualContext.iva.defaultRate) &&
+        Boolean(value.manualContext.template) &&
+        stable(value.manualContext.template) ===
+          stable(normalizeDocumentTemplate(value.manualContext.template)))),
   );
 }
 
@@ -60,6 +76,52 @@ export function isCentralBusinessReceipt(document: Document): boolean {
     document.type === "recibo" &&
     validAuthority(document.centralBusinessReceiptAuthority)
   );
+}
+
+export function buildCentralManualReceiptPayloadWithoutNumber(
+  draft: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
+  profile: BusinessProfile,
+  id: string,
+  now: string,
+): Record<string, unknown> {
+  if (
+    draft.type !== "recibo" ||
+    !["enviado", "pagado", "vencido"].includes(draft.status) ||
+    !isSharedDocumentDraft({
+      ...draft,
+      status: "borrador",
+      id,
+      number: "BORRADOR",
+      createdAt: now,
+      updatedAt: now,
+    })
+  )
+    throw new Error(
+      "El recibo manual contiene datos de emisión incompatibles.",
+    );
+  const payload: Record<string, unknown> = {
+    ...draft,
+    id,
+    issuer: captureIssuerSnapshot(profile, now),
+    createdAt: now,
+    updatedAt: now,
+    centralBusinessReceiptAuthority: {
+      schemaVersion: 1,
+      source: "central_business_authority",
+      issuedAt: now,
+      manualContext: {
+        iva: profile.iva,
+        vatExempt: profile.vatExempt,
+        template: normalizeDocumentTemplate(profile.documentTemplate),
+      },
+    },
+  };
+  delete payload.documentLifecycle;
+  delete payload.integrityLock;
+  delete payload.deliveryStatus;
+  delete payload.paymentStatus;
+  delete payload.acceptanceStatus;
+  return jsonClone(payload);
 }
 
 function comparableReceiptDraft(document: Document): Record<string, unknown> {
@@ -106,7 +168,8 @@ export function buildCentralBusinessReceiptPayloadWithoutNumber(input: {
   );
   if (inspection.status !== "eligible") {
     throw new CentralBusinessReceiptMaterializationError(
-      inspection.status === "blocked" && inspection.reason === "invoice_not_found"
+      inspection.status === "blocked" &&
+        inspection.reason === "invoice_not_found"
         ? "RECEIPT_SOURCE_MISSING"
         : "RECEIPT_SOURCE_BLOCKED",
       "La factura no permite crear un recibo central.",
@@ -153,6 +216,13 @@ export function centralBusinessReceiptServerPayload(
   if (!isCentralBusinessReceipt(document)) return document;
 
   const payload = jsonClone(document) as Document & Record<string, unknown>;
+  payload.updatedAt = document.centralBusinessReceiptAuthority!.issuedAt;
+  if (document.deliveryStatus === "sent" && document.sentAt) {
+    payload.centralBusinessReceiptAuthority = {
+      ...document.centralBusinessReceiptAuthority!,
+      sentAt: document.sentAt,
+    };
+  }
   delete payload.documentSnapshot;
   delete payload.pdfSnapshot;
   delete payload.snapshotSeal;
@@ -170,6 +240,42 @@ export function centralBusinessReceiptServerPayload(
   return payload;
 }
 
+/** A delivery overlay can change; the source, body and preserved evidence cannot. */
+export function applyCentralReceiptDelivery(
+  existing: Document,
+  incoming: Document,
+): Document {
+  const current = centralBusinessReceiptServerPayload(existing);
+  const clean = (document: Document) => {
+    const payload = jsonClone(document);
+    if (payload.centralBusinessReceiptAuthority)
+      delete payload.centralBusinessReceiptAuthority.sentAt;
+    return payload;
+  };
+  if (
+    !validAuthority(incoming.centralBusinessReceiptAuthority) ||
+    stable(clean(current)) !== stable(clean(incoming))
+  ) {
+    throw new CentralBusinessReceiptMaterializationError(
+      "RECEIPT_PAYLOAD_MISMATCH",
+      "El recibo central no permite cambiar su contenido emitido.",
+    );
+  }
+  const sentAt = incoming.centralBusinessReceiptAuthority.sentAt;
+  if (!sentAt) {
+    if (current.centralBusinessReceiptAuthority?.sentAt)
+      throw new CentralBusinessReceiptMaterializationError(
+        "RECEIPT_PAYLOAD_MISMATCH",
+        "No se puede retirar una marca de envío ya confirmada.",
+      );
+    return existing;
+  }
+  return {
+    ...markDocumentSent(existing, sentAt),
+    centralBusinessReceiptAuthority: incoming.centralBusinessReceiptAuthority,
+  };
+}
+
 export interface CentralBusinessReceiptMaterializationTransition {
   data: AppData;
   receipt: Document;
@@ -181,6 +287,58 @@ export function materializeCentralBusinessReceipt(input: {
 }): CentralBusinessReceiptMaterializationTransition {
   const raw = input.receiptPayload;
   const authority = raw.centralBusinessReceiptAuthority;
+  if (
+    raw.type === "recibo" &&
+    validAuthority(authority) &&
+    authority.manualContext
+  ) {
+    if (
+      raw.sourceDocumentId ||
+      !raw.issuer ||
+      !["enviado", "pagado", "vencido"].includes(raw.status) ||
+      raw.createdAt !== authority.issuedAt ||
+      raw.updatedAt !== authority.issuedAt ||
+      raw.documentSnapshot ||
+      raw.pdfSnapshot ||
+      raw.snapshotSeal
+    )
+      throw new CentralBusinessReceiptMaterializationError(
+        "INVALID_RECEIPT_AUTHORITY",
+        "El recibo manual central no es válido.",
+      );
+    const context = authority.manualContext;
+    const profile = {
+      ...input.data.profile,
+      ...raw.issuer,
+      iva: context.iva,
+      vatExempt: context.vatExempt,
+      documentTemplate: context.template,
+    };
+    const issued = issueDraftDocumentWithStatus(
+      {
+        ...raw,
+        status: "borrador",
+        documentLifecycle: "draft",
+        integrityLock: "unlocked",
+      },
+      raw.status,
+      profile,
+      authority.issuedAt,
+    );
+    const receipt = authority.sentAt
+      ? markDocumentSent(issued, authority.sentAt)
+      : issued;
+    return {
+      data: {
+        ...input.data,
+        documents: [
+          ...input.data.documents.filter((doc) => doc.id !== raw.id),
+          receipt,
+        ],
+      },
+      receipt,
+    };
+  }
   if (
     raw.type !== "recibo" ||
     raw.status !== "pagado" ||
@@ -260,12 +418,15 @@ export function materializeCentralBusinessReceipt(input: {
   delete draft.paidAt;
   delete draft.acceptedAt;
 
-  const materialized = issueDraftDocumentWithStatus(
+  const issued = issueDraftDocumentWithStatus(
     draft,
     "pagado",
     profile,
     authority.issuedAt,
   );
+  const materialized = authority.sentAt
+    ? markDocumentSent(issued, authority.sentAt)
+    : issued;
   const linkedDocuments = [
     ...input.data.documents.map((document) =>
       document.id === inspection.invoice.id

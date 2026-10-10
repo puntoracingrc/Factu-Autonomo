@@ -20,6 +20,8 @@ describe("central supplier canary wiring", () => {
     expect(createHook).toContain("createSupplierWithCentralCanary");
     expect(mutationHook).toContain("updateSupplierWithCentralCanary");
     expect(mutationHook).toContain("deleteSupplierWithCentralCanary");
+    expect(mutationHook).toContain("await updateSharedSupplier(supplier)");
+    expect(mutationHook).toContain("await deleteSharedSupplier(supplierId)");
     expect(suppliersPage).toContain("await createSupplier(payload)");
     expect(suppliersPage).toContain("await updateSupplier({");
     expect(suppliersPage).toContain("await deleteSupplier(deleteCandidate.id)");
@@ -32,9 +34,10 @@ describe("central supplier canary wiring", () => {
     expect(eventApply).toContain("deleteSupplierMasterFromData");
   });
 
-  it("bloquea fusiones centrales y dobles envios", () => {
-    expect(suppliersPage).toContain("selectedIds.some(isCentralSupplier)");
-    expect(suppliersPage).toContain("group.some((supplier) =>");
+  it("usa un lote central para fusiones y bloquea dobles envios", () => {
+    expect(suppliersPage).toContain("useCentralSharedBusinessMutations");
+    expect(suppliersPage).toContain("await mergeCentrally(keep, remove)");
+    expect(suppliersPage).toContain("if (mergeBusy.current) return false");
     expect(suppliersPage).toContain("disabled={savingSupplier}");
     expect(newSupplierPage).toContain("disabled={savingSupplier}");
     expect(suppliersPage).toContain("busy={deletingSupplier}");

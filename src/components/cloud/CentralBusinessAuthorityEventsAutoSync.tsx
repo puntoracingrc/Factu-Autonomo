@@ -6,6 +6,11 @@ import { useAppStore } from "@/context/AppStore";
 import { useCentralAuthorityPlanGate } from "@/hooks/useCentralAuthorityPlanGate";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
+  CENTRAL_AUXILIARY_WAKEUP_EVENT,
+  EXPENSE_INBOX_REFRESH_EVENT,
+  auxiliaryWakeupKind,
+} from "@/lib/central-business-authority/auxiliary-wakeups";
+import {
   centralAuthorityRealtimeStateFromStatus,
   type CentralAuthorityRealtimeState,
 } from "@/lib/central-authority/sync-schedule";
@@ -28,10 +33,14 @@ type LatestState = {
   ready: boolean;
   userId: string | null;
   sync: ReturnType<typeof useAppStore>["syncCentralBusinessEvents"];
+  syncFiscal: ReturnType<
+    typeof useAppStore
+  >["syncFiscalNotificationsWorkspace"];
 };
 
 export function CentralBusinessAuthorityEventsAutoSync() {
-  const { ready, syncCentralBusinessEvents } = useAppStore();
+  const { ready, syncCentralBusinessEvents, syncFiscalNotificationsWorkspace } =
+    useAppStore();
   const planGate = useCentralAuthorityPlanGate();
   const userId = planGate.centralUserId;
   const enabled =
@@ -48,6 +57,7 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     ready,
     userId,
     sync: syncCentralBusinessEvents,
+    syncFiscal: syncFiscalNotificationsWorkspace,
   });
 
   useEffect(() => {
@@ -55,8 +65,14 @@ export function CentralBusinessAuthorityEventsAutoSync() {
       ready,
       userId,
       sync: syncCentralBusinessEvents,
+      syncFiscal: syncFiscalNotificationsWorkspace,
     };
-  }, [ready, syncCentralBusinessEvents, userId]);
+  }, [
+    ready,
+    syncCentralBusinessEvents,
+    syncFiscalNotificationsWorkspace,
+    userId,
+  ]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -95,6 +111,20 @@ export function CentralBusinessAuthorityEventsAutoSync() {
         const result = await latest.sync(latest.userId, {
           limit: CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
         });
+        // Reconnect/safety polling also catches a lost auxiliary wake-up.
+        if (
+          !cancelled &&
+          latestRef.current.userId === latest.userId &&
+          result.ok &&
+          !result.hasMore
+        ) {
+          await latest.syncFiscal(latest.userId);
+          window.dispatchEvent(
+            new CustomEvent(EXPENSE_INBOX_REFRESH_EVENT, {
+              detail: { ownerScope: latest.userId },
+            }),
+          );
+        }
         schedule(
           nextCentralBusinessEventsAutoSyncDelay(result, {
             realtimeState: realtimeStateRef.current,
@@ -178,6 +208,21 @@ export function CentralBusinessAuthorityEventsAutoSync() {
             { event: CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT },
             () => {
               realtimeWakeRef.current();
+            },
+          )
+          .on(
+            "broadcast",
+            { event: CENTRAL_AUXILIARY_WAKEUP_EVENT },
+            (message) => {
+              if (cancelled || latestRef.current.userId !== userId) return;
+              const kind = auxiliaryWakeupKind(message);
+              if (kind === "fiscal_notifications") realtimeWakeRef.current();
+              if (kind === "expense_inbox")
+                window.dispatchEvent(
+                  new CustomEvent(EXPENSE_INBOX_REFRESH_EVENT, {
+                    detail: { ownerScope: userId },
+                  }),
+                );
             },
           )
           .subscribe((status) => {

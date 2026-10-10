@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -27,6 +27,7 @@ import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { useCentralCustomerCreate } from "@/hooks/useCentralCustomerCreate";
 import { useCentralCustomerMutations } from "@/hooks/useCentralCustomerMutations";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 import { formatMoney } from "@/lib/calculations";
 import { maybeCelebrateFirstCustomer } from "@/lib/factu/milestones";
 import {
@@ -153,7 +154,10 @@ function customerEmailHref(email: string): string {
 }
 
 function duplicateGroupKey(group: Customer[]): string {
-  return group.map((customer) => customer.id).sort().join(":");
+  return group
+    .map((customer) => customer.id)
+    .sort()
+    .join(":");
 }
 
 function DuplicateCustomerChoiceCard({
@@ -228,10 +232,27 @@ function DuplicateCustomerChoiceCard({
 export default function ClientesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, mergeCustomers } = useAppStore();
+  const { data } = useAppStore();
+  const { mergeCustomers: mergeCentrally } =
+    useCentralSharedBusinessMutations();
+  const mergeBusy = useRef(false);
+  async function mergeCustomers(
+    keep: string,
+    remove: string[],
+    options: { updateDraftDocuments?: boolean },
+  ) {
+    if (mergeBusy.current) return false;
+    mergeBusy.current = true;
+    try {
+      const result = await mergeCentrally(keep, remove, options);
+      if (!result.ok) setPageError(result.error);
+      return result.ok;
+    } finally {
+      mergeBusy.current = false;
+    }
+  }
   const { createCustomer } = useCentralCustomerCreate();
-  const { updateCustomer, deleteCustomer, isCentralCustomer } =
-    useCentralCustomerMutations();
+  const { updateCustomer, deleteCustomer } = useCentralCustomerMutations();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -301,7 +322,9 @@ export default function ClientesPage() {
   const hiddenCustomerCount = customerWindow.hiddenCount;
 
   const mergeVisibleCustomers = useMemo(() => {
-    return mergeSearch.trim() ? filterCustomers(customers, mergeSearch) : customers;
+    return mergeSearch.trim()
+      ? filterCustomers(customers, mergeSearch)
+      : customers;
   }, [customers, mergeSearch]);
 
   const duplicateGroups = useMemo(
@@ -401,21 +424,8 @@ export default function ClientesPage() {
     setMergeSearch("");
   }
 
-  async function includesCentralCustomer(customerIds: string[]) {
-    const centralStates = await Promise.all(
-      customerIds.map((customerId) => isCentralCustomer(customerId)),
-    );
-    return centralStates.some(Boolean);
-  }
-
   async function handleManualMerge() {
     if (selectedIds.length < 2 || !keepId) return;
-    if (await includesCentralCustomer(selectedIds)) {
-      setPageError(
-        "La unificación de clientes centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
-      );
-      return;
-    }
     const keep = data.customers.find((customer) => customer.id === keepId);
     if (!keep) return;
     const removeIds = selectedIds.filter((id) => id !== keepId);
@@ -424,8 +434,8 @@ export default function ClientesPage() {
         `¿Unificar ${selectedIds.length} clientes en «${getCustomerDisplayName(keep)}»? Los documentos emitidos conservarán el cliente original por integridad histórica.`,
       )
     ) {
-      mergeCustomers(keepId, removeIds, { updateDraftDocuments });
-      exitMergeMode();
+      if (await mergeCustomers(keepId, removeIds, { updateDraftDocuments }))
+        exitMergeMode();
     }
   }
 
@@ -434,7 +444,8 @@ export default function ClientesPage() {
     setForm((current) => ({
       ...current,
       customerType:
-        (values.customerType as CustomerType | undefined) || current.customerType,
+        (values.customerType as CustomerType | undefined) ||
+        current.customerType,
       firstName: values.firstName || current.firstName,
       lastName: values.lastName || current.lastName,
       contactName: values.contactName || current.contactName,
@@ -652,8 +663,9 @@ export default function ClientesPage() {
                       Actualizar también borradores
                     </span>
                     <span className="block text-amber-800 dark:text-amber-200">
-                      Los documentos emitidos conservan su cliente histórico; los
-                      borradores pueden adoptar los datos del cliente conservado.
+                      Los documentos emitidos conservan su cliente histórico;
+                      los borradores pueden adoptar los datos del cliente
+                      conservado.
                     </span>
                   </span>
                 </label>
@@ -669,24 +681,16 @@ export default function ClientesPage() {
                       .filter((customer) => customer.id !== selectedKeep.id)
                       .map((customer) => customer.id);
                     if (
-                      await includesCentralCustomer([
-                        selectedKeep.id,
-                        ...removeIds,
-                      ])
-                    ) {
-                      setPageError(
-                        "La unificación de clientes centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
-                      );
-                      return;
-                    }
-                    if (
                       confirm(
                         `¿Unificar ${group.length} clientes en «${getCustomerDisplayName(selectedKeep)}»? Los documentos emitidos conservarán el cliente original por integridad histórica.`,
                       )
                     ) {
-                      mergeCustomers(selectedKeep.id, removeIds, {
-                        updateDraftDocuments: updateDrafts,
-                      });
+                      if (
+                        !(await mergeCustomers(selectedKeep.id, removeIds, {
+                          updateDraftDocuments: updateDrafts,
+                        }))
+                      )
+                        return;
                       setDuplicateKeepIds((current) => {
                         const next = { ...current };
                         delete next[groupKey];
@@ -779,7 +783,9 @@ export default function ClientesPage() {
                   }
                 >
                   <option value="person">{CUSTOMER_TYPE_LABELS.person}</option>
-                  <option value="company">{CUSTOMER_TYPE_LABELS.company}</option>
+                  <option value="company">
+                    {CUSTOMER_TYPE_LABELS.company}
+                  </option>
                 </Select>
               </Field>
               <Field label={formNameLabel}>
@@ -811,9 +817,9 @@ export default function ClientesPage() {
                   }
                   aria-invalid={Boolean(
                     formError &&
-                      !formIsCompany &&
-                      form.lastName.trim() &&
-                      form.lastName.trim().length < 2,
+                    !formIsCompany &&
+                    form.lastName.trim() &&
+                    form.lastName.trim().length < 2,
                   )}
                 />
               </Field>
@@ -1088,7 +1094,9 @@ export default function ClientesPage() {
                           </span>
                         )}
                       </div>
-                      {(migrated.address || migrated.addressExtra || migrated.city) && (
+                      {(migrated.address ||
+                        migrated.addressExtra ||
+                        migrated.city) && (
                         <p className="break-words text-sm text-slate-400">
                           {formatAddressBlock(migrated)}
                         </p>
@@ -1240,7 +1248,6 @@ export default function ClientesPage() {
           }}
         />
       ) : null}
-
     </div>
   );
 }

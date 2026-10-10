@@ -14,7 +14,8 @@ const nextConfig = source("../../../next.config.ts");
 describe("central quote create canary wiring", () => {
   it("conecta solo las altas nuevas de presupuesto al hook canario", () => {
     expect(form).toContain("useCentralQuoteCreate");
-    expect(form).toContain('if (type === "presupuesto")');
+    expect(form).toContain('type === "presupuesto" ||');
+    expect(form).toContain('type === "recibo" && resolvedStatus !== "borrador"');
     expect(form).toContain("const quoteSave = await createQuote(");
     expect(form).toContain("{ id: pendingDocumentId }");
     expect(form).toContain("saved = quoteSave.document");

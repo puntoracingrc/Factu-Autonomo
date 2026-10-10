@@ -4,11 +4,10 @@ import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
 import { editableQuoteWithLocalStatus } from "@/lib/document-integrity/quote-status";
 import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
-import type { AppData, Document } from "@/lib/types";
+import type { AppData, BusinessProfile, Document } from "@/lib/types";
+import { buildCentralManualReceiptPayloadWithoutNumber } from "./central-receipt-materialization";
 
-import {
-  withCentralBusinessQueueLock,
-} from "./durable-queue";
+import { withCentralBusinessQueueLock } from "./durable-queue";
 import type { CentralBusinessEventsAppDataSyncResult } from "./events-app-data-sync";
 import type { CentralBusinessJson } from "./mutation-command";
 import {
@@ -33,13 +32,17 @@ import {
   type CentralBusinessAuthorityStatusResult,
 } from "./status-client";
 
-export const CENTRAL_QUOTE_CREATE_CANARY =
-  "CENTRAL_QUOTE_CREATE_CANARY_V1";
+export const CENTRAL_QUOTE_CREATE_CANARY = "CENTRAL_QUOTE_CREATE_CANARY_V1";
 
 export type CentralQuoteDraft = Omit<
   Document,
   "id" | "number" | "createdAt" | "updatedAt"
 > & { type: "presupuesto" };
+export type CentralManualReceiptDraft = Omit<
+  Document,
+  "id" | "number" | "createdAt" | "updatedAt"
+> & { type: "recibo" };
+type CentralNonfiscalDraft = CentralQuoteDraft | CentralManualReceiptDraft;
 
 export type CentralQuoteCreateResult =
   | {
@@ -56,10 +59,10 @@ export interface CentralQuoteCreateCanaryEnvironment {
 
 export interface CentralQuoteCreateCanaryDependencies {
   getCurrentData(): AppData;
-  addDocumentFallback(draft: CentralQuoteDraft): Document;
+  addDocumentFallback(draft: CentralNonfiscalDraft): Document;
   addCentralDocumentDurably(
     expected: AppData,
-    entityType: "quote",
+    entityType: "quote" | "receipt",
     confirmation: CentralBusinessNumberedDocumentCreateBrowserResult,
   ): Promise<AppDataDurabilityResult<Document>>;
   syncEventsBeforeWrite?: () => Promise<CentralBusinessEventsAppDataSyncResult>;
@@ -77,8 +80,7 @@ export interface CentralQuoteCreateCanaryDependencies {
 }
 
 const publicEnvironment: CentralQuoteCreateCanaryEnvironment = {
-  enabled:
-    process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_ENABLED,
+  enabled: process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_ENABLED,
   userIds:
     process.env.NEXT_PUBLIC_CENTRAL_BUSINESS_QUOTE_CREATE_CANARY_USER_IDS,
 };
@@ -138,10 +140,15 @@ function assertNewQuoteDraft(draft: CentralQuoteDraft) {
 }
 
 function buildPayloadWithoutNumber(
-  draft: CentralQuoteDraft,
+  draft: CentralNonfiscalDraft,
   id: string,
   now: string,
+  profile: BusinessProfile,
 ): { [key: string]: CentralBusinessJson } {
+  if (draft.type === "recibo")
+    return jsonObject(
+      buildCentralManualReceiptPayloadWithoutNumber(draft, profile, id, now),
+    );
   assertNewQuoteDraft(draft);
   const provisional: Document = {
     ...draft,
@@ -169,6 +176,18 @@ function comparablePayload(payload: unknown): string {
   delete normalized.sentAt;
   delete normalized.paidAt;
   delete normalized.acceptedAt;
+  if (
+    normalized.issuer &&
+    typeof normalized.issuer === "object" &&
+    !Array.isArray(normalized.issuer)
+  )
+    delete normalized.issuer.capturedAt;
+  if (
+    normalized.centralBusinessReceiptAuthority &&
+    typeof normalized.centralBusinessReceiptAuthority === "object" &&
+    !Array.isArray(normalized.centralBusinessReceiptAuthority)
+  )
+    delete normalized.centralBusinessReceiptAuthority.issuedAt;
   return stableStringifySnapshot(normalized);
 }
 
@@ -207,16 +226,13 @@ async function commitConfirmation(
     try {
       last = await dependencies.addCentralDocumentDurably(
         dependencies.getCurrentData(),
-        "quote",
+        confirmation.documentPayload.type === "recibo" ? "receipt" : "quote",
         confirmation,
       );
     } catch {
       return { status: "blocked", reason: "transition_failed" };
     }
-    if (
-      last.status !== "blocked" ||
-      last.reason !== "stale_precondition"
-    ) {
+    if (last.status !== "blocked" || last.reason !== "stale_precondition") {
       return last;
     }
   }
@@ -248,7 +264,10 @@ async function recoverExistingJournalOperation(input: {
     ownerScope: input.ownerScope,
     mutate:
       dependencies.mutate ??
-      mutateCentralBusinessNumberedDocumentFromBrowser,
+      ((command) =>
+        mutateCentralBusinessNumberedDocumentFromBrowser(command, {
+          expectedOwnerScope: input.ownerScope,
+        })),
     storage: dependencies.storage,
     now: dependencies.now,
   });
@@ -261,7 +280,10 @@ async function recoverExistingJournalOperation(input: {
           : "Hay un documento numerado pendiente de revision. No se creara otro hasta resolverlo.",
     };
   }
-  if (drained.operation.input.entityType !== "quote") {
+  if (
+    drained.operation.input.entityType !==
+    (input.intendedPayload.type === "recibo" ? "receipt" : "quote")
+  ) {
     return {
       status: "blocked",
       error:
@@ -318,8 +340,7 @@ function recoveryResult(
   if (!recovery.matchesCurrentDraft) {
     return {
       ok: false,
-      error:
-        `Se recupero el presupuesto ${recovery.document.number} que estaba pendiente. Revisa el listado y vuelve a guardar el presupuesto actual.`,
+      error: `Se recupero el presupuesto ${recovery.document.number} que estaba pendiente. Revisa el listado y vuelve a guardar el presupuesto actual.`,
     };
   }
   return {
@@ -330,20 +351,19 @@ function recoveryResult(
 }
 
 function failureMessage(
-  result: Extract<
-    CentralBusinessNonfiscalSeriesPreflightResult,
-    { ok: false }
-  >,
+  result: Extract<CentralBusinessNonfiscalSeriesPreflightResult, { ok: false }>,
 ): string {
   if (result.retryable) {
     return "No se pudo confirmar la serie central. No se asigno ningun numero; comprueba la conexion y vuelve a intentarlo.";
   }
-  return result.message || "La serie central requiere revision antes de guardar.";
+  return (
+    result.message || "La serie central requiere revision antes de guardar."
+  );
 }
 
 export async function createQuoteWithCentralCanary(input: {
   userId: string | null | undefined;
-  draft: CentralQuoteDraft;
+  draft: CentralNonfiscalDraft;
   dependencies: CentralQuoteCreateCanaryDependencies;
 }): Promise<CentralQuoteCreateResult> {
   const { dependencies } = input;
@@ -385,6 +405,7 @@ export async function createQuoteWithCentralCanary(input: {
         input.draft,
         "central-quote-preview",
         "2000-01-01T00:00:00.000Z",
+        dependencies.getCurrentData().profile,
       );
       const pendingRecovery = await withLock(ownerScope, () =>
         recoverExistingJournalOperation({
@@ -417,6 +438,7 @@ export async function createQuoteWithCentralCanary(input: {
       input.draft,
       "central-quote-preview",
       "2000-01-01T00:00:00.000Z",
+      dependencies.getCurrentData().profile,
     );
     const firstRecovery = await withLock(ownerScope, () =>
       recoverExistingJournalOperation({
@@ -462,18 +484,20 @@ export async function createQuoteWithCentralCanary(input: {
       const baseline = dependencies.getCurrentData();
       const fiscalYear = Number(input.draft.date.slice(0, 4));
       const preflight = await (
-        dependencies.preflight ??
-        preflightCentralBusinessNonfiscalSeries
+        dependencies.preflight ?? preflightCentralBusinessNonfiscalSeries
       )(
         {
           data: baseline,
-          entityType: "quote",
+          entityType: input.draft.type === "recibo" ? "receipt" : "quote",
           fiscalYear,
         },
         {
           mutate:
             dependencies.mutate ??
-            mutateCentralBusinessNumberedDocumentFromBrowser,
+            ((command) =>
+              mutateCentralBusinessNumberedDocumentFromBrowser(command, {
+                expectedOwnerScope: ownerScope,
+              })),
         },
       );
       if (!preflight.ok) {
@@ -493,15 +517,19 @@ export async function createQuoteWithCentralCanary(input: {
         input.draft,
         id,
         now,
+        baseline.profile,
       );
-      const operationId = `CENTRAL_QUOTE_CREATE:${id}`;
+      const operationId =
+        input.draft.type === "recibo"
+          ? `CENTRAL_MANUAL_RECEIPT_CREATE:${id}`
+          : `CENTRAL_QUOTE_CREATE:${id}`;
       enqueueCentralBusinessNumberedDocumentCreate({
         ownerScope,
         operationId,
         command: {
           action: "create",
           idempotencyKey: operationId,
-          entityType: "quote",
+          entityType: input.draft.type === "recibo" ? "receipt" : "quote",
           entityId: id,
           numberTemplate: preflight.summary.numberTemplate,
           padding: preflight.summary.padding,

@@ -14,6 +14,7 @@ export type CentralBusinessEntityType =
   | "user_reminder"
   | "quote"
   | "receipt"
+  | "document_draft"
   | "profile";
 
 export type CentralBusinessOperationKind = "upsert" | "delete";
@@ -86,6 +87,7 @@ const ENTITY_TYPES = new Set<CentralBusinessEntityType>([
   "user_reminder",
   "quote",
   "receipt",
+  "document_draft",
   "profile",
 ]);
 

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
-import { useAppStore } from "@/context/AppStore";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
+import { useCentralQuoteCreate } from "@/hooks/useCentralQuoteCreate";
 import { buildDuplicatedDocumentDraft } from "@/lib/document-duplication";
 import { showFactuToast } from "@/lib/factu/occasional";
 import type { Document } from "@/lib/types";
@@ -19,17 +20,37 @@ export function DuplicateDocumentButton({
   basePath,
 }: DuplicateDocumentButtonProps) {
   const router = useRouter();
-  const { addDocument } = useAppStore();
+  const { saveDraft } = useCentralSharedBusinessMutations();
+  const { createQuote } = useCentralQuoteCreate();
   const [busy, setBusy] = useState(false);
 
-  function handleDuplicate() {
+  async function handleDuplicate() {
     if (busy) return;
 
     setBusy(true);
     try {
-      const duplicate = addDocument(buildDuplicatedDocumentDraft(doc));
+      const draft = buildDuplicatedDocumentDraft(doc);
+      const now = new Date().toISOString();
+      const result =
+        draft.type === "presupuesto"
+          ? await createQuote({ ...draft, type: "presupuesto" })
+          : await saveDraft({
+              ...draft,
+              id: crypto.randomUUID(),
+              number: "BORRADOR",
+              createdAt: now,
+              updatedAt: now,
+            });
+      if (!result.ok) throw new Error(result.error);
+      const duplicate = "document" in result ? result.document : result.value;
       showFactuToast(`${doc.number} duplicado como ${duplicate.number}.`, 4000);
       router.push(`${basePath}/${duplicate.id}`);
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el duplicado.",
+      );
     } finally {
       setBusy(false);
     }

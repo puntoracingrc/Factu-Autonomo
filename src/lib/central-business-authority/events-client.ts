@@ -65,6 +65,7 @@ const TYPES = new Set<CentralBusinessEntityType>([
   "user_reminder",
   "quote",
   "receipt",
+  "document_draft",
   "profile",
 ]);
 

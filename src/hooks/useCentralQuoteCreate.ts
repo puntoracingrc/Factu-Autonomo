@@ -10,11 +10,12 @@ import {
 import type {
   CentralQuoteCreateResult,
   CentralQuoteDraft,
+  CentralManualReceiptDraft,
 } from "@/lib/central-business-authority/quote-create-canary";
 
 export function useCentralQuoteCreate(): {
   createQuote: (
-    draft: CentralQuoteDraft,
+    draft: CentralQuoteDraft | CentralManualReceiptDraft,
     options?: { id?: string },
   ) => Promise<CentralQuoteCreateResult>;
 } {
@@ -28,7 +29,10 @@ export function useCentralQuoteCreate(): {
   const userId = planGate.centralUserId;
 
   const createQuote = useCallback(
-    async (draft: CentralQuoteDraft, options?: { id?: string }) => {
+    async (
+      draft: CentralQuoteDraft | CentralManualReceiptDraft,
+      options?: { id?: string },
+    ) => {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }

@@ -17,6 +17,7 @@ import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { useCentralSupplierCreate } from "@/hooks/useCentralSupplierCreate";
 import { useCentralSupplierMutations } from "@/hooks/useCentralSupplierMutations";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 import { formatMoney } from "@/lib/calculations";
 import { formatStreetLine } from "@/lib/customer-address";
 import type { GooglePlaceAddressSuggestion } from "@/lib/google-places";
@@ -55,10 +56,23 @@ const EMPTY_FORM = {
 const SUPPLIER_LIST_BATCH_SIZE = 30;
 
 export default function ProveedoresPage() {
-  const { data, mergeSuppliers } = useAppStore();
+  const { data } = useAppStore();
+  const { mergeSuppliers: mergeCentrally } =
+    useCentralSharedBusinessMutations();
+  const mergeBusy = useRef(false);
+  async function mergeSuppliers(keep: string, remove: string[]) {
+    if (mergeBusy.current) return false;
+    mergeBusy.current = true;
+    try {
+      const result = await mergeCentrally(keep, remove);
+      if (!result.ok) setPageError(result.error);
+      return result.ok;
+    } finally {
+      mergeBusy.current = false;
+    }
+  }
   const { createSupplier } = useCentralSupplierCreate();
-  const { updateSupplier, deleteSupplier, isCentralSupplier } =
-    useCentralSupplierMutations();
+  const { updateSupplier, deleteSupplier } = useCentralSupplierMutations();
   const vatExempt = isVatExempt(data.profile);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -87,7 +101,8 @@ export default function ProveedoresPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const supplierPurchasedTotals = useMemo(
-    () => buildSupplierPurchasedTotals(data.expenses, data.suppliers, vatExempt),
+    () =>
+      buildSupplierPurchasedTotals(data.expenses, data.suppliers, vatExempt),
     [data.expenses, data.suppliers, vatExempt],
   );
 
@@ -216,14 +231,8 @@ export default function ProveedoresPage() {
     });
   }
 
-  function handleManualMerge() {
+  async function handleManualMerge() {
     if (selectedIds.length < 2 || !keepId) return;
-    if (selectedIds.some(isCentralSupplier)) {
-      setPageError(
-        "La unificación de proveedores centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
-      );
-      return;
-    }
     const keep = data.suppliers.find((supplier) => supplier.id === keepId);
     if (!keep) return;
     const removeIds = selectedIds.filter((id) => id !== keepId);
@@ -232,8 +241,7 @@ export default function ProveedoresPage() {
         `¿Unificar ${selectedIds.length} proveedores en «${keep.name}»? Todos los gastos vinculados se moverán ahí.`,
       )
     ) {
-      mergeSuppliers(keepId, removeIds);
-      exitMergeMode();
+      if (await mergeSuppliers(keepId, removeIds)) exitMergeMode();
     }
   }
 
@@ -394,21 +402,13 @@ export default function ProveedoresPage() {
                 <PageActionButton
                   icon={GitMerge}
                   label={`Unificar en «${canonical.name}»`}
-                  onClick={() => {
-                    if (
-                      group.some((supplier) => isCentralSupplier(supplier.id))
-                    ) {
-                      setPageError(
-                        "La unificación de proveedores centrales se habilitará cuando pueda confirmarse como una única operación atómica. No se ha cambiado ninguna ficha.",
-                      );
-                      return;
-                    }
+                  onClick={async () => {
                     if (
                       confirm(
                         `¿Unificar ${group.length} proveedores en «${canonical.name}»? Los gastos se moverán ahí.`,
                       )
                     ) {
-                      mergeSuppliers(
+                      await mergeSuppliers(
                         canonical.id,
                         others.map((supplier) => supplier.id),
                       );

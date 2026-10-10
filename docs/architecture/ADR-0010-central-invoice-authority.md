@@ -1,8 +1,18 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 6
+- Version: 7
 - Fecha: 2026-10-09
+
+## Fiabilidad V7: emisión de un borrador compartido
+
+ADR-0011 V32 comparte únicamente borradores guardados. Si existe un borrador
+central con el mismo ID local, la emisión exige su `centralBusinessDraftVersion`
+vigente y lo retira mediante tombstone en la misma transacción PostgreSQL.
+Un borrador borrado o cambiado por otro usuario aborta la emisión entera, sin
+asignación definitiva de número ni documento huérfano. Un documento nuevo aún
+no guardado conserva la emisión directa existente. Los eventos operativos de
+borrador nunca eliminan ni sustituyen un documento ya emitido.
 
 ## Fiabilidad V6: lectura y avisos por empresa
 
