@@ -1341,51 +1341,129 @@ describeAcceptance(
           template: `P-SYN-${scope}-{year}-{num}`,
           operation: "workflow-create",
           payload: {
-            id: quoteId, type: "presupuesto", date: "2026-08-10",
-            status: "enviado", acceptanceStatus: "pending",
-            client: { name: "Synthetic workflow client" }, items: [],
-            createdAt: issuedAt, updatedAt: issuedAt,
+            id: quoteId,
+            type: "presupuesto",
+            date: "2026-08-10",
+            status: "enviado",
+            acceptanceStatus: "pending",
+            client: { name: "Synthetic workflow client" },
+            items: [],
+            createdAt: issuedAt,
+            updatedAt: issuedAt,
           },
         });
-        for (const device of company.devices) await syncBusinessDevice(company, device);
-        const received: number[] = [];
+        for (const device of company.devices)
+          await syncBusinessDevice(company, device);
+        await company.signedIn.realtime.setAuth();
+        const received: Array<{ payload?: { event_sequence?: unknown } }> = [];
         const channel = company.signedIn
-          .channel(`central-business:${company.userId}`, { config: { private: true } })
-          .on("broadcast", { event: "central_business_changed" }, ({ payload }) => {
-            if (typeof payload?.event_sequence === "number") received.push(payload.event_sequence);
+          .channel(`central-business:${company.userId}`, {
+            config: { private: true },
+          })
+          .on("broadcast", { event: "central_business_changed" }, (message) => {
+            received.push(message);
           });
         try {
           await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error("Synthetic quote Realtime subscription timed out")), 10_000);
+            const timeout = setTimeout(
+              () =>
+                reject(
+                  new Error("Synthetic quote Realtime subscription timed out"),
+                ),
+              10_000,
+            );
             channel.subscribe((status) => {
-              if (status === "SUBSCRIBED") { clearTimeout(timeout); resolve(); }
-              if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") { clearTimeout(timeout); reject(new Error(`Synthetic quote channel: ${status}`)); }
+              if (status === "SUBSCRIBED") {
+                clearTimeout(timeout);
+                resolve();
+              }
+              if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                clearTimeout(timeout);
+                reject(new Error(`Synthetic quote channel: ${status}`));
+              }
             });
           });
-          for (const [index, action] of (["accept", "unaccept"] as const).entries()) {
-            const prepared = prepareQuoteWorkflowTransition(company.devices[0].data, quoteId, action, paidAt);
+          for (const [index, action] of (
+            ["accept", "unaccept"] as const
+          ).entries()) {
+            const prepared = prepareQuoteWorkflowTransition(
+              company.devices[0].data,
+              quoteId,
+              action,
+              paidAt,
+            );
             expect(prepared.ok).toBe(true);
             if (!prepared.ok) throw new Error(prepared.error);
             const confirmed = await mutateEntity({
-              company, entityType: "quote", entityId: quoteId,
-              expectedVersion: index + 1, payload: prepared.payload,
+              company,
+              entityType: "quote",
+              entityId: quoteId,
+              expectedVersion: index + 1,
+              payload: prepared.payload,
               operation: `workflow-${action}`,
             });
-            expect(confirmed).toMatchObject({ result_status: "committed", entity_version: index + 2 });
-            await expect.poll(() => received.includes(Number(confirmed.event_sequence)), { timeout: 10_000 }).toBe(true);
+            expect(confirmed).toMatchObject({
+              result_status: "committed",
+              entity_version: index + 2,
+            });
+            expect(Number(confirmed.event_sequence)).toBeGreaterThan(0);
+            try {
+              await expect
+                .poll(
+                  () =>
+                    received.some(
+                      (message) =>
+                        Number(message.payload?.event_sequence) ===
+                        Number(confirmed.event_sequence),
+                    ),
+                  { timeout: 10_000 },
+                )
+                .toBe(true);
+            } catch (error) {
+              const diagnostics = execFileSync(
+                "psql",
+                [
+                  databaseUrl,
+                  "-XAt",
+                  "-v",
+                  "ON_ERROR_STOP=1",
+                  "-c",
+                  `
+                select jsonb_build_object(
+                  'broadcast_trigger', (select tgenabled from pg_trigger where tgname = 'central_business_outbox_broadcast_wakeup_ai_v1'),
+                  'queued_messages', (select jsonb_agg(jsonb_build_object('event', event, 'private', private, 'payload', payload)) from realtime.messages where topic = 'central-business:${company.userId}'),
+                  'replication_slots', (select jsonb_agg(jsonb_build_object('name', slot_name, 'active', active)) from pg_replication_slots)
+                );
+              `,
+                ],
+                { encoding: "utf8" },
+              );
+              throw new Error(
+                `Synthetic quote Broadcast missing: ${JSON.stringify({ confirmed, received })}; database: ${diagnostics}`,
+                { cause: error },
+              );
+            }
             for (const device of company.devices) {
               await syncBusinessDevice(company, device);
-              const updated = device.data.documents.find((document) => document.id === quoteId);
+              const updated = device.data.documents.find(
+                (document) => document.id === quoteId,
+              );
               expect(updated).toMatchObject({
                 status: action === "accept" ? "aceptado" : "enviado",
                 acceptanceStatus: action === "accept" ? "accepted" : "pending",
               });
               expect(updated?.number).toBe(prepared.transition.value.number);
             }
-            for (const other of companies.filter((candidate) => candidate !== company)) {
+            for (const other of companies.filter(
+              (candidate) => candidate !== company,
+            )) {
               for (const device of other.devices) {
                 await syncBusinessDevice(other, device);
-                expect(device.data.documents.some((document) => document.id === quoteId)).toBe(false);
+                expect(
+                  device.data.documents.some(
+                    (document) => document.id === quoteId,
+                  ),
+                ).toBe(false);
               }
             }
           }
