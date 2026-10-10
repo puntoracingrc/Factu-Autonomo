@@ -560,6 +560,10 @@ interface AppStoreValue {
     expected: AppData,
     transition: AppDataTransition<T>,
   ) => AppDataDurabilityResult<T>;
+  commitPreparedCentralBusinessAppDataDurably: <T>(
+    expected: AppData,
+    transition: AppDataTransition<T>,
+  ) => Promise<AppDataDurabilityResult<T>>;
   mergeHistoricalWorkspaceArchiveDurably: (
     archive: Parameters<typeof mergeHistoricalWorkspaceArchive>[1],
   ) => AppDataDurabilityResult<HistoricalWorkspaceArchiveMergeSummary>;
@@ -1218,6 +1222,14 @@ export function AppStoreProvider({
     ): AppDataDurabilityResult<T> =>
       commitDurableAppData(expected, () => transition),
     [commitDurableAppData],
+  );
+
+  const commitPreparedCentralBusinessAppDataDurably = useCallback(
+    <T,>(expected: AppData, transition: AppDataTransition<T>) =>
+      commitCentralAppDataAsync(expected, () => transition, {
+        trackLegacyChanges: false,
+      }),
+    [commitCentralAppDataAsync],
   );
 
   const mergeHistoricalWorkspaceArchiveDurably = useCallback(
@@ -4310,6 +4322,7 @@ export function AppStoreProvider({
       retireLegacyPendingChangesAfterCentralAdoption,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
+      commitPreparedCentralBusinessAppDataDurably,
       mergeHistoricalWorkspaceArchiveDurably,
       updateProfile,
       updateProfileDurably,
@@ -4409,6 +4422,7 @@ export function AppStoreProvider({
       retireLegacyPendingChangesAfterCentralAdoption,
       resolveCentralBusinessConflictKeepingServer,
       commitPreparedAppDataDurably,
+      commitPreparedCentralBusinessAppDataDurably,
       mergeHistoricalWorkspaceArchiveDurably,
       updateProfile,
       updateProfileDurably,

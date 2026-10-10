@@ -63,7 +63,7 @@ export interface CentralBusinessEntityMutationDependencies<T> {
     expected: AppData,
     transition: AppDataTransition<T>,
     now: string,
-  ): AppDataDurabilityResult<T>;
+  ): AppDataDurabilityResult<T> | Promise<AppDataDurabilityResult<T>>;
   syncEventsBeforeWrite?: () => Promise<CentralBusinessEventsAppDataSyncResult>;
   fetchStatus?: () => Promise<CentralBusinessAuthorityStatusResult>;
   mutate?: (
@@ -326,7 +326,7 @@ export async function mutateCentralBusinessEntityWithCanary<T>(input: {
         };
       }
 
-      const local = dependencies.commitLocal(
+      const local = await dependencies.commitLocal(
         baseline,
         prepared.transition,
         now,

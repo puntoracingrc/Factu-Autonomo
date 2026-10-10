@@ -1,8 +1,22 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 30
-- Fecha: 2026-10-07
+- Version: 31
+- Fecha: 2026-10-10
+
+## Cambio V31: aceptación y rechazo de presupuestos sincronizados
+
+Los botones de aceptar, rechazar y desmarcar usan la mutación versionada de
+`quote`, no el mutador local, cuando la empresa tiene autoridad central. Reciben
+primero el outbox y exigen versión confirmada, preflight, CAS e idempotencia.
+Solo muestran el cambio tras la confirmación central y el commit durable; el
+aviso Realtime existente despierta a los demás dispositivos de esa empresa.
+Una caída de red o versión desconocida nunca habilita fallback local. Los planes
+locales conservan el flujo local. No cambia el número, cliente, conceptos ni
+evidencia preservada del presupuesto, y las marcas antiguas exclusivamente
+locales no se publican automáticamente por encima del estado del servidor.
+El commit de caché puede esperar la base IndexedDB verificada de ADR-0005 V21
+y no genera una cola legacy ni adelanta el cursor del outbox.
 
 ## Cambio V30: borrado central de recibos
 
