@@ -1356,13 +1356,21 @@ describeAcceptance(
           await syncBusinessDevice(company, device);
         await company.signedIn.realtime.setAuth();
         const received: Array<Record<string, unknown>> = [];
+        const auxiliary: Array<Record<string, unknown>> = [];
         const channel = company.signedIn
           .channel(`central-business:${company.userId}`, {
             config: { private: true },
           })
           .on("broadcast", { event: "central_business_changed" }, (message) => {
             received.push(message);
-          });
+          })
+          .on(
+            "broadcast",
+            { event: "workspace_auxiliary_changed" },
+            (message) => {
+              auxiliary.push(message);
+            },
+          );
         try {
           await new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(
@@ -1418,6 +1426,40 @@ describeAcceptance(
               { timeout: 10_000 },
             )
             .toBe(true);
+          execFileSync(
+            "psql",
+            [
+              databaseUrl,
+              "-XAt",
+              "-v",
+              "ON_ERROR_STOP=1",
+              "-c",
+              `
+            insert into public.expense_inbox_aliases (user_id, alias_token)
+              values ('${company.userId}', 'synthetic_${company.userId.replaceAll("-", "")}');
+            insert into public.workspace_auxiliary_entities (user_id, entity_type, entity_id, payload)
+              values ('${company.userId}', 'fiscal_notifications_workspace', 'synthetic-realtime', '{"private_test_data":"must-not-be-broadcast"}');
+          `,
+            ],
+            { stdio: "pipe" },
+          );
+          await expect
+            .poll(() => auxiliary.length, { timeout: 10_000 })
+            .toBe(2);
+          expect(auxiliary.map((message) => message.payload)).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ kind: "expense_inbox" }),
+              expect.objectContaining({ kind: "fiscal_notifications" }),
+            ]),
+          );
+          for (const message of auxiliary)
+            expect(Object.keys(message.payload as object).sort()).toEqual([
+              "id",
+              "kind",
+            ]);
+          expect(JSON.stringify(auxiliary)).not.toContain(
+            "must-not-be-broadcast",
+          );
           for (const [index, action] of (
             ["accept", "unaccept"] as const
           ).entries()) {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { issueDocument, markDocumentPaid } from "@/lib/document-integrity";
+import {
+  issueDocument,
+  markDocumentPaid,
+  markDocumentSent,
+} from "@/lib/document-integrity";
 import { inspectDocumentSnapshotsIntegrity } from "@/lib/document-integrity/snapshots";
 import {
   DEFAULT_PROFILE,
@@ -14,6 +18,8 @@ import {
   centralBusinessReceiptServerPayload,
   CentralBusinessReceiptMaterializationError,
   materializeCentralBusinessReceipt,
+  applyCentralReceiptDelivery,
+  buildCentralManualReceiptPayloadWithoutNumber,
 } from "./central-receipt-materialization";
 
 const issuedAt = "2026-08-03T12:00:00.000Z";
@@ -124,6 +130,86 @@ function expectMaterializationError(
 }
 
 describe("central receipt materialization", () => {
+  it("shares delivery without changing sealed content, including on a fresh device", () => {
+    const before = data();
+    const first = materializeCentralBusinessReceipt({
+      data: before,
+      receiptPayload: serverReceiptPayload(before),
+    }).receipt;
+    const sent = markDocumentSent(first, "2026-10-10T10:00:00.000Z");
+    const payload = centralBusinessReceiptServerPayload(sent);
+    const remote = applyCentralReceiptDelivery(first, payload);
+    expect(remote.deliveryStatus).toBe("sent");
+    for (const key of [
+      "documentSnapshot",
+      "pdfSnapshot",
+      "snapshotSeal",
+    ] as const)
+      expect(remote[key]).toEqual(first[key]);
+    const fresh = materializeCentralBusinessReceipt({
+      data: before,
+      receiptPayload: payload,
+    }).receipt;
+    expect(fresh.deliveryStatus).toBe("sent");
+    expect(fresh.documentSnapshot).toEqual(first.documentSnapshot);
+    expect(() =>
+      applyCentralReceiptDelivery(remote, serverReceiptPayload(before)),
+    ).toThrow();
+    expect(() =>
+      applyCentralReceiptDelivery(first, { ...payload, notes: "changed" }),
+    ).toThrow();
+  });
+
+  it("materializes a manual receipt with frozen issuer/IVA/template, never IRPF or private account configuration", () => {
+    const invoiceDraft = invoice();
+    const draft = {
+      type: "recibo" as const,
+      status: "pagado" as const,
+      date: "2026-10-10",
+      client: invoiceDraft.client,
+      items: invoiceDraft.items,
+    };
+    const raw = {
+      ...buildCentralManualReceiptPayloadWithoutNumber(
+        draft,
+        PROFILE,
+        "manual-receipt",
+        issuedAt,
+      ),
+      number: "R-2026-0001",
+    } as unknown as Document;
+    const changed = {
+      ...data([]),
+      profile: {
+        ...PROFILE,
+        name: "Nombre cambiado",
+        nif: "B87654321",
+        vatExempt: true,
+      },
+    };
+    const result = materializeCentralBusinessReceipt({
+      data: changed,
+      receiptPayload: raw,
+    });
+    expect(result.receipt.documentSnapshot?.issuer.name).toBe(PROFILE.name);
+    expect(result.receipt.documentSnapshot?.issuer.nif).toBe(PROFILE.nif);
+    expect(result.receipt.documentSnapshot?.fiscalContext.vatExempt).toBe(
+      PROFILE.vatExempt,
+    );
+    expect(result.receipt.sourceDocumentId).toBeUndefined();
+    expect(
+      Object.keys(raw.centralBusinessReceiptAuthority!.manualContext!).sort(),
+    ).toEqual(["iva", "template", "vatExempt"]);
+    expect(centralBusinessReceiptServerPayload(result.receipt)).toEqual(raw);
+    expect(
+      inspectDocumentSnapshotsIntegrity(result.receipt, {
+        requireDocumentSnapshot: true,
+        requirePdfSnapshot: true,
+        requireSnapshotSeal: true,
+      }).ok,
+    ).toBe(true);
+  });
+
   it("sella el payload confirmado, enlaza la factura y conserva una proyeccion central exacta", () => {
     const before = data();
     const payload = serverReceiptPayload(before);
@@ -155,7 +241,9 @@ describe("central receipt materialization", () => {
         requireSnapshotSeal: true,
       }).ok,
     ).toBe(true);
-    expect(centralBusinessReceiptServerPayload(result.receipt)).toEqual(payload);
+    expect(centralBusinessReceiptServerPayload(result.receipt)).toEqual(
+      payload,
+    );
     expect(result.receipt.items[0]).toMatchObject({
       unitPrice: 66.12,
       grossUnitPrice: 80,

@@ -1857,6 +1857,7 @@ export function AppStoreProvider({
       | { ok: true; pushed: number; pulled: number; applied: number }
       | { ok: false; message: string }
     > => {
+      if (!workspaceIsActive()) return { ok: false, message: "La empresa activa cambió." };
       const expected = dataRef.current;
       const pending = (expected.meta?.pendingChanges ?? []).filter(
         (change) => change.entityType === "fiscal_notifications_workspace",
@@ -1873,6 +1874,7 @@ export function AppStoreProvider({
             : new Date().toISOString();
         const remote =
           await pullFiscalNotificationsWorkspaceChanges(ownerScope);
+        if (!workspaceIsActive()) return { ok: false, message: "La empresa activa cambió." };
         const result = commitDurableAppData(
           expected,
           (previous) => {
@@ -1909,7 +1911,7 @@ export function AppStoreProvider({
         };
       }
     },
-    [commitDurableAppData],
+    [commitDurableAppData, workspaceIsActive],
   );
 
   const reconcileCentralBusinessEvents = useCallback(

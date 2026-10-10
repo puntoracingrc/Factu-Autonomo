@@ -16,6 +16,7 @@ import {
   updateSupplierWithCentralCanary,
 } from "@/lib/central-business-authority/supplier-mutation-canary";
 import type { Supplier } from "@/lib/types";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 
 export function useCentralSupplierMutations(): {
   updateSupplier: (
@@ -37,6 +38,8 @@ export function useCentralSupplierMutations(): {
   const planGate = useCentralAuthorityPlanGate();
   const { removeQuotaSubject } = useBilling();
   const userId = planGate.centralUserId;
+  const { updateSharedSupplier, deleteSharedSupplier } =
+    useCentralSharedBusinessMutations();
 
   const commonDependencies = useMemo(
     () => ({
@@ -65,13 +68,19 @@ export function useCentralSupplierMutations(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
+      if (userId) {
+        const result = await updateSharedSupplier(supplier);
+        return result.ok
+          ? { ...result, delivery: "central_confirmed" as const }
+          : result;
+      }
       return updateSupplierWithCentralCanary({
         userId,
         supplier,
         dependencies: commonDependencies,
       });
     },
-    [commonDependencies, planGate.mode, userId],
+    [commonDependencies, planGate.mode, updateSharedSupplier, userId],
   );
 
   const deleteSupplier = useCallback(
@@ -79,17 +88,32 @@ export function useCentralSupplierMutations(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      const result = await deleteSupplierWithCentralCanary({
-        userId,
-        supplierId,
-        dependencies: commonDependencies,
-      });
+      const result = userId
+        ? await deleteSharedSupplier(supplierId)
+        : await deleteSupplierWithCentralCanary({
+            userId,
+            supplierId,
+            dependencies: commonDependencies,
+          });
       if (result.ok) {
         await removeQuotaSubject("suppliers", supplierId);
       }
-      return result;
+      return result.ok
+        ? {
+            ...result,
+            delivery: userId
+              ? ("central_confirmed" as const)
+              : ("local" as const),
+          }
+        : result;
     },
-    [commonDependencies, planGate.mode, removeQuotaSubject, userId],
+    [
+      commonDependencies,
+      deleteSharedSupplier,
+      planGate.mode,
+      removeQuotaSubject,
+      userId,
+    ],
   );
 
   const isCentralSupplier = useCallback(

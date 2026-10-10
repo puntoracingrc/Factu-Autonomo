@@ -36,6 +36,7 @@ const ENTITY_TYPES = new Set<CentralBusinessEntityType>([
   "user_reminder",
   "quote",
   "receipt",
+  "document_draft",
   "profile",
 ]);
 const fallbackLocks = new Map<string, Promise<void>>();
@@ -665,10 +666,7 @@ export function enqueueCentralBusinessOperation(input: {
     input.position === "front"
       ? [queued, ...state.operations]
       : [...state.operations, queued];
-  const persisted = persistState(
-    { ...state, operations },
-    storage,
-  );
+  const persisted = persistState({ ...state, operations }, storage);
   return { queued, replayed: false, state: persisted };
 }
 
@@ -792,8 +790,7 @@ export async function drainCentralBusinessDurableQueue(input: {
   const isOwnerActive =
     input.isOwnerActive ??
     ((ownerScope: string) =>
-      typeof window === "undefined" ||
-      isActiveWorkspaceOwnerScope(ownerScope));
+      typeof window === "undefined" || isActiveWorkspaceOwnerScope(ownerScope));
 
   while (state.operations.length > 0) {
     if (!isOwnerActive(input.ownerScope)) {
@@ -1274,7 +1271,13 @@ export async function applyCentralBusinessEventPage(input: {
         state,
       };
     }
-    if (!known && event.entityVersion !== 1) {
+    // The server may project a current tombstone on an older wake-up. Nothing
+    // is resurrected and applyEvent still verifies its hash and local safety.
+    if (
+      !known &&
+      event.entityVersion !== 1 &&
+      event.operationKind !== "delete"
+    ) {
       return {
         ok: false,
         code: "EVENT_VERSION_CONFLICT",

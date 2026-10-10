@@ -13,7 +13,7 @@ import { hasAppIssuedRecoveryProtectionClaim } from "./app-issued-recovery-prote
 export interface ShareDocumentFlowInput {
   doc: Document;
   issueDocument: (id: string) => Document | Promise<Document>;
-  markDocumentSent: (id: string) => Document | null;
+  markDocumentSent: (id: string) => Document | null | Promise<Document | null>;
   share: (doc: Document) => Promise<void>;
   markSentOnShare?: boolean;
 }
@@ -82,7 +82,7 @@ export async function shareDocumentWithIntegrity({
   await share(sharedDocument);
 
   const finalDocument = markSentOnShare
-    ? (markDocumentSent(sharedDocument.id) ?? sharedDocument)
+    ? ((await markDocumentSent(sharedDocument.id)) ?? sharedDocument)
     : sharedDocument;
 
   return { sharedDocument, finalDocument };

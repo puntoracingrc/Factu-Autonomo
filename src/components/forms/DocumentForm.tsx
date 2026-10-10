@@ -42,6 +42,7 @@ import {
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { useCentralQuoteCreate } from "@/hooks/useCentralQuoteCreate";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 import { useCentralDocumentCustomerUpsert } from "@/hooks/useCentralDocumentCustomerUpsert";
 import {
   centralAuthorityPlanLoadingFailure,
@@ -107,7 +108,6 @@ import { defaultQuoteDueDate } from "@/lib/quote-validity";
 import { maybeCelebrateFirstInvoice } from "@/lib/factu/milestones";
 import { showFactuToast } from "@/lib/factu/occasional";
 import { finalizeSavedVerifactuDocument } from "@/lib/verifactu/save-outcome";
-import { DocumentIntegrityError } from "@/lib/document-integrity";
 import { resolveDocumentFormBusinessProfile } from "@/lib/document-integrity/document-form-profile";
 import { canManageCentralIssuedInvoice } from "@/lib/central-invoice-authority/management-policy";
 import {
@@ -485,6 +485,7 @@ export function DocumentForm({
   const localDocumentIdRef = useRef(existing?.id ?? crypto.randomUUID());
   // The fields belong to the version opened, not a newer background pull.
   const centralEditBaseRef = useRef(existing?.centralInvoiceAuthority);
+  const centralSharedEditBaseRef = useRef(existing);
   const {
     data,
     ready,
@@ -498,14 +499,10 @@ export function DocumentForm({
   const { upsertDocumentCustomer } = useCentralDocumentCustomerUpsert();
   const { updateProfile } = useCentralProfileMutation();
   const { createQuote } = useCentralQuoteCreate();
+  const { updateQuote, saveDraft } = useCentralSharedBusinessMutations();
   const centralPlanGate = useCentralAuthorityPlanGate();
-  const {
-    billingEnabled,
-    commitQuota,
-    isPro,
-    releaseQuota,
-    reserveQuota,
-  } = useBilling();
+  const { billingEnabled, commitQuota, isPro, releaseQuota, reserveQuota } =
+    useBilling();
   const { cloudEnabled, user: cloudUser, syncNow } = useCloudSync();
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const centralCanaryEnabled = isCentralInvoiceAuthorityFormCanaryEnabled();
@@ -552,7 +549,9 @@ export function DocumentForm({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const saving = saveAction !== "idle";
-  const editingCentralInvoice = Boolean(existing && canManageCentralIssuedInvoice(existing));
+  const editingCentralInvoice = Boolean(
+    existing && canManageCentralIssuedInvoice(existing),
+  );
   const label = TYPE_LABELS[type];
   const article = TYPE_ARTICLES[type];
   const sourceQuote = useMemo(
@@ -1271,8 +1270,9 @@ export function DocumentForm({
     ? "enviado"
     : status;
   const previewButtonLabel = "Vista previa PDF";
-  const primarySaveButtonLabel =
-    editingCentralInvoice ? "Guardar cambios" : type === "factura" && isDraftStatus
+  const primarySaveButtonLabel = editingCentralInvoice
+    ? "Guardar cambios"
+    : type === "factura" && isDraftStatus
       ? isRectificationDraft
         ? "Emitir rectificativa"
         : "Emitir factura"
@@ -1282,8 +1282,9 @@ export function DocumentForm({
     !isRectificationDraft &&
     (!existing ||
       (existing.status === "borrador" && !existing.centralInvoiceAuthority));
-  const downloadButtonLabel =
-    editingCentralInvoice ? "Guardar cambios y descargar PDF" : type === "factura" && isDraftStatus
+  const downloadButtonLabel = editingCentralInvoice
+    ? "Guardar cambios y descargar PDF"
+    : type === "factura" && isDraftStatus
       ? isRectificationDraft
         ? "Emitir rectificativa y descargar PDF"
         : "Emitir y descargar PDF"
@@ -1783,23 +1784,38 @@ export function DocumentForm({
       try {
         const correctedClient = clientInputToSnapshot(clientForm);
         const saved = await updateIssuedInvoiceCentrally({
-          ...existing, centralInvoiceAuthority: centralEditBaseRef.current,
-          date, dueDate: effectiveDueDate || undefined,
+          ...existing,
+          centralInvoiceAuthority: centralEditBaseRef.current,
+          date,
+          dueDate: effectiveDueDate || undefined,
           // Do not retain the tenant's master ID when typing a new landlord.
           customerId: findCustomerByClient(data.customers, correctedClient)?.id,
           client: correctedClient,
           items: normalizeLineItemUnits(safeItems, unitsSettings),
-          notes: notes || undefined, salesTerms: salesTerms.trim() || undefined,
+          notes: notes || undefined,
+          salesTerms: salesTerms.trim() || undefined,
           paymentTerms: paymentTerms.trim() || undefined,
         });
         sessionDraftCompleted.current = true;
         clearDocumentSessionDraft(type);
         setFormError(null);
-        await finishDocumentSave({ type, number: saved.number, router,
-          download: download ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions } : undefined });
+        await finishDocumentSave({
+          type,
+          number: saved.number,
+          router,
+          download: download
+            ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions }
+            : undefined,
+        });
       } catch (error) {
-        setFormError(error instanceof Error ? error.message : "No se pudo confirmar la corrección central.");
-      } finally { setSaveAction("idle"); }
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo confirmar la corrección central.",
+        );
+      } finally {
+        setSaveAction("idle");
+      }
       return;
     }
 
@@ -1906,6 +1922,8 @@ export function DocumentForm({
       sourceQuoteNumber: existing?.sourceQuoteNumber,
       sourceDocumentId: existing?.sourceDocumentId,
       receiptDocumentId: existing?.receiptDocumentId,
+      centralBusinessDraftVersion:
+        centralSharedEditBaseRef.current?.centralBusinessDraftVersion,
     };
 
     if (resolvedStatus !== "borrador") {
@@ -1969,10 +1987,12 @@ export function DocumentForm({
             );
           if (!seriesPreflight.ok) return seriesPreflight;
 
-          const centralResult =
-            await issueCentralInvoiceAuthorityFromBrowser(centralRequest, {
+          const centralResult = await issueCentralInvoiceAuthorityFromBrowser(
+            centralRequest,
+            {
               expectedOwnerScope: centralPlanGate.centralUserId,
-            });
+            },
+          );
 
           if (!centralResult.ok) return centralResult;
           try {
@@ -2047,22 +2067,52 @@ export function DocumentForm({
         updatedAt: new Date().toISOString(),
       };
       try {
-        saved = await updateDocument(saved);
+        if (saved.type === "presupuesto") {
+          const result = await updateQuote(
+            saved,
+            centralSharedEditBaseRef.current,
+          );
+          if (!result.ok) throw new Error(result.error);
+          saved = result.value;
+        } else if (saved.status === "borrador") {
+          const result = await saveDraft(
+            saved,
+            centralSharedEditBaseRef.current,
+          );
+          if (!result.ok) throw new Error(result.error);
+          saved = result.value;
+        } else if (
+          saved.type === "recibo" &&
+          !saved.sourceDocumentId &&
+          existing.status === "borrador"
+        ) {
+          const result = await createQuote(
+            { ...payload, type: "recibo" },
+            { id: pendingDocumentId },
+          );
+          if (!result.ok) throw new Error(result.error);
+          saved = result.document;
+        } else {
+          saved = await updateDocument(saved);
+        }
       } catch (error) {
         await releaseDocumentQuota();
         setSaveAction("idle");
         setFormError(
-          error instanceof DocumentIntegrityError
+          error instanceof Error
             ? error.message
             : "No se pudo guardar el documento.",
         );
         return;
       }
-    } else if (type === "presupuesto") {
+    } else if (
+      type === "presupuesto" ||
+      (type === "recibo" && resolvedStatus !== "borrador")
+    ) {
       const quoteSave = await createQuote(
         {
           ...payload,
-          type: "presupuesto",
+          type: type === "recibo" ? "recibo" : "presupuesto",
         },
         { id: pendingDocumentId },
       );
@@ -2075,7 +2125,20 @@ export function DocumentForm({
       saved = quoteSave.document;
     } else {
       try {
-        saved = addDocument(payload);
+        if (payload.status === "borrador") {
+          const now = new Date().toISOString();
+          const result = await saveDraft({
+            ...payload,
+            id: pendingDocumentId,
+            number: "BORRADOR",
+            createdAt: now,
+            updatedAt: now,
+          });
+          if (!result.ok) throw new Error(result.error);
+          saved = result.value;
+        } else {
+          saved = addDocument(payload);
+        }
       } catch (error) {
         await releaseDocumentQuota();
         setSaveAction("idle");
@@ -2254,18 +2317,24 @@ export function DocumentForm({
                 )}
                 {type === "factura" && <option value="vencido">Vencido</option>}
               </Select>
-              {editingCentralInvoice && <span className="text-xs text-slate-500">La corrección conserva el estado de envío y cobro.</span>}
+              {editingCentralInvoice && (
+                <span className="text-xs text-slate-500">
+                  La corrección conserva el estado de envío y cobro.
+                </span>
+              )}
               {type === "presupuesto" && status !== "borrador" && (
                 <span className="text-xs text-amber-700">
                   Estado comercial local. No crea firma ni portal de cliente.
                 </span>
               )}
-              {type === "factura" && status !== "borrador" && !editingCentralInvoice && (
-                <span className="text-xs text-amber-700">
-                  Al guardar, la factura se emitirá, tendrá número definitivo y
-                  quedará bloqueada.
-                </span>
-              )}
+              {type === "factura" &&
+                status !== "borrador" &&
+                !editingCentralInvoice && (
+                  <span className="text-xs text-amber-700">
+                    Al guardar, la factura se emitirá, tendrá número definitivo
+                    y quedará bloqueada.
+                  </span>
+                )}
               {type === "factura" &&
                 status !== "borrador" &&
                 missingIssuerLabels.length > 0 && (

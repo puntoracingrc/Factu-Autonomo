@@ -22,11 +22,7 @@ import {
   useCentralAuthorityPlanGate,
 } from "@/hooks/useCentralAuthorityPlanGate";
 import { formatMoney, todayISO, unitPriceFromGross } from "@/lib/calculations";
-import {
-  documentAmounts,
-  isVatExempt,
-  zeroIvaItems,
-} from "@/lib/vat-regime";
+import { documentAmounts, isVatExempt, zeroIvaItems } from "@/lib/vat-regime";
 import {
   invoiceClientMissingDocumentLabels,
   validateDocumentEmission,
@@ -86,11 +82,10 @@ import {
   issueCentralInvoiceAuthorityFromBrowser,
   resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser,
 } from "@/lib/central-invoice-authority/form-canary-client";
-import {
-  preflightCentralInvoiceAuthorityFormSeries,
-} from "@/lib/central-invoice-authority/form-series-preflight";
+import { preflightCentralInvoiceAuthorityFormSeries } from "@/lib/central-invoice-authority/form-series-preflight";
 import { runCentralInvoiceAuthorityClientOperation } from "@/lib/central-invoice-authority/client-operation-lock";
 import { importCentralInvoiceAuthorityHistoricalOriginalFromBrowser } from "@/lib/central-invoice-authority/historical-import-client";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 
 interface RectificativaFormProps {
   original: Document;
@@ -116,6 +111,7 @@ export function RectificativaForm({
     syncCentralInvoiceAuthorityEvents,
   } = useAppStore();
   const { updateProfile } = useCentralProfileMutation();
+  const { saveDraft } = useCentralSharedBusinessMutations();
   const centralPlanGate = useCentralAuthorityPlanGate();
   const { billingEnabled, isPro } = useBilling();
   const { user: cloudUser } = useCloudSync();
@@ -168,9 +164,7 @@ export function RectificativaForm({
     resolveCentralInvoiceAuthorityRectificationTarget(original),
   );
   const vatExempt = isVatExempt(historicalProfile);
-  const defaultIva = vatExempt
-    ? 0
-    : (historicalProfile.iva?.defaultRate ?? 21);
+  const defaultIva = vatExempt ? 0 : (historicalProfile.iva?.defaultRate ?? 21);
   const unitsSettings = normalizeDocumentUnits(data.profile.documentUnits);
   const defaultUnit = unitsSettings.defaultUnitId;
 
@@ -180,9 +174,7 @@ export function RectificativaForm({
   const [date, setDate] = useState(todayISO());
   const initialTextDefaults = rectificationTextDefaults(original);
   const [notes, setNotes] = useState(initialTextDefaults.notes);
-  const [salesTerms, setSalesTerms] = useState(
-    initialTextDefaults.salesTerms,
-  );
+  const [salesTerms, setSalesTerms] = useState(initialTextDefaults.salesTerms);
   const [paymentTerms, setPaymentTerms] = useState(
     initialTextDefaults.paymentTerms,
   );
@@ -266,7 +258,10 @@ export function RectificativaForm({
     });
   }
 
-  function handleLineAreaDraftChange(id: string, patch: Partial<LineAreaDraft>) {
+  function handleLineAreaDraftChange(
+    id: string,
+    patch: Partial<LineAreaDraft>,
+  ) {
     const nextDraft = {
       ...(lineAreaDrafts[id] ?? { width: 0, height: 0 }),
       ...patch,
@@ -280,8 +275,7 @@ export function RectificativaForm({
 
   const previewTotals = documentAmounts({ items }, vatExempt);
   const originalDate = original.documentSnapshot?.date ?? original.date;
-  const finalReason =
-    reason === "Otros motivos" ? customReason.trim() : reason;
+  const finalReason = reason === "Otros motivos" ? customReason.trim() : reason;
 
   function rectificativaItemsForSave(): LineItem[] {
     return normalizeLineItemUnits(
@@ -439,152 +433,171 @@ export function RectificativaForm({
 
     let saved: Document | null;
     try {
-      const centralRectificationEligible =
-        shouldUseCentralInvoiceAuthorityRectificationFormCanary({
-          original,
-          payload,
-          resolvedStatus: statusOverride,
+      if (isDraft) {
+        const now = new Date().toISOString();
+        const result = await saveDraft({
+          ...payload,
+          id: `rectification-draft:${original.id}`,
+          number: "BORRADOR",
+          createdAt: now,
+          updatedAt: now,
         });
-      if (centralRectificationEligible && centralPlanGate.mode === "loading") {
-        setSaveAction("idle");
-        setFormError(centralAuthorityPlanLoadingFailure().error);
-        return;
-      }
-      const centralPolicy = centralRectificationEligible
-        ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
-            publicFormCanaryEnabled: centralCanaryEnabled,
-            publicFormCanaryUserId: centralPlanGate.authenticatedUserId,
-            expectedOwnerScope: centralPlanGate.centralUserId,
-          })
-        : null;
+        if (!result.ok) throw new Error(result.error);
+        saved = result.value;
+      } else {
+        const centralRectificationEligible =
+          shouldUseCentralInvoiceAuthorityRectificationFormCanary({
+            original,
+            payload,
+            resolvedStatus: statusOverride,
+          });
+        if (
+          centralRectificationEligible &&
+          centralPlanGate.mode === "loading"
+        ) {
+          setSaveAction("idle");
+          setFormError(centralAuthorityPlanLoadingFailure().error);
+          return;
+        }
+        const centralPolicy = centralRectificationEligible
+          ? await resolveCentralInvoiceAuthorityFormIssuePolicyFromBrowser({
+              publicFormCanaryEnabled: centralCanaryEnabled,
+              publicFormCanaryUserId: centralPlanGate.authenticatedUserId,
+              expectedOwnerScope: centralPlanGate.centralUserId,
+            })
+          : null;
 
-      if (centralPolicy?.shouldUseCentralAuthority) {
-        let centralOriginal =
-          getCurrentData().documents.find(
-            (document) => document.id === original.id,
-          ) ?? original;
-        if (!resolveCentralInvoiceAuthorityRectificationTarget(centralOriginal)) {
-          const imported =
-            await importCentralInvoiceAuthorityHistoricalOriginalFromBrowser(
-              centralOriginal,
-              { expectedOwnerScope: centralPlanGate.centralUserId },
-            );
-          if (!imported.ok) {
-            setSaveAction("idle");
-            setFormError(imported.message);
-            return;
-          }
-          const synchronized = await syncCentralInvoiceAuthorityEvents(
-            getCurrentData(),
-          );
+        if (centralPolicy?.shouldUseCentralAuthority) {
+          let centralOriginal =
+            getCurrentData().documents.find(
+              (document) => document.id === original.id,
+            ) ?? original;
           if (
-            synchronized.status !== "applied" ||
-            synchronized.value.localSync.conflicts.length > 0
+            !resolveCentralInvoiceAuthorityRectificationTarget(centralOriginal)
+          ) {
+            const imported =
+              await importCentralInvoiceAuthorityHistoricalOriginalFromBrowser(
+                centralOriginal,
+                { expectedOwnerScope: centralPlanGate.centralUserId },
+              );
+            if (!imported.ok) {
+              setSaveAction("idle");
+              setFormError(imported.message);
+              return;
+            }
+            const synchronized =
+              await syncCentralInvoiceAuthorityEvents(getCurrentData());
+            if (
+              synchronized.status !== "applied" ||
+              synchronized.value.localSync.conflicts.length > 0
+            ) {
+              setSaveAction("idle");
+              setFormError(
+                "La factura original ya se registro en el servidor, pero este dispositivo no pudo incorporar su identidad central. Sincroniza las facturas antes de emitir la rectificativa.",
+              );
+              return;
+            }
+            centralOriginal =
+              getCurrentData().documents.find(
+                (document) => document.id === original.id,
+              ) ?? centralOriginal;
+          }
+          if (
+            !resolveCentralInvoiceAuthorityRectificationTarget(centralOriginal)
           ) {
             setSaveAction("idle");
             setFormError(
-              "La factura original ya se registro en el servidor, pero este dispositivo no pudo incorporar su identidad central. Sincroniza las facturas antes de emitir la rectificativa.",
+              "La factura original no conserva una identidad central verificable. No se emitio la rectificativa.",
             );
             return;
           }
-          centralOriginal =
-            getCurrentData().documents.find(
-              (document) => document.id === original.id,
-            ) ?? centralOriginal;
-        }
-        if (!resolveCentralInvoiceAuthorityRectificationTarget(centralOriginal)) {
-          setSaveAction("idle");
-          setFormError(
-            "La factura original no conserva una identidad central verificable. No se emitio la rectificativa.",
+          const localDocumentId = crypto.randomUUID();
+          const issuedAt = new Date().toISOString();
+          const centralRequest =
+            buildCentralInvoiceAuthorityRectificationFormIssueRequest({
+              localDocumentId,
+              payload,
+              original: centralOriginal,
+              profile: historicalProfile,
+              issuedAt,
+            });
+          const centralSave = await runCentralInvoiceAuthorityClientOperation(
+            async () => {
+              const seriesPreflight =
+                await preflightCentralInvoiceAuthorityFormSeries(
+                  {
+                    data: getCurrentData(),
+                    profile: historicalProfile,
+                    request: centralRequest,
+                  },
+                  { expectedOwnerScope: centralPlanGate.centralUserId },
+                );
+              if (!seriesPreflight.ok) return seriesPreflight;
+
+              const centralResult =
+                await issueCentralInvoiceAuthorityFromBrowser(centralRequest, {
+                  expectedOwnerScope: centralPlanGate.centralUserId,
+                });
+
+              if (!centralResult.ok) return centralResult;
+              try {
+                return {
+                  ok: true as const,
+                  document: await addDocumentWithCentralIdentity(
+                    payload,
+                    centralResult.identity,
+                    { localDocumentId },
+                  ),
+                };
+              } catch {
+                return {
+                  ok: false as const,
+                  status: 409,
+                  code: "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
+                  identity: centralResult.identity,
+                  message: `La rectificativa ${centralResult.identity.fullNumber} ya está emitida y segura en el servidor. Factu intentará recuperarla automáticamente en este dispositivo.`,
+                };
+              }
+            },
           );
-          return;
-        }
-        const localDocumentId = crypto.randomUUID();
-        const issuedAt = new Date().toISOString();
-        const centralRequest =
-          buildCentralInvoiceAuthorityRectificationFormIssueRequest({
-            localDocumentId,
-            payload,
-            original: centralOriginal,
-            profile: historicalProfile,
-            issuedAt,
-          });
-        const centralSave = await runCentralInvoiceAuthorityClientOperation(
-          async () => {
-            const seriesPreflight =
-              await preflightCentralInvoiceAuthorityFormSeries(
+
+          if (!centralSave.ok) {
+            let recoveredDocument: Document | null = null;
+            if (
+              centralSave.code === "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING" &&
+              "identity" in centralSave
+            ) {
+              const recovered = await syncCentralInvoiceAuthorityEvents(
+                getCurrentData(),
                 {
-                  data: getCurrentData(),
-                  profile: historicalProfile,
-                  request: centralRequest,
+                  eventId: centralSave.identity.outboxEventId,
+                  receivedAt: new Date().toISOString(),
                 },
-                { expectedOwnerScope: centralPlanGate.centralUserId },
               );
-            if (!seriesPreflight.ok) return seriesPreflight;
-
-            const centralResult =
-              await issueCentralInvoiceAuthorityFromBrowser(centralRequest, {
-                expectedOwnerScope: centralPlanGate.centralUserId,
-              });
-
-            if (!centralResult.ok) return centralResult;
-            try {
-              return {
-                ok: true as const,
-                document: await addDocumentWithCentralIdentity(
-                  payload,
-                  centralResult.identity,
-                  { localDocumentId },
-                ),
-              };
-            } catch {
-              return {
-                ok: false as const,
-                status: 409,
-                code: "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING",
-                identity: centralResult.identity,
-                message: `La rectificativa ${centralResult.identity.fullNumber} ya está emitida y segura en el servidor. Factu intentará recuperarla automáticamente en este dispositivo.`,
-              };
+              if (recovered.status === "applied") {
+                recoveredDocument =
+                  recovered.data.documents.find(
+                    (document) =>
+                      document.id === localDocumentId &&
+                      document.status !== "borrador" &&
+                      document.centralInvoiceAuthority?.outboxEventId ===
+                        centralSave.identity.outboxEventId,
+                  ) ?? null;
+              }
             }
-          },
-        );
 
-        if (!centralSave.ok) {
-          let recoveredDocument: Document | null = null;
-          if (
-            centralSave.code === "CENTRAL_AUTHORITY_LOCAL_COMMIT_PENDING" &&
-            "identity" in centralSave
-          ) {
-            const recovered = await syncCentralInvoiceAuthorityEvents(
-              getCurrentData(),
-              {
-                eventId: centralSave.identity.outboxEventId,
-                receivedAt: new Date().toISOString(),
-              },
-            );
-            if (recovered.status === "applied") {
-              recoveredDocument =
-                recovered.data.documents.find(
-                  (document) =>
-                    document.id === localDocumentId &&
-                    document.status !== "borrador" &&
-                    document.centralInvoiceAuthority?.outboxEventId ===
-                      centralSave.identity.outboxEventId,
-                ) ?? null;
+            if (!recoveredDocument) {
+              setSaveAction("idle");
+              setFormError(centralSave.message);
+              return;
             }
+            saved = recoveredDocument;
+          } else {
+            saved = centralSave.document;
           }
-
-          if (!recoveredDocument) {
-            setSaveAction("idle");
-            setFormError(centralSave.message);
-            return;
-          }
-          saved = recoveredDocument;
         } else {
-          saved = centralSave.document;
+          saved = await addRectificativa(original.id, payload);
         }
-      } else {
-        saved = await addRectificativa(original.id, payload);
       }
     } catch (error) {
       setFormError(
@@ -634,9 +647,10 @@ export function RectificativaForm({
       number: saved.number,
       router,
       notice: verifactuNotice,
-      download: download && !verifactuSafetyBlocked
-        ? { doc: saved, profile: historicalProfile, pdfOptions }
-        : undefined,
+      download:
+        download && !verifactuSafetyBlocked
+          ? { doc: saved, profile: historicalProfile, pdfOptions }
+          : undefined,
     });
   }
 
@@ -697,10 +711,7 @@ export function RectificativaForm({
         </div>
 
         <Field label="Motivo *">
-          <Select
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          >
+          <Select value={reason} onChange={(e) => setReason(e.target.value)}>
             {RECTIFICATION_REASONS.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -810,9 +821,7 @@ export function RectificativaForm({
                 <Field label="Cant.">
                   <NumericFieldInput
                     value={item.quantity}
-                    onChange={(quantity) =>
-                      updateItem(item.id, { quantity })
-                    }
+                    onChange={(quantity) => updateItem(item.id, { quantity })}
                     disabled={rectType === "anulacion"}
                   />
                 </Field>
@@ -852,7 +861,9 @@ export function RectificativaForm({
               </div>
               {isAreaDocumentUnit(item.unit) ? (
                 <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/80 p-3">
-                  <p className="text-sm font-black text-blue-950">Calcular m²</p>
+                  <p className="text-sm font-black text-blue-950">
+                    Calcular m²
+                  </p>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
                     <Field label="Alto (m)">
                       <NumericFieldInput
@@ -874,7 +885,8 @@ export function RectificativaForm({
                     </Field>
                   </div>
                   <p className="mt-2 text-xs font-semibold text-blue-800">
-                    Alto x ancho en metros. La cantidad de la línea se actualiza sola.
+                    Alto x ancho en metros. La cantidad de la línea se actualiza
+                    sola.
                   </p>
                 </div>
               ) : null}
@@ -977,7 +989,6 @@ export function RectificativaForm({
           </Button>
         </div>
       </div>
-
     </div>
   );
 }

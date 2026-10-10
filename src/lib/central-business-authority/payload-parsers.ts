@@ -1,6 +1,7 @@
 import { normalizeExpenseOriginalArchiveOnExpense } from "@/lib/expense-original-archive";
 import { normalizeRecurringExpense } from "@/lib/recurring-expenses";
 import { normalizeLoadedData } from "@/lib/storage";
+import { isSharedDocumentDraft } from "./shared-document-drafts";
 import type {
   BusinessProfile,
   Document,
@@ -43,8 +44,7 @@ function optionalBoolean(value: unknown): boolean {
 function optionalStringArray(value: unknown): boolean {
   return (
     value === undefined ||
-    (Array.isArray(value) &&
-      value.every((entry) => typeof entry === "string"))
+    (Array.isArray(value) && value.every((entry) => typeof entry === "string"))
   );
 }
 
@@ -78,6 +78,27 @@ function validDocumentLine(value: unknown): boolean {
     optionalFinite(value.grossUnitPrice) &&
     finite(value.ivaPercent)
   );
+}
+
+export function parseCentralDocumentDraftPayload(
+  payload: unknown,
+  entityId: string,
+): Document | null {
+  if (
+    !isObject(payload) ||
+    payload.id !== entityId ||
+    payload.number !== "BORRADOR" ||
+    typeof payload.date !== "string" ||
+    !validDocumentClient(payload.client) ||
+    !Array.isArray(payload.items) ||
+    !payload.items.every(validDocumentLine) ||
+    typeof payload.createdAt !== "string" ||
+    typeof payload.updatedAt !== "string" ||
+    payload.centralBusinessDraftVersion !== undefined ||
+    !isSharedDocumentDraft(payload as unknown as Document)
+  )
+    return null;
+  return JSON.parse(JSON.stringify(payload)) as Document;
 }
 
 export function parseCentralBusinessDocumentPayload(
@@ -159,9 +180,7 @@ function validPurchaseLine(value: unknown): value is ExpensePurchaseLine {
   );
 }
 
-function validWorkAllocation(
-  value: unknown,
-): value is ExpenseWorkAllocation {
+function validWorkAllocation(value: unknown): value is ExpenseWorkAllocation {
   return (
     isObject(value) &&
     typeof value.workDocumentId === "string" &&

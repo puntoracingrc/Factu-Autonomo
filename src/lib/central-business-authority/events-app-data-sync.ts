@@ -47,6 +47,7 @@ import {
 import {
   parseCentralExpensePayload,
   parseCentralBusinessDocumentPayload,
+  parseCentralDocumentDraftPayload,
   parseCentralProfilePayload,
   parseCentralRecurringExpensePayload,
 } from "./payload-parsers";
@@ -55,7 +56,12 @@ import {
   centralBusinessReceiptServerPayload,
   isCentralBusinessReceipt,
   materializeCentralBusinessReceipt,
+  applyCentralReceiptDelivery,
 } from "./central-receipt-materialization";
+import {
+  isSharedDocumentDraft,
+  sharedDraftServerPayload,
+} from "./shared-document-drafts";
 
 export const CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC =
   "CENTRAL_BUSINESS_EVENTS_APP_DATA_SYNC_V1";
@@ -131,6 +137,7 @@ type SupportedEntityType =
   | "recurring_expense"
   | "quote"
   | "receipt"
+  | "document_draft"
   | "profile";
 
 export type CentralBusinessEventLocalAction =
@@ -175,7 +182,9 @@ export interface CentralBusinessEventsAppDataSyncDependencies {
     build: (
       previous: AppData,
     ) => AppDataTransition<CentralBusinessEventLocalApplyValue>,
-  ): AppDataDurabilityResult<CentralBusinessEventLocalApplyValue> | Promise<AppDataDurabilityResult<CentralBusinessEventLocalApplyValue>>;
+  ):
+    | AppDataDurabilityResult<CentralBusinessEventLocalApplyValue>
+    | Promise<AppDataDurabilityResult<CentralBusinessEventLocalApplyValue>>;
   pull?: (input: {
     afterSequence: number;
     limit: number;
@@ -414,9 +423,7 @@ function parseUserReminderPayload(
     !optionalString(payload.dueDate) ||
     !optionalString(payload.dueTime) ||
     !isObject(payload.link) ||
-    !USER_REMINDER_LINK_KINDS.has(
-      payload.link.kind as UserReminderLinkKind,
-    ) ||
+    !USER_REMINDER_LINK_KINDS.has(payload.link.kind as UserReminderLinkKind) ||
     !optionalString(payload.link.entityId) ||
     (payload.target !== "self" && payload.target !== "office") ||
     (payload.origin !== undefined &&
@@ -539,6 +546,7 @@ export function buildCentralBusinessEventAppDataTransition(input: {
     event.entityType !== "recurring_expense" &&
     event.entityType !== "quote" &&
     event.entityType !== "receipt" &&
+    event.entityType !== "document_draft" &&
     event.entityType !== "profile"
   ) {
     throw new CentralBusinessLocalApplyError(
@@ -603,6 +611,16 @@ export function buildCentralBusinessEventAppDataTransition(input: {
         customers: data.customers.map((customer) =>
           customer.id === event.entityId ? incoming : customer,
         ),
+        // Resolve operational links before the duplicate tombstones arrive.
+        // Frozen client, snapshot, PDF and seals are not rewritten.
+        documents: incoming.mergedCustomerIds?.length
+          ? data.documents.map((document) =>
+              document.customerId &&
+              incoming.mergedCustomerIds!.includes(document.customerId)
+                ? { ...document, customerId: incoming.id }
+                : document,
+            )
+          : data.documents,
       },
       value: value("updated"),
     };
@@ -739,10 +757,7 @@ export function buildCentralBusinessEventAppDataTransition(input: {
         value: value("deleted"),
       };
     }
-    const incoming = parseCentralExpensePayload(
-      event.payload,
-      event.entityId,
-    );
+    const incoming = parseCentralExpensePayload(event.payload, event.entityId);
     if (!incoming) {
       throw new CentralBusinessLocalApplyError(
         "CENTRAL_BUSINESS_INVALID_EXPENSE_EVENT",
@@ -834,6 +849,64 @@ export function buildCentralBusinessEventAppDataTransition(input: {
     };
   }
 
+  if (event.entityType === "document_draft") {
+    const matches = data.documents.filter((doc) => doc.id === event.entityId);
+    if (matches.length > 1)
+      return localConflict("El borrador tiene identificadores duplicados.");
+    const existing = matches[0];
+    // A late draft wake-up/tombstone must never downgrade or remove an issued invoice.
+    if (existing && !isSharedDocumentDraft(existing))
+      return { data, value: value("unchanged") };
+    if (event.operationKind === "delete") {
+      if (!existing) return { data, value: value("unchanged") };
+      if (!knownPrevious)
+        return localConflict(
+          "Falta confirmar la versión central del borrador.",
+        );
+      return {
+        data: {
+          ...data,
+          documents: data.documents.filter((doc) => doc.id !== event.entityId),
+        },
+        value: value("deleted"),
+      };
+    }
+    const parsed = parseCentralDocumentDraftPayload(
+      event.payload,
+      event.entityId,
+    );
+    if (!parsed)
+      throw new CentralBusinessLocalApplyError(
+        "CENTRAL_BUSINESS_INVALID_DRAFT_EVENT",
+        "El servidor devolvió un borrador incompleto o con evidencia fiscal.",
+      );
+    if (
+      existing &&
+      !knownPrevious &&
+      stableJson(sharedDraftServerPayload(existing)) !== stableJson(parsed)
+    )
+      return localConflict(
+        "El borrador local difiere de su primera versión central.",
+      );
+    const incoming = {
+      ...parsed,
+      centralBusinessDraftVersion: event.entityVersion,
+    };
+    if (existing && sameEntity(existing, incoming))
+      return { data, value: value("unchanged") };
+    return {
+      data: {
+        ...data,
+        documents: existing
+          ? data.documents.map((doc) =>
+              doc.id === event.entityId ? incoming : doc,
+            )
+          : [...data.documents, incoming],
+      },
+      value: value(existing ? "updated" : "added"),
+    };
+  }
+
   if (event.entityType === "quote" || event.entityType === "receipt") {
     const matches = data.documents.filter(
       (document) => document.id === event.entityId,
@@ -854,14 +927,18 @@ export function buildCentralBusinessEventAppDataTransition(input: {
       return {
         data: {
           ...data,
-          documents: data.documents.filter(
-            (document) => document.id !== event.entityId,
-          ).map((document) => {
-            if (event.entityType !== "receipt" || document.receiptDocumentId !== event.entityId) return document;
-            const unlinked = { ...document };
-            delete unlinked.receiptDocumentId;
-            return unlinked;
-          }),
+          documents: data.documents
+            .filter((document) => document.id !== event.entityId)
+            .map((document) => {
+              if (
+                event.entityType !== "receipt" ||
+                document.receiptDocumentId !== event.entityId
+              )
+                return document;
+              const unlinked = { ...document };
+              delete unlinked.receiptDocumentId;
+              return unlinked;
+            }),
         },
         value: value("deleted"),
       };
@@ -885,9 +962,26 @@ export function buildCentralBusinessEventAppDataTransition(input: {
         ) {
           return { data, value: value("unchanged") };
         }
-        return localConflict(
-          "El recibo central difiere del recibo ya sellado en este dispositivo.",
-        );
+        if (!knownPrevious)
+          return localConflict(
+            "El recibo local no tiene una versión central confirmada.",
+          );
+        try {
+          const updated = applyCentralReceiptDelivery(existing, incoming);
+          return {
+            data: {
+              ...data,
+              documents: data.documents.map((document) =>
+                document.id === existing.id ? updated : document,
+              ),
+            },
+            value: value("updated"),
+          };
+        } catch {
+          return localConflict(
+            "El recibo central difiere del recibo ya sellado en este dispositivo.",
+          );
+        }
       }
       try {
         const materialized = materializeCentralBusinessReceipt({
@@ -958,10 +1052,7 @@ export function buildCentralBusinessEventAppDataTransition(input: {
         "El perfil fiscal central no se puede borrar.",
       );
     }
-    const incoming = parseCentralProfilePayload(
-      event.payload,
-      event.entityId,
-    );
+    const incoming = parseCentralProfilePayload(event.payload, event.entityId);
     if (!incoming) {
       throw new CentralBusinessLocalApplyError(
         "CENTRAL_BUSINESS_INVALID_PROFILE_EVENT",
@@ -1165,8 +1256,7 @@ async function applyIndependentEventsFromBlockedPage(input: {
     }
 
     let transition:
-      | AppDataTransition<CentralBusinessEventLocalApplyValue>
-      | undefined;
+      AppDataTransition<CentralBusinessEventLocalApplyValue> | undefined;
     try {
       transition = buildCentralBusinessEventAppDataTransition({
         data: workingData,
@@ -1471,8 +1561,7 @@ export async function adoptCentralBusinessEventsFromServerIntoAppData(
         const pageBaseline = expected;
         const workingVersions = { ...state.entityVersions };
         let locallyApplied = 0;
-        let lastAppliedValue: CentralBusinessEventLocalApplyValue | null =
-          null;
+        let lastAppliedValue: CentralBusinessEventLocalApplyValue | null = null;
         const page = await applyCentralBusinessEventPage({
           ownerScope: input.ownerScope,
           events: pulled.events,
@@ -1488,8 +1577,7 @@ export async function adoptCentralBusinessEventsFromServerIntoAppData(
                 data: workingData,
                 event,
                 knownVersion:
-                  workingVersions[key] ??
-                  initialServerAdoptionVersion(event),
+                  workingVersions[key] ?? initialServerAdoptionVersion(event),
               });
             } catch (error) {
               localFailure.current =

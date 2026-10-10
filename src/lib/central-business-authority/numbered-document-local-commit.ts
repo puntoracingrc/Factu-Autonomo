@@ -6,14 +6,13 @@ import {
 } from "@/lib/numbering";
 import type { AppData, Document, DocumentKind } from "@/lib/types";
 
-import type {
-  CentralBusinessNumberedDocumentCreateBrowserResult,
-} from "./numbered-document-client";
+import type { CentralBusinessNumberedDocumentCreateBrowserResult } from "./numbered-document-client";
 import {
   centralBusinessReceiptServerPayload,
   materializeCentralBusinessReceipt,
 } from "./central-receipt-materialization";
 import { parseCentralBusinessDocumentPayload } from "./payload-parsers";
+import { isSharedDocumentDraft } from "./shared-document-drafts";
 
 export type CentralBusinessNumberedDocumentLocalCommitErrorCode =
   | "INVALID_CONFIRMATION"
@@ -68,8 +67,7 @@ function assertConfirmation(
   confirmation: CentralBusinessNumberedDocumentCreateBrowserResult,
 ): Document {
   const payload = confirmation.documentPayload;
-  const entityId =
-    payload && typeof payload.id === "string" ? payload.id : "";
+  const entityId = payload && typeof payload.id === "string" ? payload.id : "";
   const document = parseCentralBusinessDocumentPayload(
     payload,
     entityId,
@@ -100,8 +98,7 @@ function assertConfirmation(
     !Number.isNaN(parsedDate.valueOf()) &&
     parsedDate.toISOString().slice(0, 10) === document.date;
   if (
-    confirmation.schema !==
-      "CENTRAL_BUSINESS_NUMBERED_DOCUMENT_CLIENT_V1" ||
+    confirmation.schema !== "CENTRAL_BUSINESS_NUMBERED_DOCUMENT_CLIENT_V1" ||
     confirmation.action !== "create" ||
     (confirmation.status !== "committed" &&
       confirmation.status !== "replayed") ||
@@ -144,7 +141,12 @@ export function buildCentralBusinessNumberedDocumentLocalCommit(
       "La identidad central aparece mas de una vez en este dispositivo.",
     );
   }
-  if (sameId.length === 1) {
+  const promotingDraft =
+    sameId.length === 1 &&
+    entityType === "receipt" &&
+    Boolean(document.centralBusinessReceiptAuthority?.manualContext) &&
+    isSharedDocumentDraft(sameId[0]);
+  if (sameId.length === 1 && !promotingDraft) {
     const comparableExisting =
       entityType === "receipt"
         ? centralBusinessReceiptServerPayload(sameId[0])

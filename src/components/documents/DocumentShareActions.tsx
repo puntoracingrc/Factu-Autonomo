@@ -5,6 +5,7 @@ import { LoaderCircle, Mail, MessageCircle } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useCentralProfileMutation } from "@/hooks/useCentralProfileMutation";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -90,7 +91,8 @@ export function DocumentShareActions({
   variant = "icons",
   onActionInvoked,
 }: DocumentShareActionsProps) {
-  const { data, issueDocument, markDocumentSent } = useAppStore();
+  const { data, issueDocument } = useAppStore();
+  const { markSent: markDocumentSent } = useCentralSharedBusinessMutations();
   const { updateProfile } = useCentralProfileMutation();
   const { user, emailConfirmed } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();

@@ -52,6 +52,14 @@ export interface DocumentCentralBusinessReceiptAuthorityV1 {
   schemaVersion: 1;
   source: "central_business_authority";
   issuedAt: string;
+  /** Marca operativa de envío; no pertenece al snapshot fiscal del recibo. */
+  sentAt?: string;
+  /** Contexto mínimo congelado de un recibo manual, sin IRPF ni ajustes de cuenta. */
+  manualContext?: {
+    iva: BusinessProfile["iva"];
+    vatExempt?: boolean;
+    template: DocumentTemplateSettings;
+  };
 }
 
 export interface CentralInvoiceAuthorityEventsCursorV1 {
@@ -60,9 +68,7 @@ export interface CentralInvoiceAuthorityEventsCursorV1 {
 }
 
 export type CentralInvoiceAuthorityEventsSyncLastStatusV1 =
-  | "ok"
-  | "conflict"
-  | "error";
+  "ok" | "conflict" | "error";
 
 export interface CentralInvoiceAuthorityEventsSyncLastResultV1 {
   schemaVersion: 1;
@@ -259,6 +265,8 @@ export interface Document {
   documentSnapshot?: DocumentSnapshot;
   /** Identidad operativa emitida por la autoridad central. No forma parte del snapshot fiscal. */
   centralInvoiceAuthority?: DocumentCentralInvoiceAuthorityLinkV1;
+  /** CAS del borrador compartido; metadato operativo, nunca parte del snapshot/PDF. */
+  centralBusinessDraftVersion?: number;
   /** Contrato de materializacion local de un recibo numerado por el servidor. */
   centralBusinessReceiptAuthority?: DocumentCentralBusinessReceiptAuthorityV1;
   /**

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { UserReminderRow } from "@/components/reminders/UserReminderRow";
 import { useAppStore } from "@/context/AppStore";
+import { useCentralUserReminders } from "@/hooks/useCentralUserReminders";
 import {
   countUnseenOfficeReminders,
   markRemindersSeen,
@@ -17,7 +18,28 @@ import {
 const HOME_REMINDER_LIMIT = 5;
 
 export function HomeUserReminders() {
-  const { data, completeUserReminder } = useAppStore();
+  const { data } = useAppStore();
+  const { setReminderCompleted } = useCentralUserReminders();
+  const busyRef = useRef(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function complete(id: string) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusyId(id);
+    setError(null);
+    try {
+      const result = await setReminderCompleted(id, true);
+      if (result.ok) markRemindersSeen();
+      else setError(result.error);
+    } catch {
+      setError("No se pudo confirmar el recordatorio. Vuelve a intentarlo.");
+    } finally {
+      busyRef.current = false;
+      setBusyId(null);
+    }
+  }
 
   const pending = useMemo(
     () => pendingUserReminders(data.userReminders),
@@ -47,7 +69,10 @@ export function HomeUserReminders() {
     <section className="mb-6" aria-labelledby="home-reminders-heading">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <h2 id="home-reminders-heading" className="text-lg font-bold text-slate-900">
+          <h2
+            id="home-reminders-heading"
+            className="text-lg font-bold text-slate-900"
+          >
             Recordatorios del equipo
           </h2>
           {unseenOffice > 0 ? (
@@ -77,14 +102,19 @@ export function HomeUserReminders() {
               reminder={item}
               href={resolveReminderHref(data, item.link)}
               onComplete={() => {
-                completeUserReminder(item.id);
-                markRemindersSeen();
+                void complete(item.id);
               }}
+              busy={busyId !== null}
               compact
             />
           </li>
         ))}
       </ul>
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
       {hiddenCount > 0 ? (
         <Link

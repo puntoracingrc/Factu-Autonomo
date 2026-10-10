@@ -5,13 +5,25 @@ const form = readFileSync("src/components/forms/RectificativaForm.tsx", "utf8");
 
 function saveBranch(): string {
   const start = form.indexOf("const payload = buildRectificativaPayload");
-  const end = form.indexOf("if (isDraft)", start);
+  const end = form.indexOf("if (!saved)", start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return form.slice(start, end);
 }
 
 describe("RectificativaForm central authority canary wiring", () => {
+  it("comparte el borrador guardado sin emitir ni consumir numeracion", () => {
+    const branch = saveBranch();
+    const draftStart = branch.indexOf("if (isDraft)");
+    const draftEnd = branch.indexOf("} else {", draftStart);
+    const draftBranch = branch.slice(draftStart, draftEnd);
+    expect(draftBranch).toContain("await saveDraft({");
+    expect(draftBranch).toContain('number: "BORRADOR"');
+    expect(draftBranch).not.toContain(
+      "issueCentralInvoiceAuthorityFromBrowser",
+    );
+    expect(draftBranch).not.toContain("addRectificativa(");
+  });
   it("importa el puente canary y expone la escritura central del store", () => {
     expect(form).toContain(
       "buildCentralInvoiceAuthorityRectificationFormIssueRequest",

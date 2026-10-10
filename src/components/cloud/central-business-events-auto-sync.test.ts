@@ -75,5 +75,12 @@ describe("central business events auto sync wiring", () => {
     expect(component).toContain("pendingWakeRef.current = true");
     expect(component).toContain("centralAuthorityRealtimeStateFromStatus");
     expect(component).toContain("jitterFraction: Math.random()");
+    expect(component).toContain("auxiliaryRefreshRef.current = true");
+    expect(component).toContain(
+      "lastAuxiliaryReadRef.current.ownerScope !== latest.userId",
+    );
+    expect(component).toContain(
+      "Date.now() - lastAuxiliaryReadRef.current.at >= 30_000",
+    );
   });
 });

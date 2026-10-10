@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { expenseInboxItemVatView } from "@/components/expenses/expense-vat-ui";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useWorkspaceStorage } from "@/context/WorkspaceStorageContext";
+import { EXPENSE_INBOX_REFRESH_EVENT } from "@/lib/central-business-authority/auxiliary-wakeups";
 import { useBilling } from "@/context/BillingContext";
 import { formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -61,6 +63,11 @@ export function ExpenseInboxCard({
   vatExempt?: boolean;
 }) {
   const { user } = useCloudSync();
+  const { ownerScope } = useWorkspaceStorage();
+  const ownerRef = useRef(ownerScope);
+  ownerRef.current = ownerScope;
+  const flightRef = useRef(false);
+  const refreshPendingRef = useRef(false);
   const { checkoutScanPack } = useBilling();
   const [address, setAddress] = useState("");
   const [items, setItems] = useState<ExpenseInboxItem[]>([]);
@@ -80,6 +87,10 @@ export function ExpenseInboxCard({
   const [error, setError] = useState<string | null>(null);
 
   const loadInbox = useCallback(async () => {
+    if (flightRef.current) {
+      refreshPendingRef.current = true;
+      return;
+    }
     if (!user) {
       setAddress("");
       setItems([]);
@@ -91,14 +102,18 @@ export function ExpenseInboxCard({
       return;
     }
 
+    flightRef.current = true;
+    const capturedOwner = ownerScope;
     setLoading(true);
     setUsageLoading(true);
     setError(null);
     try {
       const headers = await currentAuthHeaders();
       const [response, usageResponse] = await Promise.all([
-        fetch("/api/expense-inbox", { headers }),
-        fetch("/api/billing/ai-usage", { headers }).catch(() => null),
+        fetch("/api/expense-inbox", { headers, cache: "no-store" }),
+        fetch("/api/billing/ai-usage", { headers, cache: "no-store" }).catch(
+          () => null,
+        ),
       ]);
       const body = (await response
         .json()
@@ -108,12 +123,13 @@ export function ExpenseInboxCard({
           ? ((await usageResponse.json().catch(() => ({}))) as AiUsageResponse)
           : null;
       const meter = usageBody?.meter;
+      if (ownerRef.current !== capturedOwner) return;
       setUsageLabel(
         meter?.mode === "unlimited"
           ? "IA sin límite"
           : typeof meter?.percentRemaining === "number"
             ? `IA ${meter.percentRemaining}% restante`
-          : null,
+            : null,
       );
       setUsageMode(meter?.mode ?? null);
 
@@ -128,16 +144,53 @@ export function ExpenseInboxCard({
       setCopyRecipient(body.copyRecipient ?? null);
       setDeliveryStatus(body.deliveryStatus ?? null);
     } catch {
-      setError("No se pudo cargar el buzón.");
+      if (ownerRef.current === capturedOwner)
+        setError("No se pudo cargar el buzón.");
     } finally {
+      flightRef.current = false;
       setLoading(false);
       setUsageLoading(false);
+      if (refreshPendingRef.current || ownerRef.current !== capturedOwner) {
+        refreshPendingRef.current = false;
+        window.dispatchEvent(
+          new CustomEvent(EXPENSE_INBOX_REFRESH_EVENT, {
+            detail: { ownerScope: ownerRef.current },
+          }),
+        );
+      }
     }
-  }, [user]);
+  }, [user, ownerScope]);
 
   useEffect(() => {
+    setAddress("");
+    setItems([]);
+    setPendingCount(0);
+    setCopyRecipient(null);
+    setDeliveryStatus(null);
+    setUsageLabel(null);
+    setUsageMode(null);
     void loadInbox();
   }, [loadInbox]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = (event: Event) => {
+      if (
+        (event as CustomEvent<{ ownerScope: string }>).detail?.ownerScope !==
+        ownerScope
+      )
+        return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        void loadInbox();
+      }, 250);
+    };
+    window.addEventListener(EXPENSE_INBOX_REFRESH_EVENT, refresh);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener(EXPENSE_INBOX_REFRESH_EVENT, refresh);
+    };
+  }, [loadInbox, ownerScope]);
 
   async function copyAddress() {
     if (!address) return;

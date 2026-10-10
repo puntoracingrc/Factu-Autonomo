@@ -58,9 +58,9 @@ describe("central customer create canary wiring", () => {
     expect(hook).toContain("No se ha cambiado ninguna ficha");
     expect(mutationHook).toContain("No se ha cambiado ninguna ficha");
     expect(mutationHook).toMatch(/catch \{\s+return true;\s+\}/u);
-    expect(customersPage).toContain(
-      "await includesCentralCustomer(selectedIds)",
-    );
+    expect(customersPage).toContain("useCentralSharedBusinessMutations");
+    expect(customersPage).toContain("await mergeCentrally(keep, remove, options)");
+    expect(customersPage).toContain("if (mergeBusy.current) return false");
   });
 
   it("no depende de la copia completa pausada para resolver usuario central", () => {

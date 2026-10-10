@@ -214,7 +214,8 @@ contratos UI de Afiliados y promociones.
 
 Contrato: [ADR-0010](ADR-0010-central-invoice-authority.md).
 
-- Borradores pueden seguir siendo locales, pero la identidad definitiva de una
+- Borradores sin guardar pueden seguir siendo locales; los guardados se comparten
+  por empresa según ADR-0011 V32. La identidad definitiva de una
   factura o rectificativa emitida la asigna exclusivamente el servidor.
 - Número, identidad, documento congelado, versión, auditoría y evento de salida
   se confirman en una transacción PostgreSQL protegida por idempotencia,
@@ -248,6 +249,9 @@ Contrato: [ADR-0011](ADR-0011-central-business-authority.md).
   pendiente y sin número definitivo. No se muestra como emitido ni afecta a
   contabilidad; al reintentar tras recuperar conexión, el servidor asigna el
   número y solo la confirmación central materializa el documento creado.
+- Guardar un borrador en una empresa central exige confirmación del servidor.
+  Editarlo usa CAS; emitirlo retira su proyección operativa de forma atómica.
+  El borrador y su versión interna nunca afectan al snapshot fiscal ni al PDF.
 - Una respuesta ambigua puede conservar únicamente un sobre técnico con la
   identidad idempotente necesaria para comprobar o repetir la misma petición;
   nunca se proyecta como dato local confirmado. Un conflicto de versión no

@@ -6,6 +6,11 @@ import { useAppStore } from "@/context/AppStore";
 import { useCentralAuthorityPlanGate } from "@/hooks/useCentralAuthorityPlanGate";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
+  CENTRAL_AUXILIARY_WAKEUP_EVENT,
+  EXPENSE_INBOX_REFRESH_EVENT,
+  auxiliaryWakeupKind,
+} from "@/lib/central-business-authority/auxiliary-wakeups";
+import {
   centralAuthorityRealtimeStateFromStatus,
   type CentralAuthorityRealtimeState,
 } from "@/lib/central-authority/sync-schedule";
@@ -28,10 +33,14 @@ type LatestState = {
   ready: boolean;
   userId: string | null;
   sync: ReturnType<typeof useAppStore>["syncCentralBusinessEvents"];
+  syncFiscal: ReturnType<
+    typeof useAppStore
+  >["syncFiscalNotificationsWorkspace"];
 };
 
 export function CentralBusinessAuthorityEventsAutoSync() {
-  const { ready, syncCentralBusinessEvents } = useAppStore();
+  const { ready, syncCentralBusinessEvents, syncFiscalNotificationsWorkspace } =
+    useAppStore();
   const planGate = useCentralAuthorityPlanGate();
   const userId = planGate.centralUserId;
   const enabled =
@@ -41,6 +50,8 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     isCentralBusinessEventsRealtimeWakeupsEnabledForUser(userId);
   const runningRef = useRef(false);
   const pendingWakeRef = useRef(false);
+  const auxiliaryRefreshRef = useRef(true);
+  const lastAuxiliaryReadRef = useRef({ ownerScope: userId, at: 0 });
   const timerRef = useRef<number | null>(null);
   const realtimeStateRef = useRef<CentralAuthorityRealtimeState>("disabled");
   const realtimeWakeRef = useRef<() => void>(() => {});
@@ -48,6 +59,7 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     ready,
     userId,
     sync: syncCentralBusinessEvents,
+    syncFiscal: syncFiscalNotificationsWorkspace,
   });
 
   useEffect(() => {
@@ -55,8 +67,14 @@ export function CentralBusinessAuthorityEventsAutoSync() {
       ready,
       userId,
       sync: syncCentralBusinessEvents,
+      syncFiscal: syncFiscalNotificationsWorkspace,
     };
-  }, [ready, syncCentralBusinessEvents, userId]);
+  }, [
+    ready,
+    syncCentralBusinessEvents,
+    syncFiscalNotificationsWorkspace,
+    userId,
+  ]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -95,6 +113,30 @@ export function CentralBusinessAuthorityEventsAutoSync() {
         const result = await latest.sync(latest.userId, {
           limit: CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
         });
+        // Recover lost signals without downloading the full auxiliary workspace
+        // on every unrelated customer, product or expense event.
+        if (
+          !cancelled &&
+          latestRef.current.userId === latest.userId &&
+          result.ok &&
+          !result.hasMore &&
+          (auxiliaryRefreshRef.current ||
+            lastAuxiliaryReadRef.current.ownerScope !== latest.userId ||
+            Date.now() - lastAuxiliaryReadRef.current.at >= 30_000)
+        ) {
+          auxiliaryRefreshRef.current = false;
+          lastAuxiliaryReadRef.current = {
+            ownerScope: latest.userId,
+            at: Date.now(),
+          };
+          await latest.syncFiscal(latest.userId);
+          if (cancelled || latestRef.current.userId !== latest.userId) return;
+          window.dispatchEvent(
+            new CustomEvent(EXPENSE_INBOX_REFRESH_EVENT, {
+              detail: { ownerScope: latest.userId },
+            }),
+          );
+        }
         schedule(
           nextCentralBusinessEventsAutoSyncDelay(result, {
             realtimeState: realtimeStateRef.current,
@@ -178,6 +220,24 @@ export function CentralBusinessAuthorityEventsAutoSync() {
             { event: CENTRAL_BUSINESS_EVENTS_REALTIME_WAKEUP_EVENT },
             () => {
               realtimeWakeRef.current();
+            },
+          )
+          .on(
+            "broadcast",
+            { event: CENTRAL_AUXILIARY_WAKEUP_EVENT },
+            (message) => {
+              if (cancelled || latestRef.current.userId !== userId) return;
+              const kind = auxiliaryWakeupKind(message);
+              if (kind === "fiscal_notifications") {
+                auxiliaryRefreshRef.current = true;
+                realtimeWakeRef.current();
+              }
+              if (kind === "expense_inbox")
+                window.dispatchEvent(
+                  new CustomEvent(EXPENSE_INBOX_REFRESH_EVENT, {
+                    detail: { ownerScope: userId },
+                  }),
+                );
             },
           )
           .subscribe((status) => {

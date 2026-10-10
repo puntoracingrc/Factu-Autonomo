@@ -1,8 +1,45 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 31
+- Version: 32
 - Fecha: 2026-10-10
+
+## Cambio V32: cobertura de escrituras compartidas y borradores guardados
+
+El propietario solicita sincronización en tiempo real de todos los datos de
+empresa y autoriza expresamente compartir los borradores guardados con los
+otros dispositivos y administradores. Escribir sin guardar sigue siendo privado
+de la pantalla y no crea una operación contable ni una emisión.
+
+- Edición/borrado de presupuestos, marcas de envío y recordatorios del panel
+  usan comandos centrales, CAS y commit durable después de confirmar servidor.
+- La fusión de clientes/proveedores publica un único lote atómico, incluyendo
+  sus referencias operativas, gastos, productos y avisos afectados. No cambia
+  snapshots, PDF o sellos de facturas existentes. NIF distintos siguen prohibidos.
+  Más de 100 entidades se rechazan antes de escribir, nunca se parten en lotes
+  que puedan quedar a medias.
+- La edición y retirada de proveedores también confirman sus gastos y productos
+  relacionados en el mismo lote. Se cubren ambas referencias de proveedor del
+  producto (principal y compra), preservando costes, importes e historia.
+- `document_draft` contiene exclusivamente borradores guardados de factura y
+  recibo, sin evidencia fiscal, con número `BORRADOR` y sin consumir series.
+  Solo Guardar puede adoptar un borrador antiguo aún local; no se publican
+  automáticamente. Duplicar y convertir presupuestos usan este mismo flujo.
+- `centralBusinessDraftVersion` es metadato operativo de CAS, no parte del
+  snapshot ni del PDF. Emitir comprueba esa versión y retira el borrador en la
+  misma transacción. Una edición concurrente aborta toda la emisión y no gasta
+  un número. Eventos tardíos de borrador nunca borran ni degradan una factura emitida.
+- Recibos manuales usan asignación central y conservan el emisor, IVA y plantilla
+  originales en su contrato de materialización, sin copiar IRPF ni preferencias
+  privadas. Su entrega es un overlay que no cambia el contenido sellado.
+- El buzón y notificaciones fiscales despiertan por Broadcast privado del mismo
+  owner scope. Solo se transmite `kind`, nunca contenido ni PII; se relee mediante
+  APIs autorizadas. Reconexión y sondeo de seguridad recuperan avisos perdidos.
+  Las lecturas auxiliares de seguridad se limitan a una cada 30 segundos;
+  una invalidación real o cambio de empresa fuerza lectura sin esperar.
+- Un tombstone proyectado puede ser la primera versión de un dispositivo nuevo,
+  incluso mayor que uno. Se verifica hash y seguridad local antes de avanzar el
+  cursor. No permite resurrección ni aceptar un upsert con versiones omitidas.
 
 ## Cambio V31: aceptación y rechazo de presupuestos sincronizados
 
