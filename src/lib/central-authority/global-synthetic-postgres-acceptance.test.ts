@@ -1355,7 +1355,7 @@ describeAcceptance(
         for (const device of company.devices)
           await syncBusinessDevice(company, device);
         await company.signedIn.realtime.setAuth();
-        const received: Array<{ payload?: { event_sequence?: unknown } }> = [];
+        const received: Array<Record<string, unknown>> = [];
         const channel = company.signedIn
           .channel(`central-business:${company.userId}`, {
             config: { private: true },
@@ -1383,6 +1383,41 @@ describeAcceptance(
               }
             });
           });
+          // A fresh local Realtime tenant starts its logical replication after
+          // the first channel joins. Prove delivery before mutating a document,
+          // so the acceptance assertion does not race the test server startup.
+          await expect
+            .poll(
+              () => {
+                const ready = received.some((message) => {
+                  const payload = message.payload;
+                  return (
+                    typeof payload === "object" &&
+                    payload !== null &&
+                    "synthetic_probe" in payload &&
+                    payload.synthetic_probe === true
+                  );
+                });
+                if (!ready)
+                  execFileSync(
+                    "psql",
+                    [
+                      databaseUrl,
+                      "-XAt",
+                      "-v",
+                      "ON_ERROR_STOP=1",
+                      "-c",
+                      `
+              select realtime.send('{"synthetic_probe":true}'::jsonb, 'central_business_changed', 'central-business:${company.userId}', true);
+            `,
+                    ],
+                    { stdio: "pipe" },
+                  );
+                return ready;
+              },
+              { timeout: 10_000 },
+            )
+            .toBe(true);
           for (const [index, action] of (
             ["accept", "unaccept"] as const
           ).entries()) {
@@ -1411,11 +1446,16 @@ describeAcceptance(
               await expect
                 .poll(
                   () =>
-                    received.some(
-                      (message) =>
-                        Number(message.payload?.event_sequence) ===
-                        Number(confirmed.event_sequence),
-                    ),
+                    received.some((message) => {
+                      const payload = message.payload;
+                      return (
+                        typeof payload === "object" &&
+                        payload !== null &&
+                        "event_sequence" in payload &&
+                        Number(payload.event_sequence) ===
+                          Number(confirmed.event_sequence)
+                      );
+                    }),
                   { timeout: 10_000 },
                 )
                 .toBe(true);
