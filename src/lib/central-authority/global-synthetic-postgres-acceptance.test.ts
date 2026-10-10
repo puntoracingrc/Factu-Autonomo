@@ -15,6 +15,7 @@ import {
 } from "@/lib/central-business-authority/events-app-data-sync";
 import { listCentralBusinessEventsThroughRpc } from "@/lib/central-business-authority/events-rpc-adapter";
 import type { CentralBusinessEntityVersion } from "@/lib/central-business-authority/durable-queue";
+import { prepareQuoteWorkflowTransition } from "@/lib/central-business-authority/quote-workflow-mutation";
 import { applyCentralInvoiceAuthorityPulledEventsToDocuments } from "@/lib/central-invoice-authority/events-local-apply";
 import type {
   CentralInvoiceAuthorityEventsCursor,
@@ -371,8 +372,9 @@ async function createNumberedBusinessDocument(input: {
   entityId: string;
   template: string;
   payload: Record<string, unknown>;
+  operation?: string;
 }) {
-  const key = `${input.company.tag}-${input.entityType}-create`;
+  const key = `${input.company.tag}-${input.entityType}-${input.operation ?? "create"}`;
   const { data, error } = await admin.rpc(
     "create_central_business_document_v1",
     {
@@ -1328,5 +1330,187 @@ describeAcceptance(
         ).toBe(true);
       }
     });
+
+    it("broadcasts quote acceptance and unacceptance and applies them on both devices without crossing companies", async () => {
+      for (const company of companies) {
+        const quoteId = `${company.tag}-workflow-quote`;
+        await createNumberedBusinessDocument({
+          company,
+          entityType: "quote",
+          entityId: quoteId,
+          template: `P-SYN-${scope}-{year}-{num}`,
+          operation: "workflow-create",
+          payload: {
+            id: quoteId,
+            type: "presupuesto",
+            date: "2026-08-10",
+            status: "enviado",
+            acceptanceStatus: "pending",
+            client: { name: "Synthetic workflow client" },
+            items: [],
+            createdAt: issuedAt,
+            updatedAt: issuedAt,
+          },
+        });
+        for (const device of company.devices)
+          await syncBusinessDevice(company, device);
+        await company.signedIn.realtime.setAuth();
+        const received: Array<Record<string, unknown>> = [];
+        const channel = company.signedIn
+          .channel(`central-business:${company.userId}`, {
+            config: { private: true },
+          })
+          .on("broadcast", { event: "central_business_changed" }, (message) => {
+            received.push(message);
+          });
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(
+              () =>
+                reject(
+                  new Error("Synthetic quote Realtime subscription timed out"),
+                ),
+              10_000,
+            );
+            channel.subscribe((status) => {
+              if (status === "SUBSCRIBED") {
+                clearTimeout(timeout);
+                resolve();
+              }
+              if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                clearTimeout(timeout);
+                reject(new Error(`Synthetic quote channel: ${status}`));
+              }
+            });
+          });
+          // A fresh local Realtime tenant starts its logical replication after
+          // the first channel joins. Prove delivery before mutating a document,
+          // so the acceptance assertion does not race the test server startup.
+          await expect
+            .poll(
+              () => {
+                const ready = received.some((message) => {
+                  const payload = message.payload;
+                  return (
+                    typeof payload === "object" &&
+                    payload !== null &&
+                    "synthetic_probe" in payload &&
+                    payload.synthetic_probe === true
+                  );
+                });
+                if (!ready)
+                  execFileSync(
+                    "psql",
+                    [
+                      databaseUrl,
+                      "-XAt",
+                      "-v",
+                      "ON_ERROR_STOP=1",
+                      "-c",
+                      `
+              select realtime.send('{"synthetic_probe":true}'::jsonb, 'central_business_changed', 'central-business:${company.userId}', true);
+            `,
+                    ],
+                    { stdio: "pipe" },
+                  );
+                return ready;
+              },
+              { timeout: 10_000 },
+            )
+            .toBe(true);
+          for (const [index, action] of (
+            ["accept", "unaccept"] as const
+          ).entries()) {
+            const prepared = prepareQuoteWorkflowTransition(
+              company.devices[0].data,
+              quoteId,
+              action,
+              paidAt,
+            );
+            expect(prepared.ok).toBe(true);
+            if (!prepared.ok) throw new Error(prepared.error);
+            const confirmed = await mutateEntity({
+              company,
+              entityType: "quote",
+              entityId: quoteId,
+              expectedVersion: index + 1,
+              payload: prepared.payload,
+              operation: `workflow-${action}`,
+            });
+            expect(confirmed).toMatchObject({
+              result_status: "committed",
+              entity_version: index + 2,
+            });
+            expect(Number(confirmed.event_sequence)).toBeGreaterThan(0);
+            try {
+              await expect
+                .poll(
+                  () =>
+                    received.some((message) => {
+                      const payload = message.payload;
+                      return (
+                        typeof payload === "object" &&
+                        payload !== null &&
+                        "event_sequence" in payload &&
+                        Number(payload.event_sequence) ===
+                          Number(confirmed.event_sequence)
+                      );
+                    }),
+                  { timeout: 10_000 },
+                )
+                .toBe(true);
+            } catch (error) {
+              const diagnostics = execFileSync(
+                "psql",
+                [
+                  databaseUrl,
+                  "-XAt",
+                  "-v",
+                  "ON_ERROR_STOP=1",
+                  "-c",
+                  `
+                select jsonb_build_object(
+                  'broadcast_trigger', (select tgenabled from pg_trigger where tgname = 'central_business_outbox_broadcast_wakeup_ai_v1'),
+                  'queued_messages', (select jsonb_agg(jsonb_build_object('event', event, 'private', private, 'payload', payload)) from realtime.messages where topic = 'central-business:${company.userId}'),
+                  'replication_slots', (select jsonb_agg(jsonb_build_object('name', slot_name, 'active', active)) from pg_replication_slots)
+                );
+              `,
+                ],
+                { encoding: "utf8" },
+              );
+              throw new Error(
+                `Synthetic quote Broadcast missing: ${JSON.stringify({ confirmed, received })}; database: ${diagnostics}`,
+                { cause: error },
+              );
+            }
+            for (const device of company.devices) {
+              await syncBusinessDevice(company, device);
+              const updated = device.data.documents.find(
+                (document) => document.id === quoteId,
+              );
+              expect(updated).toMatchObject({
+                status: action === "accept" ? "aceptado" : "enviado",
+                acceptanceStatus: action === "accept" ? "accepted" : "pending",
+              });
+              expect(updated?.number).toBe(prepared.transition.value.number);
+            }
+            for (const other of companies.filter(
+              (candidate) => candidate !== company,
+            )) {
+              for (const device of other.devices) {
+                await syncBusinessDevice(other, device);
+                expect(
+                  device.data.documents.some(
+                    (document) => document.id === quoteId,
+                  ),
+                ).toBe(false);
+              }
+            }
+          }
+        } finally {
+          await company.signedIn.removeChannel(channel);
+        }
+      }
+    }, 60_000);
   },
 );
