@@ -50,6 +50,8 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     isCentralBusinessEventsRealtimeWakeupsEnabledForUser(userId);
   const runningRef = useRef(false);
   const pendingWakeRef = useRef(false);
+  const auxiliaryRefreshRef = useRef(true);
+  const lastAuxiliaryReadRef = useRef({ ownerScope: userId, at: 0 });
   const timerRef = useRef<number | null>(null);
   const realtimeStateRef = useRef<CentralAuthorityRealtimeState>("disabled");
   const realtimeWakeRef = useRef<() => void>(() => {});
@@ -111,14 +113,24 @@ export function CentralBusinessAuthorityEventsAutoSync() {
         const result = await latest.sync(latest.userId, {
           limit: CENTRAL_BUSINESS_EVENTS_AUTO_SYNC_LIMIT,
         });
-        // Reconnect/safety polling also catches a lost auxiliary wake-up.
+        // Recover lost signals without downloading the full auxiliary workspace
+        // on every unrelated customer, product or expense event.
         if (
           !cancelled &&
           latestRef.current.userId === latest.userId &&
           result.ok &&
-          !result.hasMore
+          !result.hasMore &&
+          (auxiliaryRefreshRef.current ||
+            lastAuxiliaryReadRef.current.ownerScope !== latest.userId ||
+            Date.now() - lastAuxiliaryReadRef.current.at >= 30_000)
         ) {
+          auxiliaryRefreshRef.current = false;
+          lastAuxiliaryReadRef.current = {
+            ownerScope: latest.userId,
+            at: Date.now(),
+          };
           await latest.syncFiscal(latest.userId);
+          if (cancelled || latestRef.current.userId !== latest.userId) return;
           window.dispatchEvent(
             new CustomEvent(EXPENSE_INBOX_REFRESH_EVENT, {
               detail: { ownerScope: latest.userId },
@@ -216,7 +228,10 @@ export function CentralBusinessAuthorityEventsAutoSync() {
             (message) => {
               if (cancelled || latestRef.current.userId !== userId) return;
               const kind = auxiliaryWakeupKind(message);
-              if (kind === "fiscal_notifications") realtimeWakeRef.current();
+              if (kind === "fiscal_notifications") {
+                auxiliaryRefreshRef.current = true;
+                realtimeWakeRef.current();
+              }
               if (kind === "expense_inbox")
                 window.dispatchEvent(
                   new CustomEvent(EXPENSE_INBOX_REFRESH_EVENT, {

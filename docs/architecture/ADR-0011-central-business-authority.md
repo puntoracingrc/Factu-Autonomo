@@ -35,6 +35,8 @@ de la pantalla y no crea una operación contable ni una emisión.
 - El buzón y notificaciones fiscales despiertan por Broadcast privado del mismo
   owner scope. Solo se transmite `kind`, nunca contenido ni PII; se relee mediante
   APIs autorizadas. Reconexión y sondeo de seguridad recuperan avisos perdidos.
+  Las lecturas auxiliares de seguridad se limitan a una cada 30 segundos;
+  una invalidación real o cambio de empresa fuerza lectura sin esperar.
 - Un tombstone proyectado puede ser la primera versión de un dispositivo nuevo,
   incluso mayor que uno. Se verifica hash y seguridad local antes de avanzar el
   cursor. No permite resurrección ni aceptar un upsert con versiones omitidas.
