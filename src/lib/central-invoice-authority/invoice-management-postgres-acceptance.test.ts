@@ -29,6 +29,25 @@ let owner = "";
 let other = "";
 let dbUrl = "";
 let seq = 0;
+function mutateBusinessBatch(...commands: Record<string, unknown>[]) {
+  const first = commands[0];
+  return admin.rpc("mutate_central_business_batch_v1", {
+    p_user_id: first.p_user_id,
+    p_device_id: first.p_device_id,
+    p_session_hash: first.p_session_hash,
+    p_operations: commands.map((command, operationIndex) => ({
+      operationIndex,
+      idempotencyKeyHash: command.p_idempotency_key_hash,
+      requestHash: command.p_request_hash,
+      operationKind: command.p_operation_kind,
+      entityType: command.p_entity_type,
+      entityId: command.p_entity_id,
+      expectedVersion: command.p_expected_version,
+      payload: command.p_payload,
+      contentHash: command.p_content_hash,
+    })),
+  });
+}
 async function issue(
   userId: string,
   series = "SYN-2026",
@@ -501,6 +520,135 @@ acceptance(
           content_hash: deletion.p_content_hash,
         });
     });
+    it("edits and deletes quotes through the atomic RPC and rolls back a mixed stale batch", async () => {
+      const id = randomUUID();
+      const hash = createHash("sha256").update(id).digest("hex");
+      const template = "QUOTE-BATCH-SYN-{year}-{num}";
+      const context = {
+        p_user_id: owner,
+        p_device_id: "synthetic-device",
+        p_session_hash: "synthetic-session",
+      };
+      expect(
+        (
+          await admin.rpc("reconcile_central_business_document_series_v1", {
+            ...context,
+            p_idempotency_key_hash: hash,
+            p_request_hash: hash,
+            p_entity_type: "quote",
+            p_number_template: template,
+            p_fiscal_year: 2026,
+            p_observed_max_sequence: 0,
+            p_source_document_count: 0,
+            p_source_digest: `sha256:${hash}`,
+          })
+        ).error,
+      ).toBeNull();
+      expect(
+        (
+          await admin.rpc("create_central_business_document_v1", {
+            ...context,
+            p_idempotency_key_hash: hash,
+            p_request_hash: hash,
+            p_entity_type: "quote",
+            p_entity_id: id,
+            p_number_template: template,
+            p_padding: 4,
+            p_fiscal_year: 2026,
+            p_payload_without_number: {
+              id,
+              type: "presupuesto",
+              status: "enviado",
+              date: "2026-10-07",
+              client: { name: "Cliente sintético" },
+              items: [],
+              createdAt: now,
+              updatedAt: now,
+            },
+          })
+        ).error,
+      ).toBeNull();
+      const stored = await admin
+        .from("central_business_entities")
+        .select("current_payload")
+        .eq("user_id", owner)
+        .eq("entity_type", "quote")
+        .eq("entity_id", id)
+        .single();
+      expect(stored.error).toBeNull();
+      const command = {
+        ...context,
+        p_idempotency_key_hash: `edit:${hash}`,
+        p_request_hash: `edit:${hash}`,
+        p_entity_type: "quote",
+        p_entity_id: id,
+        p_expected_version: 1,
+        p_operation_kind: "upsert",
+        p_payload: {
+          ...stored.data!.current_payload,
+          notes: "Edición compartida",
+        },
+        p_content_hash: hash,
+      };
+      const edited = await mutateBusinessBatch(command);
+      expect(edited.error).toBeNull();
+      expect(edited.data[0]).toMatchObject({
+        result_status: "committed",
+        entity_version: 2,
+      });
+      const draftId = randomUUID();
+      const mixed = await mutateBusinessBatch(
+        {
+          ...command,
+          p_entity_type: "document_draft",
+          p_entity_id: draftId,
+          p_expected_version: 0,
+          p_idempotency_key_hash: `draft:${hash}`,
+          p_request_hash: `draft:${hash}`,
+          p_payload: {
+            id: draftId,
+            type: "factura",
+            status: "borrador",
+            number: "BORRADOR",
+            date: "2026-10-07",
+            client: { name: "Cliente sintético" },
+            items: [],
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+        {
+          ...command,
+          p_idempotency_key_hash: `stale:${hash}`,
+          p_request_hash: `stale:${hash}`,
+          p_payload: { ...command.p_payload, notes: "Cambio obsoleto" },
+          p_content_hash: createHash("sha256").update(`stale:${id}`).digest("hex"),
+        },
+      );
+      expect(mixed.error?.code).toBe("P4103");
+      expect(
+        (
+          await admin
+            .from("central_business_entities")
+            .select("entity_id")
+            .eq("user_id", owner)
+            .eq("entity_id", draftId)
+        ).data,
+      ).toEqual([]);
+      const deleted = await mutateBusinessBatch({
+        ...command,
+        p_expected_version: 2,
+        p_operation_kind: "delete",
+        p_payload: null,
+        p_idempotency_key_hash: `delete:${hash}`,
+        p_request_hash: `delete:${hash}`,
+      });
+      expect(deleted.error).toBeNull();
+      expect(deleted.data[0]).toMatchObject({
+        entity_version: 3,
+        deleted: true,
+      });
+    });
     it("promotes a saved manual receipt and shares its delivery without altering its seal", async () => {
       const id = randomUUID();
       const hash = createHash("sha256").update(id).digest("hex");
@@ -544,9 +692,7 @@ acceptance(
         },
         p_content_hash: hash,
       };
-      expect(
-        (await admin.rpc("mutate_central_business_entity_v1", mutation)).error,
-      ).toBeNull();
+      expect((await mutateBusinessBatch(mutation)).error).toBeNull();
       const template = "MANUAL-SYN-{year}-{num}";
       expect(
         (
@@ -603,7 +749,7 @@ acceptance(
           sentAt: now,
         },
       };
-      const delivery = await admin.rpc("mutate_central_business_entity_v1", {
+      const delivery = await mutateBusinessBatch({
         ...mutation,
         p_entity_type: "receipt",
         p_expected_version: 1,
@@ -654,34 +800,15 @@ acceptance(
         p_payload: { ...payload, notes: note },
         p_content_hash: createHash("sha256").update(note).digest("hex"),
       });
-      const first = await admin.rpc(
-        "mutate_central_business_entity_v1",
-        command(0, "primero"),
-      );
+      const first = await mutateBusinessBatch(command(0, "primero"));
       expect(first.error).toBeNull();
       expect(
-        (
-          await admin.rpc(
-            "mutate_central_business_entity_v1",
-            command(0, "primero"),
-          )
-        ).data[0].result_status,
+        (await mutateBusinessBatch(command(0, "primero"))).data[0]
+          .result_status,
       ).toBe("replayed");
+      expect((await mutateBusinessBatch(command(1, "socio"))).error).toBeNull();
       expect(
-        (
-          await admin.rpc(
-            "mutate_central_business_entity_v1",
-            command(1, "socio"),
-          )
-        ).error,
-      ).toBeNull();
-      expect(
-        (
-          await admin.rpc(
-            "mutate_central_business_entity_v1",
-            command(1, "obsoleto"),
-          )
-        ).error?.code,
+        (await mutateBusinessBatch(command(1, "obsoleto"))).error?.code,
       ).toBe("P4103");
       await expect(
         issue(owner, "SHARED-DRAFT-SYN", { id, version: 1 }),

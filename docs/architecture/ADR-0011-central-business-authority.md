@@ -1,8 +1,16 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 32
+- Version: 33
 - Fecha: 2026-10-10
+
+## Cambio V33: admisión atómica de documentos compartidos
+
+El lote central admite también `quote`, `receipt` y `document_draft`, con las
+mismas validaciones por entidad, CAS y rollback completo que sus comandos
+individuales. La aceptación PostgreSQL de borradores y marcas de envío usa
+el RPC de lote real, no un sustituto individual. También prueba la edición y
+retirada de presupuesto por lote y el rollback de un lote mixto con conflicto.
 
 ## Cambio V32: cobertura de escrituras compartidas y borradores guardados
 
