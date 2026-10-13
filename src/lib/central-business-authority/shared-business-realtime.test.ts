@@ -480,4 +480,41 @@ describe("server-first shared command boundary", () => {
         .lastAppliedEventSequence,
     ).toBe(0);
   });
+  it("finishes paginated synchronization before saving instead of requiring manual sync", async () => {
+    const h = harness();
+    const sync = vi
+      .fn(h.sync)
+      .mockResolvedValueOnce({
+        ...(await h.sync()),
+        nextSequence: 100,
+        hasMore: true,
+      })
+      .mockResolvedValueOnce({
+        ...(await h.sync()),
+        nextSequence: 200,
+        hasMore: false,
+      });
+    const result = await commitSharedTransition(owner, {
+      ...h,
+      sync,
+      mutateBatch: async () => ({
+        ok: true,
+        schema: "CENTRAL_BUSINESS_BATCH_MUTATION_CLIENT_V1",
+        operations: [
+          {
+            operationIndex: 0,
+            status: "committed",
+            eventId: "event-1",
+            eventSequence: 201,
+            entityVersion: 1,
+            deleted: false,
+            contentHash: hash,
+          },
+        ],
+      }),
+    });
+    expect(result.ok).toBe(true);
+    expect(sync).toHaveBeenCalledTimes(2);
+    expect(h.commit).toHaveBeenCalledOnce();
+  });
 });

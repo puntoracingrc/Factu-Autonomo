@@ -44,7 +44,11 @@ describe("central quote create canary wiring", () => {
 
   it("usa el commit durable y la recepcion central antes de escribir", () => {
     expect(hook).toContain("addCentralBusinessNumberedDocumentDurably");
-    expect(hook).toContain("syncCentralBusinessEvents(userId)");
+    expect(hook).toMatch(
+      /syncCentralBusinessEvents\(userId,\s*\{\s*limit: CENTRAL_BUSINESS_PREWRITE_EVENT_LIMIT/u,
+    );
+    expect(hook).toContain("latestGate.current.centralUserId === userId");
+    expect(hook).toContain("latestGate.current.mode === planGate.mode");
     expect(store).toContain("addCentralBusinessNumberedDocumentDurably");
   });
 

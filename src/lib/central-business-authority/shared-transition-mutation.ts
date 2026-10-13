@@ -25,6 +25,7 @@ import {
   type CentralBusinessQueueStorage,
 } from "./durable-queue";
 import type { CentralBusinessEventsAppDataSyncResult } from "./events-app-data-sync";
+import { syncCentralBusinessBeforeWrite } from "./sync-before-write";
 import { mutateCentralBusinessFromBrowser } from "./mutation-client";
 import type {
   CentralBusinessEntityType,
@@ -36,7 +37,8 @@ import {
 } from "./status-client";
 
 export type SharedTransitionResult<T> =
-  { ok: true; value: T } | { ok: false; error: string };
+  | { ok: true; value: T }
+  | { ok: false; error: string };
 type Mutation = Omit<
   CentralBusinessBrowserBatchMutationInput,
   "expectedVersion" | "idempotencyKey"
@@ -171,12 +173,14 @@ export async function commitSharedTransition<T>(
           "Queda un cambio anterior pendiente de confirmar. Reintenta con conexión antes de guardar otro.",
         );
     }
-    const sync = await deps.sync();
-    if (!sync.ok || sync.hasMore)
+    const sync = await syncCentralBusinessBeforeWrite(
+      deps.sync,
+      deps.isCurrent,
+    );
+    if (!sync.ok)
       return {
         ok: false,
-        error:
-          "Quedan cambios centrales por recibir. Sincroniza antes de guardar este cambio.",
+        error: `No se ha guardado la edición. ${sync.message}`,
       };
     let timer: ReturnType<typeof setTimeout> | undefined;
     let status: CentralBusinessAuthorityStatusResult;

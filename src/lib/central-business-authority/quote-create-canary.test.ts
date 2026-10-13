@@ -9,6 +9,7 @@ import {
 } from "@/lib/types";
 
 import { buildCentralBusinessNumberedDocumentLocalCommit } from "./numbered-document-local-commit";
+import { loadCentralBusinessDurableQueue } from "./durable-queue";
 import type { CentralBusinessJson } from "./mutation-command";
 import type {
   CentralBusinessNumberedDocumentBrowserInput,
@@ -26,9 +27,7 @@ import {
 } from "./quote-create-canary";
 import type { CentralBusinessAuthorityStatusResult } from "./status-client";
 
-class MemoryStorage
-  implements CentralBusinessNumberedDocumentJournalStorage
-{
+class MemoryStorage implements CentralBusinessNumberedDocumentJournalStorage {
   readonly values = new Map<string, string>();
 
   getItem(key: string) {
@@ -117,14 +116,16 @@ function readyStatus(): CentralBusinessAuthorityStatusResult {
   };
 }
 
-function serverMutation(options: {
-  onCreate?: (
-    input: Extract<
-      CentralBusinessNumberedDocumentBrowserInput,
-      { action: "create" }
-    >,
-  ) => CentralBusinessNumberedDocumentBrowserResult;
-} = {}) {
+function serverMutation(
+  options: {
+    onCreate?: (
+      input: Extract<
+        CentralBusinessNumberedDocumentBrowserInput,
+        { action: "create" }
+      >,
+    ) => CentralBusinessNumberedDocumentBrowserResult;
+  } = {},
+) {
   return vi.fn(
     async (
       input: CentralBusinessNumberedDocumentBrowserInput,
@@ -173,22 +174,26 @@ function serverMutation(options: {
   );
 }
 
-function harness(options: {
-  initial?: AppData;
-  mutation?: ReturnType<typeof serverMutation>;
-  localMode?: "applied" | "indeterminate";
-} = {}) {
+function harness(
+  options: {
+    initial?: AppData;
+    mutation?: ReturnType<typeof serverMutation>;
+    localMode?: "applied" | "indeterminate";
+  } = {},
+) {
   let current = options.initial ?? data();
   let localMode = options.localMode ?? "applied";
   const storage = new MemoryStorage();
   const mutate = options.mutation ?? serverMutation();
-  const fallback = vi.fn((quote: CentralQuoteDraft): Document => ({
-    ...quote,
-    id: "local-quote",
-    number: "P-2026-LOCAL",
-    createdAt: "2026-07-31T05:00:00.000Z",
-    updatedAt: "2026-07-31T05:00:00.000Z",
-  }));
+  const fallback = vi.fn(
+    (quote: CentralQuoteDraft): Document => ({
+      ...quote,
+      id: "local-quote",
+      number: "P-2026-LOCAL",
+      createdAt: "2026-07-31T05:00:00.000Z",
+      updatedAt: "2026-07-31T05:00:00.000Z",
+    }),
+  );
   const addCentralDocumentDurably = vi.fn(
     async (
       expected: AppData,
@@ -204,12 +209,11 @@ function harness(options: {
         return { status: "blocked", reason: "stale_precondition" };
       }
       try {
-        const transition =
-          buildCentralBusinessNumberedDocumentLocalCommit(
-            current,
-            "quote",
-            confirmation,
-          );
+        const transition = buildCentralBusinessNumberedDocumentLocalCommit(
+          current,
+          "quote",
+          confirmation,
+        );
         current = transition.data;
         return {
           status: "applied",
@@ -266,6 +270,53 @@ function harness(options: {
 }
 
 describe("central quote create canary", () => {
+  it("keeps the same numbered create when its version checkpoint cannot be saved", async () => {
+    const test = harness();
+    const write = test.storage.setItem.bind(test.storage);
+    let rejectCheckpoint = true;
+    vi.spyOn(test.storage, "setItem").mockImplementation((key, value) => {
+      if (rejectCheckpoint && key.includes(":durable-queue:"))
+        throw new Error("Synthetic checkpoint storage failure");
+      write(key, value);
+    });
+    const input = {
+      userId: ownerScope,
+      draft: draft(),
+      dependencies: test.dependencies,
+    };
+    expect((await createQuoteWithCentralCanary(input)).ok).toBe(false);
+    expect(test.current.documents).toHaveLength(1);
+    expect(
+      loadCentralBusinessNumberedDocumentJournal(ownerScope, test.storage)
+        .operations,
+    ).toHaveLength(1);
+    rejectCheckpoint = false;
+    expect((await createQuoteWithCentralCanary(input)).ok).toBe(true);
+    expect(test.current.documents).toHaveLength(1);
+    expect(
+      test.mutate.mock.calls.filter(([command]) => command.action === "create"),
+    ).toHaveLength(1);
+    expect(
+      loadCentralBusinessNumberedDocumentJournal(ownerScope, test.storage)
+        .operations,
+    ).toHaveLength(0);
+  });
+  it("records the confirmed version of a new quote without advancing the outbox cursor", async () => {
+    const test = harness();
+    const result = await createQuoteWithCentralCanary({
+      userId: ownerScope,
+      draft: draft({ status: "borrador" }),
+      dependencies: test.dependencies,
+    });
+    expect(result.ok).toBe(true);
+    const queue = loadCentralBusinessDurableQueue(ownerScope, test.storage);
+    expect(queue.entityVersions["quote:quote-central-0001"]).toMatchObject({
+      version: 1,
+      deleted: false,
+      contentHash: "a".repeat(64),
+    });
+    expect(queue.lastAppliedEventSequence).toBe(0);
+  });
   it("solo se activa para un UUID incluido literalmente", () => {
     const environment = {
       enabled: "true",
@@ -357,10 +408,8 @@ describe("central quote create canary", () => {
     expect(test.current.documents).toHaveLength(1);
     expect(test.current.counters.presupuesto).toBe(5);
     expect(
-      loadCentralBusinessNumberedDocumentJournal(
-        ownerScope,
-        test.storage,
-      ).operations,
+      loadCentralBusinessNumberedDocumentJournal(ownerScope, test.storage)
+        .operations,
     ).toEqual([]);
   });
 
@@ -441,9 +490,7 @@ describe("central quote create canary", () => {
 
     expect(first.ok).toBe(false);
     expect(pending.status).toBe("pending");
-    expect(pending.operationId).toBe(
-      "CENTRAL_QUOTE_CREATE:quote-central-0001",
-    );
+    expect(pending.operationId).toBe("CENTRAL_QUOTE_CREATE:quote-central-0001");
 
     const second = await createQuoteWithCentralCanary({
       userId: ownerScope,
@@ -479,10 +526,8 @@ describe("central quote create canary", () => {
 
     expect(first.ok).toBe(false);
     expect(
-      loadCentralBusinessNumberedDocumentJournal(
-        ownerScope,
-        test.storage,
-      ).operations[0],
+      loadCentralBusinessNumberedDocumentJournal(ownerScope, test.storage)
+        .operations[0],
     ).toMatchObject({ status: "confirmed" });
     const createCallsBeforeRecovery = test.mutate.mock.calls.filter(
       ([input]) => input.action === "create",
@@ -501,16 +546,12 @@ describe("central quote create canary", () => {
       document: { number: "P-2026-0005" },
     });
     expect(
-      test.mutate.mock.calls.filter(
-        ([input]) => input.action === "create",
-      ),
+      test.mutate.mock.calls.filter(([input]) => input.action === "create"),
     ).toHaveLength(createCallsBeforeRecovery);
     expect(test.current.documents).toHaveLength(1);
     expect(
-      loadCentralBusinessNumberedDocumentJournal(
-        ownerScope,
-        test.storage,
-      ).operations,
+      loadCentralBusinessNumberedDocumentJournal(ownerScope, test.storage)
+        .operations,
     ).toEqual([]);
   });
 
@@ -534,10 +575,8 @@ describe("central quote create canary", () => {
     expect(result.ok).toBe(false);
     expect(test.current.documents).toEqual([collision]);
     expect(
-      loadCentralBusinessNumberedDocumentJournal(
-        ownerScope,
-        test.storage,
-      ).operations[0],
+      loadCentralBusinessNumberedDocumentJournal(ownerScope, test.storage)
+        .operations[0],
     ).toMatchObject({ status: "confirmed" });
   });
 });

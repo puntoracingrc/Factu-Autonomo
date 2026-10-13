@@ -9,8 +9,8 @@ import {
 import type { AppDataTransition } from "@/lib/app-data-durability";
 import type { AppData, Document, Supplier } from "@/lib/types";
 import type { MergeCustomersOptions } from "@/lib/document-integrity/customer-merge";
-import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import type { SharedTransitionResult } from "@/lib/central-business-authority/shared-transition-mutation";
+import { CENTRAL_BUSINESS_PREWRITE_EVENT_LIMIT } from "@/lib/central-business-authority/sync-before-write";
 
 export function useCentralSharedBusinessMutations() {
   const store = useAppStore();
@@ -31,13 +31,17 @@ export function useCentralSharedBusinessMutations() {
         latest.current.centralUserId === ownerScope;
       try {
         if (!ownerScope) return { ok: true, value: await fallback() };
-        const { commitSharedTransition } =
-          await import("@/lib/central-business-authority/shared-transition-mutation");
+        const { commitSharedTransition } = await import(
+          "@/lib/central-business-authority/shared-transition-mutation"
+        );
         return await commitSharedTransition(ownerScope, {
           getCurrentData: store.getCurrentData,
           prepare,
           commit: store.commitPreparedCentralBusinessAppDataDurably,
-          sync: () => store.syncCentralBusinessEvents(ownerScope),
+          sync: () =>
+            store.syncCentralBusinessEvents(ownerScope, {
+              limit: CENTRAL_BUSINESS_PREWRITE_EVENT_LIMIT,
+            }),
           isCurrent,
           allowUnpublishedDraft,
         });
@@ -56,8 +60,9 @@ export function useCentralSharedBusinessMutations() {
 
   const updateSharedSupplier = useCallback(
     async (supplier: Supplier) => {
-      const { editSharedSupplier } =
-        await import("@/lib/central-business-authority/shared-business-transitions");
+      const { editSharedSupplier } = await import(
+        "@/lib/central-business-authority/shared-business-transitions"
+      );
       return run(
         (data, now) => editSharedSupplier(data, supplier, now),
         () => {
@@ -71,8 +76,9 @@ export function useCentralSharedBusinessMutations() {
 
   const deleteSharedSupplier = useCallback(
     async (id: string) => {
-      const { deleteSharedSupplier: prepare } =
-        await import("@/lib/central-business-authority/shared-business-transitions");
+      const { deleteSharedSupplier: prepare } = await import(
+        "@/lib/central-business-authority/shared-business-transitions"
+      );
       return run(
         (data) => prepare(data, id),
         () => {
@@ -86,8 +92,9 @@ export function useCentralSharedBusinessMutations() {
 
   const saveDraft = useCallback(
     async (requested: Document, expected?: Document) => {
-      const { saveSharedDocumentDraft } =
-        await import("@/lib/central-business-authority/shared-document-drafts");
+      const { saveSharedDocumentDraft } = await import(
+        "@/lib/central-business-authority/shared-document-drafts"
+      );
       const ownerScope = gate.centralUserId;
       const result = await run(
         (data, now) => saveSharedDocumentDraft(data, requested, expected, now),
@@ -121,8 +128,9 @@ export function useCentralSharedBusinessMutations() {
 
   const deleteDraft = useCallback(
     async (id: string) => {
-      const { deleteSharedDocumentDraft } =
-        await import("@/lib/central-business-authority/shared-document-drafts");
+      const { deleteSharedDocumentDraft } = await import(
+        "@/lib/central-business-authority/shared-document-drafts"
+      );
       return run(
         (data) => deleteSharedDocumentDraft(data, id),
         () => store.deleteDocument(id),
@@ -133,20 +141,12 @@ export function useCentralSharedBusinessMutations() {
 
   const updateQuote = useCallback(
     async (requested: Document, expected: Document | undefined) => {
-      const { editSharedQuote } =
-        await import("@/lib/central-business-authority/shared-business-transitions");
+      const { editSharedQuoteFromOpenedVersion } = await import(
+        "@/lib/central-business-authority/shared-business-transitions"
+      );
       return run(
-        (data, now) => {
-          const current = data.documents.find((d) => d.id === requested.id);
-          if (
-            stableStringifySnapshot(current) !==
-            stableStringifySnapshot(expected)
-          )
-            throw new Error(
-              "El presupuesto cambió en otro dispositivo. Reabre su versión actual antes de guardar.",
-            );
-          return editSharedQuote(data, requested, now);
-        },
+        (data, now) =>
+          editSharedQuoteFromOpenedVersion(data, requested, expected, now),
         () => store.updateDocument(requested),
       );
     },
@@ -155,8 +155,9 @@ export function useCentralSharedBusinessMutations() {
 
   const deleteQuote = useCallback(
     async (id: string) => {
-      const { deleteSharedQuote } =
-        await import("@/lib/central-business-authority/shared-business-transitions");
+      const { deleteSharedQuote } = await import(
+        "@/lib/central-business-authority/shared-business-transitions"
+      );
       return run(
         (data) => deleteSharedQuote(data, id),
         () => store.deleteDocument(id),
@@ -171,8 +172,9 @@ export function useCentralSharedBusinessMutations() {
       removeIds: string[],
       options?: MergeCustomersOptions,
     ) => {
-      const { mergeSharedCustomers } =
-        await import("@/lib/central-business-authority/shared-business-transitions");
+      const { mergeSharedCustomers } = await import(
+        "@/lib/central-business-authority/shared-business-transitions"
+      );
       return run(
         (data, now) =>
           mergeSharedCustomers(data, keepId, removeIds, options, now),
@@ -187,8 +189,9 @@ export function useCentralSharedBusinessMutations() {
 
   const mergeSuppliers = useCallback(
     async (keepId: string, removeIds: string[]) => {
-      const { mergeSharedSuppliers } =
-        await import("@/lib/central-business-authority/shared-business-transitions");
+      const { mergeSharedSuppliers } = await import(
+        "@/lib/central-business-authority/shared-business-transitions"
+      );
       return run(
         (data, now) => mergeSharedSuppliers(data, keepId, removeIds, now),
         () => {
@@ -208,8 +211,9 @@ export function useCentralSharedBusinessMutations() {
       const original = store
         .getCurrentData()
         .documents.find((d) => d.id === id);
-      const { markSharedDocumentSent } =
-        await import("@/lib/central-business-authority/shared-business-transitions");
+      const { markSharedDocumentSent } = await import(
+        "@/lib/central-business-authority/shared-business-transitions"
+      );
       if (original?.type !== "factura") {
         const result = await run(
           (data, now) => markSharedDocumentSent(data, id, now),
@@ -245,8 +249,9 @@ export function useCentralSharedBusinessMutations() {
         throw new Error(
           "El documento se ha compartido, pero su marca de envío requiere una versión central compatible.",
         );
-      const { updateCentralInvoiceCollectionFromBrowser } =
-        await import("@/lib/central-invoice-authority/collection-client");
+      const { updateCentralInvoiceCollectionFromBrowser } = await import(
+        "@/lib/central-invoice-authority/collection-client"
+      );
       const result = await updateCentralInvoiceCollectionFromBrowser(
         {
           idempotencyKey: `central-sent:${sent.id}:${link.documentVersion}`,
