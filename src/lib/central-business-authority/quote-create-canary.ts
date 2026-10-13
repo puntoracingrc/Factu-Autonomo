@@ -7,8 +7,13 @@ import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import type { AppData, BusinessProfile, Document } from "@/lib/types";
 import { buildCentralManualReceiptPayloadWithoutNumber } from "./central-receipt-materialization";
 
-import { withCentralBusinessQueueLock } from "./durable-queue";
+import {
+  loadCentralBusinessDurableQueue,
+  recordCentralBusinessEntityVersionCheckpoint,
+  withCentralBusinessQueueLock,
+} from "./durable-queue";
 import type { CentralBusinessEventsAppDataSyncResult } from "./events-app-data-sync";
+import { syncCentralBusinessBeforeWrite } from "./sync-before-write";
 import type { CentralBusinessJson } from "./mutation-command";
 import {
   preflightCentralBusinessNonfiscalSeries,
@@ -66,6 +71,7 @@ export interface CentralQuoteCreateCanaryDependencies {
     confirmation: CentralBusinessNumberedDocumentCreateBrowserResult,
   ): Promise<AppDataDurabilityResult<Document>>;
   syncEventsBeforeWrite?: () => Promise<CentralBusinessEventsAppDataSyncResult>;
+  isCurrent?: () => boolean;
   fetchStatus?: () => Promise<CentralBusinessAuthorityStatusResult>;
   preflight?: typeof preflightCentralBusinessNonfiscalSeries;
   mutate?: (
@@ -306,6 +312,35 @@ async function recoverExistingJournalOperation(input: {
   }
 
   try {
+    // The confirmed create is already versioned, even before its outbox event
+    // reaches this device. Record that version without skipping other events.
+    const confirmation = drained.operation.confirmation;
+    const entityType = drained.operation.input.entityType;
+    const entityId = drained.operation.input.entityId;
+    const known = loadCentralBusinessDurableQueue(
+      input.ownerScope,
+      dependencies.storage,
+    ).entityVersions[`${entityType}:${entityId}`];
+    if (
+      known &&
+      (known.version !== confirmation.entityVersion ||
+        known.deleted ||
+        known.contentHash !== confirmation.contentHash)
+    )
+      throw new Error("La versión central del documento cambió.");
+    if (!known)
+      recordCentralBusinessEntityVersionCheckpoint({
+        ownerScope: input.ownerScope,
+        entities: [
+          {
+            entityType,
+            entityId,
+            version: confirmation.entityVersion,
+            contentHash: confirmation.contentHash,
+          },
+        ],
+        storage: dependencies.storage,
+      });
     acknowledgeCentralBusinessNumberedDocument({
       ownerScope: input.ownerScope,
       operationId: drained.operation.operationId,
@@ -450,12 +485,16 @@ export async function createQuoteWithCentralCanary(input: {
     const recovered = recoveryResult(firstRecovery);
     if (recovered) return recovered;
 
-    const eventSync = await dependencies.syncEventsBeforeWrite?.();
+    const eventSync = dependencies.syncEventsBeforeWrite
+      ? await syncCentralBusinessBeforeWrite(
+          dependencies.syncEventsBeforeWrite,
+          dependencies.isCurrent,
+        )
+      : undefined;
     if (eventSync && !eventSync.ok) {
       return {
         ok: false,
-        error:
-          "No se pudieron aplicar todos los cambios centrales antes de numerar. Revisa la sincronizacion y vuelve a intentarlo.",
+        error: `No se pudo preparar el guardado central. ${eventSync.message}`,
       };
     }
 

@@ -5,6 +5,7 @@ import {
   markDocumentSent,
 } from "@/lib/document-integrity";
 import { editableQuoteWithLocalStatus } from "@/lib/document-integrity/quote-status";
+import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import {
   applyCustomerMergeToDocument,
   mergeCustomerRecords,
@@ -95,6 +96,23 @@ export function editSharedQuote(
     },
     value,
   };
+}
+
+export function editSharedQuoteFromOpenedVersion(
+  data: AppData,
+  requested: Document,
+  expected: Document | undefined,
+  now: string,
+) {
+  const current = data.documents.find((doc) => doc.id === requested.id);
+  if (
+    !expected ||
+    stableStringifySnapshot(current) !== stableStringifySnapshot(expected)
+  )
+    throw new Error(
+      "El presupuesto cambió en otro dispositivo. Reabre su versión actual antes de guardar.",
+    );
+  return editSharedQuote(data, requested, now);
 }
 
 export function deleteSharedQuote(data: AppData, id: string) {

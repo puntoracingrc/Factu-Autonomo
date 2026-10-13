@@ -1,8 +1,24 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 33
-- Fecha: 2026-10-10
+- Version: 34
+- Fecha: 2026-10-13
+
+## Cambio V34: edición inmediata de duplicados y preflight paginado
+
+Crear un presupuesto o recibo numerado registra su versión/hash confirmados
+después del commit durable y antes de retirar el diario numerado, sin adelantar
+el cursor del outbox ni sustituir una versión distinta ya conocida. Así su
+edición inmediata no depende de volver a recibir su propio evento de alta.
+
+El preflight de alta numerada y de transiciones compartidas recibe las páginas
+pendientes hasta vaciar el outbox, con límite de 20 páginas de hasta 500 eventos.
+Solo se reintenta dos veces el CAS local obsoleto por una lectura concurrente.
+Conflictos, hashes inválidos, fallos de red y cambios de empresa siguen bloqueando
+la escritura sin descartar la edición del formulario. Se conserva la versión
+abierta del presupuesto: recibir una edición ajena no autoriza sobrescribirla.
+El aviso de un fallo de lectura conserva su motivo concreto en lugar de ocultarlo
+siempre bajo una instrucción genérica de sincronización manual.
 
 ## Cambio V33: admisión atómica de documentos compartidos
 

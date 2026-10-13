@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import { useAppStore } from "@/context/AppStore";
 import {
@@ -12,6 +12,7 @@ import type {
   CentralQuoteDraft,
   CentralManualReceiptDraft,
 } from "@/lib/central-business-authority/quote-create-canary";
+import { CENTRAL_BUSINESS_PREWRITE_EVENT_LIMIT } from "@/lib/central-business-authority/sync-before-write";
 
 export function useCentralQuoteCreate(): {
   createQuote: (
@@ -27,6 +28,8 @@ export function useCentralQuoteCreate(): {
   } = useAppStore();
   const planGate = useCentralAuthorityPlanGate();
   const userId = planGate.centralUserId;
+  const latestGate = useRef(planGate);
+  latestGate.current = planGate;
 
   const createQuote = useCallback(
     async (
@@ -36,8 +39,9 @@ export function useCentralQuoteCreate(): {
       if (planGate.mode === "loading") {
         return centralAuthorityPlanLoadingFailure();
       }
-      const { createQuoteWithCentralCanary } =
-        await import("@/lib/central-business-authority/quote-create-canary");
+      const { createQuoteWithCentralCanary } = await import(
+        "@/lib/central-business-authority/quote-create-canary"
+      );
       return createQuoteWithCentralCanary({
         userId,
         draft,
@@ -46,8 +50,14 @@ export function useCentralQuoteCreate(): {
           addDocumentFallback: addDocument,
           addCentralDocumentDurably: addCentralBusinessNumberedDocumentDurably,
           createId: options?.id ? () => options.id as string : undefined,
+          isCurrent: () =>
+            latestGate.current.centralUserId === userId &&
+            latestGate.current.mode === planGate.mode,
           syncEventsBeforeWrite: userId
-            ? () => syncCentralBusinessEvents(userId)
+            ? () =>
+                syncCentralBusinessEvents(userId, {
+                  limit: CENTRAL_BUSINESS_PREWRITE_EVENT_LIMIT,
+                })
             : undefined,
         },
       });
