@@ -370,7 +370,8 @@ export function createCentralBusinessBatchMutationRouteHandler(
         const result = await mutateCentralBusinessBatch({
           mutations: operations.map((operation) => ({
             auth: {
-              userId: billingUserId,
+              // Data/CAS belongs to the authorized company; billing only owns quotas.
+              userId: auth.userId,
               deviceId: device.deviceId,
               sessionId: auth.sessionId,
               userIdSource: "server",
@@ -384,7 +385,7 @@ export function createCentralBusinessBatchMutationRouteHandler(
         try {
           if (dependencies.commitQuota && quotaReservations.length > 0) {
             await dependencies.commitQuota({
-              userId: auth.userId,
+              userId: billingUserId,
               reservations: quotaReservations,
             });
           }
