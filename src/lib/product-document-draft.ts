@@ -156,6 +156,7 @@ export function productSummaryToDocumentDraftLine(
       ? { ...product.calculation, unit }
       : { kind: "none", unit },
     line: {
+      ...(product.imageDataUrl ? { imageDataUrl: product.imageDataUrl } : {}),
       description: product.saleDescription || product.name,
       quantity: 1,
       unit,

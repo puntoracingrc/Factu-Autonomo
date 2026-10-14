@@ -32,6 +32,7 @@ import { hasDistinctFiscalName, issuerDisplayName } from "./issuer-snapshot";
 import { isDraftInvoiceNumber } from "./documents";
 import { hasVerifactuQr, prepareVerifactuQrForPdf } from "./verifactu/qr-image";
 import { hasPublicVerifactuAccreditation } from "./verifactu/attestation";
+import { productImageSnapshot } from "./product-image";
 
 export interface PdfArtifacts {
   qrDataUrl?: string;
@@ -563,7 +564,15 @@ export function buildDocumentPdfFromViewModel(
 
   const tablePadding = documentTemplateDensityPadding(template.density);
   const totalsRightX = pageRight - tablePadding;
+  const lineImages = viewModel.items.map(item => {
+    const image = productImageSnapshot(item.imageDataUrl).imageDataUrl;
+    if (!image) return null;
+    const props = pdf.getImageProperties(image);
+    const scale = Math.min(28 / props.width, 28 / props.height);
+    return { image, width: props.width * scale, height: props.height * scale };
+  });
   autoTable(pdf, {
+    ...(lineImages.some(Boolean) ? { rowPageBreak: "avoid" as const } : {}),
     startY: tableStartY,
     head: vatExempt
       ? [["Concepto", "Cant.", "Precio", "Total"]]
@@ -603,10 +612,20 @@ export function buildDocumentPdfFromViewModel(
     columnStyles: vatExempt
       ? { 2: { halign: "right" }, 3: { halign: "right" } }
       : { 2: { halign: "right" }, 4: { halign: "right" } },
-    didParseCell: ({ section, column, cell }) => {
+    didParseCell: ({ section, column, cell, row }) => {
       if (section === "head" && (column.index === 2 || column.index === (vatExempt ? 3 : 4))) {
         cell.styles.halign = "right";
       }
+      const image = section === "body" && column.index === 0 ? lineImages[row.index] : null;
+      if (image) {
+        cell.styles.cellPadding = { top: tablePadding, left: tablePadding + image.width + 3, right: tablePadding, bottom: tablePadding };
+        cell.styles.minCellHeight = image.height + tablePadding * 2;
+      }
+    },
+    didDrawCell: ({ section, column, cell, row }) => {
+      const image = section === "body" && column.index === 0 ? lineImages[row.index] : null;
+      if (!image) return;
+      pdf.addImage(image.image, image.image.startsWith("data:image/png;") ? "PNG" : "JPEG", cell.x + tablePadding, cell.y + tablePadding, image.width, image.height);
     },
     alternateRowStyles:
       template.style === "clasico"

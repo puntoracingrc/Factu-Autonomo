@@ -7,6 +7,7 @@ import {
 } from "@/lib/calculations";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
 import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
+import { isProductImageDataUrl, productImageSnapshot } from "@/lib/product-image";
 import {
   legacyFnv1a32,
   sha256Hex,
@@ -127,6 +128,7 @@ function snapshotLineItems(
     return {
       id: item.id,
       description: item.description,
+      ...productImageSnapshot(item.imageDataUrl),
       quantity: item.quantity,
       unit: item.unit,
       unitPrice: item.unitPrice,
@@ -686,6 +688,7 @@ function isDocumentSnapshotSemanticallyValid(
       if (
         typeof item?.id !== "string" ||
         typeof item.description !== "string" ||
+        (item.imageDataUrl !== undefined && !isProductImageDataUrl(item.imageDataUrl)) ||
         !isOptionalString(item.unit) ||
         !isFiniteNumber(item.quantity) ||
         !isFiniteNumber(item.unitPrice) ||
@@ -1037,6 +1040,7 @@ export function projectCanonicalSnapshotOntoDocument(doc: Document): Document {
     items: snapshot.items.map((item) => ({
       id: item.id,
       description: item.description,
+      ...productImageSnapshot(item.imageDataUrl),
       quantity: item.quantity,
       unit: item.unit,
       unitPrice: item.unitPrice,

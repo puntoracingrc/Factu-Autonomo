@@ -1,4 +1,5 @@
 import { roundMoney } from "./calculations";
+import { productImageSnapshot } from "./product-image";
 import { normalizeDocumentUnitId } from "./document-units";
 import {
   expensePurchaseLineCanFeedProductCatalog,
@@ -22,6 +23,7 @@ export interface PurchaseProductSupplierSummary {
 }
 
 export interface PurchaseProductSummary {
+  imageDataUrl?: string;
   productId?: string;
   key: string;
   aliases: string[];
@@ -64,6 +66,7 @@ export interface PurchaseProductSummary {
 }
 
 interface ProductAccumulator {
+  imageDataUrl?: string;
   productId?: string;
   key: string;
   aliases: string[];
@@ -261,6 +264,7 @@ export function normalizeProductCatalogItem(product: Product): Product {
 
   return {
     ...product,
+    ...productImageSnapshot(product.imageDataUrl),
     key: key || product.id,
     aliases: [
       ...new Set(
@@ -433,6 +437,7 @@ function emptyAccumulatorFromProduct(product: Product): ProductAccumulator {
   const pvp = product.purchase?.listPrice ?? product.pvp ?? 0;
   return {
     productId: product.id,
+    ...productImageSnapshot(product.imageDataUrl),
     key: product.key,
     aliases: product.aliases ?? [],
     name: product.name,
@@ -536,6 +541,7 @@ export function buildPurchaseProductSummaries(
         subfamily: catalogProduct?.subfamily,
         source: catalogProduct?.source ?? "detected",
         sku: catalogProduct?.sku,
+        ...productImageSnapshot(catalogProduct?.imageDataUrl),
         externalId: catalogProduct?.externalId,
         unit: catalogProduct?.sales?.unit ?? catalogProduct?.unit ?? line.unit,
         saleUnit: catalogProduct?.sales?.unit,
@@ -634,6 +640,7 @@ export function buildPurchaseProductSummaries(
       return {
         key: item.key,
         productId: item.productId,
+        ...productImageSnapshot(item.imageDataUrl),
         aliases: item.aliases,
         name: item.name,
         family: item.family,

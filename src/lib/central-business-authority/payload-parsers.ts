@@ -1,4 +1,5 @@
 import { normalizeExpenseOriginalArchiveOnExpense } from "@/lib/expense-original-archive";
+import { isProductImageDataUrl } from "@/lib/product-image";
 import { normalizeRecurringExpense } from "@/lib/recurring-expenses";
 import { normalizeLoadedData } from "@/lib/storage";
 import { isSharedDocumentDraft } from "./shared-document-drafts";
@@ -72,6 +73,7 @@ function validDocumentLine(value: unknown): boolean {
     isObject(value) &&
     typeof value.id === "string" &&
     typeof value.description === "string" &&
+    (value.imageDataUrl === undefined || isProductImageDataUrl(value.imageDataUrl)) &&
     finite(value.quantity) &&
     optionalString(value.unit) &&
     finite(value.unitPrice) &&

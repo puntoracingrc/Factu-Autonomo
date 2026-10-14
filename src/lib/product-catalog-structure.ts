@@ -15,6 +15,7 @@ const SUBFAMILY_MARKER_NOTE =
   "Marcador interno para recordar una subfamilia creada a mano.";
 
 export type ProductCatalogStructureOperation =
+  | { type: "import_products"; products: Product[] }
   | {
       type: "move_products";
       productKeys: string[];
@@ -135,6 +136,7 @@ function catalogProductFromSummary(
     aliases: product.aliases,
     sku: product.sku,
     externalId: product.externalId,
+    ...(product.imageDataUrl ? { imageDataUrl: product.imageDataUrl } : {}),
     name: product.name,
     family: structure.family,
     subfamily: structure.subfamily,
@@ -898,6 +900,26 @@ export function applyProductCatalogStructureOperation(
   options: ProductCatalogStructureOptions = {},
 ): ProductCatalogStructureResult {
   switch (operation.type) {
+    case "import_products": {
+      if (!operation.products.length || operation.products.length > 100) return structureError(data, "invalid", "Importa entre 1 y 100 productos por lote.");
+      const created: Product[] = [];
+      const ids = new Set(data.products.map(product => product.id));
+      const keys = new Set(data.products.map(product => product.key));
+      const skus = new Set(data.products.map(product => product.sku?.toLocaleLowerCase("es")).filter(Boolean));
+      const sources = new Set(data.products.map(product => product.externalId).filter(Boolean));
+      try {
+        for (const draft of operation.products) {
+          if (draft.externalId && sources.has(draft.externalId)) continue;
+          const product = normalizeProductCatalogItem(draft);
+          if (!product.name.trim() || ids.has(product.id) || keys.has(product.key) || (product.sku && skus.has(product.sku.toLocaleLowerCase("es")))) return structureError(data, "collision", `Ya existe una ficha con el nombre o referencia de ${product.name}. No se ha reemplazado nada.`);
+          ids.add(product.id); keys.add(product.key);
+          if (product.sku) skus.add(product.sku.toLocaleLowerCase("es"));
+          if (product.externalId) sources.add(product.externalId);
+          created.push(product);
+        }
+      } catch { return structureError(data, "invalid", "El catálogo contiene una imagen o ficha no válida. No se ha aplicado el lote."); }
+      return { ok: true, data: { ...data, products: [...data.products, ...created] }, productCount: created.length, ruleMigrated: false };
+    }
     case "move_products":
       return moveProducts(
         data,

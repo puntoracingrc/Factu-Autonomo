@@ -16,6 +16,7 @@ import type {
 } from "@/lib/types";
 import { isSharedDocumentDraft } from "./shared-document-drafts";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
+import { productImageSnapshot } from "@/lib/product-image";
 
 export const CENTRAL_BUSINESS_RECEIPT_AUTHORITY =
   "CENTRAL_BUSINESS_RECEIPT_AUTHORITY_V1";
@@ -145,6 +146,7 @@ function receiptLineForCentralPayload(
   return {
     id: item.id,
     description: item.description,
+    ...productImageSnapshot(item.imageDataUrl),
     quantity: item.quantity,
     ...(item.unit === undefined ? {} : { unit: item.unit }),
     unitPrice: item.unitPrice,
