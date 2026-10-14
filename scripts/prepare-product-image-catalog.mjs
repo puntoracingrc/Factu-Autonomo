@@ -45,7 +45,7 @@ function reference(code) {
   const prefix=code.startsWith('PVC')?'PVC':'AL';
   let model=code.replace(/^(CAL|PVC)-?/,'').replace(/^P(\d)HO/,'OSC$1').replace(/^P(\d)H/,'PRA$1').replace(/^AB(\d)H/,'ABAT$1').replace(/^CORR-(\d)H/,'COR$1').replace(/^OSP-(\d)H/,'OSP$1').replace(/^MB-/,'BAND-').replace(/^EF(?=\+|$)/,'FIJO2').replace(/^F(?=\+|$)/,'FIJO1');
   model=model.replace(/T(?=\+|$)/g,'-R').replace(/\+(\d*)FSL/g,(_,n)=>`-FSL${n||1}`).replace(/\+(\d*)FL/g,(_,n)=>`-FL${n||1}`).replace(/\+(\d*)FS/g,(_,n)=>`-FS${n||1}`).replace(/\+(\d*)F/g,(_,n)=>`-F${n||1}`).replace(/\+/g,'-');
-  return `${prefix}-${model}`;
+  return `${prefix}-${model}`.replace(/-{2,}/g,'-');
 }
 const products = [...groups.values()].map(group=>{
   const original=[...group].sort((a,b)=>Number(b.producto.includes('-'))-Number(a.producto.includes('-')) || a.id-b.id)[0];

@@ -68,6 +68,19 @@ describe("optional product illustrations",()=>{
     expect(batches.flat()).toEqual(products);
     for(const batch of batches){expect(batch.length).toBeLessThanOrEqual(50);expect(Buffer.byteLength(JSON.stringify(batch))).toBeLessThan(600000);}
   });
+  it("admits long sibling names without truncating away their material or opening identity",()=>{
+    const products=Array.from({length:143},(_,i)=>product("company-a",{...entry,sourceId:`long-sibling-${i}`,sku:`${i%2?"PVC":"AL"}-OSC2-F${i}`,name:`Ventana practicable de dos hojas con fijo superior y lateral · ${i%2?"PVC":"Aluminio"} blanco variante ${i}`}));
+    expect(new Set(products.map(p=>p.key)).size).toBe(143);
+    let data={...EMPTY_DATA,products:[] as typeof products};
+    for(const batch of catalogAdmissionBatches(products)){
+      const admission=applyProductCatalogStructureOperation(data,{type:"import_products",products:batch},{now});
+      expect(admission.ok).toBe(true);
+      if(!admission.ok)throw new Error(admission.error);
+      data=admission.data;
+    }
+    expect(data.products).toHaveLength(143);
+    expect(data.profile).toBe(EMPTY_DATA.profile);
+  });
   it("preserves image through catalogue summaries, @reference selection and the product-picker return draft",()=>{
     const summaries=buildPurchaseProductSummaries([], [product()]);
     expect(searchDocumentProductSuggestions(buildDocumentProductSuggestionIndex(summaries),"AL-OSC2",5)).toHaveLength(1);
@@ -125,6 +138,13 @@ describe("optional product illustrations",()=>{
   it.skipIf(!process.env.PRODUCT_IMAGE_SAMPLE_OUTPUT)("renders a local example with the actual company's template, never creating a business document",async()=>{
     const actual=JSON.parse(readFileSync(process.env.PRODUCT_IMAGE_SAMPLE_PROFILE!,"utf8")) as BusinessProfile;
     const catalog=parseProductImageCatalog(JSON.parse(readFileSync(process.env.PRODUCT_IMAGE_SAMPLE_CATALOG!,"utf8")));
+    let admissionData={...EMPTY_DATA,products:[] as ReturnType<typeof materializeCatalogProduct>[]};
+    for(const batch of catalogAdmissionBatches(catalog.products.map(p=>materializeCatalogProduct(catalog.catalogId,p,"sample-owner",now,21)))){
+      const admission=applyProductCatalogStructureOperation(admissionData,{type:"import_products",products:batch},{now});
+      expect(admission.ok).toBe(true);if(!admission.ok)throw new Error(admission.error);
+      admissionData=admission.data;
+    }
+    expect(admissionData.products).toHaveLength(catalog.products.length);
     const models=["PVC-OSC2","AL-COR2","AL-FIJO-OSC"];
     const prices=[680,495,540];
     const sample=doc({id:"local-preview-not-a-business-document",number:"MUESTRA-VENTANAS",client:{name:"Cliente de ejemplo",address:"Vivienda de ejemplo - Barcelona"},notes:"MUESTRA DE DISEÑO. Cliente e importes ficticios. No es un presupuesto real.",items:[...models.map((sku,i)=>{
