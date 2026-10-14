@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -2543,6 +2544,8 @@ export function DocumentForm({
                     <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
                       Concepto
                     </span>
+                    <div className={item.imageDataUrl ? "flex items-start gap-3" : ""}>
+                    {item.imageDataUrl ? <div className="shrink-0 space-y-1"><Image src={item.imageDataUrl} alt={`Esquema de la línea ${index + 1}`} unoptimized width={80} height={80} className="h-20 w-20 rounded-lg border bg-white object-contain" /><button type="button" onClick={() => updateItem(item.id, { imageDataUrl: undefined })} className="block text-xs font-bold text-slate-600">Quitar imagen</button></div> : null}
                     <DescriptionTextarea
                       value={item.description}
                       aria-label={`Concepto de la línea ${index + 1}`}
@@ -2560,6 +2563,7 @@ export function DocumentForm({
                       placeholder="Concepto libre o @producto"
                       className="!min-h-10 !rounded-lg !px-3 !py-2 !text-sm !leading-5 placeholder:text-slate-400"
                     />
+                    </div>
                     {productCostSummary && (
                       <>
                         <p

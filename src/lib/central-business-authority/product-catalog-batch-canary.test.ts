@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import type { ProductCatalogStructureResult } from "@/lib/product-catalog-structure";
@@ -190,6 +191,21 @@ const mergeFamilies = {
 } as const;
 
 describe("central product catalog batch canary", () => {
+  it("confirms illustrated catalogue admissions before local commit, without changing existing entities", async () => {
+    const imageDataUrl = `data:image/png;base64,${readFileSync(new URL("../../../public/icon-128.png", import.meta.url)).toString("base64")}`;
+    const fresh = { ...product("new-window", "Ventanas"), imageDataUrl, externalId: "image-catalog:sample:window" };
+    const deps = dependencies();
+    const result = await applyProductCatalogBatchWithCentralCanary({
+      userId, operation: { type: "import_products", products: [fresh] }, dependencies: deps,
+    });
+    expect(result).toMatchObject({ ok: true, delivery: "central_confirmed", result: { productCount: 1, ruleMigrated: false } });
+    expect(deps.mutateBatch).toHaveBeenCalledWith([expect.objectContaining({ entityType: "product", entityId: fresh.id, expectedVersion: 0, payload: expect.objectContaining({ imageDataUrl }) })]);
+    expect(deps.commitLocal).toHaveBeenCalledOnce();
+    expect(deps.fallback).not.toHaveBeenCalled();
+    if (!result.ok) return;
+    expect(result.result.data.products).toHaveLength(3);
+    expect(result.result.data.profile).toEqual(baseline().profile);
+  });
   it("preserva el flujo local fuera del canario exacto", async () => {
     const deps = dependencies();
     const result = await applyProductCatalogBatchWithCentralCanary({

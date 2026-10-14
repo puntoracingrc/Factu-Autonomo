@@ -101,6 +101,7 @@ export function buildDocumentProductSuggestionIndex(
     searchKey: purchaseProductKey(
       [
         product.name,
+        product.sku,
         product.family,
         product.usualSupplier?.supplierName,
         ...product.suppliers.map((supplier) => supplier.supplierName),
@@ -162,6 +163,7 @@ export function applyDocumentProductToLine(
     basePrice: price.unitPrice,
     priceSource: price.source,
     line: {
+      imageDataUrl: product.imageDataUrl,
       description: product.saleDescription || product.name,
       quantity: line.quantity > 0 ? line.quantity : 1,
       unit:

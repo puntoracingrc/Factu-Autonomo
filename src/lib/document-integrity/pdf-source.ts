@@ -68,6 +68,7 @@ function cloneTaxSummary(summary: TaxSummarySnapshot): TaxSummarySnapshot {
 function lineFromSnapshot(item: LineItemSnapshot): DocumentPdfLineView {
   return {
     id: item.id,
+    ...(item.imageDataUrl ? { imageDataUrl: item.imageDataUrl } : {}),
     description: item.description,
     quantity: item.quantity,
     unit: item.unit,

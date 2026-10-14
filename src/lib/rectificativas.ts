@@ -126,6 +126,7 @@ export function canDeleteDocument(doc: Document): boolean {
 export function itemsForAnulacion(items: LineItem[]): LineItem[] {
   return items.map((item) => ({
     id: crypto.randomUUID(),
+    ...(item.imageDataUrl ? { imageDataUrl: item.imageDataUrl } : {}),
     description: item.description,
     quantity: item.quantity,
     unit: item.unit,
@@ -141,6 +142,7 @@ export function itemsForAnulacion(items: LineItem[]): LineItem[] {
 export function cloneItemsForCorreccion(items: LineItem[]): LineItem[] {
   return items.map((item) => ({
     id: crypto.randomUUID(),
+    ...(item.imageDataUrl ? { imageDataUrl: item.imageDataUrl } : {}),
     description: item.description,
     quantity: item.quantity,
     unit: item.unit,

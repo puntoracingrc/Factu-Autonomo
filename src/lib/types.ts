@@ -123,6 +123,8 @@ export interface RectificationInfo {
 
 export interface LineItem {
   id: string;
+  /** Ilustración raster opcional capturada al seleccionar el producto, no un enlace al catálogo. */
+  imageDataUrl?: string;
   description: string;
   quantity: number;
   /** Identificador de unidad (ud, m, m2, h…) */
@@ -135,6 +137,7 @@ export interface LineItem {
 
 export interface LineItemSnapshot {
   id: string;
+  imageDataUrl?: string;
   description: string;
   quantity: number;
   unit?: string;
@@ -671,6 +674,8 @@ export interface ProductAttribute {
 /** Producto o material reutilizable; puede nacer manualmente o desde líneas escaneadas. */
 export interface Product {
   id: string;
+  /** Esquema compacto PNG/JPG, privado al mismo alcance de empresa que la ficha. */
+  imageDataUrl?: string;
   /** Clave normalizada usada para respetar futuras detecciones del mismo producto. */
   key: string;
   /** Otras claves detectadas que se han unido a este producto. */

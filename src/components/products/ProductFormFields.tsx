@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { DescriptionTextarea } from "@/components/ui/DescriptionTextarea";
+import { ProductImageField } from "./ProductImageField";
 import {
   DOCUMENT_UNIT_CATALOG,
   normalizeDocumentUnitId,
@@ -97,6 +98,7 @@ export function ProductFormFields({
 
   return (
     <div className="divide-y divide-slate-200">
+      <ProductImageField value={draft.imageDataUrl} onChange={value => onChange("imageDataUrl", value)} />
       <section className="space-y-4 pb-5">
         <div>
           <h2 className="text-base font-bold text-slate-950">

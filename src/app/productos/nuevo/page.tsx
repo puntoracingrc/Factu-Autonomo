@@ -265,6 +265,7 @@ export default function NuevoProductoPage() {
       key,
       aliases: [],
       sku: form.sku.trim() || undefined,
+      imageDataUrl: form.imageDataUrl || undefined,
       name,
       family: form.family.trim() || "Sin familia",
       subfamily: form.subfamily.trim() || undefined,

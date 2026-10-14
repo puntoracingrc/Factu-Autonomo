@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArchiveRestore,
@@ -30,6 +31,7 @@ import {
   type ProductCatalogStructureEntry,
 } from "@/components/products/ProductCatalogStructureManager";
 import { ProductFormFields } from "@/components/products/ProductFormFields";
+import { ProductImageCatalogImport } from "@/components/products/ProductImageCatalogImport";
 import { ProductUnsavedChangesDialog } from "@/components/products/ProductUnsavedChangesDialog";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
@@ -766,6 +768,7 @@ export default function ProductosPage() {
       aliases: product.aliases,
       sku: product.sku,
       externalId: product.externalId,
+      ...(product.imageDataUrl ? { imageDataUrl: product.imageDataUrl } : {}),
       name: product.name,
       family: product.family,
       subfamily: product.subfamily,
@@ -1359,6 +1362,7 @@ export default function ProductosPage() {
         }
       />
 
+      <ProductImageCatalogImport />
       {familyNotice ? (
         <div
           role="status"
@@ -2426,6 +2430,7 @@ function ProductCard({
     try {
       savedProduct = await onSave({
         sku: draft.sku.trim() || undefined,
+        imageDataUrl: draft.imageDataUrl || undefined,
         name:
           product.source === "detected"
             ? product.name
@@ -2530,6 +2535,7 @@ function ProductCard({
                     {product.sku}
                   </span>
                 ) : null}
+                {product.imageDataUrl ? <Image src={product.imageDataUrl} alt={`Esquema: ${product.name}`} unoptimized width={96} height={96} loading="lazy" className="h-24 w-24 rounded-lg border bg-white object-contain" /> : null}
                 {displayUnit ? (
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase text-slate-600">
                     {displayUnit}

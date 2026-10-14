@@ -4,6 +4,7 @@ import { normalizeDocumentUnitId } from "./document-units";
 import type { ProductCalculationKind } from "./types";
 
 export interface ProductFormDraft {
+  imageDataUrl: string;
   sku: string;
   name: string;
   family: string;
@@ -38,6 +39,7 @@ export interface ProductDuplicateCandidate {
 }
 
 export const EMPTY_PRODUCT_FORM_DRAFT: ProductFormDraft = {
+  imageDataUrl: "",
   sku: "",
   name: "",
   family: "",
@@ -119,6 +121,7 @@ export function productFormDraftFromSummary(
 ): ProductFormDraft {
   return {
     sku: product.sku ?? "",
+    imageDataUrl: product.imageDataUrl ?? "",
     name: product.name,
     family: product.family,
     subfamily: product.subfamily ?? "",

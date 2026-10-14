@@ -1,8 +1,29 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 34
-- Fecha: 2026-10-13
+- Version: 35
+- Fecha: 2026-10-14
+
+## Cambio V35: ilustraciones opcionales de producto y admisión de catálogo
+
+Productos y líneas admiten una imagen raster autocontenida opcional (PNG/JPEG,
+máximo 512 px por lado y 48 KiB). No se admiten SVG, URLs ni contenido remoto.
+La selección de producto copia la imagen a la línea; la emisión la incorpora
+al snapshot canónico, sin depender después del catálogo. Su ausencia no añade
+propiedades al snapshot histórico ni cambia sus hashes. Los documentos sin
+imagen mantienen sus columnas y espaciado; una línea ilustrada muestra la imagen
+a la izquierda de su descripción en el renderizador compartido de PDF.
+
+La importación explícita de un catálogo JSON crea únicamente fichas nuevas en
+la empresa activa. Conserva referencias de origen como alias, no inventa precios
+ni modifica documentos, emisor, series, otras empresas o fichas existentes.
+Cada admisión usa el lote central ya existente, con CAS, permisos, cuotas,
+confirmación del servidor y commit durable antes del éxito local. Se limita a
+50 productos y 600 kB estimados por lote, por debajo de los límites vigentes.
+El progreso distingue lotes confirmados de pendientes: un fallo posterior no
+declara éxito total. La identidad de origen y los IDs derivados por empresa
+permiten reintentar sin duplicar; una colisión ajena bloquea el lote completo.
+No se cambia el esquema SQL, el sincronizador, la autorización ni el aislamiento.
 
 ## Cambio V34: edición inmediata de duplicados y preflight paginado
 
