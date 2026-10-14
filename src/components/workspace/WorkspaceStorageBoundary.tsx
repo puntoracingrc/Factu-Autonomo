@@ -99,6 +99,7 @@ export function WorkspaceStorageBoundary({
   ) => React.ReactNode;
 }) {
   const { authReady, user, signOutAuthSession } = useCloudAuth();
+  const userId = user?.id ?? null;
   const {
     ready: companyReady,
     error: companyError,
@@ -107,19 +108,19 @@ export function WorkspaceStorageBoundary({
     refreshCompanies,
   } = useCompany();
   const recoveryOwnerScopes = useMemo(
-    () => user ? companies.map((company) => company.dataOwnerId) : [],
-    [companies, user],
+    () => userId ? companies.map((company) => company.dataOwnerId) : [],
+    [companies, userId],
   );
   const demoMode = useDemoWorkspaceMode();
   const [state, setState] = useState<BoundaryState>({ status: "loading" });
   const [confirmed, setConfirmed] = useState(false);
   const resolutionSequence = useRef(0);
-  const ownerId = user ? (activeCompany?.dataOwnerId ?? null) : null;
-  const billingOwnerId = user
+  const ownerId = userId ? (activeCompany?.dataOwnerId ?? null) : null;
+  const billingOwnerId = userId
     ? (activeCompany?.billingOwnerUserId ?? null)
     : null;
   const isLegacyAccountCompany = Boolean(
-    user && activeCompany && activeCompany.dataOwnerId === user.id,
+    userId && activeCompany && activeCompany.dataOwnerId === userId,
   );
 
   const resolve = useCallback(async () => {
@@ -137,11 +138,11 @@ export function WorkspaceStorageBoundary({
       setCurrentState({ status: "loading" });
       return;
     }
-    if (user && companyError) {
+    if (userId && companyError) {
       setCurrentState({ status: "blocked", message: companyError });
       return;
     }
-    if (user && !ownerId) {
+    if (userId && !ownerId) {
       setCurrentState({ status: "loading" });
       return;
     }
@@ -231,7 +232,7 @@ export function WorkspaceStorageBoundary({
     demoMode,
     isLegacyAccountCompany,
     ownerId,
-    user,
+    userId,
   ]);
 
   useEffect(() => {

@@ -43,6 +43,9 @@ function activeCompanyStorageKey(userId: string): string {
 
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const { authReady, user } = useCloudAuth();
+  // Supabase republishes User objects on foreground/refresh for the same account.
+  // Only a different account should restart company preparation and its forms.
+  const userId = user?.id ?? null;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<AppCompany[]>([]);
@@ -53,7 +56,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     const sequence = loadSequence.current + 1;
     loadSequence.current = sequence;
     if (!authReady) return;
-    if (!user) {
+    if (!userId) {
       setCompanies([]);
       setActiveCompanyId(null);
       setError(null);
@@ -67,12 +70,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       if (loadSequence.current !== sequence) return;
       if (next.length === 0) throw new Error("NO_COMPANIES");
       const stored = localStorage
-        .getItem(activeCompanyStorageKey(user.id))
+        .getItem(activeCompanyStorageKey(userId))
         ?.trim();
       const selected = next.find((company) => company.id === stored) ?? next[0];
       setCompanies(next);
       setActiveCompanyId(selected.id);
-      localStorage.setItem(activeCompanyStorageKey(user.id), selected.id);
+      localStorage.setItem(activeCompanyStorageKey(userId), selected.id);
       setReady(true);
     } catch {
       if (loadSequence.current !== sequence) return;
@@ -81,7 +84,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       setError("No se pudieron preparar las empresas de esta cuenta.");
       setReady(true);
     }
-  }, [authReady, user]);
+  }, [authReady, userId]);
 
   useEffect(() => {
     void load();

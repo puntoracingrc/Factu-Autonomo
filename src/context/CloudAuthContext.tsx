@@ -38,9 +38,13 @@ export function CloudAuthProvider({ children }: { children: React.ReactNode }) {
 
   const setAuthenticatedUser = useCallback((next: User | null) => {
     const nextOwner = next?.id ?? null;
-    if (authenticatedOwnerRef.current !== nextOwner) clearDriveAccessToken();
+    if (authenticatedOwnerRef.current !== nextOwner) {
+      clearDriveAccessToken();
+      // A token refresh is not a company switch. The storage boundary owns
+      // the selected company scope until the authenticated account changes.
+      setActiveWorkspaceOwnerScope(nextOwner);
+    }
     authenticatedOwnerRef.current = nextOwner;
-    setActiveWorkspaceOwnerScope(nextOwner);
     setUser(next);
     if (next?.email) setEmail(next.email);
   }, []);
