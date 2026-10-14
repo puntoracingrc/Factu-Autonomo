@@ -14,6 +14,7 @@ import {
 } from "./batch-mutation-route-handler";
 import { CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS } from "./batch-contract";
 import type { CentralBusinessBatchMutationRpcArgs } from "./batch-mutation-rpc-adapter";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 
 const userId = "00000000-0000-4000-8000-000000000001";
 const userEmail = "puntoracingrc@gmail.com";
@@ -94,6 +95,7 @@ function enableCanary() {
 async function request(
   deps: CentralBusinessBatchMutationRouteDependencies,
   rawBody = body(),
+  companyId?: string,
 ) {
   return createCentralBusinessBatchMutationRouteHandler(deps).handle({
     method: "POST",
@@ -101,6 +103,7 @@ async function request(
       authorization: "Bearer synthetic",
       "x-factu-device-token": "synthetic-device",
       "user-agent": "vitest",
+      ...(companyId ? { [FACTU_COMPANY_HEADER]: companyId } : {}),
     }),
     readBody: async () => rawBody,
   });
@@ -149,6 +152,80 @@ describe("central business batch mutation route", () => {
     expect(JSON.stringify(rpc.mock.calls[0]?.[1])).not.toContain(
       "SYNTHETIC_BATCH_SUPPLIER",
     );
+  });
+
+  it.each(["quote", "receipt", "document_draft", "expense"])(
+    "edita %s en la empresa autorizada, no en el titular de la suscripción",
+    async (entityType) => {
+      enableCanary();
+      const companyScope = "00000000-0000-4000-8000-000000000003";
+      const actorUserId = "00000000-0000-4000-8000-000000000004";
+      const entityId = "synthetic-shared-entity";
+      const authenticate = vi.fn(async () => ({
+        userId: companyScope,
+        actorUserId,
+        billingUserId: userId,
+        companyId: companyScope,
+        userEmail,
+        sessionId: "synthetic-admin-session",
+      }));
+      // The existing version belongs only to this company. Using billingUserId
+      // reproduces P4103 even when the browser sends the correct CAS version.
+      const rpc = vi.fn(async (_name, args: CentralBusinessBatchMutationRpcArgs) => {
+        const operation = (args.p_operations as Array<Record<string, unknown>>)[0];
+        if (args.p_user_id !== companyScope || operation.expectedVersion !== 1) {
+          return { data: null, error: { code: "P4103", message: "version mismatch" } };
+        }
+        return {
+          error: null,
+          data: [{
+            operation_index: 0,
+            result_status: "committed",
+            event_id: "00000000-0000-4000-8000-000000000010",
+            event_sequence: 2,
+            entity_version: 2,
+            deleted: false,
+            content_hash: operation.contentHash,
+          }],
+        };
+      });
+      const deps = dependencies({ authenticate, getRpcClient: () => ({ rpc }) });
+      const result = await request(deps, body({ operations: [{
+        idempotencyKey: `SYNTHETIC_COMPANY_EDIT_${entityType}`,
+        operationKind: "upsert",
+        entityType,
+        entityId,
+        expectedVersion: 1,
+        payload: { id: entityId, description: "Synthetic edited content" },
+      }] }), companyScope);
+
+      expect(result).toMatchObject({ status: 200, body: { ok: true } });
+      expect(authenticate).toHaveBeenCalledWith("Bearer synthetic", companyScope);
+      expect(deps.rateLimit).toHaveBeenCalledWith(expect.anything(), actorUserId);
+      expect(deps.verifyDevice).toHaveBeenCalledWith(expect.objectContaining({
+        userId: companyScope, billingUserId: userId,
+      }));
+      expect(rpc).toHaveBeenCalledWith("mutate_central_business_batch_v1",
+        expect.objectContaining({ p_user_id: companyScope }));
+    },
+  );
+
+  it("reserva y confirma la cuota en el mismo titular, sin usar el scope de datos", async () => {
+    enableCanary();
+    const companyScope = "00000000-0000-4000-8000-000000000003";
+    const reservations = [{ claimId: "synthetic-claim", metric: "suppliers" as const, subjectId: "supplier-1" }];
+    const reserveQuota = vi.fn(async () => ({ allowed: true as const, reservations }));
+    const commitQuota = vi.fn(async () => {});
+    const releaseDeletedQuota = vi.fn(async () => {});
+    const result = await request(dependencies({
+      authenticate: async () => ({ userId: companyScope, billingUserId: userId, userEmail, sessionId: "synthetic-session" }),
+      reserveQuota, commitQuota, releaseDeletedQuota,
+    }), body(), companyScope);
+
+    expect(result.status).toBe(200);
+    expect(reserveQuota).toHaveBeenCalledWith(expect.objectContaining({ userId }));
+    expect(commitQuota).toHaveBeenCalledWith({ userId, reservations });
+    expect(releaseDeletedQuota).toHaveBeenCalledWith(expect.objectContaining({ userId }));
   });
 
   it("bloquea el lote completo antes del RPC si una cuota no está disponible", async () => {
