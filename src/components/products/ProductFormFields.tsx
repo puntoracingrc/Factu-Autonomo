@@ -9,6 +9,7 @@ import {
   SearchCheck,
 } from "lucide-react";
 import { Field, Input, Textarea } from "@/components/ui/Field";
+import { DescriptionTextarea } from "@/components/ui/DescriptionTextarea";
 import {
   DOCUMENT_UNIT_CATALOG,
   normalizeDocumentUnitId,
@@ -129,7 +130,7 @@ export function ProductFormFields({
             </FormField>
           ) : (
             <FormField label="Nombre visible" className="lg:col-span-7">
-              <Input
+              <DescriptionTextarea
                 value={draft.saleDescription}
                 onChange={(event) =>
                   onChange("saleDescription", event.target.value)
@@ -154,7 +155,7 @@ export function ProductFormFields({
               hint="Opcional"
               className="lg:col-span-12"
             >
-              <Input
+              <DescriptionTextarea
                 value={draft.saleDescription}
                 onChange={(event) =>
                   onChange("saleDescription", event.target.value)
@@ -243,7 +244,7 @@ export function ProductFormFields({
             />
           </FormField>
           <FormField label="Descripción de compra" className="lg:col-span-8">
-            <Input
+            <DescriptionTextarea
               value={draft.purchaseDescription}
               onChange={(event) =>
                 onChange("purchaseDescription", event.target.value)
