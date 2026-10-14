@@ -44,7 +44,9 @@ export function materializeCatalogProduct(catalogId: string, entry: ProductImage
   const h = sha256Hex(`${ownerScope}\0${externalId}`);
   return {
     id: `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`,
-    key: purchaseProductKey(`${entry.name} ${entry.sku}`), externalId,
+    // purchaseProductKey intentionally truncates long names to eight words.
+    // Put a stable identity first so sibling material/opening variants stay distinct.
+    key: purchaseProductKey(`${h.slice(0,16)} ${entry.sku} ${entry.name}`), externalId,
     sku: entry.sku, name:entry.name, family:entry.family, subfamily:entry.subfamily,
     aliases:entry.aliases.map(purchaseProductKey), imageDataUrl:entry.imageDataUrl,
     unit:"ud", ivaPercent, sales:{enabled:true,description:entry.description,unit:"ud",ivaPercent},
