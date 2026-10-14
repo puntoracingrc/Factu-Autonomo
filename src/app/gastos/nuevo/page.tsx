@@ -22,6 +22,7 @@ import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { DescriptionTextarea } from "@/components/ui/DescriptionTextarea";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
@@ -2847,7 +2848,7 @@ export default function NuevoGastoPage() {
                     />
                   </Field>
                   <Field label="¿Qué compraste? *" hint="Describe el gasto">
-                    <Input
+                    <DescriptionTextarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Ej: Material de fontanería"
@@ -3014,7 +3015,7 @@ export default function NuevoGastoPage() {
                           <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(14rem,1fr)_5.5rem_5rem_7.5rem_6rem_6rem] xl:items-start">
                             <div className="col-span-2 xl:col-span-1">
                               <Field label="Producto o servicio">
-                                <Input
+                                <DescriptionTextarea
                                   value={line.description}
                                   onChange={(e) =>
                                     updatePurchaseLine(line.id, {

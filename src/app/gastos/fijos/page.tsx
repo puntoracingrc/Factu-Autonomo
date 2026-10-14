@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { DescriptionTextarea } from "@/components/ui/DescriptionTextarea";
 import {
   FieldError,
   FormErrorSummary,
@@ -630,7 +631,7 @@ export default function GastosFijosPage() {
             </div>
             <div className="space-y-2">
               <Field label="Concepto *">
-                <Input
+                <DescriptionTextarea
                   id="recurring-description"
                   value={form.description}
                   onChange={(e) => {

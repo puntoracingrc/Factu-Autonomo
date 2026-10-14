@@ -32,7 +32,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Field, Input, Select } from "@/components/ui/Field";
+import { DescriptionTextarea } from "@/components/ui/DescriptionTextarea";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { useAppStore } from "@/context/AppStore";
 import {
@@ -2266,6 +2267,22 @@ export function DocumentForm({
         />
       </Card>
 
+      <Card className="border-blue-100 bg-blue-50/30">
+        <label
+          htmlFor={`document-notes-${type}`}
+          className="mb-2 block text-sm font-semibold text-slate-700"
+        >
+          Notas (opcional)
+        </label>
+        <DescriptionTextarea
+          id={`document-notes-${type}`}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Añade aquí información extra para este documento"
+          className="!min-h-24"
+        />
+      </Card>
+
       <Card>
         <h2 className="mb-4 text-lg font-bold text-slate-900">Fechas</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -2526,8 +2543,9 @@ export function DocumentForm({
                     <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
                       Concepto
                     </span>
-                    <Input
+                    <DescriptionTextarea
                       value={item.description}
+                      aria-label={`Concepto de la línea ${index + 1}`}
                       onChange={(e) =>
                         handleLineDescriptionChange(item.id, e.target.value)
                       }
@@ -2540,7 +2558,7 @@ export function DocumentForm({
                         }, 120);
                       }}
                       placeholder="Concepto libre o @producto"
-                      className={`${compactInputClass} placeholder:text-slate-400`}
+                      className="!min-h-10 !rounded-lg !px-3 !py-2 !text-sm !leading-5 placeholder:text-slate-400"
                     />
                     {productCostSummary && (
                       <>
@@ -2939,20 +2957,6 @@ export function DocumentForm({
             void savePhrasePreference(text, makeDefault)
           }
         />
-        <div className="space-y-2">
-          <label
-            htmlFor={`document-notes-${type}`}
-            className="text-sm font-semibold text-slate-700"
-          >
-            Notas (opcional)
-          </label>
-          <Textarea
-            id={`document-notes-${type}`}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Añade aquí información extra para este documento"
-          />
-        </div>
         <div className="mt-4 space-y-1 text-right text-slate-700">
           {!vatExempt && <p>Base: {formatMoney(totals.subtotal)}</p>}
           {!vatExempt && ivaBreakdown.length > 0 && (

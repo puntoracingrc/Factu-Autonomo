@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { DescriptionTextarea } from "@/components/ui/DescriptionTextarea";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
@@ -751,6 +752,22 @@ export function RectificativaForm({
         />
       </Card>
 
+      <Card className="border-blue-100 bg-blue-50/30">
+        <label
+          htmlFor="rectificativa-notes"
+          className="mb-2 block text-sm font-semibold text-slate-700"
+        >
+          Notas (opcional)
+        </label>
+        <DescriptionTextarea
+          id="rectificativa-notes"
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Añade aquí información extra para esta rectificativa"
+          className="!min-h-24"
+        />
+      </Card>
+
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">
@@ -809,7 +826,7 @@ export function RectificativaForm({
               <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(16rem,1fr)_5rem_5rem] lg:grid-cols-[minmax(18rem,1fr)_4.75rem_4.75rem_7.5rem_7.5rem_7rem] lg:items-start">
                 <div className="col-span-2 md:col-span-1">
                   <Field label="Descripción">
-                    <Input
+                    <DescriptionTextarea
                       value={item.description}
                       onChange={(e) =>
                         updateItem(item.id, { description: e.target.value })
@@ -927,20 +944,6 @@ export function RectificativaForm({
             void savePhrasePreference(text, makeDefault)
           }
         />
-        <div className="space-y-2">
-          <label
-            htmlFor="rectificativa-notes"
-            className="text-sm font-semibold text-slate-700"
-          >
-            Notas (opcional)
-          </label>
-          <Textarea
-            id="rectificativa-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Añade aquí información extra para esta rectificativa"
-          />
-        </div>
       </Card>
 
       <div className="flex flex-col gap-3">
