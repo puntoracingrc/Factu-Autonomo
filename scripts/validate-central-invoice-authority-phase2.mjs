@@ -139,6 +139,8 @@ const allowedInvoiceManagementMigration =
   "20261007163403_central_invoice_management_v1.sql";
 const allowedCompanyRealtimeMigration =
   "20261009154804_company_scoped_central_invoice_realtime.sql";
+const allowedInvoiceDeleteRelationsMigration =
+  "20261015191504_central_invoice_delete_related_records.sql";
 const allowedCentralMigrations = new Set([
   allowedLocalLedgerSchemaMigration,
   allowedLocalIssueRpcMigration,
@@ -160,6 +162,7 @@ const allowedCentralMigrations = new Set([
   allowedTargetedEventRecoveryMigration,
   allowedInvoiceManagementMigration,
   allowedCompanyRealtimeMigration,
+  allowedInvoiceDeleteRelationsMigration,
 ]);
 const unexpectedCentralMigrations = centralMigrations.filter(
   (file) => !allowedCentralMigrations.has(file),
@@ -184,6 +187,18 @@ assert.deepEqual(
   [],
   "Phase 2 only allows explicitly reviewed central authority migrations.",
 );
+
+if (centralMigrations.includes(allowedInvoiceDeleteRelationsMigration)) {
+  const cascade = read(`supabase/migrations/${allowedInvoiceDeleteRelationsMigration}`);
+  assert.match(adr, /Decision de producto V9/);
+  assert.match(cascade, /e\.user_id = p_user_id and not e\.deleted/);
+  assert.match(cascade, /public\.mutate_central_business_batch_v1/);
+  assert.match(cascade, /'expectedVersion', v_entity\.current_version/);
+  assert.match(cascade, /public\.central_business_stable_json_text_v1/);
+  assert.match(cascade, /from public, anon, authenticated, service_role/);
+  assert.doesNotMatch(cascade, /\bgrant\s+/i);
+  assert.doesNotMatch(cascade, /entity_type\s*=\s*'quote'/);
+}
 
 if (centralMigrations.includes(allowedCompanyRealtimeMigration)) {
   const companyRealtime = read(`supabase/migrations/${allowedCompanyRealtimeMigration}`);
