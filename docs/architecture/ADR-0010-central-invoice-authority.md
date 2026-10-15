@@ -147,8 +147,8 @@ dispone todavia de esas tablas ni de una transaccion de emision autoritativa.
     mientras su bootstrap central siga pendiente.
 14. Una vez activada la autoridad central para una serie, un incidente puede
     pausar nuevas emisiones mediante el interruptor de emergencia, pero
-    mantiene la lectura de eventos y nunca devuelve esa serie a numeracion
-    local.
+    mantiene la lectura de eventos. La regla es:
+    nunca devolver esa serie a numeracion local.
 15. PITR es recomendable, no obligatorio. La puerta operativa exige una copia
     recuperable y una restauracion ensayada, sin imponer un proveedor o
     tecnologia concretos.
