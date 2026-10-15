@@ -162,7 +162,7 @@ function businessHash(payload: unknown) {
   return createHash("sha256").update(stableCentralBusinessJson(JSON.parse(JSON.stringify(payload)) as CentralBusinessJson)).digest("hex");
 }
 async function numberedFixture(kind: "quote" | "receipt", id: string, payload: Record<string, unknown>) {
-  const key = `related:${id}`;
+  const key = businessHash({ kind, id });
   const template = `${kind}-${id}-{year}-{num}`;
   expect((await admin.rpc("reconcile_central_business_document_series_v1", {
     p_user_id: owner, p_device_id: "synthetic-device", p_session_hash: "synthetic-session",
