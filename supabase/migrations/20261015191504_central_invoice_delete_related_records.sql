@@ -46,8 +46,12 @@ begin
       v_source := nullif(v_entity.current_payload ->> 'sourceDocumentId', '');
       v_snapshot_source := nullif(v_entity.current_payload #>> '{documentSnapshot,sourceDocumentId}', '');
       if v_entity.current_payload ? 'legacyImportAttestation'
+        or v_entity.current_payload ? 'legacyImportProvenance'
         or v_entity.current_payload ? 'appIssuedRecoveryAttestation'
+        or v_entity.current_payload #>> '{documentSnapshot,source}' in ('legacy_import_attested','legacy_backfill')
         or v_entity.current_payload #>> '{snapshotIntegrity,status}' = 'blocked'
+        or v_entity.current_payload #>> '{verifactu,environment}' = 'production'
+        or v_entity.current_payload #>> '{verifactu,status}' = 'registered'
         or (v_source is not null and v_source <> p_local_document_id)
         or (v_snapshot_source is not null and v_snapshot_source <> p_local_document_id)
         or exists (select 1 from public.central_invoice_documents d
