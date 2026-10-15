@@ -46,6 +46,10 @@ CAS, idempotencia, permisos owner/admin y confirmacion transaccional antes de
 publicar la cache. Cambiar cliente regenera snapshot, sello y PDF; no reemite
 ni cambia emisor, numero, cobro o instante original de emision. No crea una
 copia before/after. Los eventos de borrado nunca se emparejan por numero.
+ADR-0010 V9 conserva el presupuesto y sus marcas, desvincula gastos preservando
+importes y repartos ajenos, y borra recibos asociados dentro de la misma
+transaccion central. Un recibo protegido/ambiguo o mas de 100 relaciones abortan
+todo. El cliente recibe ambos outboxes antes del exito local.
 ADR-0011 V30 permite borrar recibos enviados/emitidos mediante el comando
 central y quitar su backlink sin borrar ni desmarcar el cobro de la factura.
 Los mutadores genericos, historicos atestados, recuperaciones, rectificativas,

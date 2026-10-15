@@ -1,8 +1,30 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 8
+- Version: 9
 - Fecha: 2026-10-15
+
+## Decision de producto V9: relaciones al borrar una factura (2026-10-15)
+
+El propietario solicita que borrar una factura conserve su presupuesto vigente,
+desvincule sus gastos sin borrarlos y elimine sus recibos asociados. El comando
+central V5 confirma esa cascada en una sola transaccion, bajo el mismo candado
+de empresa, CAS e idempotencia. No cambia ninguna otra factura ni renumera
+recibos. Los presupuestos se conservan byte-semanticamente, incluido su estado.
+En los gastos solo se retiran el vinculo y los repartos de esa factura; importes,
+proveedor, original y repartos de otros trabajos se conservan. El gasto vuelve
+a quedar disponible para asignarlo. Un recibo historico/recuperado protegido o
+con relacion ambigua bloquea toda la transaccion. Un lote superior a 100 entidades
+relacionadas tambien aborta entero, como los lotes operativos existentes.
+
+La cascada usa la autoridad operativa privada existente, con sus versiones,
+hash canonico y outbox Realtime. El cliente recibe primero todos los eventos
+operativos pendientes y despues el tombstone de factura antes de confirmar el
+borrado en pantalla. No adelanta cursores ni realiza una cascada local optimista.
+La migracion no cambia documentos existentes al instalarse. La edicion con un
+recibo activo sigue exigiendo retirarlo primero; V9 cambia solo el borrado.
+Regresion: `invoice-delete-relations.test.ts` y aceptacion PostgreSQL de gestion,
+cascada, rollback, segundo dispositivo e aislamiento de empresas.
 
 ## Fiabilidad V8: recepcion de una correccion o borrado confirmado
 
@@ -68,8 +90,9 @@ No habilita el mutador ni el borrado genericos del navegador.
 - Los dispositivos reciben el estado actual, incluidas correcciones y borrados;
   una fila antigua del outbox nunca reconstruye contenido ya eliminado. El
   cursor no avanza por una confirmacion de escritura, solo tras pull durable.
-- Antes de corregir/borrar una factura con recibo activo debe borrarse ese
-  recibo. Rectificativas, originales rectificados, historicos atestados,
+- Antes de corregir una factura con recibo activo debe borrarse ese recibo;
+  V9 incorpora su retirada automatica al borrar la factura. Rectificativas,
+  originales rectificados, historicos atestados,
   recuperaciones y registros externos de produccion permanecen en sus flujos
   especializados. Un artefacto local TEST no acredita el contenido corregido.
 

@@ -3277,6 +3277,12 @@ export function AppStoreProvider({
       const { manageCentralInvoiceFromBrowser } = await import("@/lib/central-invoice-authority/management-client");
       const { receiveConfirmedCentralInvoiceChange } = await import("@/lib/central-invoice-authority/management-reception");
       const eventId = await manageCentralInvoiceFromBrowser({ action: "delete", document: doc, expectedOwnerScope: ownerScope });
+      const { syncCentralBusinessBeforeWrite, CENTRAL_BUSINESS_PREWRITE_EVENT_LIMIT } = await import("@/lib/central-business-authority/sync-before-write");
+      const related = await syncCentralBusinessBeforeWrite(
+        () => pullCentralBusinessEvents(ownerScope, { limit: CENTRAL_BUSINESS_PREWRITE_EVENT_LIMIT }),
+        workspaceIsActive,
+      );
+      if (!related.ok) throw new Error(`El servidor confirmó el borrado, pero falta recibir los gastos y recibos relacionados. ${related.message}`);
       await receiveConfirmedCentralInvoiceChange({
         action: "delete", document: doc, eventId, isCurrent: workspaceIsActive,
         getCurrentData: () => dataRef.current, syncEvents: syncCentralInvoiceAuthorityEvents,
@@ -3307,7 +3313,7 @@ export function AppStoreProvider({
     });
     if (!result.ok) throw new Error(result.error);
     return result.value;
-  }, [commitDurableAppData, ownerScope, syncCentralBusinessEvents, syncCentralInvoiceAuthorityEvents, workspaceIsActive]);
+  }, [commitDurableAppData, ownerScope, pullCentralBusinessEvents, syncCentralBusinessEvents, syncCentralInvoiceAuthorityEvents, workspaceIsActive]);
 
   const addExpense = useCallback(
     (expense: Omit<Expense, "id" | "createdAt">) => {

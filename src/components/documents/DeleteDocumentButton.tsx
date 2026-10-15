@@ -39,7 +39,7 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
         title: `¿Borrar ${doc.number}?`,
         message:
           doc.type === "factura"
-            ? "El servidor eliminará esta factura. No se conservará una copia de recuperación. Su número quedará libre para la próxima factura de la misma serie y empresa; las demás no cambiarán."
+            ? "El servidor eliminará esta factura y sus recibos asociados. El presupuesto se conservará y los gastos solo quedarán desvinculados. No se conservará una copia de recuperación de la factura. Su número quedará libre para la próxima factura de la misma serie y empresa; las demás no cambiarán."
             : "El servidor eliminará este recibo y quitará su vínculo con la factura. La factura y su estado de cobro se conservan. No se renumerarán los demás recibos.",
       }
     : isCentralWorkspace &&
