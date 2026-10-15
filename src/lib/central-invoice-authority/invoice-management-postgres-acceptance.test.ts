@@ -294,6 +294,9 @@ acceptance(
       const command = args(first, "delete");
       const deleted = await admin.rpc("manage_central_invoice_v1", command);
       expect(deleted.error).toBeNull();
+      expect((await admin.from("central_invoice_series_state")
+        .select("last_sequence").eq("user_id", owner).eq("series_code", "SYN-2026")
+        .single()).data!.last_sequence).toBe(second.sequence);
       expect(
         (await admin.rpc("manage_central_invoice_v1", command)).data[0]
           .result_status,
@@ -350,6 +353,11 @@ acceptance(
       expect(
         after.documents.filter((doc) => doc.number === first.full_number),
       ).toHaveLength(1);
+      // Filling the released number must not rewind the current sequence.
+      expect((await admin.from("central_invoice_series_state")
+        .select("last_sequence").eq("user_id", owner).eq("series_code", "SYN-2026")
+        .single()).data!.last_sequence).toBe(3);
+      expect((await issue(owner)).sequence).toBe(4);
     });
     it("deletes a sent receipt centrally and unlinks its paid invoice without changing fiscal content", async () => {
       const row = await issue(owner, "RECEIPT-SYN");

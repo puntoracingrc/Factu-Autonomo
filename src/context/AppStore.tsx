@@ -3262,15 +3262,12 @@ export function AppStoreProvider({
       throw new Error("Esta factura no permite edición central desde esta sesión.");
     }
     const { manageCentralInvoiceFromBrowser } = await import("@/lib/central-invoice-authority/management-client");
+    const { receiveConfirmedCentralInvoiceChange } = await import("@/lib/central-invoice-authority/management-reception");
     const eventId = await manageCentralInvoiceFromBrowser({ action: "update", document: doc, expectedOwnerScope: ownerScope });
-    if (!workspaceIsActive()) throw new Error("El cambio se confirmó en servidor, pero has cambiado de empresa. Vuelve a abrirla.");
-    const received = await syncCentralInvoiceAuthorityEvents(dataRef.current, { eventId });
-    const confirmed = dataRef.current.documents.find((item) => item.id === doc.id);
-    if (received.status !== "applied" || !received.value.localSync.ok || !confirmed ||
-        !confirmed.centralInvoiceAuthority || confirmed.centralInvoiceAuthority.documentVersion <= doc.centralInvoiceAuthority!.documentVersion) {
-      throw new Error("El servidor confirmó la corrección, pero falta recibirla aquí. Pulsa Sincronizar ahora; no emitas otra factura.");
-    }
-    return confirmed;
+    return (await receiveConfirmedCentralInvoiceChange({
+      action: "update", document: doc, eventId, isCurrent: workspaceIsActive,
+      getCurrentData: () => dataRef.current, syncEvents: syncCentralInvoiceAuthorityEvents,
+    }))!;
   }, [ownerScope, syncCentralInvoiceAuthorityEvents, workspaceIsActive]);
 
   const deleteIssuedDocumentCentrally = useCallback(async (doc: Document): Promise<boolean> => {
@@ -3278,12 +3275,12 @@ export function AppStoreProvider({
     const { canManageCentralIssuedInvoice, canDeleteReceiptCentrally } = await import("@/lib/central-invoice-authority/management-policy");
     if (canManageCentralIssuedInvoice(doc)) {
       const { manageCentralInvoiceFromBrowser } = await import("@/lib/central-invoice-authority/management-client");
+      const { receiveConfirmedCentralInvoiceChange } = await import("@/lib/central-invoice-authority/management-reception");
       const eventId = await manageCentralInvoiceFromBrowser({ action: "delete", document: doc, expectedOwnerScope: ownerScope });
-      if (!workspaceIsActive()) throw new Error("El borrado se confirmó en servidor. Vuelve a abrir la empresa para recibirlo.");
-      const received = await syncCentralInvoiceAuthorityEvents(dataRef.current, { eventId });
-      if (received.status !== "applied" || !received.value.localSync.ok || dataRef.current.documents.some((item) => item.id === doc.id)) {
-        throw new Error("El servidor confirmó el borrado, pero falta recibirlo aquí. Pulsa Sincronizar ahora.");
-      }
+      await receiveConfirmedCentralInvoiceChange({
+        action: "delete", document: doc, eventId, isCurrent: workspaceIsActive,
+        getCurrentData: () => dataRef.current, syncEvents: syncCentralInvoiceAuthorityEvents,
+      });
       return true;
     }
     if (!canDeleteReceiptCentrally(doc)) throw new Error("Este documento no admite borrado central.");

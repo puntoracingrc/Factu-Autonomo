@@ -1,8 +1,23 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 7
-- Fecha: 2026-10-09
+- Version: 8
+- Fecha: 2026-10-15
+
+## Fiabilidad V8: recepcion de una correccion o borrado confirmado
+
+El comando de gestion se envia una sola vez. Si la lectura de su evento pierde
+la precondicion local por otra sincronizacion concurrente, se vuelve a leer el
+mismo evento desde la base vigente, con un maximo de tres intentos. Tambien se
+puede reintentar una lectura con fallo transitorio de red/servidor. Nunca se
+reutiliza una transicion documental construida sobre una base obsoleta.
+La recepcion conserva CAS, readback durable y comprobacion de empresa activa;
+no fuerza estados indeterminados, cuota, conflictos o permisos denegados.
+Solo confirma el borrado cuando desaparece su identidad tecnica y solo confirma
+una correccion al recibir una version posterior de la misma identidad. No cambia
+el contador ni la regla V5 de reutilizar un numero libre y continuar despues por
+el maximo vigente. Regresion: `management-reception.test.ts` y la aceptacion
+PostgreSQL de gestion y continuidad de numeracion.
 
 ## Fiabilidad V7: emisión de un borrador compartido
 
