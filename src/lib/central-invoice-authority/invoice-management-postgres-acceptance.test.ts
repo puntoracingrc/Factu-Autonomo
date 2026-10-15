@@ -7,6 +7,9 @@ import { buildAmendedCentralInvoice, invoiceAmendmentPatch } from "./amendment";
 import { applyCentralInvoiceAuthorityPulledEventsToDocuments } from "./events-local-apply";
 import { listCentralInvoiceAuthorityEventsThroughRpc } from "./events-rpc-adapter";
 import { DEFAULT_PROFILE, EMPTY_DATA, type Document } from "@/lib/types";
+import { stableCentralBusinessJson, type CentralBusinessJson } from "@/lib/central-business-authority/mutation-command";
+import { listCentralBusinessEventsThroughRpc } from "@/lib/central-business-authority/events-rpc-adapter";
+import { verifyCentralBusinessEventContentHash } from "@/lib/central-business-authority/events-app-data-sync";
 import {
   buildCentralManualReceiptPayloadWithoutNumber,
   materializeCentralBusinessReceipt,
@@ -52,6 +55,7 @@ async function issue(
   userId: string,
   series = "SYN-2026",
   savedDraft?: { id: string; version: number },
+  sourceQuoteId?: string,
 ) {
   const digest = createHash("sha256")
     .update(`${userId}:${series}:baseline`)
@@ -80,6 +84,7 @@ async function issue(
       date: "2026-10-07",
       status: "enviado",
       centralBusinessDraftVersion: savedDraft?.version,
+      sourceQuoteDocumentId: sourceQuoteId,
       client: {
         name: "Inquilina de prueba",
         nif: "12345678Z",
@@ -152,6 +157,53 @@ function args(
     p_document_payload: null as unknown,
     p_emitted_snapshot: null as unknown,
   };
+}
+function businessHash(payload: unknown) {
+  return createHash("sha256").update(stableCentralBusinessJson(JSON.parse(JSON.stringify(payload)) as CentralBusinessJson)).digest("hex");
+}
+async function numberedFixture(kind: "quote" | "receipt", id: string, payload: Record<string, unknown>) {
+  const key = businessHash({ kind, id });
+  const template = `${kind}-${id}-{year}-{num}`;
+  expect((await admin.rpc("reconcile_central_business_document_series_v1", {
+    p_user_id: owner, p_device_id: "synthetic-device", p_session_hash: "synthetic-session",
+    p_idempotency_key_hash: key, p_request_hash: key, p_entity_type: kind,
+    p_number_template: template, p_fiscal_year: 2026, p_observed_max_sequence: 0,
+    p_source_document_count: 0, p_source_digest: `sha256:${businessHash(payload)}`,
+  })).error).toBeNull();
+  expect((await admin.rpc("create_central_business_document_v1", {
+    p_user_id: owner, p_device_id: "synthetic-device", p_session_hash: "synthetic-session",
+    p_idempotency_key_hash: key, p_request_hash: key, p_entity_type: kind, p_entity_id: id,
+    p_number_template: template, p_padding: 4, p_fiscal_year: 2026, p_payload_without_number: payload,
+  })).error).toBeNull();
+}
+async function relatedFixture(protectedReceipt = false) {
+  const quoteId = randomUUID(), receiptId = randomUUID(), expenseId = randomUUID();
+  const common = { date: "2026-10-07", client: { name: "Prueba relacionada" },
+    items: [{ id: "line", description: "Servicio", quantity: 1, unitPrice: 100, ivaPercent: 21 }],
+    createdAt: now, updatedAt: now };
+  await numberedFixture("quote", quoteId, { ...common, id: quoteId, type: "presupuesto", status: "aceptado",
+    acceptanceStatus: "accepted", acceptedAt: now });
+  const row = await issue(owner, `RELATED-${quoteId}`, undefined, quoteId);
+  await numberedFixture("receipt", receiptId, { ...common, id: receiptId, type: "recibo", status: "enviado",
+    sourceDocumentId: row.localId, deliveryStatus: "sent", sentAt: now,
+    ...(protectedReceipt ? { legacyImportAttestation: { protectedFixture: true } } : {}),
+  });
+  const expense = { id: expenseId, date: "2026-10-07", supplierName: "Proveedor sintetico",
+    description: "Gasto compartido", amount: 100, ivaPercent: 21, category: "Material", paymentMethod: "transferencia",
+    createdAt: now, workDocumentId: row.localId, workAllocationClosed: true,
+    workAllocations: [{ workDocumentId: row.localId, amount: 30, allocatedAt: now },
+      { workDocumentId: quoteId, amount: 70, allocatedAt: now }], notes: "Conservar esta nota" };
+  for (const userId of [owner, other]) {
+    expect((await mutateBusinessBatch({
+      p_user_id: userId, p_device_id: "synthetic-device", p_session_hash: "synthetic-session",
+      p_idempotency_key_hash: `expense:${expenseId}`, p_request_hash: `expense:${expenseId}`,
+      p_entity_type: "expense", p_entity_id: expenseId, p_expected_version: 0,
+      p_operation_kind: "upsert", p_payload: expense, p_content_hash: businessHash(expense),
+    })).error).toBeNull();
+  }
+  const before = (await admin.from("central_business_entities").select("*")
+    .eq("user_id", owner).in("entity_id", [quoteId, receiptId, expenseId]).order("entity_id")).data!;
+  return { row, quoteId, receiptId, expenseId, expense, before };
 }
 acceptance(
   "invoice management PostgreSQL acceptance (synthetic localhost only)",
@@ -294,6 +346,9 @@ acceptance(
       const command = args(first, "delete");
       const deleted = await admin.rpc("manage_central_invoice_v1", command);
       expect(deleted.error).toBeNull();
+      expect((await admin.from("central_invoice_series_state")
+        .select("last_sequence").eq("user_id", owner).eq("series_code", "SYN-2026")
+        .single()).data!.last_sequence).toBe(second.sequence);
       expect(
         (await admin.rpc("manage_central_invoice_v1", command)).data[0]
           .result_status,
@@ -350,6 +405,68 @@ acceptance(
       expect(
         after.documents.filter((doc) => doc.number === first.full_number),
       ).toHaveLength(1);
+      // Filling the released number must not rewind the current sequence.
+      expect((await admin.from("central_invoice_series_state")
+        .select("last_sequence").eq("user_id", owner).eq("series_code", "SYN-2026")
+        .single()).data!.last_sequence).toBe(3);
+      expect((await issue(owner)).sequence).toBe(4);
+    });
+    it("atomically keeps the accepted quote, unlinks only this invoice's expense allocations and deletes receipts", async () => {
+      const f = await relatedFixture();
+      const command = args(f.row, "delete");
+      expect((await admin.rpc("manage_central_invoice_v1", { ...command,
+        p_expected_version: f.row.document_version + 1 })).error?.code).toBe("P4103");
+      expect((await admin.from("central_business_entities").select("*")
+        .eq("user_id", owner).in("entity_id", [f.quoteId, f.receiptId, f.expenseId])
+        .order("entity_id")).data).toEqual(f.before);
+      expect((await admin.rpc("manage_central_invoice_v1", command)).error).toBeNull();
+      const after = (await admin.from("central_business_entities").select("*")
+        .eq("user_id", owner).in("entity_id", [f.quoteId, f.receiptId, f.expenseId])).data!;
+      expect(after.find((entity) => entity.entity_id === f.quoteId)).toEqual(
+        f.before.find((entity) => entity.entity_id === f.quoteId));
+      expect(after.find((entity) => entity.entity_id === f.receiptId)).toMatchObject({
+        deleted: true, current_payload: null, current_version: 2 });
+      const remaining = { ...f.expense, workDocumentId: f.quoteId, workAllocationClosed: false,
+        workAllocations: [f.expense.workAllocations[1]] };
+      expect(after.find((entity) => entity.entity_id === f.expenseId)).toMatchObject({
+        deleted: false, current_version: 2, current_payload: remaining, content_hash: businessHash(remaining) });
+      expect((await admin.from("central_business_entities").select("current_version,current_payload")
+        .eq("user_id", other).eq("entity_id", f.expenseId).single()).data).toEqual({
+        current_version: 1, current_payload: f.expense });
+      expect((await admin.rpc("manage_central_invoice_v1", command)).data[0].result_status).toBe("replayed");
+      expect((await admin.from("central_business_entities").select("current_version")
+        .eq("user_id", owner).eq("entity_id", f.expenseId).single()).data!.current_version).toBe(2);
+
+      // Both a fresh device and a device replaying the old create event receive
+      // the receipt tombstone, never a receipt whose invoice no longer exists.
+      const businessEvents = await listCentralBusinessEventsThroughRpc({ rpc: async (name, args) => {
+        const result = await admin.rpc(name, args); return { data: result.data, error: result.error };
+      } }, { userId: owner, deviceId: "synthetic-second-device", afterSequence: 0, limit: 500 });
+      const receiptEvents = businessEvents.filter((event) => event.entityId === f.receiptId);
+      expect(receiptEvents).toHaveLength(2);
+      for (const event of receiptEvents) {
+        expect(event).toMatchObject({ operationKind: "delete", entityVersion: 2, payload: null });
+        expect(await verifyCentralBusinessEventContentHash(event)).toBe(true);
+      }
+      const expenseEvent = businessEvents.find((event) => event.entityId === f.expenseId && event.entityVersion === 2)!;
+      expect(expenseEvent.payload).toEqual(remaining);
+      expect(await verifyCentralBusinessEventContentHash(expenseEvent)).toBe(true);
+      const invoiceEvents = await events(owner);
+      expect(invoiceEvents.filter((event) => event.documentId === f.row.document_id)
+        .every((event) => event.eventType === "invoice_deleted")).toBe(true);
+    });
+    it("rolls back invoice, number, receipt and expense if an associated receipt is protected", async () => {
+      const f = await relatedFixture(true);
+      const result = await admin.rpc("manage_central_invoice_v1", args(f.row, "delete"));
+      expect(result.error?.code).toBe("P4143");
+      expect((await admin.from("central_invoice_documents").select("lifecycle_status,current_version")
+        .eq("id", f.row.document_id).single()).data).toEqual({
+        lifecycle_status: "issued", current_version: f.row.document_version });
+      expect((await admin.from("central_invoice_identities").select("released_at")
+        .eq("id", f.row.identity_id).single()).data!.released_at).toBeNull();
+      expect((await admin.from("central_business_entities").select("*")
+        .eq("user_id", owner).in("entity_id", [f.quoteId, f.receiptId, f.expenseId])
+        .order("entity_id")).data).toEqual(f.before);
     });
     it("deletes a sent receipt centrally and unlinks its paid invoice without changing fiscal content", async () => {
       const row = await issue(owner, "RECEIPT-SYN");
@@ -452,7 +569,7 @@ acceptance(
         ).error,
       ).toBeNull();
       expect(
-        (await admin.rpc("manage_central_invoice_v1", args(row, "delete", 2)))
+        (await admin.rpc("manage_central_invoice_v1", args(row, "update", 2)))
           .error?.code,
       ).toBe("P4141");
       const deletion = {

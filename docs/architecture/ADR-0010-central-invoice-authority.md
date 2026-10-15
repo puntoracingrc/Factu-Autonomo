@@ -1,8 +1,45 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 7
-- Fecha: 2026-10-09
+- Version: 9
+- Fecha: 2026-10-15
+
+## Decision de producto V9: relaciones al borrar una factura (2026-10-15)
+
+El propietario solicita que borrar una factura conserve su presupuesto vigente,
+desvincule sus gastos sin borrarlos y elimine sus recibos asociados. El comando
+central V5 confirma esa cascada en una sola transaccion, bajo el mismo candado
+de empresa, CAS e idempotencia. No cambia ninguna otra factura ni renumera
+recibos. Los presupuestos se conservan byte-semanticamente, incluido su estado.
+En los gastos solo se retiran el vinculo y los repartos de esa factura; importes,
+proveedor, original y repartos de otros trabajos se conservan. El gasto vuelve
+a quedar disponible para asignarlo. Un recibo historico/recuperado protegido o
+con relacion ambigua bloquea toda la transaccion. Un lote superior a 100 entidades
+relacionadas tambien aborta entero, como los lotes operativos existentes.
+
+La cascada usa la autoridad operativa privada existente, con sus versiones,
+hash canonico y outbox Realtime. El cliente recibe primero todos los eventos
+operativos pendientes y despues el tombstone de factura antes de confirmar el
+borrado en pantalla. No adelanta cursores ni realiza una cascada local optimista.
+La migracion no cambia documentos existentes al instalarse. La edicion con un
+recibo activo sigue exigiendo retirarlo primero; V9 cambia solo el borrado.
+Regresion: `invoice-delete-relations.test.ts` y aceptacion PostgreSQL de gestion,
+cascada, rollback, segundo dispositivo e aislamiento de empresas.
+
+## Fiabilidad V8: recepcion de una correccion o borrado confirmado
+
+El comando de gestion se envia una sola vez. Si la lectura de su evento pierde
+la precondicion local por otra sincronizacion concurrente, se vuelve a leer el
+mismo evento desde la base vigente, con un maximo de tres intentos. Tambien se
+puede reintentar una lectura con fallo transitorio de red/servidor. Nunca se
+reutiliza una transicion documental construida sobre una base obsoleta.
+La recepcion conserva CAS, readback durable y comprobacion de empresa activa;
+no fuerza estados indeterminados, cuota, conflictos o permisos denegados.
+Solo confirma el borrado cuando desaparece su identidad tecnica y solo confirma
+una correccion al recibir una version posterior de la misma identidad. No cambia
+el contador ni la regla V5 de reutilizar un numero libre y continuar despues por
+el maximo vigente. Regresion: `management-reception.test.ts` y la aceptacion
+PostgreSQL de gestion y continuidad de numeracion.
 
 ## Fiabilidad V7: emisión de un borrador compartido
 
@@ -53,8 +90,9 @@ No habilita el mutador ni el borrado genericos del navegador.
 - Los dispositivos reciben el estado actual, incluidas correcciones y borrados;
   una fila antigua del outbox nunca reconstruye contenido ya eliminado. El
   cursor no avanza por una confirmacion de escritura, solo tras pull durable.
-- Antes de corregir/borrar una factura con recibo activo debe borrarse ese
-  recibo. Rectificativas, originales rectificados, historicos atestados,
+- Antes de corregir una factura con recibo activo debe borrarse ese recibo;
+  V9 incorpora su retirada automatica al borrar la factura. Rectificativas,
+  originales rectificados, historicos atestados,
   recuperaciones y registros externos de produccion permanecen en sus flujos
   especializados. Un artefacto local TEST no acredita el contenido corregido.
 
@@ -132,8 +170,8 @@ dispone todavia de esas tablas ni de una transaccion de emision autoritativa.
     mientras su bootstrap central siga pendiente.
 14. Una vez activada la autoridad central para una serie, un incidente puede
     pausar nuevas emisiones mediante el interruptor de emergencia, pero
-    mantiene la lectura de eventos y nunca devuelve esa serie a numeracion
-    local.
+    mantiene la lectura de eventos. La regla es:
+    nunca devolver esa serie a numeracion local.
 15. PITR es recomendable, no obligatorio. La puerta operativa exige una copia
     recuperable y una restauracion ensayada, sin imponer un proveedor o
     tecnologia concretos.

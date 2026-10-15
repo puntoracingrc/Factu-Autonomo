@@ -110,7 +110,9 @@ export async function POST(request: Request) {
   if (error) {
     return failure(409, error.code ?? "CENTRAL_CHANGE_REJECTED", error.code === "P4103"
       ? "Otro dispositivo ha cambiado esta factura. Sincroniza y revisa la versión nueva antes de guardar."
-      : error.code === "P4141" ? "Esta factura tiene un recibo vinculado. Borra primero el recibo para corregir o borrar la factura."
+      : error.code === "P4141" ? "Esta factura tiene un recibo vinculado. Borra primero el recibo para corregir la factura."
+      : error.code === "P4142" ? "Esta factura tiene más de 100 elementos asociados. No se ha borrado nada; revisa sus vínculos antes de continuar."
+      : error.code === "P4143" ? "Hay un recibo protegido o una relación que requiere revisión. No se ha borrado ni modificado ningún documento."
       : "El servidor no pudo confirmar el cambio. Sincroniza y vuelve a intentarlo; no se aplicó ningún cambio local.");
   }
   const row = data?.[0];

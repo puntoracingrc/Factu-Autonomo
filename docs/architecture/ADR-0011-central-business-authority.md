@@ -1,8 +1,19 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 35
-- Fecha: 2026-10-14
+- Version: 36
+- Fecha: 2026-10-15
+
+## Cambio V36: relaciones del borrado de factura
+
+Por decision expresa del propietario, ADR-0010 V9 puede ejecutar un lote
+operativo privado dentro de la transaccion de borrado de factura: retira sus
+recibos y desvincula los gastos, preservando presupuestos, importes y repartos
+ajenos. Usa las mismas versiones, hashes, candados, limite de 100 entidades y
+outbox del lote ordinario. La funcion auxiliar no tiene permiso de ejecucion
+para navegador ni service_role directo y solo acepta una factura ya retirada
+en la transaccion vigente. Los historicos/recuperaciones y relaciones ambiguas
+siguen bloqueados. No se publica exito local hasta recibir ambos outboxes.
 
 ## Cambio V35: ilustraciones opcionales de producto y admisión de catálogo
 
