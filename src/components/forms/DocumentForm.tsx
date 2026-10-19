@@ -2617,6 +2617,11 @@ export function DocumentForm({
                                   <PackageCheck className="h-4 w-4 text-blue-600" />
                                   {product.name}
                                 </span>
+                                {product.sku ? (
+                                  <span className="font-mono text-xs font-bold text-blue-700">
+                                    {product.sku}
+                                  </span>
+                                ) : null}
                                 <span className="text-xs font-semibold text-slate-500">
                                   {product.family}
                                   {product.usualSupplier
