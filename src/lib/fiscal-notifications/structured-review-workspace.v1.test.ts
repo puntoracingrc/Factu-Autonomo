@@ -215,7 +215,7 @@ describe("structured fiscal notification review workspace v1", () => {
         expect.objectContaining({
           referenceType: "LIQUIDATION_KEY",
           rawValue: "LQ-SYNTH-001",
-          normalizedValue: "LQ-SYNTH-001",
+          normalizedValue: "LQSYNTH001",
           confirmationStatus: "PENDING",
         }),
         expect.objectContaining({

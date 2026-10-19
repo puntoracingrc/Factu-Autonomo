@@ -29,6 +29,7 @@ import {
   type FiscalNotificationVerticalSliceReviewDocumentV1,
   type FiscalNotificationVerticalSliceReviewFieldV1,
 } from "./vertical-slice-review.v1";
+import { normalizeOfficialReferenceValue } from "./official-reference-normalization.v1";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
 import { retainReferencedFiscalNotificationSourcesV1 } from "./workspace-source-graph.v1";
 
@@ -354,7 +355,7 @@ function appendDocument(input: {
         // Legacy workspace fields are required by the V1 schema, but their
         // contents are controlled typed tokens, never snippets copied from the
         // PDF. The review parser has already rejected raw/PII-bearing fields.
-        textSnippet: field.label,
+        textSnippet: field.sourceLabel ?? field.label,
         rawValue: retainedValue,
         extractionMethod: "RULE",
         confidence: confidenceBand(field.confidence),
@@ -376,12 +377,16 @@ function appendDocument(input: {
       confidence: confidenceBand(field.confidence),
     });
     if (field.semantic === "REFERENCE") {
+      const mappedReferenceType = referenceType(field.canonicalType);
+      const normalizedReferenceValue =
+        normalizeReferenceForWorkspace(mappedReferenceType, retainedValue) ??
+        retainedValue;
       references.push({
         id: `reference:${reviewUuid}:vertical:${persistenceKey}:${fieldIndex}`,
         ownerScope,
-        referenceType: referenceType(field.canonicalType),
+        referenceType: mappedReferenceType,
         rawValue: retainedValue,
-        normalizedValue: retainedValue,
+        normalizedValue: normalizedReferenceValue,
         issuer: "AEAT",
         scope: "DOCUMENT",
         documentId: id,
@@ -1071,6 +1076,26 @@ function referenceType(value: string): ExternalReferenceType {
   const mapped = mapping[value];
   if (!mapped) throw invalidInput();
   return mapped;
+}
+
+function normalizeReferenceForWorkspace(
+  type: ExternalReferenceType,
+  value: string,
+): string | null {
+  switch (type) {
+    case "LIQUIDATION_KEY":
+      return normalizeOfficialReferenceValue("LIQUIDATION_KEY", value);
+    case "DEBT_KEY":
+      return normalizeOfficialReferenceValue("DEBT_KEY", value);
+    case "DOCUMENT_REFERENCE":
+      return normalizeOfficialReferenceValue("DOCUMENT_REFERENCE", value);
+    case "EXPEDIENT_NUMBER":
+      return normalizeOfficialReferenceValue("EXPEDIENTE_ID", value);
+    case "PAYMENT_JUSTIFICANTE":
+      return normalizeOfficialReferenceValue("PAYMENT_FORM_REFERENCE", value);
+    default:
+      return null;
+  }
 }
 
 function moneyKind(value: string, familyId: string): AdministrativeMoneyKind {

@@ -49,6 +49,7 @@ import type {
 } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
 import { parseFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
+import { normalizeOfficialReferenceValue } from "./official-reference-normalization.v1";
 
 export const FISCAL_NOTIFICATION_STRUCTURED_REVIEW_SCHEMA_VERSION_V1 =
   1 as const;
@@ -394,7 +395,10 @@ export function appendAeatEnforcementStructuredReviewV1(
       ownerScope,
       referenceType: fact.kind as ExternalReferenceType,
       rawValue: fact.printedValue,
-      normalizedValue: normalizeReference(fact.printedValue),
+      normalizedValue: normalizeReferenceForType(
+        fact.kind as ExternalReferenceType,
+        fact.printedValue,
+      ),
       issuer: "AEAT",
       scope: "DOCUMENT" as const,
       documentId: ids.document,
@@ -2261,6 +2265,26 @@ function offsetEffectMeaningLabel(
 
 function normalizeReference(value: string): string {
   return value.toLocaleUpperCase("es").replace(/[\t \u00a0]+/gu, "");
+}
+
+function normalizeReferenceForType(
+  type: ExternalReferenceType,
+  value: string,
+): string {
+  switch (type) {
+    case "LIQUIDATION_KEY":
+      return normalizeOfficialReferenceValue("LIQUIDATION_KEY", value) ?? normalizeReference(value);
+    case "DEBT_KEY":
+      return normalizeOfficialReferenceValue("DEBT_KEY", value) ?? normalizeReference(value);
+    case "EXPEDIENT_NUMBER":
+      return normalizeOfficialReferenceValue("EXPEDIENTE_ID", value) ?? normalizeReference(value);
+    case "PAYMENT_JUSTIFICANTE":
+      return normalizeOfficialReferenceValue("PAYMENT_FORM_REFERENCE", value) ?? normalizeReference(value);
+    case "DOCUMENT_REFERENCE":
+      return normalizeOfficialReferenceValue("DOCUMENT_REFERENCE", value) ?? normalizeReference(value);
+    default:
+      return normalizeReference(value);
+  }
 }
 
 function idsFor(uuid: string) {
