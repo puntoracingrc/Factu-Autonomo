@@ -93,7 +93,7 @@ import {
 } from "@/lib/product-document-draft";
 import type { Product } from "@/lib/types";
 import {
-  buildProductSearchEntry,
+  buildProductSearchIndex,
   normalizeProductSearch,
   productSearchScore,
 } from "@/lib/product-search";
@@ -409,7 +409,7 @@ export default function ProductosPage() {
 
   const productSearchIndex = useMemo(
     () =>
-      new Map(products.map((product) => [product, buildProductSearchEntry(product)])),
+      new Map(buildProductSearchIndex(products).map((entry) => [entry.product, entry])),
     [products],
   );
 
@@ -476,6 +476,20 @@ export default function ProductosPage() {
     });
   }, [catalogView, family, products, productSearchIndex, query, sort, subfamily, supplier]);
 
+  const hiddenProductSearchIndex = useMemo(
+    () => new Map(buildProductSearchIndex(hiddenProducts.map((product) => {
+      const supplierName = product.purchase?.supplierName ?? product.supplierName;
+      return {
+        ...product,
+        saleDescription: product.sales?.description,
+        purchaseDescription: product.purchase?.description,
+        purchaseSupplierReference: product.purchase?.supplierReference,
+        usualSupplier: supplierName ? { supplierName } : undefined,
+      };
+    })).map((entry) => [entry.product.id, entry])),
+    [hiddenProducts],
+  );
+
   const filteredHiddenProducts = useMemo(() => {
     if (catalogView !== "hidden") return [];
     const normalizedQuery = normalizeProductSearch(query);
@@ -486,13 +500,7 @@ export default function ProductosPage() {
         const matchesQuery =
           !normalizedQuery ||
           productSearchScore(
-            buildProductSearchEntry({
-              ...product,
-              saleDescription: product.sales?.description,
-              purchaseDescription: product.purchase?.description,
-              purchaseSupplierReference: product.purchase?.supplierReference,
-              usualSupplier: hiddenSupplier ? { supplierName: hiddenSupplier } : undefined,
-            }),
+            hiddenProductSearchIndex.get(product.id)!,
             normalizedQuery,
           ) !== null;
         const matchesFamily = family === ALL || product.family === family;
@@ -511,7 +519,7 @@ export default function ProductosPage() {
           ? a.name.localeCompare(b.name, "es")
           : b.updatedAt.localeCompare(a.updatedAt),
       );
-  }, [catalogView, family, hiddenProducts, query, sort, subfamily, supplier]);
+  }, [catalogView, family, hiddenProducts, hiddenProductSearchIndex, query, sort, subfamily, supplier]);
 
   const totals = useMemo(
     () => ({

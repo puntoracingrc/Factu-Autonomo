@@ -29,6 +29,7 @@ export interface ProductSearchEntry {
   words: string[];
   skuKey: string;
   referenceKeys: string[];
+  referenceNamespaces: ReadonlySet<string>;
 }
 
 export function buildProductSearchEntry(product: ProductSearchSource): ProductSearchEntry {
@@ -42,27 +43,43 @@ export function buildProductSearchEntry(product: ProductSearchSource): ProductSe
     ...(product.suppliers ?? []).map((supplier) => supplier.supplierName),
     product.key, ...references,
   ].filter(Boolean).join(" "));
+  const skuKey = normalizeProductSearch(product.sku ?? "");
   return {
     searchKey,
     words: [...new Set(searchKey.split(" ").filter(Boolean))],
-    skuKey: normalizeProductSearch(product.sku ?? ""),
+    skuKey,
     referenceKeys: [...new Set(references.map(normalizeProductSearch).filter(Boolean))],
+    referenceNamespaces: new Set(skuKey.includes(" ") ? [skuKey.split(" ")[0]] : []),
   };
+}
+
+/** Share only reference namespaces, never product data, outside the supplied catalog. */
+export function buildProductSearchIndex<T extends ProductSearchSource>(products: readonly T[]) {
+  const entries = products.map((product) => ({ product, ...buildProductSearchEntry(product) }));
+  const referenceNamespaces = new Set(entries.flatMap((entry) => [...entry.referenceNamespaces]));
+  return entries.map((entry) => ({ ...entry, referenceNamespaces }));
 }
 
 /** null means no match; every query term must match, not just a common prefix. */
 export function productSearchScore(entry: ProductSearchEntry, query: string): number | null {
   const queryKey = normalizeProductSearch(query);
   if (!queryKey) return 0;
-  const compactQuery = queryKey.replace(/ /g, "");
+  // A known namespace followed by a numbered model is a reference request,
+  // not an opportunity to match AL inside "lateral" or 1 inside a glass size.
+  const namespace = queryKey.split(" ")[0];
+  const referenceQuery = entry.referenceNamespaces.has(namespace) &&
+    /[a-z]\s*\d/.test(queryKey.slice(namespace.length));
+  const referenceQueryKey = referenceQuery ? queryKey.replace(/([a-z]) (?=\d)/g, "$1") : queryKey;
+  const compactQuery = referenceQueryKey.replace(/ /g, "");
   const compactSku = entry.skuKey.replace(/ /g, "");
   if (compactSku && compactSku === compactQuery) return 2000;
   if (entry.referenceKeys.some((key) => key.replace(/ /g, "") === compactQuery)) return 1900;
-  if (entry.skuKey && entry.skuKey.startsWith(`${queryKey} `)) return 1700;
+  if (entry.skuKey && entry.skuKey.startsWith(`${referenceQueryKey} `)) return 1700;
   const matchingReference = entry.referenceKeys.find((key) =>
-    key.includes(queryKey) || key.replace(/ /g, "").includes(compactQuery),
+    key.includes(referenceQueryKey) || key.replace(/ /g, "").includes(compactQuery),
   );
   if (matchingReference) return 1400 - Math.min(matchingReference.length, 100);
+  if (referenceQuery) return null;
 
   const parts = queryKey.split(" ");
   const matches = parts.every((part) => entry.words.some((word) =>

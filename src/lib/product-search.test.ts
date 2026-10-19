@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildProductSearchEntry, normalizeProductSearch, productSearchScore } from "./product-search";
+import { buildProductSearchEntry, buildProductSearchIndex, normalizeProductSearch, productSearchScore } from "./product-search";
 
 describe("shared product reference search", () => {
   it.each(["AL-PRA1-R", "AL PRA1 R", " al  pra1   r ", "@AL-PRA1-R", "AL_PRA1_R", "AL–PRA1–R"])(
@@ -46,6 +46,20 @@ describe("shared product reference search", () => {
     expect(productSearchScore(entry, "AL PRA1 R")).toBeNull();
   });
 
+  it("does not confuse a material or model number with words and dimensions in the description", () => {
+    const entries = buildProductSearchIndex([
+      { name: "Ventana practicable con fijo lateral y vidrio 4/12/4", sku: "PVC-PRA1-R-FL1" },
+      { name: "Ventana practicable con fijo lateral y vidrio 4/12/4", sku: "AL-PRA2-R-FL1" },
+      { name: "Ventana practicable con registro", sku: "AL-PRA1-R" },
+      { name: "Motor G50", sku: "SYN-MOTOR-50" },
+    ]);
+    for (const query of ["AL PRA1 R", "AL-PRA1-R", "AL PRA 1 R"]) {
+      expect(entries.filter((entry) => productSearchScore(entry, query) !== null).map((entry) => entry.product.sku))
+        .toEqual(["AL-PRA1-R"]);
+    }
+    expect(productSearchScore(entries[3], "motor g50")).not.toBeNull();
+  });
+
   it("keeps an exact reference ahead of extensions, abbreviations and descriptive matches", () => {
     const scores = ["AL-PRA1-R-FL2", "AL-PRA1-R-FL1", "AL-PRA1-R"].map((sku) => ({
       sku, score: productSearchScore(buildProductSearchEntry({ name: "Ventana", sku }), "AL PRA1 R")!,
@@ -59,7 +73,7 @@ describe("shared product reference search", () => {
     const form = readFileSync(new URL("../components/forms/DocumentForm.tsx", import.meta.url), "utf8");
     const search = readFileSync(new URL("./product-search.ts", import.meta.url), "utf8");
     for (const consumer of [page, suggestions]) {
-      expect(consumer).toContain("buildProductSearchEntry");
+      expect(consumer).toContain("buildProductSearchIndex");
       expect(consumer).toContain("productSearchScore");
     }
     expect(page).toContain("getDocumentProductPickRequest");

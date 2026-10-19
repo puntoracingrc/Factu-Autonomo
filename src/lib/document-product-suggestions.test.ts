@@ -82,7 +82,7 @@ describe("document product suggestions", () => {
       )),
     ];
     const index = buildDocumentProductSuggestionIndex(products);
-    for (const query of ["AL-PRA1-R", "AL PRA1 R", "al pra1 r", "ALPRA1R"]) {
+    for (const query of ["AL-PRA1-R", "AL PRA1 R", "al pra1 r", "AL PRA 1 R", "ALPRA1R"]) {
       const results = searchDocumentProductSuggestions(index, query);
       expect(results[0].sku).toBe("AL-PRA1-R");
       expect(results.map((product) => product.sku)).toEqual(["AL-PRA1-R", "AL-PRA1-R-FL2"]);

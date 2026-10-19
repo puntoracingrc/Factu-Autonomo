@@ -2,7 +2,7 @@ import { roundMoney } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
 import type { PurchaseProductSummary } from "./purchase-products";
 import {
-  buildProductSearchEntry,
+  buildProductSearchIndex,
   normalizeProductSearch,
   productSearchScore,
   type ProductSearchEntry,
@@ -98,10 +98,9 @@ export function documentProductSaleUnitPrice(
 export function buildDocumentProductSuggestionIndex(
   products: PurchaseProductSummary[],
 ): DocumentProductSuggestionIndexItem[] {
-  return products.map((product) => ({
-    product,
-    ...buildProductSearchEntry(product),
-    lastPurchaseTime: Date.parse(product.lastPurchaseDate) || 0,
+  return buildProductSearchIndex(products).map((entry) => ({
+    ...entry,
+    lastPurchaseTime: Date.parse(entry.product.lastPurchaseDate) || 0,
   }));
 }
 
