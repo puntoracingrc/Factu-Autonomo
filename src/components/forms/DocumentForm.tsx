@@ -1304,10 +1304,12 @@ export function DocumentForm({
 
   const requiresConcept = type !== "presupuesto";
   const requiresInvoiceClientFields = type === "factura";
+  const hasIllustratedLines = items.some((item) => Boolean(item.imageDataUrl));
   const lineGridClass = vatExempt
     ? "lg:grid-cols-[2rem_minmax(12rem,1fr)_4.5rem_minmax(8rem,10rem)_5rem_6rem_5.5rem_6.5rem_7.5rem]"
     : "lg:grid-cols-[2rem_minmax(12rem,1fr)_4.5rem_minmax(8rem,10rem)_5rem_6rem_5.5rem_5.5rem_6rem_6.5rem_7.5rem]";
   const compactInputClass = "!h-10 !min-h-10 !rounded-lg !px-3 !text-sm";
+  const lineLabelClass = `mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 ${hasIllustratedLines ? "" : "lg:hidden"}`;
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setFormError(null);
@@ -2409,7 +2411,7 @@ export function DocumentForm({
         <div className="space-y-3">
           <div className="space-y-3 lg:space-y-0 lg:overflow-x-auto lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white">
             <div
-              className={`hidden ${lineGridClass} rounded-t-2xl bg-slate-100 px-2 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 lg:grid lg:items-center lg:gap-2`}
+              className={`hidden ${lineGridClass} rounded-t-2xl bg-slate-100 px-2 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 ${hasIllustratedLines ? "" : "lg:grid"} lg:items-center lg:gap-2`}
             >
               <span aria-hidden="true" />
               <span>Concepto</span>
@@ -2490,7 +2492,7 @@ export function DocumentForm({
                     if (draggedId) reorderLine(draggedId, item.id);
                     setDraggingLineId(null);
                   }}
-                  className={`grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 transition sm:grid-cols-2 lg:rounded-none lg:border-0 lg:border-t lg:border-slate-100 lg:bg-white lg:p-2 lg:gap-2 ${lineGridClass} ${
+                  className={`grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 transition sm:grid-cols-2 lg:rounded-none lg:border-0 lg:border-t lg:border-slate-100 lg:bg-white lg:p-2 lg:gap-2 ${item.imageDataUrl ? "lg:grid-cols-[2rem_minmax(0,1fr)] lg:items-start" : lineGridClass} ${
                     draggingLineId === item.id ? "lg:opacity-60" : ""
                   }`}
                 >
@@ -2541,11 +2543,29 @@ export function DocumentForm({
                   </div>
 
                   <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                    <span className={lineLabelClass}>
                       Concepto
                     </span>
-                    <div className={item.imageDataUrl ? "flex items-start gap-3" : ""}>
-                    {item.imageDataUrl ? <div className="shrink-0 space-y-1"><Image src={item.imageDataUrl} alt={`Esquema de la línea ${index + 1}`} unoptimized width={80} height={80} className="h-20 w-20 rounded-lg border bg-white object-contain" /><button type="button" onClick={() => updateItem(item.id, { imageDataUrl: undefined })} className="block text-xs font-bold text-slate-600">Quitar imagen</button></div> : null}
+                    <div className={item.imageDataUrl ? "grid grid-cols-1 items-start gap-3 min-[480px]:grid-cols-[5rem_minmax(0,1fr)]" : ""}>
+                    {item.imageDataUrl ? (
+                      <div className="w-20 min-w-0 space-y-1">
+                        <Image
+                          src={item.imageDataUrl}
+                          alt={`Esquema de la línea ${index + 1}`}
+                          unoptimized
+                          width={80}
+                          height={80}
+                          className="h-20 w-20 rounded-lg border bg-white object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateItem(item.id, { imageDataUrl: undefined })}
+                          className="block w-full text-xs font-bold text-slate-600"
+                        >
+                          Quitar imagen
+                        </button>
+                      </div>
+                    ) : null}
                     <DescriptionTextarea
                       value={item.description}
                       aria-label={`Concepto de la línea ${index + 1}`}
@@ -2652,8 +2672,9 @@ export function DocumentForm({
                     )}
                   </div>
 
+                  <div className={item.imageDataUrl ? "grid min-w-0 grid-cols-2 items-start gap-3 sm:col-span-2 sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] lg:col-span-1 lg:col-start-2" : "contents"}>
                   <div className="min-w-0">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                    <span className={lineLabelClass}>
                       Cant.
                     </span>
                     <NumericFieldInput
@@ -2674,7 +2695,7 @@ export function DocumentForm({
                   </div>
 
                   <div className="min-w-0">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                    <span className={lineLabelClass}>
                       Medidas
                     </span>
                     {isAreaLine ? (
@@ -2770,7 +2791,7 @@ export function DocumentForm({
                   </div>
 
                   <div className="min-w-0">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                    <span className={lineLabelClass}>
                       Unidad
                     </span>
                     <LineItemUnitSelect
@@ -2783,7 +2804,7 @@ export function DocumentForm({
                   </div>
 
                   <div className="min-w-0">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                    <span className={lineLabelClass}>
                       {vatExempt ? "Precio" : "Sin IVA"}
                     </span>
                     <NumericFieldInput
@@ -2797,7 +2818,7 @@ export function DocumentForm({
                   </div>
 
                   <div className="min-w-0">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                    <span className={lineLabelClass}>
                       Inc.
                     </span>
                     {productPricing ? (
@@ -2827,7 +2848,7 @@ export function DocumentForm({
 
                   {!vatExempt && (
                     <div className="min-w-0">
-                      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      <span className={lineLabelClass}>
                         IVA
                       </span>
                       <IvaPercentSelect
@@ -2844,7 +2865,7 @@ export function DocumentForm({
 
                   {!vatExempt && (
                     <div className="min-w-0">
-                      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                      <span className={lineLabelClass}>
                         Con IVA
                       </span>
                       <NumericFieldInput
@@ -2863,7 +2884,7 @@ export function DocumentForm({
                   )}
 
                   <div className="min-w-0">
-                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">
+                    <span className={lineLabelClass}>
                       Total
                     </span>
                     <p className="flex h-10 items-center justify-end rounded-lg bg-white px-3 text-sm font-bold text-slate-900 ring-1 ring-slate-100 lg:bg-slate-50">
@@ -2871,7 +2892,7 @@ export function DocumentForm({
                     </p>
                   </div>
 
-                  <div className="flex min-w-0 justify-end gap-1 sm:col-span-2 lg:col-span-1">
+                  <div className={`flex min-w-0 justify-end gap-1 sm:col-span-2 lg:col-span-1 ${item.imageDataUrl ? "sm:pt-5" : ""}`}>
                     <button
                       type="button"
                       onClick={() => openProductFlowForLine(item, "/productos")}
@@ -2916,6 +2937,7 @@ export function DocumentForm({
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
+                  </div>
                   </div>
 
                   {measureSummary && (
