@@ -92,6 +92,11 @@ import {
   type DocumentProductPickRequest,
 } from "@/lib/product-document-draft";
 import type { Product } from "@/lib/types";
+import {
+  buildProductSearchIndex,
+  normalizeProductSearch,
+  productSearchScore,
+} from "@/lib/product-search";
 
 const ALL = "__all__";
 const NO_SUBFAMILY = "__no_subfamily__";
@@ -402,25 +407,22 @@ export default function ProductosPage() {
     [products, suppliers],
   );
 
+  const productSearchIndex = useMemo(
+    () =>
+      new Map(buildProductSearchIndex(products).map((entry) => [entry.product, entry])),
+    [products],
+  );
+
   const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = normalizeProductSearch(query);
+    const scores = new Map(
+      products.map((product) => [
+        product,
+        productSearchScore(productSearchIndex.get(product)!, normalizedQuery),
+      ]),
+    );
     const filtered = products.filter((product) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        [
-          productDisplayName(product),
-          product.name,
-          product.saleDescription,
-          product.purchaseDescription,
-          product.family,
-          product.subfamily,
-          product.usualSupplier?.supplierName,
-          product.suppliers.map((entry) => entry.supplierName).join(" "),
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery);
+      const matchesQuery = !normalizedQuery || scores.get(product) != null;
       const matchesFamily = family === ALL || product.family === family;
       const matchesSubfamily =
         subfamily === ALL ||
@@ -441,6 +443,10 @@ export default function ProductosPage() {
     });
 
     return [...filtered].sort((a, b) => {
+      if (normalizedQuery) {
+        const relevance = (scores.get(b) ?? 0) - (scores.get(a) ?? 0);
+        if (relevance !== 0) return relevance;
+      }
       switch (sort) {
         case "mostPurchases":
           return b.totalQuantity - a.totalQuantity || b.totalBase - a.totalBase;
@@ -468,29 +474,35 @@ export default function ProductosPage() {
           return b.lastPurchaseDate.localeCompare(a.lastPurchaseDate);
       }
     });
-  }, [catalogView, family, products, query, sort, subfamily, supplier]);
+  }, [catalogView, family, products, productSearchIndex, query, sort, subfamily, supplier]);
+
+  const hiddenProductSearchIndex = useMemo(
+    () => new Map(buildProductSearchIndex(hiddenProducts.map((product) => {
+      const supplierName = product.purchase?.supplierName ?? product.supplierName;
+      return {
+        ...product,
+        saleDescription: product.sales?.description,
+        purchaseDescription: product.purchase?.description,
+        purchaseSupplierReference: product.purchase?.supplierReference,
+        usualSupplier: supplierName ? { supplierName } : undefined,
+      };
+    })).map((entry) => [entry.product.id, entry])),
+    [hiddenProducts],
+  );
 
   const filteredHiddenProducts = useMemo(() => {
     if (catalogView !== "hidden") return [];
-    const normalizedQuery = query.trim().toLocaleLowerCase("es");
+    const normalizedQuery = normalizeProductSearch(query);
     return hiddenProducts
       .filter((product) => {
         const hiddenSupplier =
           product.purchase?.supplierName ?? product.supplierName;
         const matchesQuery =
           !normalizedQuery ||
-          [
-            product.sales?.description,
-            product.name,
-            product.family,
-            product.subfamily,
-            hiddenSupplier,
-            product.sku,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLocaleLowerCase("es")
-            .includes(normalizedQuery);
+          productSearchScore(
+            hiddenProductSearchIndex.get(product.id)!,
+            normalizedQuery,
+          ) !== null;
         const matchesFamily = family === ALL || product.family === family;
         const matchesSubfamily =
           subfamily === ALL ||
@@ -507,7 +519,7 @@ export default function ProductosPage() {
           ? a.name.localeCompare(b.name, "es")
           : b.updatedAt.localeCompare(a.updatedAt),
       );
-  }, [catalogView, family, hiddenProducts, query, sort, subfamily, supplier]);
+  }, [catalogView, family, hiddenProducts, hiddenProductSearchIndex, query, sort, subfamily, supplier]);
 
   const totals = useMemo(
     () => ({
@@ -1568,7 +1580,7 @@ export default function ProductosPage() {
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Buscar producto, familia o proveedor"
+                    placeholder="Nombre o referencia (AL PRA1 R, AL-PRA1-R...), familia o proveedor"
                     className="min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                   />
                   {query ? (

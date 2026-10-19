@@ -1,14 +1,16 @@
 import { roundMoney } from "./calculations";
 import { normalizeDocumentUnitId } from "./document-units";
+import type { PurchaseProductSummary } from "./purchase-products";
 import {
-  purchaseProductKey,
-  type PurchaseProductSummary,
-} from "./purchase-products";
+  buildProductSearchIndex,
+  normalizeProductSearch,
+  productSearchScore,
+  type ProductSearchEntry,
+} from "./product-search";
 import type { LineItem } from "./types";
 
-export interface DocumentProductSuggestionIndexItem {
+export interface DocumentProductSuggestionIndexItem extends ProductSearchEntry {
   product: PurchaseProductSummary;
-  searchKey: string;
   lastPurchaseTime: number;
 }
 
@@ -96,22 +98,9 @@ export function documentProductSaleUnitPrice(
 export function buildDocumentProductSuggestionIndex(
   products: PurchaseProductSummary[],
 ): DocumentProductSuggestionIndexItem[] {
-  return products.map((product) => ({
-    product,
-    searchKey: purchaseProductKey(
-      [
-        product.name,
-        product.sku,
-        product.family,
-        product.usualSupplier?.supplierName,
-        ...product.suppliers.map((supplier) => supplier.supplierName),
-        product.key,
-        ...product.aliases,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    ),
-    lastPurchaseTime: Date.parse(product.lastPurchaseDate) || 0,
+  return buildProductSearchIndex(products).map((entry) => ({
+    ...entry,
+    lastPurchaseTime: Date.parse(entry.product.lastPurchaseDate) || 0,
   }));
 }
 
@@ -120,21 +109,13 @@ export function searchDocumentProductSuggestions(
   query: string,
   limit = 6,
 ): PurchaseProductSummary[] {
-  const queryKey = purchaseProductKey(query);
-  if (queryKey.length < 2) return [];
+  const queryKey = normalizeProductSearch(query);
+  if (queryKey.length < 2 && !/^\d$/.test(queryKey)) return [];
 
-  const queryParts = queryKey.split(/\s+/).filter(Boolean);
   return index
     .map((entry) => {
-      let score = 0;
-      if (entry.product.key === queryKey) score += 120;
-      if (entry.product.key.startsWith(queryKey)) score += 80;
-      if (entry.product.name.toLowerCase().includes(query.toLowerCase())) score += 70;
-      if (entry.searchKey.includes(queryKey)) score += 55;
-      for (const part of queryParts) {
-        if (entry.searchKey.includes(part)) score += 12;
-      }
-      if (score <= 0) return null;
+      let score = productSearchScore(entry, queryKey);
+      if (score === null) return null;
       score += Math.min(entry.product.purchaseCount, 10);
       if (documentProductSaleUnitPrice(entry.product) > 0) score += 5;
       return { entry, score };
