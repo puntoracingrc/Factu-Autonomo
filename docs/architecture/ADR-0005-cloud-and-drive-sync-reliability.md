@@ -1,7 +1,7 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 22
+- Versión: 23
 - Fecha: 2026-10-20
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
@@ -320,6 +320,27 @@ Esta excepción no reactiva Drive en los escáneres ni modifica Notificaciones.
 Regresiones: `expense-originals/*.test.ts`, contratos del buzón/Drive,
 `auxiliary-wakeups.test.ts`, typecheck, lint y aceptación local sintética de
 Storage/API, incluyendo separación entre empresas y descarga sin permisos.
+
+### Paquete mensual para gestoría (V23)
+
+Por solicitud expresa del propietario, el resumen fiscal permite descargar y
+preparar el envío de un ZIP conjunto de uno a tres meses. Conserva los listados
+PDF/CSV y las reglas fiscales anteriores, incluyendo los tramos internos de IRPF.
+Cada mes agrupa las facturas emitidas (PDF desde su evidencia fiscal conservada)
+y los originales de gastos en su formato real, verificados desde Factu o Drive.
+Los gastos sin archivo quedan identificados en un índice, sin fabricar PDFs.
+Un archivo conocido no recuperable, integridad pendiente, cambio de empresa o
+límite de memoria bloquea el paquete completo. Solo las acciones explícitas
+de exportación leen binarios; no hay almacenamiento local persistente ni nuevas
+escrituras de negocio. Se reutilizan permisos de miembro, plan, dispositivo y
+sesión de las APIs de originales; no se amplían permisos ni se cambia el esquema.
+Gmail y mailto preparan un borrador y exigen adjuntar el ZIP; Compartir incluye
+el archivo si el dispositivo lo admite. Nunca se afirma que ya se ha enviado.
+El envío a clientes y las exportaciones específicas de cada listado conservan
+su alcance anterior; los justificantes nunca se añaden a un envío al cliente.
+
+Regresiones: `billing/advisor-package*.test.ts`, `expense-originals/client.test.ts`,
+exportadores de facturas/gastos, resúmenes, ADR-0012 y contratos protegidos.
 
 ### Originales archivados anteriormente en Drive
 

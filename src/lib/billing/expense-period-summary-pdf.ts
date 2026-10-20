@@ -18,7 +18,10 @@ export interface ExpensePeriodSummaryRow {
   registeredBase: number;
   registeredIva: number;
   registeredTotal: number;
-  originalStatus: "Archivado en Drive" | "Sin original archivado";
+  originalStatus:
+    | "Archivado en Drive"
+    | "Incluido desde Factu"
+    | "Sin original archivado";
 }
 
 export interface ExpensePeriodSummaryModel {
@@ -39,6 +42,7 @@ export function buildExpensePeriodSummaryModel(
   suppliers: Supplier[],
   profile: BusinessProfile,
   periodLabel: string,
+  factuOriginalIds: ReadonlySet<string> = new Set(),
 ): ExpensePeriodSummaryModel {
   const vatExempt = isVatExempt(profile);
   const supplierNifs = new Map(
@@ -76,13 +80,15 @@ export function buildExpensePeriodSummaryModel(
         registeredBase: fiscal.registeredBase,
         registeredIva: fiscal.registeredIva,
         registeredTotal: fiscal.registeredTotal,
-        originalStatus: expense.originalArchive
-          ? ("Archivado en Drive" as const)
-          : ("Sin original archivado" as const),
+        originalStatus: factuOriginalIds.has(expense.id)
+          ? ("Incluido desde Factu" as const)
+          : expense.originalArchive
+            ? ("Archivado en Drive" as const)
+            : ("Sin original archivado" as const),
       };
     });
   const archivedOriginalCount = rows.filter(
-    (row) => row.originalStatus === "Archivado en Drive",
+    (row) => row.originalStatus !== "Sin original archivado",
   ).length;
 
   return {
@@ -112,12 +118,14 @@ export function buildExpensePeriodSummaryPdf(
   profile: BusinessProfile,
   periodLabel: string,
   generatedAt = new Date(),
+  factuOriginalIds: ReadonlySet<string> = new Set(),
 ): jsPDF {
   const model = buildExpensePeriodSummaryModel(
     expenses,
     suppliers,
     profile,
     periodLabel,
+    factuOriginalIds,
   );
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   pdf.setProperties({
@@ -245,7 +253,7 @@ export function buildExpensePeriodSummaryPdf(
     pdf.setFontSize(7.2);
     pdf.setTextColor(100, 116, 139);
     pdf.text(
-      "Relación informativa. Los originales del ZIP se han verificado contra su huella de Drive.",
+      "Relación informativa. Los originales incluidos se han verificado mediante SHA-256.",
       8,
       287,
     );

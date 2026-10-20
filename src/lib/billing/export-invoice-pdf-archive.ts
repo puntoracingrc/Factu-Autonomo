@@ -70,8 +70,8 @@ export function invoicePdfSelectionSummaryFileName(fileLabel: string): string {
 function isPotentialInvoice(document: Document | undefined): boolean {
   return Boolean(
     document &&
-    (document.type === "factura" ||
-      document.documentSnapshot?.documentType === "factura"),
+      (document.type === "factura" ||
+        document.documentSnapshot?.documentType === "factura"),
   );
 }
 
@@ -279,6 +279,21 @@ async function renderPdfBytes(
   );
 
   return rendered;
+}
+
+/** Reuses the exact fiscal selection and PDF renderer, without nesting ZIPs. */
+export async function buildInvoicePdfPeriodEntries(
+  documents: Document[],
+  profile: BusinessProfile,
+  period: InvoicePdfExportPeriod,
+) {
+  const records = selectInvoiceArchiveRecords(documents, profile, period);
+  const bytes = await renderPdfBytes(records, profile);
+  return records.map((record, index) => ({
+    document: record.canonical,
+    bytes: bytes[index],
+    fileName: documentPdfFilename(record.canonical),
+  }));
 }
 
 export async function buildInvoicePdfPeriodArchive(

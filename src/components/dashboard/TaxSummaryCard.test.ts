@@ -111,7 +111,14 @@ describe("FiscalSummaryPanel invoice PDF archive", () => {
     expect(fiscalPanelSource).toContain("Facturas PDF");
     expect(fiscalPanelSource).toContain("Enviar al gestor");
     expect(fiscalPanelSource).toContain("SendMethodChooserModal");
-    expect(fiscalPanelSource).toContain("buildInvoicePeriodAdvisorEmail");
+    expect(fiscalPanelSource).toContain("buildAdvisorPackageEmail");
+    expect(fiscalPanelSource).toContain(
+      'import("@/lib/billing/advisor-package-client")',
+    );
+    expect(fiscalPanelSource).toContain("Paquete para gestor");
+    expect(fiscalPanelSource).toMatch(
+      /filterExpensesForExport\(\s*data\.expenses,\s*advisorExpenseScope,?\s*\)/u,
+    );
     expect(fiscalPanelSource).toContain(
       "Selecciona Trimestre o Meses (máximo tres meses)",
     );
@@ -122,7 +129,7 @@ describe("FiscalSummaryPanel invoice PDF archive", () => {
     expect(fiscalPanelSource).toContain("error.documentReferences.join");
     expect(fiscalPanelSource).toContain('kind: "success"');
     expect(fiscalPanelSource).toContain('kind: "error"');
-    expect(fiscalPanelSource).toContain('role={');
+    expect(fiscalPanelSource).toContain("role={");
     expect(fiscalPanelSource).toContain(
       "No se ha descargado un archivo incompleto",
     );

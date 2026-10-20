@@ -10,11 +10,49 @@ import {
   isActiveWorkspaceOwnerScope,
 } from "@/lib/workspace-owner-runtime";
 import {
+  EXPENSE_ORIGINAL_MAX_BYTES,
   EXPENSE_ORIGINAL_REFRESH_EVENT,
   EXPENSE_ORIGINAL_STATUS_LIMIT,
   originalFileError,
+  originalMimeType,
+  originalSignatureMatches,
   type ExpenseOriginalStatuses,
 } from "./types";
+
+/** Verified memory-only read for explicit exports; never exposes a Storage URL. */
+export async function downloadExpenseOriginal(
+  expenseId: string,
+  scope: string,
+) {
+  const response = await requestOriginal(
+    `/api/expenses/${encodeURIComponent(expenseId)}/original`,
+    {},
+    scope,
+  );
+  const rawName = response.headers
+    .get("Content-Disposition")
+    ?.match(/filename\*=UTF-8''([^;]+)/iu)?.[1];
+  const fileName = rawName ? decodeURIComponent(rawName) : "original.pdf";
+  const mimeType = response.headers.get("Content-Type")?.split(";", 1)[0] ?? "";
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const actualHash = Array.from(
+    new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
+  if (
+    !bytes.length ||
+    bytes.length > EXPENSE_ORIGINAL_MAX_BYTES ||
+    originalMimeType(fileName) !== mimeType ||
+    !originalSignatureMatches(bytes, mimeType) ||
+    actualHash !== response.headers.get("X-Factu-Source-Sha256")
+  )
+    throw new Error(
+      "No se pudo verificar el original descargado. No se ha exportado.",
+    );
+  if (!isActiveWorkspaceOwnerScope(scope))
+    throw new Error("La empresa cambió. Repite la exportación.");
+  return { bytes, fileName, mimeType };
+}
 
 async function requestOriginal(
   path: string,

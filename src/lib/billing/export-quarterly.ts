@@ -7,9 +7,13 @@ import {
 import type { BusinessProfile, Document, Expense, Supplier } from "../types";
 import { documentAmounts, isVatExempt } from "../vat-regime";
 import { isDateInQuarter, quarterLabel, type Quarter } from "../periods";
-import { filterExpensesByQuarter } from "../periods";
 import { calculateTaxSummary } from "../taxes";
-import { csvRow, formatCsvAmount, formatCsvExportDate, downloadCsvFile } from "./csv-utils";
+import {
+  csvRow,
+  formatCsvAmount,
+  formatCsvExportDate,
+  downloadCsvFile,
+} from "./csv-utils";
 import { buildExpensesTableSection } from "./export-expenses-csv";
 import { selectCanonicalFiscalDocumentsForExport } from "./fiscal-export-documents";
 
@@ -32,21 +36,42 @@ export function buildQuarterlyExportCsv(
   quarter: Quarter,
   suppliers: Supplier[] = [],
 ): string {
+  return buildFiscalPeriodExportCsv(
+    documents,
+    expenses,
+    profile,
+    quarterLabel(year, quarter),
+    (date) => isDateInQuarter(date, year, quarter),
+    suppliers,
+    "EXPORTACIÓN TRIMESTRAL FISCAL",
+  );
+}
+
+/** Same fiscal books and historical IRPF rules for a user-selected month range. */
+export function buildFiscalPeriodExportCsv(
+  documents: Document[],
+  expenses: Expense[],
+  profile: BusinessProfile,
+  period: string,
+  isDateInPeriod: (date: string) => boolean,
+  suppliers: Supplier[] = [],
+  heading = "EXPORTACIÓN FISCAL DEL PERIODO",
+): string {
   const vatExempt = isVatExempt(profile);
-  const period = quarterLabel(year, quarter);
   const fiscalDocuments = selectCanonicalFiscalDocumentsForExport(
     documents,
     profile,
-    (date) => isDateInQuarter(date, year, quarter),
+    isDateInPeriod,
   );
   const quarterDocs = fiscalDocuments.documents;
-  const quarterExpenses = filterExpensesByQuarter(expenses, year, quarter);
+  const quarterExpenses = expenses.filter((expense) =>
+    isDateInPeriod(expense.date),
+  );
   const taxes = calculateTaxSummary(documents, quarterExpenses, {
     irpfPercent: profile.irpfPercent,
     vatExempt,
     profile,
-    isDocumentDateInPeriod: (date) =>
-      isDateInQuarter(date, year, quarter),
+    isDocumentDateInPeriod: isDateInPeriod,
   });
   assertTaxSummaryExportable(taxes);
   const irpfRateLabel = formatIrpfEstimateRateLabel(taxes);
@@ -67,7 +92,7 @@ export function buildQuarterlyExportCsv(
   let salesTotal = 0;
 
   const lines: string[] = [
-    csvRow(["EXPORTACIÓN TRIMESTRAL FISCAL"]),
+    csvRow([heading]),
     csvRow([
       "Generado por Factu Autónomo",
       "https://facturacion-autonomos.app",
@@ -112,7 +137,10 @@ export function buildQuarterlyExportCsv(
       "Base estimada para IRPF",
       formatCsvAmount(taxes.estimatedIrpfBase),
     ]),
-    csvRow(["IRPF estimado (orientativo)", formatCsvAmount(taxes.irpfEstimate)]),
+    csvRow([
+      "IRPF estimado (orientativo)",
+      formatCsvAmount(taxes.irpfEstimate),
+    ]),
     ...(taxes.irpfRateBreakdown.length > 1
       ? [csvRow(["Tipos internos IRPF aplicados", irpfRateLabel])]
       : []),
