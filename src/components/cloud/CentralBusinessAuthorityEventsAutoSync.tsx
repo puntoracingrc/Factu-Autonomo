@@ -92,6 +92,7 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     if (!enabled) return;
     let cancelled = false;
     let auxiliaryRunning = false;
+    let wasHidden = document.visibilityState !== "visible";
 
     function clearTimer() {
       if (timerRef.current === null) return;
@@ -214,6 +215,9 @@ export function CentralBusinessAuthorityEventsAutoSync() {
     }
 
     function wake(event?: Event) {
+      const resumedFromHidden = event?.type === "visibilitychange" &&
+        wasHidden && document.visibilityState === "visible";
+      if (event?.type === "visibilitychange") wasHidden = document.visibilityState !== "visible";
       if (event && ["focus", "pageshow", "visibilitychange"].includes(event.type) &&
         !shouldWakeCentralAuthorityForActivity({
           visible: document.visibilityState === "visible",
@@ -221,6 +225,7 @@ export function CentralBusinessAuthorityEventsAutoSync() {
           realtimeState: realtimeStateRef.current,
           lastSuccessfulSyncAt: lastSuccessfulSyncAtRef.current,
           now: Date.now(),
+          resumedFromHidden,
         })) return;
       wakeSequenceRef.current += 1;
       lastSuccessfulSyncAtRef.current = null;

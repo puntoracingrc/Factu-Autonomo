@@ -14,6 +14,7 @@ describe("central authority sync schedule", () => {
   it("does not repeat a healthy recent read on a brief app switch", () => {
     const input = { visible: true, online: true, realtimeState: "subscribed" as const, lastSuccessfulSyncAt: 1_000, now: 2_000 };
     expect(shouldWakeCentralAuthorityForActivity(input)).toBe(false);
+    expect(shouldWakeCentralAuthorityForActivity({ ...input, resumedFromHidden: true })).toBe(true);
     expect(shouldWakeCentralAuthorityForActivity({ ...input, now: 31_000 })).toBe(true);
     expect(shouldWakeCentralAuthorityForActivity({ ...input, lastSuccessfulSyncAt: null })).toBe(true);
     expect(shouldWakeCentralAuthorityForActivity({ ...input, realtimeState: "degraded" })).toBe(true);

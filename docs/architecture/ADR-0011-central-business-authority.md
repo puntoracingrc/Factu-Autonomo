@@ -10,8 +10,10 @@ Los avisos Realtime siguen siendo solo señales para leer el outbox por cursor,
 con verificación de empresa, permisos, sesión, dispositivo, versión, hash y
 readback. Se agrupan ráfagas durante 80 ms y se conserva siempre el temporizador
 más próximo: un reintento auxiliar nunca retrasa una señal real ya pendiente.
-Una vuelta breve a primer plano no repite una lectura sana reciente; cualquier
-señal recibida en segundo plano invalida esa frescura y fuerza pull al regresar.
+Los eventos de foco repetidos no repiten una lectura sana reciente. Regresar
+desde estado oculto fuerza una única lectura ligera, incluso si el sistema
+operativo suspendió el socket y perdió sus avisos. Cualquier señal recibida en
+segundo plano también invalida esa frescura y fuerza pull al regresar.
 Una señal durante una recepción no se pierde y las páginas completas continúan
 inmediatamente. Solo la contención local CAS reintentable permite releer una vez;
 los conflictos y colas no confirmadas conservan su revisión explícita.

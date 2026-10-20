@@ -14,9 +14,11 @@ la fecha de comprobación. La primera lectura, un cursor distinto, un resultado
 con eventos y la recuperación de un error/conflicto mantienen el commit durable
 anterior. Nunca se avanza el cursor sin aplicar/readback ni se oculta un fallo.
 
-Los avisos inmediatos se agrupan durante 80 ms. Volver brevemente a una ventana
-con canal sano y lectura correcta en los últimos 30 segundos no fuerza otro
-pull, salvo que haya llegado una señal nueva. Las señales recibidas oculta se
+Los avisos inmediatos se agrupan durante 80 ms. Los eventos repetidos de foco
+con canal sano y lectura correcta en los últimos 30 segundos no fuerzan otro
+pull, salvo que haya llegado una señal nueva. Regresar desde estado oculto sí
+fuerza una única lectura ligera: el sistema operativo móvil pudo suspender el
+socket sin entregar su aviso de desconexión. Las señales recibidas oculta se
 recuerdan; una señal durante una petición conserva la siguiente lectura. Una
 contención CAS local obsoleta permite una única relectura desde la base vigente,
 sin forzar datos ni reintentar conflictos. El sondeo de seguridad se conserva.

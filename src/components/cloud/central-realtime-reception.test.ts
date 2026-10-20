@@ -138,6 +138,21 @@ describe("quiet realtime reception", () => {
     expect(h.business).toHaveBeenCalledTimes(initial + 1);
   });
 
+  it("rechecks once after a true background resume even if the OS silently lost socket messages", async () => {
+    await mount();
+    const business = h.business.mock.calls.length;
+    const invoices = h.invoices.mock.calls.length;
+    Object.assign(document, { visibilityState: "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    Object.assign(document, { visibilityState: "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("pageshow"));
+    await vi.advanceTimersByTimeAsync(80);
+    expect(h.business).toHaveBeenCalledTimes(business + 1);
+    expect(h.invoices).toHaveBeenCalledTimes(invoices + 1);
+  });
+
   it("does not hold up business events while the auxiliary fiscal read is slow", async () => {
     const fiscal = deferred<{ ok: true }>();
     h.fiscal.mockImplementation(() => fiscal.promise);

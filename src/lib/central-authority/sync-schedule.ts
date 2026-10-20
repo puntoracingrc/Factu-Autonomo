@@ -4,16 +4,18 @@ export const CENTRAL_AUTHORITY_POLL_JITTER_MS = 15_000;
 export const CENTRAL_AUTHORITY_WAKE_COALESCE_MS = 80;
 export const CENTRAL_AUTHORITY_FOREGROUND_FRESH_MS = 30_000;
 
-/** A brief app switch does not invalidate a healthy, recently checked channel. */
+/** Coalesce duplicate focus events; an OS-suspended socket still needs a read. */
 export function shouldWakeCentralAuthorityForActivity(input: {
   visible: boolean;
   online: boolean;
   realtimeState: CentralAuthorityRealtimeState;
   lastSuccessfulSyncAt: number | null;
   now: number;
+  resumedFromHidden?: boolean;
 }): boolean {
   if (!input.visible || !input.online) return false;
   return (
+    input.resumedFromHidden === true ||
     input.realtimeState !== "subscribed" ||
     input.lastSuccessfulSyncAt === null ||
     input.now - input.lastSuccessfulSyncAt >= CENTRAL_AUTHORITY_FOREGROUND_FRESH_MS

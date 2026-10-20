@@ -107,6 +107,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     if (!enabled) return;
 
     let cancelled = false;
+    let wasHidden = document.visibilityState !== "visible";
 
     function clearTimer() {
       if (timerRef.current !== null) {
@@ -198,6 +199,9 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     }
 
     function wake(event?: Event) {
+      const resumedFromHidden = event?.type === "visibilitychange" &&
+        wasHidden && document.visibilityState === "visible";
+      if (event?.type === "visibilitychange") wasHidden = document.visibilityState !== "visible";
       if (event && ["focus", "pageshow", "visibilitychange"].includes(event.type) &&
         !shouldWakeCentralAuthorityForActivity({
           visible: document.visibilityState === "visible",
@@ -205,6 +209,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
           realtimeState: realtimeStateRef.current,
           lastSuccessfulSyncAt: lastSuccessfulSyncAtRef.current,
           now: Date.now(),
+          resumedFromHidden,
         })) return;
       wakeSequenceRef.current += 1;
       lastSuccessfulSyncAtRef.current = null;
