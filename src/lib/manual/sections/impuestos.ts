@@ -45,6 +45,8 @@ export const impuestosSection: ManualSection = {
       title: "3. Descargar las facturas del periodo en PDF (Pro)",
       paragraphs: [
         "En las vistas **Trimestre** y **Meses**, pulsa **Facturas PDF** para preparar todas las facturas emitidas de ese periodo. El máximo es de tres meses y los presupuestos, recibos y borradores no se incluyen.",
+        "**Paquete para gestor** descarga un ZIP conjunto: cada mes tiene sus facturas emitidas y justificantes de gastos; **Listados** contiene resúmenes PDF, libros CSV, resumen fiscal e índice. Puedes elegir gastos deducibles, todos los de empresa o todos. Los originales se recuperan de Factu o Drive con verificación; los gastos sin archivo quedan señalados y no reciben un justificante inventado.",
+        "**Enviar al gestor** prepara ese mismo paquete conjunto para el contacto de Ajustes. Gmail y el correo del dispositivo requieren adjuntar el ZIP descargado antes de enviar; Compartir lo incluye si el sistema admite ZIP. La app no envía el correo automáticamente.",
         "La descarga es un ZIP que contiene una carpeta local. Un trimestre fiscal se nombra, por ejemplo, **Facturas Trimestre 2 2026**; un mes, **Facturas Mayo 2026**; y un rango no trimestral, **Facturas Mayo-Julio 2026**.",
         "Cada archivo se genera desde la copia fiscal congelada y verificada del documento, no desde campos vivos que hayan cambiado después. Los históricos importados y aceptados conservan su tratamiento propio sin fabricarles un sello moderno.",
         "Si una factura del periodo tiene la integridad pendiente o su PDF original no puede reconstruirse de forma segura, Factu bloquea el paquete completo y muestra qué documentos debes revisar. Nunca descarga silenciosamente una carpeta incompleta.",

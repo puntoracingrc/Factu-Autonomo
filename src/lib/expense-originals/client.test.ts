@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   expenseOriginalStatuses,
+  downloadExpenseOriginal,
   openExpenseOriginal,
   uploadExpenseOriginal,
 } from "./client";
@@ -158,5 +159,39 @@ describe("expense original client: no persistent bytes and no cross-company resu
     await expect(openExpenseOriginal("e1")).rejects.toThrow(/verificar/);
     expect(close).toHaveBeenCalledTimes(1);
     expect(create).not.toHaveBeenCalled();
+  });
+  it("exports verified bytes without opening a tab and rejects a mismatched hash", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(pdf, {
+            headers: {
+              "Content-Type": "application/pdf",
+              "X-Factu-Source-Sha256": sha,
+              "Content-Disposition": "attachment; filename*=UTF-8''factura.pdf",
+            },
+          }),
+      ),
+    );
+    expect((await downloadExpenseOriginal("e1", "company-1")).bytes).toEqual(
+      pdf,
+    );
+    expect(window.open).not.toHaveBeenCalled();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(pdf, {
+            headers: {
+              "Content-Type": "application/pdf",
+              "X-Factu-Source-Sha256": "0".repeat(64),
+            },
+          }),
+      ),
+    );
+    await expect(downloadExpenseOriginal("e1", "company-1")).rejects.toThrow(
+      /verificar/,
+    );
   });
 });
