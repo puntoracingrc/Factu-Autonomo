@@ -54,6 +54,24 @@ export interface CentralInvoiceAuthorityEventsAppDataSyncValue {
   state: CentralInvoiceAuthorityEventsSyncStateV1;
 }
 
+/** Empty successful reads do not rewrite/compress the whole company snapshot.
+ * A changed cursor, first check or previous failure still needs a durable commit.
+ */
+export function centralInvoiceEventsAreUnchanged(
+  data: AppData,
+  pulled: CentralInvoiceAuthorityEventsAppDataPulledValue,
+): boolean {
+  const previous = data.centralInvoiceAuthorityEventsSync;
+  const result = pulled.localSync;
+  if (!previous || previous.lastResult?.status !== "ok" || !result.ok ||
+    result.pulledEvents !== 0 || result.applied.length !== 0 ||
+    result.skipped.length !== 0 || result.conflicts.length !== 0) return false;
+  const current = previous.cursor;
+  const next = result.cursorToPersist ?? current;
+  return (current?.afterCreatedAt ?? null) === (next?.afterCreatedAt ?? null) &&
+    (current?.afterEventId ?? null) === (next?.afterEventId ?? null);
+}
+
 function parsedTimestamp(value: string | undefined): number | null {
   if (!value) return null;
   const parsed = Date.parse(value);

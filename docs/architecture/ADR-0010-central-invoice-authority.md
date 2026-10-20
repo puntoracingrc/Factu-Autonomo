@@ -1,8 +1,29 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 9
-- Fecha: 2026-10-15
+- Version: 10
+- Fecha: 2026-10-20
+
+## Fiabilidad V10: recepción sin reescrituras vacías
+
+Una lectura correcta sin eventos, cambios ni avance de cursor puede conservar
+exactamente la referencia de AppData ya verificada cuando su estado anterior
+era correcto. Se revalida empresa activa, base en memoria y copia durable al
+terminar la petición. No se comprime ni guarda toda la empresa solo para renovar
+la fecha de comprobación. La primera lectura, un cursor distinto, un resultado
+con eventos y la recuperación de un error/conflicto mantienen el commit durable
+anterior. Nunca se avanza el cursor sin aplicar/readback ni se oculta un fallo.
+
+Los avisos inmediatos se agrupan durante 80 ms. Volver brevemente a una ventana
+con canal sano y lectura correcta en los últimos 30 segundos no fuerza otro
+pull, salvo que haya llegado una señal nueva. Las señales recibidas oculta se
+recuerdan; una señal durante una petición conserva la siguiente lectura. Una
+contención CAS local obsoleta permite una única relectura desde la base vigente,
+sin forzar datos ni reintentar conflictos. El sondeo de seguridad se conserva.
+Ninguna de estas operaciones recarga la ruta ni desmonta formularios abiertos.
+
+Regresiones: `events-app-data-sync.test.ts`, `central-realtime-reception.test.ts`,
+`sync-schedule.test.ts`, contratos de autoridad, durabilidad y aislamiento.
 
 ## Decision de producto V9: relaciones al borrar una factura (2026-10-15)
 

@@ -3,6 +3,7 @@
 import type { CentralInvoiceAuthorityEventsAppDataSyncValue } from "./events-app-data-sync";
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import type { CentralInvoiceAuthorityEventsSyncLastResultV1 } from "@/lib/types";
+import type { CentralSyncOutcome } from "@/lib/central-authority/sync-health";
 import {
   CENTRAL_AUTHORITY_DEGRADED_POLL_MS,
   CENTRAL_AUTHORITY_REALTIME_SAFETY_POLL_MS,
@@ -253,4 +254,20 @@ export function nextCentralInvoiceAuthorityEventsAutoSyncDelay(
     options.realtimeState ?? "subscribed",
     options.jitterFraction,
   );
+}
+
+export function centralInvoiceEventsSyncOutcome(
+  result: AppDataDurabilityResult<CentralInvoiceAuthorityEventsAppDataSyncValue>,
+): CentralSyncOutcome {
+  if (result.status === "applied") {
+    return result.value.localSync.ok
+      ? { ok: true }
+      : { ok: false, message: result.value.localSync.message };
+  }
+  return {
+    ok: false,
+    message: result.status === "blocked" && result.reason === "quota_exceeded"
+      ? "Las facturas están en el servidor, pero no se pudo guardar su copia en este dispositivo. Se reintentará automáticamente."
+      : "No se pudo verificar la recepción de facturas centrales. Se reintentará automáticamente.",
+  };
 }

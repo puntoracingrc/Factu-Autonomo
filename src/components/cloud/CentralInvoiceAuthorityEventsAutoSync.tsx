@@ -8,6 +8,8 @@ import type { AppData } from "@/lib/types";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
 import {
   centralAuthorityRealtimeStateFromStatus,
+  CENTRAL_AUTHORITY_WAKE_COALESCE_MS,
+  shouldWakeCentralAuthorityForActivity,
   type CentralAuthorityRealtimeState,
 } from "@/lib/central-authority/sync-schedule";
 import {
@@ -17,6 +19,7 @@ import {
   CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_SCHEMA,
   CENTRAL_AUTHORITY_EVENTS_REALTIME_WAKEUPS_TABLE,
   centralInvoiceAuthorityEventsRealtimeWakeupsSubscription,
+  centralInvoiceEventsSyncOutcome,
   isCentralInvoiceAuthorityEventsAutoSyncEnabled,
   isCentralInvoiceAuthorityEventsCanaryUserAllowed,
   isCentralInvoiceAuthorityEventsRealtimeWakeupsEnabled,
@@ -36,6 +39,8 @@ type LatestCentralAuthorityAutoSyncState = {
   hasUser: boolean;
   emailConfirmed: boolean;
   userCanaryAllowed: boolean;
+  userId: string | null;
+  report: ReturnType<typeof useCloudSync>["reportCentralSyncOutcome"];
   syncCentralInvoiceAuthorityEvents: ReturnType<
     typeof useAppStore
   >["syncCentralInvoiceAuthorityEvents"];
@@ -43,7 +48,7 @@ type LatestCentralAuthorityAutoSyncState = {
 
 export function CentralInvoiceAuthorityEventsAutoSync() {
   const { data, ready, syncCentralInvoiceAuthorityEvents } = useAppStore();
-  const { cloudEnabled, emailConfirmed } = useCloudSync();
+  const { cloudEnabled, emailConfirmed, reportCentralSyncOutcome } = useCloudSync();
   const planGate = useCentralAuthorityPlanGate();
   const enabled =
     planGate.mode === "central" &&
@@ -57,6 +62,9 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
   const runningRef = useRef(false);
   const pendingWakeRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  const timerDueAtRef = useRef<number | null>(null);
+  const lastSuccessfulSyncAtRef = useRef<number | null>(null);
+  const wakeSequenceRef = useRef(0);
   const realtimeStateRef = useRef<CentralAuthorityRealtimeState>("disabled");
   const realtimeWakeRef = useRef<() => void>(() => {});
   const latestRef = useRef<LatestCentralAuthorityAutoSyncState>({
@@ -66,6 +74,8 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     hasUser: Boolean(userId),
     emailConfirmed,
     userCanaryAllowed,
+    userId,
+    report: reportCentralSyncOutcome,
     syncCentralInvoiceAuthorityEvents,
   });
 
@@ -77,6 +87,8 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       hasUser: Boolean(userId),
       emailConfirmed,
       userCanaryAllowed,
+      userId,
+      report: reportCentralSyncOutcome,
       syncCentralInvoiceAuthorityEvents,
     };
   }, [
@@ -87,6 +99,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     userId,
     emailConfirmed,
     userCanaryAllowed,
+    reportCentralSyncOutcome,
     syncCentralInvoiceAuthorityEvents,
   ]);
 
@@ -96,22 +109,28 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
     let cancelled = false;
 
     function clearTimer() {
-      if (timerRef.current) {
+      if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
+        timerDueAtRef.current = null;
       }
     }
 
     function schedule(delayMs: number | null) {
       if (cancelled || delayMs === null) return;
+      const dueAt = Date.now() + delayMs;
+      if (timerDueAtRef.current !== null && timerDueAtRef.current <= dueAt) return;
       clearTimer();
+      timerDueAtRef.current = dueAt;
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
+        timerDueAtRef.current = null;
         void runOnce();
       }, delayMs);
     }
 
     async function runOnce() {
+      if (cancelled) return;
       const latest = latestRef.current;
       const decision = shouldRunCentralInvoiceAuthorityEventsAutoSync({
         enabled,
@@ -136,13 +155,27 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       }
 
       runningRef.current = true;
+      const wakeSequence = wakeSequenceRef.current;
       try {
-        const result = await latest.syncCentralInvoiceAuthorityEvents(
+        let result = await latest.syncCentralInvoiceAuthorityEvents(
           latest.data,
           {
             limit: CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT,
           },
         );
+        // Another central stream may have committed while this request was in
+        // flight. Re-read once from the current baseline, never force old data.
+        if (result.status === "blocked" && result.reason === "stale_precondition" && !cancelled) {
+          result = await latest.syncCentralInvoiceAuthorityEvents(latestRef.current.data, {
+            limit: CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_LIMIT,
+          });
+        }
+        if (cancelled || latestRef.current.userId !== latest.userId) return;
+        const outcome = centralInvoiceEventsSyncOutcome(result);
+        lastSuccessfulSyncAtRef.current = outcome.ok && wakeSequence === wakeSequenceRef.current
+          ? Date.now()
+          : null;
+        if (latest.userId) latest.report(latest.userId, "invoices", outcome);
         schedule(
           nextCentralInvoiceAuthorityEventsAutoSyncDelay(result, {
             realtimeState: realtimeStateRef.current,
@@ -150,6 +183,10 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
           }),
         );
       } catch {
+        lastSuccessfulSyncAtRef.current = null;
+        if (!cancelled && latest.userId) latest.report(latest.userId, "invoices", {
+          ok: false, message: "No se pudo recibir las facturas centrales. Se reintentará automáticamente.",
+        });
         schedule(CENTRAL_AUTHORITY_EVENTS_AUTO_SYNC_RETRY_MS);
       } finally {
         runningRef.current = false;
@@ -160,12 +197,23 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       }
     }
 
-    function wake() {
+    function wake(event?: Event) {
+      if (event && ["focus", "pageshow", "visibilitychange"].includes(event.type) &&
+        !shouldWakeCentralAuthorityForActivity({
+          visible: document.visibilityState === "visible",
+          online: navigator.onLine,
+          realtimeState: realtimeStateRef.current,
+          lastSuccessfulSyncAt: lastSuccessfulSyncAtRef.current,
+          now: Date.now(),
+        })) return;
+      wakeSequenceRef.current += 1;
+      lastSuccessfulSyncAtRef.current = null;
+      if (document.visibilityState !== "visible" || !navigator.onLine) return;
       if (runningRef.current) {
         pendingWakeRef.current = true;
         return;
       }
-      schedule(0);
+      schedule(CENTRAL_AUTHORITY_WAKE_COALESCE_MS);
     }
 
     realtimeWakeRef.current = wake;
@@ -187,7 +235,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
       window.removeEventListener(CLOUD_DEVICE_REACTIVATED_EVENT, wake);
       document.removeEventListener("visibilitychange", wake);
     };
-  }, [enabled, userCanaryAllowed]);
+  }, [enabled, userCanaryAllowed, userId]);
 
   useEffect(() => {
     if (enabled && ready && userId) realtimeWakeRef.current();
@@ -236,6 +284,7 @@ export function CentralInvoiceAuthorityEventsAutoSync() {
             },
           )
           .subscribe((status) => {
+            if (cancelled) return;
             const previous = realtimeStateRef.current;
             const next = centralAuthorityRealtimeStateFromStatus(status);
             realtimeStateRef.current = next;

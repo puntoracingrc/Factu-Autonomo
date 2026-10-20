@@ -7,9 +7,19 @@ import {
   centralAuthorityIdlePollDelay,
   centralAuthorityRealtimeStateFromStatus,
   maximumFallbackRequestsPerWindow,
+  shouldWakeCentralAuthorityForActivity,
 } from "./sync-schedule";
 
 describe("central authority sync schedule", () => {
+  it("does not repeat a healthy recent read on a brief app switch", () => {
+    const input = { visible: true, online: true, realtimeState: "subscribed" as const, lastSuccessfulSyncAt: 1_000, now: 2_000 };
+    expect(shouldWakeCentralAuthorityForActivity(input)).toBe(false);
+    expect(shouldWakeCentralAuthorityForActivity({ ...input, now: 31_000 })).toBe(true);
+    expect(shouldWakeCentralAuthorityForActivity({ ...input, lastSuccessfulSyncAt: null })).toBe(true);
+    expect(shouldWakeCentralAuthorityForActivity({ ...input, realtimeState: "degraded" })).toBe(true);
+    expect(shouldWakeCentralAuthorityForActivity({ ...input, visible: false })).toBe(false);
+    expect(shouldWakeCentralAuthorityForActivity({ ...input, online: false })).toBe(false);
+  });
   it("trata Realtime como camino principal y conserva un respaldo lento", () => {
     expect(centralAuthorityRealtimeStateFromStatus("SUBSCRIBED")).toBe(
       "subscribed",
