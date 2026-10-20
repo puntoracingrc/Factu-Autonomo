@@ -3,6 +3,7 @@ import type { ExpenseScanPayload } from "./expense-scan/schema";
 import { consumeExpenseScan } from "@/lib/billing/scan-usage-server";
 import { hasUnlimitedAiAccessForCompany } from "@/lib/billing/unlimited-ai-access";
 import { resolveCompanyBillingFromDataOwner } from "@/lib/companies/server";
+import { archiveInboxOriginalIfCloud } from "@/lib/expense-originals/server";
 
 const COMPANY_ID = "ebf7802a-d38c-4fb0-9dd1-fb387f7fa092";
 const DATA_OWNER_ID = "ebf7802a-d38c-4fb0-9dd1-fb387f7fa092";
@@ -16,6 +17,10 @@ const aliasRows: Array<Record<string, unknown>> = [
   },
 ];
 const inboxRows: Array<Record<string, unknown>> = [];
+
+vi.mock("@/lib/expense-originals/server", () => ({
+  archiveInboxOriginalIfCloud: vi.fn(async () => undefined),
+}));
 
 vi.mock("@/lib/billing/config", () => ({
   isBillingEnforced: () => false,
@@ -210,6 +215,19 @@ describe("expense inbox server", () => {
     vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(false);
   });
 
+  it("keeps a failed original archive retryable and never analyzes a replay twice",async()=>{
+    const {ingestExpenseInboxEmail}=await import("./expense-inbox-server");
+    const email={To:"gastos-pa-inbox01@mail.facturacion-autonomos.app",From:"sintetico@example.test",Subject:"Original sintético",Attachments:[{Name:"synthetic.pdf",ContentType:"application/pdf",Content:Buffer.from("%PDF-1.7\noriginal retry fixture").toString("base64")}]};
+    vi.mocked(archiveInboxOriginalIfCloud).mockRejectedValueOnce(new Error("Storage temporarily unavailable"));
+    await expect(ingestExpenseInboxEmail(email)).rejects.toThrow("Storage temporarily unavailable");
+    expect(inboxRows).toHaveLength(0);
+    expect(await ingestExpenseInboxEmail(email)).toMatchObject({accepted:1,pending:1,duplicates:0});
+    expect(await ingestExpenseInboxEmail(email)).toMatchObject({accepted:0,pending:0,duplicates:1});
+    expect(inboxRows).toHaveLength(1);
+    expect(consumeExpenseScan).toHaveBeenCalledTimes(1);
+    expect(archiveInboxOriginalIfCloud).toHaveBeenCalledTimes(3);
+  });
+
   it("acumula adjuntos de emails distintos y cierra solo la entrada indicada", async () => {
     const {
       ingestExpenseInboxEmail,
@@ -225,7 +243,7 @@ describe("expense inbox server", () => {
         {
           Name: "factura-uno.pdf",
           ContentType: "application/pdf",
-          Content: Buffer.from("factura uno").toString("base64"),
+          Content: Buffer.from("%PDF-1.7\nfactura uno").toString("base64"),
         },
       ],
     });
@@ -237,13 +255,15 @@ describe("expense inbox server", () => {
         {
           Name: "factura-dos.pdf",
           ContentType: "application/pdf",
-          Content: Buffer.from("factura dos").toString("base64"),
+          Content: Buffer.from("%PDF-1.7\nfactura dos").toString("base64"),
         },
       ],
     });
 
     expect(first).toMatchObject({ accepted: 1, pending: 1, duplicates: 0 });
     expect(second).toMatchObject({ accepted: 1, pending: 1, duplicates: 0 });
+    expect(archiveInboxOriginalIfCloud).toHaveBeenCalledTimes(2);
+    expect(archiveInboxOriginalIfCloud).toHaveBeenCalledWith(expect.objectContaining({userId:DATA_OWNER_ID,billingUserId:BILLING_OWNER_ID,bytes:Buffer.from("%PDF-1.7\nfactura uno")}));
 
     const items = await listExpenseInboxItems(DATA_OWNER_ID);
 

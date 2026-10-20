@@ -110,7 +110,7 @@ describe("expense inbox reliability contract", () => {
     expect(card).toContain("items.map((item)");
     expect(card).not.toContain("items.slice(0, 5)");
     expect(form).toContain('updateActiveInboxItemStatus("ignored")');
-    expect(form).toContain("sourceInboxItemId: activeInboxItemId ?? undefined");
+    expect(form).toContain("sourceInboxItemId: activeInboxItemId ?? editingExpense?.sourceInboxItemId ?? undefined");
     expect(form).toContain("expenseAlreadySavedFromInbox");
     expect(types).toContain("sourceInboxItemId?: string");
   });

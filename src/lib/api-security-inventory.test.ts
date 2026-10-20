@@ -99,6 +99,8 @@ const expectedMethods: Record<string, string[]> = {
   "expenses/learning-consent/route.ts": ["GET", "PUT"],
   "expenses/learning-maintenance/route.ts": ["POST"],
   "expenses/scan/route.ts": ["GET", "POST"],
+  "expenses/[id]/original/route.ts": ["GET", "POST"],
+  "expenses/originals/status/route.ts": ["POST"],
   "google-auth/token/route.ts": ["POST"],
   "fiscal-notifications/audit/route.ts": ["POST"],
   "google-drive/token/route.ts": ["POST"],
@@ -197,6 +199,8 @@ const bearerRoutes = [
   "expenses/learning-contribution/route.ts",
   "expenses/learning-consent/route.ts",
   "expenses/scan/route.ts",
+  "expenses/[id]/original/route.ts",
+  "expenses/originals/status/route.ts",
   "fiscal-notifications/audit/route.ts",
   "fiscal-notifications/support/route.ts",
   "google-drive/token/route.ts",
@@ -364,6 +368,14 @@ describe("API security inventory", () => {
       );
     }
     for (const route of bearerRoutes) {
+      if (route === "expenses/[id]/original/route.ts" || route === "expenses/originals/status/route.ts") {
+        expect(sourceFor(route),route).toContain("originalRouteAuth(request");
+        const guard=readFileSync(new URL("./expense-originals/route-auth.ts",import.meta.url),"utf8");
+        expect(guard).toContain("getCompanyRouteAuthFromBearer(");
+        expect(guard).toContain("ensureCloudDeviceAccess(");
+        expect(guard).toContain("checkRateLimit(");
+        continue;
+      }
       expect(sourceFor(route), route).toMatch(
         /getUser(?:Session)?FromBearer|getCompanyRouteAuthFromBearer/,
       );
@@ -400,6 +412,11 @@ describe("API security inventory", () => {
 
   it("keeps constrained routes behind distributed rate limiting", () => {
     for (const route of distributedRateLimitedRoutes) {
+      if (route === "expenses/[id]/original/route.ts" || route === "expenses/originals/status/route.ts") {
+        expect(sourceFor(route),route).toContain("originalRouteAuth(request");
+        expect(readFileSync(new URL("./expense-originals/route-auth.ts",import.meta.url),"utf8")).toContain("checkRateLimit(");
+        continue;
+      }
       expect(sourceFor(route), route).toContain("checkRateLimit(");
     }
   });

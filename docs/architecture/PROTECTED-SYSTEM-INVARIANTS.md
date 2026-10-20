@@ -105,9 +105,10 @@ Contrato: [ADR-0004](ADR-0004-expense-inbox-email-reliability.md).
 - Guardar o descartar cierra la entrada. La copia usa el subdominio autenticado
   y solo `delivered` confirma éxito; un fallo nunca se convierte en éxito
   silencioso.
-- La descarga autenticada de un original propio es temporal, `no-store` y
-  exige tamaño+SHA-256 exactos; nunca persiste bytes ni expone PII. Un fallo no
-  cierra la entrada ni publica el gasto.
+- La ruta histórica de descarga transitoria mantiene `no-store` y tamaño/SHA-256
+  exactos, sin exponer PII. ADR-0004 V7 autoriza conservar los originales del
+  buzón en archivo privado por empresa antes de analizarlos; cualquier fallo
+  de archivado sigue reintentable. Los antiguos solo se recuperan con hash exacto.
 
 Regresiones mínimas: `expense-inbox-reliability-contract.test.ts`,
 `expense-inbox-copy.test.ts` y `expense-inbox-download.test.ts`.
@@ -158,6 +159,11 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 - Los originales archivados antes de ADR-0005 V5 se conservan sin reescritura.
   Sus lecturas, exportaciones y retirada explícita siguen exigiendo ID, política,
   procedencia y SHA-256 verificados.
+- ADR-0005 V22 añade originales privados en la nube de Factu para el buzón y
+  adjuntos manuales. Binarios fuera de `AppData`/caché/outbox, permisos y sesión
+  por empresa en cada operación, readback exacto y sin sustitución automática.
+  Un fallo del archivo nunca repite el alta financiera ya confirmada. Realtime
+  solo invalida la consulta por lotes, sin transmitir archivos ni recargar formularios.
 - Exportar originales exige releer y verificar política, carpeta, procedencia,
   MIME, tamaño y SHA-256. Un fallo bloquea el ZIP entero; los gastos sin original
   solo se marcan en el resumen y nunca reciben un archivo fabricado.

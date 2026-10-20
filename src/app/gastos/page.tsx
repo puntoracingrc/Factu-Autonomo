@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpensePurchaseLinesPreview } from "@/components/expenses/ExpensePurchaseLinesPreview";
+import { ExpenseOriginalButton } from "@/components/expenses/ExpenseOriginalButton";
+import { useExpenseOriginals } from "@/hooks/useExpenseOriginals";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import {
   countBlockedExpenseVat,
@@ -580,6 +582,7 @@ export default function GastosPage() {
   }, [fixedChartSlices, periodExpenses, purchaseChartSlices, supplierFilter]);
 
   const visibleExpenses = filteredExpenses.slice(0, visibleExpenseCount);
+  const expenseOriginals = useExpenseOriginals(visibleExpenses);
   const hiddenExpenseCount = Math.max(
     filteredExpenses.length - visibleExpenses.length,
     0,
@@ -1042,6 +1045,7 @@ export default function GastosPage() {
       />
 
       <RecurringDueBanner data={data} />
+      {expenseOriginals.error ? <p role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{expenseOriginals.error}</p> : null}
 
       <div className="mb-4">
         <ExpenseInboxCard vatExempt={vatExempt} />
@@ -1668,6 +1672,7 @@ export default function GastosPage() {
                     />
                   </Link>
                   <div className="flex items-center justify-end gap-2">
+                    <ExpenseOriginalButton expense={expense} ownerScope={expenseOriginals.ownerScope} status={expenseOriginals.originals[expense.id]} enabled={expenseOriginals.enabled} loading={expenseOriginals.loading} />
                     <span
                       className={`font-bold ${
                         signedExpenseTotal < 0 ? "text-sky-800" : "text-red-700"

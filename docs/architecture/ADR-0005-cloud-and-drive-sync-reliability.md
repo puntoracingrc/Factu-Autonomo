@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 21
-- Fecha: 2026-10-09
+- Versión: 22
+- Fecha: 2026-10-20
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
 > este ADR queda reemplazada por ADR-0010 y ADR-0011. Siguen vigentes sus
@@ -276,9 +276,46 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 4. El gasto escaneado toma el estado vigente al guardar y no mantiene una espera
    asíncrona de Drive entre la revisión y el commit. El buzón solo se cierra
    después de confirmar la ficha en Factu.
-5. El PDF o imagen original vive únicamente en memoria durante el análisis y se
+5. En el escáner local, el PDF o imagen original vive únicamente en memoria durante el análisis y se
    descarta al terminar. La huella SHA-256 sigue impidiendo duplicar una ficha,
    pero volver a seleccionar un documento registrado no ofrece archivarlo.
+
+### Archivo privado de originales de gastos (V22)
+
+Decisión expresa del propietario el 2026-10-20: conservar el documento recibido
+por email y permitir adjuntarlo al introducir o editar un gasto manualmente.
+Esta excepción no reactiva Drive en los escáneres ni modifica Notificaciones.
+
+1. Los bytes se guardan en `factu-expense-originals`, bucket privado exclusivo
+   de servidor. `expense_original_files` mantiene vínculos inmutables por
+   empresa y gasto, o por empresa y hash del adjunto del buzón. No contiene
+   importes y no modifica la entidad financiera ni su CAS.
+2. Toda lectura/subida exige sesión confirmada, miembro vigente de la empresa
+   seleccionada, plan con nube, dispositivo autorizado, límites de frecuencia
+   y respuestas privadas `no-store`. RLS y una política restrictiva impiden
+   acceso directo desde Storage con roles anónimo o autenticado. No hay URLs
+   públicas ni enlaces firmados compartibles.
+3. Se admiten PDF, PNG/JPEG/WebP/GIF y Word/Excel, hasta 4 MiB, con extensión y
+   firma binaria compatibles. Word/Excel se descargan, nunca se ejecutan o
+   interpretan. Archivo content-addressed, sin `upsert`, con readback de tamaño,
+   MIME y SHA-256 antes de confirmar; la descarga vuelve a verificar SHA-256.
+4. El gasto manual se confirma primero. Si falla el archivo, la pantalla indica
+   que el gasto está guardado y reintenta únicamente el adjunto sobre ese ID;
+   no repite el alta. Seleccionar un archivo no lo introduce en `AppData`,
+   IndexedDB, localStorage, snapshots, copias JSON ni outboxes.
+5. Adjuntar un archivo distinto a un gasto que ya tiene original devuelve
+   conflicto, nunca sustituye ni elimina el anterior. Borrar el gasto no borra
+   automáticamente su archivo. Los archivos históricos de Drive no se mueven,
+   reescriben ni se incorporan silenciosamente a este almacén. La exportación
+   ZIP de Drive mantiene su contrato anterior.
+6. La lista consulta estados por lotes, sin descargar archivos. El canal privado
+   existente de ADR-0011 solo despierta esa consulta con `expense_originals`;
+   no transmite binarios, importes, nombres o enlaces ni recarga formularios.
+   No se añade un temporizador de polling por gasto.
+
+Regresiones: `expense-originals/*.test.ts`, contratos del buzón/Drive,
+`auxiliary-wakeups.test.ts`, typecheck, lint y aceptación local sintética de
+Storage/API, incluyendo separación entre empresas y descarga sin permisos.
 
 ### Originales archivados anteriormente en Drive
 

@@ -18,6 +18,9 @@ import {
   prepareExpenseVatForSave,
 } from "@/components/expenses/expense-vat-ui";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
+import { ExpenseOriginalField } from "@/components/expenses/ExpenseOriginalField";
+import { uploadExpenseOriginal } from "@/lib/expense-originals/client";
+import { getActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -253,6 +256,13 @@ export default function NuevoGastoPage() {
   const [inboxLoadError, setInboxLoadError] = useState<string | null>(null);
   const [vatSubmitError, setVatSubmitError] = useState<string | null>(null);
   const [saveSubmitError, setSaveSubmitError] = useState<string | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [pendingOriginal, setPendingOriginal] = useState<{
+    expenseId: string | null;
+    ownerScope: string | null;
+  } | null>(null);
+  const [saveSubmitBusy, setSaveSubmitBusy] = useState(false);
+  const saveSubmitBusyRef = useRef(false);
   const [storageStateUnknown, setStorageStateUnknown] = useState(false);
   const fixedSaveOperationIdRef = useRef<string | null>(null);
   const manualSupplierSaveOperationIdRef = useRef<string | null>(null);
@@ -367,6 +377,7 @@ export default function NuevoGastoPage() {
 
   const fillFormFromScan = useCallback(
     (review: PendingExpenseScan) => {
+      setOriginalFile(null);
       const { payload, fileName } = review;
       setVatSubmitError(null);
       if (!storageStateUnknown) setSaveSubmitError(null);
@@ -493,6 +504,7 @@ export default function NuevoGastoPage() {
   }, [fillFormFromScan, inboxItemId, loadedInboxItemId]);
 
   function clearScanForm() {
+    setOriginalFile(null);
     disposeLocalSemanticShadow(activeScanReview);
     setVatSubmitError(null);
     if (!storageStateUnknown) setSaveSubmitError(null);
@@ -1581,6 +1593,21 @@ export default function NuevoGastoPage() {
   }
 
   async function handleSubmit() {
+    if (saveSubmitBusyRef.current) return;
+    saveSubmitBusyRef.current = true;
+    setSaveSubmitBusy(true);
+    try {
+      await handleSubmitOperation();
+    } catch {
+      setSaveSubmitError("No se pudo completar el guardado. Conservamos el formulario; revisa la conexión antes de reintentar.");
+    } finally {
+      saveSubmitBusyRef.current = false;
+      setSaveSubmitBusy(false);
+    }
+  }
+
+  async function handleSubmitOperation() {
+    const originalOwnerScope = getActiveWorkspaceOwnerScope();
     if (storageStateUnknown) return;
     if (
       activeInboxItemId &&
@@ -1736,7 +1763,7 @@ export default function NuevoGastoPage() {
       sanitizeExpensePurchaseDocument(purchaseDocument);
     const payload: Omit<Expense, "id" | "createdAt"> = {
       date: expenseDate,
-      sourceInboxItemId: activeInboxItemId ?? undefined,
+      sourceInboxItemId: activeInboxItemId ?? editingExpense?.sourceInboxItemId ?? undefined,
       supplierId,
       supplierName: resolved.supplierName,
       description: description.trim(),
@@ -1759,6 +1786,7 @@ export default function NuevoGastoPage() {
         providerSummaryUpgradeTarget?.originalArchive,
     };
 
+    let originalExpenseId = editingExpense?.id ?? providerSummaryUpgradeTarget?.id;
     if (businessKind === "fixed") {
       const recurringPayload = {
         supplierName: resolved.supplierName,
@@ -1848,6 +1876,7 @@ export default function NuevoGastoPage() {
           );
           return;
         }
+        originalExpenseId = result.value.expense.id;
         disposeLocalSemanticShadow(activeScanReview);
       }
     } else if (usesDurableScannedSave) {
@@ -1882,6 +1911,7 @@ export default function NuevoGastoPage() {
           result.replayed,
         );
       }
+      originalExpenseId = result.value.expense.id;
     } else if (usesDurableManualSupplierSave && resolved.create) {
       const centralResult = await saveScannedExpenseDurably(payload, {
         expected: durableExpected,
@@ -1899,6 +1929,7 @@ export default function NuevoGastoPage() {
         reportDurableExpenseSaveFailure(result);
         return;
       }
+      originalExpenseId = result.value.expense.id;
     } else if (editingExpense) {
       const result = await updateCentralExpense({
         ...editingExpense,
@@ -1920,6 +1951,26 @@ export default function NuevoGastoPage() {
       const result = await createExpense(payload);
       if (!result.ok) {
         setSaveSubmitError(result.error);
+        return;
+      }
+      originalExpenseId = result.expense?.id;
+    }
+
+    if (originalFile) {
+      if (!originalExpenseId) {
+        setOriginalFile(null);
+        setPendingOriginal({ expenseId: null, ownerScope: originalOwnerScope });
+        setSaveSubmitError("El gasto quedó guardado sin archivo. Abre su ficha desde Gastos para adjuntar el original cuando se confirme en la nube.");
+        return;
+      }
+      try {
+        await uploadExpenseOriginal(originalExpenseId, originalFile, originalOwnerScope);
+        setOriginalFile(null);
+      } catch (error) {
+        // Financial commit already succeeded. Retry uploads only the attachment
+        // for this exact expense; the selected File stays only in memory.
+        setPendingOriginal({ expenseId: originalExpenseId, ownerScope: originalOwnerScope });
+        setSaveSubmitError(`El gasto ya está guardado, pero no se pudo adjuntar el archivo. ${error instanceof Error ? error.message : "Reintenta con el mismo archivo."}`);
         return;
       }
     }
@@ -1946,8 +1997,45 @@ export default function NuevoGastoPage() {
     router.push("/gastos");
   }
 
+  if (pendingOriginal) {
+    return (
+      <div className="space-y-5">
+        <PageHeader title="Gasto guardado" subtitle="Solo queda adjuntar su archivo original. No se creará otro gasto." />
+        <Card>
+          <ExpenseOriginalField file={originalFile} onChange={setOriginalFile} />
+          {saveSubmitError ? (
+            <p role="alert" className="mt-3 text-sm font-semibold text-red-700">{saveSubmitError}</p>
+          ) : null}
+        </Card>
+        <Button
+          fullWidth
+          disabled={saveSubmitBusy || !originalFile || !pendingOriginal.expenseId}
+          onClick={async () => {
+            if (saveSubmitBusyRef.current || !originalFile || !pendingOriginal.expenseId) return;
+            saveSubmitBusyRef.current = true;
+            setSaveSubmitBusy(true);
+            try {
+              await uploadExpenseOriginal(pendingOriginal.expenseId,originalFile,pendingOriginal.ownerScope);
+              router.push("/gastos");
+            } catch (error) {
+              setSaveSubmitError(error instanceof Error ? error.message : "No se pudo adjuntar el original. Reintenta con el mismo archivo.");
+            } finally {
+              saveSubmitBusyRef.current = false;
+              setSaveSubmitBusy(false);
+            }
+          }}
+        >
+          {saveSubmitBusy ? "Adjuntando…" : "Reintentar adjunto"}
+        </Button>
+        <Button fullWidth variant="secondary" disabled={saveSubmitBusy} onClick={() => router.push("/gastos")}>
+          Volver a Gastos sin adjunto
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <fieldset disabled={saveSubmitBusy} className="min-w-0">
       <PageHeader
         title={editingRequested ? "Editar gasto" : "Añadir gasto"}
         subtitle={
@@ -3259,12 +3347,15 @@ export default function NuevoGastoPage() {
           </div>
         )}
         {showExpenseForm && (
+          <Card><ExpenseOriginalField expense={editingExpense} file={originalFile} onChange={setOriginalFile} inbox={Boolean(activeInboxItemId)} /></Card>
+        )}
+        {showExpenseForm && (
           <Button
             fullWidth
             onClick={() => void handleSubmit()}
-            disabled={Boolean(blockingDuplicateExpense) || storageStateUnknown}
+            disabled={Boolean(blockingDuplicateExpense) || storageStateUnknown || saveSubmitBusy}
           >
-            {storageStateUnknown
+            {saveSubmitBusy ? "Guardando…" : storageStateUnknown
               ? "Recarga antes de continuar"
               : activeInboxItemId &&
                   expenseAlreadySavedFromInbox(data.expenses, activeInboxItemId)
@@ -3283,6 +3374,6 @@ export default function NuevoGastoPage() {
           </Button>
         )}
       </div>
-    </div>
+    </fieldset>
   );
 }

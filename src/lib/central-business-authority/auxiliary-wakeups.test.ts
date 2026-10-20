@@ -4,7 +4,7 @@ import { auxiliaryWakeupKind } from "./auxiliary-wakeups";
 
 describe("private auxiliary invalidations", () => {
   it("accepts only known metadata kinds, never treats payload content as instructions", () => {
-    for (const kind of ["expense_inbox", "fiscal_notifications"] as const)
+    for (const kind of ["expense_inbox", "fiscal_notifications", "expense_originals"] as const)
       expect(auxiliaryWakeupKind({ payload: { kind } })).toBe(kind);
     for (const value of [
       null,
