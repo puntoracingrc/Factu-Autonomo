@@ -2002,7 +2002,7 @@ export default function NuevoGastoPage() {
       <div className="space-y-5">
         <PageHeader title="Gasto guardado" subtitle="Solo queda adjuntar su archivo original. No se creará otro gasto." />
         <Card>
-          <ExpenseOriginalField file={originalFile} onChange={setOriginalFile} />
+          <ExpenseOriginalField file={originalFile} onChange={setOriginalFile} disabled={saveSubmitBusy} />
           {saveSubmitError ? (
             <p role="alert" className="mt-3 text-sm font-semibold text-red-700">{saveSubmitError}</p>
           ) : null}

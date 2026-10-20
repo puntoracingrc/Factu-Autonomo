@@ -14,11 +14,13 @@ export function ExpenseOriginalField({
   file,
   onChange,
   inbox = false,
+  disabled = false,
 }: {
   expense?: Expense;
   file: File | null;
   onChange: (file: File | null) => void;
   inbox?: boolean;
+  disabled?: boolean;
 }) {
   const { enabled, originals, loading, ownerScope } = useExpenseOriginals(
     expense ? [expense] : [],
@@ -53,7 +55,7 @@ export function ExpenseOriginalField({
           <input
             type="file"
             accept={EXPENSE_ORIGINAL_ACCEPT}
-            disabled={!enabled}
+            disabled={!enabled || disabled}
             className="mt-2 block w-full rounded-xl border border-slate-200 p-3 text-sm disabled:opacity-50"
             onChange={(event) => {
               const chosen = event.target.files?.[0];
@@ -81,6 +83,7 @@ export function ExpenseOriginalField({
           {file.name}
           <button
             type="button"
+            disabled={disabled}
             onClick={() => onChange(null)}
             aria-label="Quitar archivo seleccionado sin guardar"
           >
