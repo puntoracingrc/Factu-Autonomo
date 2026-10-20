@@ -300,10 +300,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
           area = "business";
           for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
-            const business = await syncCentralBusinessEvents(ownerScope, {
+            let business = await syncCentralBusinessEvents(ownerScope, {
               limit: BUSINESS_EVENT_LIMIT,
             });
             ensureOwnerIsActive();
+            if (!business.ok && business.retryable && business.code === "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED") {
+              business = await syncCentralBusinessEvents(ownerScope, { limit: BUSINESS_EVENT_LIMIT });
+              ensureOwnerIsActive();
+            }
             if (!business.ok) throw new Error(business.message);
             if (!business.hasMore) break;
             if (page === MAX_SYNC_PAGES - 1) {
@@ -316,11 +320,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
           area = "invoices";
           for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
-            const invoices = await syncCentralInvoiceAuthorityEvents(
+            let invoices = await syncCentralInvoiceAuthorityEvents(
               getCurrentData(),
               { limit: INVOICE_EVENT_LIMIT },
             );
             ensureOwnerIsActive();
+            if (invoices.status === "blocked" && invoices.reason === "stale_precondition") {
+              invoices = await syncCentralInvoiceAuthorityEvents(getCurrentData(), { limit: INVOICE_EVENT_LIMIT });
+              ensureOwnerIsActive();
+            }
             if (invoices.status !== "applied") {
               throw new Error(
                 invoices.status === "blocked" &&

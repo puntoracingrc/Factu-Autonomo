@@ -126,4 +126,23 @@ describe("cloud status follows verified reception", () => {
     f.render().reportCentralSyncOutcome(f.scope.owner, "fiscal", { ok: true });
     expect(f.render().syncStatus).toBe("synced");
   });
+
+  it("rereads one stale local baseline during manual sync without displaying a false failure", async () => {
+    const f = provider();
+    f.business.mockResolvedValueOnce({ ok: false, retryable: true, code: "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED", message: "Concurrent local page" });
+    f.invoices.mockResolvedValueOnce({ status: "blocked", reason: "stale_precondition" });
+    expect(await f.render().syncNow()).toBe(true);
+    expect(f.business).toHaveBeenCalledTimes(2);
+    expect(f.invoices).toHaveBeenCalledTimes(2);
+    expect(f.render().syncStatus).toBe("synced");
+  });
+
+  it("does not retry a real version conflict or rejected permission", async () => {
+    const f = provider();
+    f.business.mockResolvedValue({ ok: false, retryable: false, code: "VERSION_CONFLICT", message: "Needs review" });
+    expect(await f.render().syncNow()).toBe(false);
+    expect(f.business).toHaveBeenCalledOnce();
+    expect(f.invoices).not.toHaveBeenCalled();
+    expect(f.render().syncStatus).toBe("error");
+  });
 });
