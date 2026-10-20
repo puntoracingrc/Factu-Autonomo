@@ -40,6 +40,12 @@ async function expense(userId: string, id: string) {
     );
   return parsed;
 }
+/** The inbox stores algorithm-tagged fingerprints; Storage keys use hex only. */
+function inboxArchiveHash(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const hash = value.startsWith("sha256:") ? value.slice(7) : value;
+  return /^[0-9a-f]{64}$/u.test(hash) ? hash : null;
+}
 async function inboxRecord(userId: string, id: string) {
   const { data, error } = await originalsAdmin()
     .from("expense_inbox_items")
@@ -53,8 +59,11 @@ async function inboxRecord(userId: string, id: string) {
       503,
       "No se pudo comprobar el documento del buzón.",
     );
-  return data && (data.status === "processed" || data.status === "pending")
-    ? (data as {
+  const hash = inboxArchiveHash(data?.attachment_hash);
+  return data &&
+    hash &&
+    (data.status === "processed" || data.status === "pending")
+    ? ({ ...data, attachment_hash: hash } as {
         attachment_hash: string;
         attachment_filename: string;
         status: string;
@@ -235,7 +244,10 @@ export async function listExpenseOriginalStatuses(
         503,
         "No se pudo consultar los originales del buzón.",
       );
-    inboxRows = response.data ?? [];
+    inboxRows = (response.data ?? []).flatMap((row) => {
+      const hash = inboxArchiveHash(row.attachment_hash);
+      return hash ? [{ id: row.id, attachment_hash: hash }] : [];
+    });
   }
   const hashes = inboxRows.map((row) => row.attachment_hash);
   const archivedHashes = new Set<string>();
