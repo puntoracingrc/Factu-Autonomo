@@ -219,4 +219,34 @@ describe("cloud device client", () => {
       "x".repeat(64),
     );
   });
+
+  it("coalesces concurrent identical claims but does not cache completed authorization", async () => {
+    let resolve!: (response: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((done) => { resolve = done; }));
+    vi.stubGlobal("fetch", fetchMock);
+    const first = registerCurrentCloudDevice({ notifyReactivated: false });
+    const second = registerCurrentCloudDevice({ notifyReactivated: false });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    resolve(Response.json({ plan: "pro", limit: null, devices: [], allowed: true }));
+    expect((await first).allowed).toBe(true);
+    expect((await second).allowed).toBe(true);
+    fetchMock.mockResolvedValueOnce(Response.json({ plan: "pro", devices: [], allowed: false, reason: "device_revoked" }));
+    expect((await registerCurrentCloudDevice({ notifyReactivated: false })).reason).toBe("device_revoked");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a sync stamp separate from ordinary registration", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({ plan: "pro", devices: [], allowed: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await Promise.all([
+      registerCurrentCloudDevice({ notifyReactivated: false }),
+      registerCurrentCloudDevice({ notifyReactivated: false, markSynced: true }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves rate-limit and authentication messages instead of hiding their cause", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: "Demasiados intentos" }, { status: 429 })));
+    expect((await registerCurrentCloudDevice()).error).toBe("Demasiados intentos");
+  });
 });

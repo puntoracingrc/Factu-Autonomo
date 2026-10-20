@@ -62,9 +62,15 @@ async function parsePayload(
     devices: [],
     error: response.ok
       ? "La respuesta de dispositivos no es válida."
-      : "No se pudo completar la operación de dispositivos.",
+      : typeof payload?.error === "string"
+        ? payload.error
+        : `No se pudo completar la operación de dispositivos (HTTP ${response.status}).`,
   };
 }
+
+// Collapse concurrent startup/foreground claims, not completed authorization.
+// Every later operation still reaches the server and rechecks revocation.
+const registrationFlights = new Map<string, Promise<CloudDeviceApiPayload>>();
 
 async function requestCloudDevices(
   input: RequestInfo | URL,
@@ -99,13 +105,28 @@ export async function registerCurrentCloudDevice(
       error: "Inicia sesion para registrar este dispositivo.",
     };
   }
-  const result = await requestCloudDevices("/api/cloud/devices", {
-    method: "POST",
-    headers: cloudDeviceHeaders(credentials),
-    body: JSON.stringify({
-      markSynced: options.markSynced === true,
-    }),
-  });
+  const key = JSON.stringify([
+    credentials.ownerScope,
+    credentials.accessToken,
+    credentials.deviceToken,
+    options.markSynced === true,
+  ]);
+  let flight = registrationFlights.get(key);
+  if (!flight) {
+    flight = requestCloudDevices("/api/cloud/devices", {
+      method: "POST",
+      headers: cloudDeviceHeaders(credentials),
+      body: JSON.stringify({
+        markSynced: options.markSynced === true,
+      }),
+    });
+    registrationFlights.set(key, flight);
+    const pending = flight;
+    void pending.finally(() => {
+      if (registrationFlights.get(key) === pending) registrationFlights.delete(key);
+    });
+  }
+  const result = await flight;
   if (
     !result.error &&
     result.allowed !== false &&

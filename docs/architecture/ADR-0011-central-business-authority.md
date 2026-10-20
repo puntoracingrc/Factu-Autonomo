@@ -1,8 +1,31 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 36
-- Fecha: 2026-10-15
+- Version: 37
+- Fecha: 2026-10-20
+
+## Fiabilidad V37: recepción inmediata y coordinación de segundo plano
+
+Los avisos Realtime siguen siendo solo señales para leer el outbox por cursor,
+con verificación de empresa, permisos, sesión, dispositivo, versión, hash y
+readback. Se agrupan ráfagas durante 80 ms y se conserva siempre el temporizador
+más próximo: un reintento auxiliar nunca retrasa una señal real ya pendiente.
+Los eventos de foco repetidos no repiten una lectura sana reciente. Regresar
+desde estado oculto fuerza una única lectura ligera, incluso si el sistema
+operativo suspendió el socket y perdió sus avisos. Cualquier señal recibida en
+segundo plano también invalida esa frescura y fuerza pull al regresar.
+Una señal durante una recepción no se pierde y las páginas completas continúan
+inmediatamente. Solo la contención local CAS reintentable permite releer una vez;
+los conflictos y colas no confirmadas conservan su revisión explícita.
+
+La recepción auxiliar fiscal mantiene una única operación independiente, con
+reintento y estado propios según ADR-0005 V24. No puede retener los cambios de
+presupuestos/clientes/productos/gastos mientras espera la red. Los resultados
+antiguos de una empresa desmontada no publican estado ni mensajes. No cambian
+las escrituras, numeración, contenido de documentos ni el sondeo de seguridad.
+
+Regresiones: `central-realtime-reception.test.ts`, `sync-health.test.ts`,
+`sync-schedule.test.ts` y contratos de autoridad/durabilidad/empresas.
 
 ## Cambio V36: relaciones del borrado de factura
 

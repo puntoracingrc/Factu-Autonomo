@@ -70,6 +70,7 @@
 
 # Central invoice authority and future production issuance.
 # ADR-0010 must be reviewed before these contracts change.
+/src/lib/central-authority/**                          @puntoracingrc
 /src/lib/central-invoice-authority/**                  @puntoracingrc
 /src/app/api/invoices/issue/**                        @puntoracingrc
 /supabase/migrations/*central_invoice*                @puntoracingrc

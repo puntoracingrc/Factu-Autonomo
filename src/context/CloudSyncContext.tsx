@@ -54,6 +54,13 @@ import {
   welcomeRetryDelayMs,
 } from "@/lib/email/welcome-client-retry";
 import { isActiveWorkspaceOwnerScope } from "@/lib/workspace-owner-runtime";
+import {
+  centralSyncFailureMessage,
+  recordCentralSyncOutcome,
+  type CentralSyncArea,
+  type CentralSyncFailures,
+  type CentralSyncOutcome,
+} from "@/lib/central-authority/sync-health";
 
 export type SyncStatus =
   "disabled" | "offline" | "idle" | "pending" | "syncing" | "synced" | "error";
@@ -89,6 +96,11 @@ interface CloudSyncValue {
   signOut: () => Promise<void>;
   signOutAndClearDevice: () => Promise<string | null>;
   syncNow: (freshLocalData?: AppData) => Promise<boolean>;
+  reportCentralSyncOutcome: (
+    ownerScope: string,
+    area: CentralSyncArea,
+    outcome: CentralSyncOutcome,
+  ) => void;
   pauseCloudForLocalRestore: () => boolean;
   importBackup: (file: File) => Promise<string | null>;
 }
@@ -129,6 +141,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   );
   const [online, setOnline] = useState(true);
   const syncFlightRef = useRef<CloudSyncFlightState<boolean>>(null);
+  const syncFailuresRef = useRef<CentralSyncFailures>({});
   const welcomeRequestedForUser = useRef<string | null>(null);
   const welcomeRetryUser = useRef<string | null>(null);
   const welcomeRetryAttempts = useRef(0);
@@ -138,10 +151,30 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const legacyCloudRetired = Boolean(user);
   const cloudSyncPaused = false;
   const emailConfirmed = isUserEmailConfirmed(user);
+  const authenticatedUserId = user?.id ?? null;
   const requiresEmailConfirmation = Boolean(user && !emailConfirmed);
   const pendingChangeCount = (data.meta?.pendingChanges ?? []).filter(
     (change) => change.entityType === "fiscal_notifications_workspace",
   ).length;
+
+  const reportCentralSyncOutcome = useCallback(
+    (ownerScope: string, area: CentralSyncArea, outcome: CentralSyncOutcome) => {
+      if (ownerScope !== workspace.ownerScope || !isActiveWorkspaceOwnerScope(ownerScope)) return;
+      if (outcome.ok && (area === "business" || area === "invoices")) {
+        setCloudAccessAllowed(true);
+      }
+      const previous = syncFailuresRef.current;
+      const next = recordCentralSyncOutcome(previous, area, outcome);
+      if (next === previous) return;
+      syncFailuresRef.current = next;
+      // A manual sync owns its progress text until its required steps finish.
+      if (syncFlightRef.current) return;
+      const message = centralSyncFailureMessage(next);
+      setSyncStatus(message ? "error" : "synced");
+      setSyncMessage(message ?? "Servidor central comprobado.");
+    },
+    [workspace.ownerScope],
+  );
 
   useEffect(() => {
     const refresh = () => setOnline(navigator.onLine);
@@ -155,7 +188,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user || !activeCompany || !emailConfirmed || demoMode) {
+    if (!authenticatedUserId || !activeCompany || !emailConfirmed || demoMode) {
       setCloudAccessAllowed(null);
       return;
     }
@@ -173,38 +206,33 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           );
           return;
         }
+        reportCentralSyncOutcome(ownerScope, "access", { ok: true });
         const result = await registerCurrentCloudDevice({
           notifyReactivated: false,
           expectedOwnerScope: ownerScope,
         });
-        if (
-          cancelled ||
-          !isActiveWorkspaceOwnerScope(ownerScope) ||
-          (!result.error && result.allowed !== false)
-        ) {
-          return;
-        }
-        setSyncStatus("error");
-        setSyncMessage(
-          result.message ??
-            result.error ??
-            "Este dispositivo no puede usar el servidor central.",
+        if (cancelled || !isActiveWorkspaceOwnerScope(ownerScope)) return;
+        reportCentralSyncOutcome(ownerScope, "device",
+          result.error || result.allowed === false
+            ? { ok: false, message: result.message ?? result.error ?? "Este dispositivo no puede usar el servidor central." }
+            : { ok: true },
         );
       })
       .catch((error) => {
         if (cancelled || !isActiveWorkspaceOwnerScope(ownerScope)) return;
         setCloudAccessAllowed(null);
-        setSyncStatus("error");
-        setSyncMessage(
-          error instanceof Error
-            ? error.message
-            : "No se pudo comprobar el acceso al servidor central.",
-        );
+        reportCentralSyncOutcome(ownerScope, "access", {
+          ok: false,
+          message: error instanceof Error ? error.message : "No se pudo comprobar el acceso al servidor central.",
+        });
       });
     return () => {
       cancelled = true;
     };
-  }, [activeCompany, demoMode, emailConfirmed, user, workspace.ownerScope]);
+  }, [
+    activeCompany, authenticatedUserId, demoMode, emailConfirmed,
+    reportCentralSyncOutcome, workspace.ownerScope,
+  ]);
 
   useEffect(() => {
     if (!demoMode || !ready || !user) return;
@@ -227,7 +255,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
       };
       ensureOwnerIsActive();
-      return runCloudSyncSingleFlight(syncFlightRef, ownerScope, async () => {
+      const synced = await runCloudSyncSingleFlight(syncFlightRef, ownerScope, async () => {
         ensureOwnerIsActive();
         if (!navigator.onLine) {
           setSyncStatus("offline");
@@ -239,6 +267,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
         setSyncStatus("syncing");
         setSyncMessage("Comprobando el servidor central...");
+        let area: CentralSyncArea = "access";
         try {
           const cloudAccess = await canUseCloudForUser(
             activeCompany.billingOwnerUserId,
@@ -253,6 +282,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             );
             return false;
           }
+          reportCentralSyncOutcome(ownerScope, "access", { ok: true });
+          area = "device";
           const device = await registerCurrentCloudDevice({
             notifyReactivated: false,
             expectedOwnerScope: ownerScope,
@@ -265,12 +296,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
                 "Este dispositivo no puede usar el servidor central.",
             );
           }
+          reportCentralSyncOutcome(ownerScope, "device", { ok: true });
 
+          area = "business";
           for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
-            const business = await syncCentralBusinessEvents(ownerScope, {
+            let business = await syncCentralBusinessEvents(ownerScope, {
               limit: BUSINESS_EVENT_LIMIT,
             });
             ensureOwnerIsActive();
+            if (!business.ok && business.retryable && business.code === "CENTRAL_BUSINESS_LOCAL_WRITE_BLOCKED") {
+              business = await syncCentralBusinessEvents(ownerScope, { limit: BUSINESS_EVENT_LIMIT });
+              ensureOwnerIsActive();
+            }
             if (!business.ok) throw new Error(business.message);
             if (!business.hasMore) break;
             if (page === MAX_SYNC_PAGES - 1) {
@@ -279,13 +316,19 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               );
             }
           }
+          reportCentralSyncOutcome(ownerScope, "business", { ok: true });
 
+          area = "invoices";
           for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
-            const invoices = await syncCentralInvoiceAuthorityEvents(
+            let invoices = await syncCentralInvoiceAuthorityEvents(
               getCurrentData(),
               { limit: INVOICE_EVENT_LIMIT },
             );
             ensureOwnerIsActive();
+            if (invoices.status === "blocked" && invoices.reason === "stale_precondition") {
+              invoices = await syncCentralInvoiceAuthorityEvents(getCurrentData(), { limit: INVOICE_EVENT_LIMIT });
+              ensureOwnerIsActive();
+            }
             if (invoices.status !== "applied") {
               throw new Error(
                 invoices.status === "blocked" &&
@@ -309,39 +352,57 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               );
             }
           }
+          reportCentralSyncOutcome(ownerScope, "invoices", { ok: true });
 
+          area = "fiscal";
           const fiscalWorkspace =
             await syncFiscalNotificationsWorkspace(ownerScope);
           ensureOwnerIsActive();
           if (!fiscalWorkspace.ok) {
             throw new Error(fiscalWorkspace.message);
           }
+          reportCentralSyncOutcome(ownerScope, "fiscal", { ok: true });
 
-          await registerCurrentCloudDevice({
+          // The authenticated reads already renewed/verified the device lease.
+          // This last-seen stamp is not another prerequisite for displaying data.
+          void registerCurrentCloudDevice({
             markSynced: true,
             notifyReactivated: false,
             expectedOwnerScope: ownerScope,
-          });
+          }).catch(() => undefined);
           ensureOwnerIsActive();
-          setSyncStatus("synced");
-          setSyncMessage("Servidor central comprobado.");
-          return true;
+          const failure = centralSyncFailureMessage(syncFailuresRef.current);
+          setSyncStatus(failure ? "error" : "synced");
+          setSyncMessage(failure ?? "Servidor central comprobado.");
+          return failure === null;
         } catch (error) {
+          if (!isActiveWorkspaceOwnerScope(ownerScope)) return false;
+          const message = error instanceof Error ? error.message : "No se pudo comprobar el servidor central.";
+          reportCentralSyncOutcome(ownerScope, area, { ok: false, message });
           setSyncStatus(navigator.onLine ? "error" : "offline");
-          setSyncMessage(
-            error instanceof Error
-              ? error.message
-              : "No se pudo comprobar el servidor central.",
-          );
+          setSyncMessage(centralSyncFailureMessage(syncFailuresRef.current) ?? message);
           return false;
         }
       });
+      // An automatic result may have arrived between the last manual step and
+      // releasing the shared flight. Reconcile after release, not mid-progress.
+      if (isActiveWorkspaceOwnerScope(ownerScope) && !syncFlightRef.current) {
+        const failure = centralSyncFailureMessage(syncFailuresRef.current);
+        if (failure) {
+          setSyncStatus("error");
+          setSyncMessage(failure);
+        } else {
+          setSyncStatus((previous) => previous === "error" ? "synced" : previous);
+        }
+      }
+      return synced;
     },
     [
       demoMode,
       activeCompany,
       emailConfirmed,
       getCurrentData,
+      reportCentralSyncOutcome,
       syncCentralBusinessEvents,
       syncCentralInvoiceAuthorityEvents,
       syncFiscalNotificationsWorkspace,
@@ -685,6 +746,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       requiresEmailConfirmation,
       email,
       syncStatus: online ? syncStatus : "offline",
+      reportCentralSyncOutcome,
       syncMessage,
       pendingUpload: pendingChangeCount > 0,
       pendingChangeCount,
@@ -724,6 +786,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncMessage,
       syncNow,
       syncStatus,
+      reportCentralSyncOutcome,
       setEmail,
       updatePassword,
       user,

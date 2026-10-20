@@ -6,6 +6,7 @@ import { CENTRAL_INVOICE_AUTHORITY_DOCUMENT_FORM_CANARY } from "./document-form-
 import {
   CENTRAL_INVOICE_AUTHORITY_EVENTS_APP_DATA_SYNC,
   buildCentralInvoiceAuthorityEventsAppDataTransition,
+  centralInvoiceEventsAreUnchanged,
   centralInvoiceAuthorityRecoveryEventId,
   pullCentralInvoiceAuthorityEventsForAppData,
   selectCentralInvoiceAuthorityEventsSyncBaseline,
@@ -116,6 +117,26 @@ function event(
 }
 
 describe("central invoice authority app data sync", () => {
+  it("preserves the whole snapshot reference for successful empty reads with an unchanged cursor", async () => {
+    const data = appData();
+    const pullEvents = vi.fn(async () => ({ ok: true as const, schema: "CENTRAL_INVOICE_AUTHORITY_EVENTS_CLIENT_V1" as const, events: [], nextCursor: cursor0 }));
+    const pulled = await pullCentralInvoiceAuthorityEventsForAppData({ data }, { pullEvents });
+    expect(centralInvoiceEventsAreUnchanged(data, pulled)).toBe(true);
+    expect(centralInvoiceEventsAreUnchanged({ ...data, centralInvoiceAuthorityEventsSync: undefined }, pulled)).toBe(false);
+    expect(centralInvoiceEventsAreUnchanged(data, {
+      ...pulled, localSync: { ...pulled.localSync, cursorToPersist: cursor1 },
+    })).toBe(false);
+    expect(centralInvoiceEventsAreUnchanged(data, {
+      ...pulled, localSync: { ...pulled.localSync, pulledEvents: 1 },
+    })).toBe(false);
+    expect(centralInvoiceEventsAreUnchanged({
+      ...data,
+      centralInvoiceAuthorityEventsSync: {
+        ...data.centralInvoiceAuthorityEventsSync!,
+        lastResult: { ...data.centralInvoiceAuthorityEventsSync!.lastResult!, status: "error" },
+      },
+    }, pulled)).toBe(false);
+  });
   it("adopta el estado durable mas avanzado de otra pestana antes de tirar del servidor", () => {
     const memory = appData({
       meta: {

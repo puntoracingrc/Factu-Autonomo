@@ -1,7 +1,7 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 23
+- Versión: 24
 - Fecha: 2026-10-20
 
 > Desde V12, la parte de sincronización genérica descrita históricamente en
@@ -31,6 +31,35 @@ tokens caducados o respuestas aceptadas sin una lectura posterior del archivo.
 Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 
 ## Decisión
+
+### Recepción ligera e indicador de recuperación (V24)
+
+La solicitud del propietario del 2026-10-20 simplifica la coordinación del
+cliente sin retirar permisos, CAS, idempotencia ni readback. Un fallo de acceso,
+dispositivo, negocio, facturas o expediente fiscal se sigue por separado. Solo
+una lectura autenticada y aplicada de su área retira su error; las lecturas
+centrales de negocio/facturas también acreditan la recuperación del acceso y
+dispositivo que esas APIs vuelven a validar. Exportar un ZIP, recibir una señal
+Realtime o completar otra área no confirma facturas pendientes ni limpia colas.
+Los resultados de una empresa anterior no actualizan el indicador de la actual.
+
+Los registros simultáneos de un mismo dispositivo, empresa, token de sesión y
+tipo de heartbeat comparten únicamente la petición en curso. No se cachea una
+autorización terminada: la siguiente operación vuelve a validar en servidor.
+Renovar el objeto User de la misma cuenta no repite por sí solo el registro.
+Los errores de API conservan su mensaje/estado en lugar de ocultar un 401/429
+como fallo genérico. La marca auxiliar final de última sincronización se hace
+en segundo plano después de confirmar las lecturas obligatorias; no sustituye
+la comprobación de dispositivo previa ni permite escrituras sin autorización.
+
+El expediente fiscal se combina sobre la base vigente al regresar su lectura,
+con el mismo merge monotónico, CAS y readback. Solo retira los pendientes
+efectivamente confirmados; una lectura vacía sin pendientes no reescribe AppData.
+Una lectura auxiliar lenta no bloquea el receptor de presupuestos y maestros.
+
+Regresiones: `central-authority/sync-health.test.ts`,
+`cloud/device-client.test.ts`, `central-realtime-reception.test.ts` y las
+regresiones obligatorias de este ADR. No hay migración de datos ni esquema.
 
 ### Nube de la cuenta
 

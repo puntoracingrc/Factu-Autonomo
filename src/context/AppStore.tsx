@@ -1666,6 +1666,7 @@ export function AppStoreProvider({
       }
       const {
         buildCentralInvoiceAuthorityEventsAppDataTransition,
+        centralInvoiceEventsAreUnchanged,
         pullCentralInvoiceAuthorityEventsForAppData,
         selectCentralInvoiceAuthorityEventsSyncBaseline,
       } = await import("@/lib/central-invoice-authority/events-app-data-sync");
@@ -1708,6 +1709,22 @@ export function AppStoreProvider({
           replayFromStartWhenNoActiveInvoices:
             options.replayFromStartWhenNoActiveInvoices,
         });
+        if (!writeBlockRef.current && centralInvoiceEventsAreUnchanged(baseline, pulled)) {
+          if (!workspaceIsActive() || dataRef.current !== baseline ||
+            inspectPersistedData(baseline).status !== "applied") {
+            return { status: "blocked", reason: "stale_precondition" } as const;
+          }
+          return {
+            status: "applied",
+            data: baseline,
+            value: {
+              schema: pulled.schema,
+              localSync: pulled.localSync,
+              state: baseline.centralInvoiceAuthorityEventsSync!,
+            },
+            replayed: true,
+          } as const;
+        }
         return commitAppDataWithQuotaRecovery({
           ownerScope,
           storageKey,
@@ -1875,8 +1892,13 @@ export function AppStoreProvider({
         const remote =
           await pullFiscalNotificationsWorkspaceChanges(ownerScope);
         if (!workspaceIsActive()) return { ok: false, message: "La empresa activa cambió." };
+        if (pending.length === 0 && remote.length === 0) {
+          return { ok: true, pushed: 0, pulled: 0, applied: 0 };
+        }
+        // Only the auxiliary fiscal head is merged; preserve any business or
+        // invoice page that arrived while this independent read was in flight.
         const result = commitDurableAppData(
-          expected,
+          dataRef.current,
           (previous) => {
             const afterPush =
               pending.length > 0
