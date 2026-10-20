@@ -1,8 +1,8 @@
 # ADR-0004 - Fiabilidad del buzón de gastos por email
 
 - Estado: aceptada
-- Versión: 6
-- Fecha: 2026-08-12
+- Versión: 7
+- Fecha: 2026-10-20
 - Ámbito: recepción de facturas de proveedores por email mediante Resend
 
 ## Contexto
@@ -109,8 +109,21 @@ de host exacta, HTTPS y las restricciones SSRF. No se siguen redirecciones.
     confirmada, límite de peticiones y `no-store`; vuelve a descargar desde la
     procedencia autenticada, contrasta tamaño y SHA-256 con el registro y no
     devuelve nombre, remitente, asunto, URL firmada ni identificadores del
-    proveedor. Factu no persiste esos bytes y un error conserva tanto el
+    proveedor. Esta ruta transitoria no persiste esos bytes y un error conserva tanto el
     formulario como la entrada sin marcarla `processed`.
+20. V7 autoriza expresamente conservar los originales del buzón para empresas
+    con nube, a petición del propietario del producto (2026-10-20). Se guardan
+    los bytes exactos antes del análisis y de la deduplicación, en un bucket
+    privado y fuera de `AppData`, colas, copias JSON o almacenamiento del
+    navegador. La clave inmutable es empresa + SHA-256; repetir un webhook no
+    sobrescribe archivos ni consume otra vez IA. Un error de archivado conserva
+    el reintento HTTP 500, no un falso éxito.
+21. El acceso desde Gastos es una API distinta, descrita en ADR-0005 V22:
+    exige empresa activa, miembro confirmado, plan con nube y dispositivo/sesión
+    autorizados. Nunca se publican URLs de Storage ni IDs del proveedor.
+    Los originales anteriores solo se recuperan si Resend aún devuelve los
+    bytes con su hash exacto. No se promete retención retroactiva ni se fabrica
+    un PDF. La asociación sigue `sourceInboxItemId`, incluso al editar el gasto.
 
 ## Pruebas y despliegue
 

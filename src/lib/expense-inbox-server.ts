@@ -14,6 +14,8 @@ import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "@/lib/expense-scan/limits";
 import { extractExpenseFromImage } from "@/lib/expense-scan/openai";
 import { getEmailDeliveryStatus, sendEmail } from "@/lib/email/send";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { archiveInboxOriginalIfCloud } from "@/lib/expense-originals/server";
+import { originalSignatureMatches } from "@/lib/expense-originals/types";
 import {
   buildExpenseInboxCopyEmail,
   ExpenseInboxCopyDeliveryError,
@@ -830,6 +832,17 @@ async function processAttachment(input: {
   if (buffer.byteLength === 0) return "ignored";
   const sizeError = scanSizeError(mimeType, buffer.byteLength);
   const hash = attachmentHash(buffer);
+  // Preserve the exact source independently of OCR/quota. A failed archive
+  // keeps the webhook retryable; replay never consumes AI a second time.
+  if (!sizeError && originalSignatureMatches(buffer,mimeType)) {
+    await archiveInboxOriginalIfCloud({
+      userId: input.userId,
+      billingUserId: input.billingUserId,
+      bytes: buffer,
+      fileName: input.attachment.filename || "factura-proveedor",
+      mimeType,
+    });
+  }
   const existing = await findExistingAttachment(input.userId, hash);
   let retryItemId: string | undefined;
   if (existing) {

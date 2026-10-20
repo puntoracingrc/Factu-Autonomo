@@ -298,7 +298,7 @@ describe("recurring expense form integrity", () => {
       "Boolean(blockingDuplicateExpense) || storageStateUnknown",
     );
     expect(newExpenseForm).toContain(
-      "sourceInboxItemId: activeInboxItemId ?? undefined",
+      "sourceInboxItemId: activeInboxItemId ?? editingExpense?.sourceInboxItemId ?? undefined",
     );
     expect(newExpenseForm).toContain(
       "if (activeInboxItemId && !inboxProcessed)",

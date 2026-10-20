@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { useAppStore } from "@/context/AppStore";
 import { useCentralAuthorityPlanGate } from "@/hooks/useCentralAuthorityPlanGate";
 import { CLOUD_DEVICE_REACTIVATED_EVENT } from "@/lib/cloud/device-events";
+import { EXPENSE_ORIGINAL_REFRESH_EVENT } from "@/lib/expense-originals/types";
 import {
   CENTRAL_AUXILIARY_WAKEUP_EVENT,
   EXPENSE_INBOX_REFRESH_EVENT,
@@ -136,6 +137,9 @@ export function CentralBusinessAuthorityEventsAutoSync() {
               detail: { ownerScope: latest.userId },
             }),
           );
+          window.dispatchEvent(new CustomEvent(EXPENSE_ORIGINAL_REFRESH_EVENT, {
+            detail: { ownerScope: latest.userId },
+          }));
         }
         schedule(
           nextCentralBusinessEventsAutoSyncDelay(result, {
@@ -238,6 +242,10 @@ export function CentralBusinessAuthorityEventsAutoSync() {
                     detail: { ownerScope: userId },
                   }),
                 );
+              if (kind === "expense_originals")
+                window.dispatchEvent(new CustomEvent(EXPENSE_ORIGINAL_REFRESH_EVENT, {
+                  detail: { ownerScope: userId },
+                }));
             },
           )
           .subscribe((status) => {

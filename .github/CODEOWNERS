@@ -36,6 +36,11 @@
 /src/app/api/expense-inbox/**                          @puntoracingrc
 /src/lib/expense-inbox*                                @puntoracingrc
 /src/lib/expense-original-archive*                     @puntoracingrc
+/src/lib/expense-originals/**                          @puntoracingrc
+/src/app/api/expenses/**                              @puntoracingrc
+/src/components/expenses/ExpenseOriginal*              @puntoracingrc
+/src/hooks/useExpenseOriginals.ts                      @puntoracingrc
+/supabase/migrations/*expense_original*               @puntoracingrc
 /src/components/expenses/ExpenseScanCard.tsx           @puntoracingrc
 /src/app/gastos/nuevo/page.tsx                         @puntoracingrc
 /supabase/migrations/*expense_inbox*                   @puntoracingrc

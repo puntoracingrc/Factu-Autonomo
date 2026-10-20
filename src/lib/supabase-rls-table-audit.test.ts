@@ -205,6 +205,8 @@ const companyAiEntitlementsMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const expenseOriginalsMigrationSource = readFileSync(new URL("../../supabase/migrations/20261020191232_expense_original_files_private.sql",import.meta.url),"utf8");
+const expenseOriginalServiceTables = ["expense_original_files"];
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -317,6 +319,7 @@ const classifiedTables = new Set([
   ...centralWorkspaceHistoricalArchiveServiceOnlyTables,
   ...companyWorkspaceServiceTables,
   ...companyAiEntitlementServiceTables,
+  ...expenseOriginalServiceTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -344,6 +347,14 @@ function publicTablesFromMigrations() {
 }
 
 describe("Supabase table-by-table RLS audit hardening", () => {
+  it("keeps expense originals server-only with insert/select but no overwrite or delete grant",()=>{
+    for(const table of expenseOriginalServiceTables){
+      expect(expenseOriginalsMigrationSource).toContain(`alter table public.${table} enable row level security`);
+      expect(expenseOriginalsMigrationSource).toContain(`revoke all on table public.${table} from public, anon, authenticated, service_role`);
+      expect(expenseOriginalsMigrationSource).toContain(`grant select, insert on table public.${table} to service_role`);
+      expect(expenseOriginalsMigrationSource).not.toMatch(/grant\s+(?:all|update|delete)[^;]*to service_role/i);
+    }
+  });
   it("classifies every public table created by migrations", () => {
     const unclassified = publicTablesFromMigrations().filter(
       (table) => !classifiedTables.has(table),

@@ -202,11 +202,17 @@ La decisión obligatoria y versionada está en
   como `ignored`. La lista solo muestra estados abiertos. El gasto conserva el
   ID opaco de origen para que un fallo posterior de cierre nunca cree otro
   gasto al reintentar.
-- La descarga autenticada del original de una entrada propia solo existe para
+- La ruta histórica de descarga del original de una entrada propia sirve para
   archivarlo transitoriamente en Drive durante el guardado. Exige cuenta
   confirmada, `no-store`, límite de peticiones y coincidencia exacta de tamaño
   y SHA-256; no expone PII ni persiste bytes. Un fallo conserva el formulario y
   no marca la entrada como `processed`.
+- ADR-0004 V7 y ADR-0005 V22, autorizados expresamente el 2026-10-20, añaden
+  un archivo privado de originales por empresa en Factu para el buzón y los
+  adjuntos manuales. Solo servidor accede al bucket; las APIs exigen miembro,
+  plan y dispositivo/sesión vigentes y verifican tamaño/MIME/SHA-256. Los bytes
+  no entran en `AppData`, caché, colas o copias JSON. Un fallo del archivo
+  reintenta el adjunto sobre el gasto confirmado sin repetir su alta.
 - Cualquier cambio en inbound, descargas, alias, middleware, billing, Supabase
   o sus migraciones debe ejecutar `expense-inbox-reliability-contract.test.ts`,
   `expense-inbox-copy.test.ts` y `expense-inbox-download.test.ts`. Una auditoría
