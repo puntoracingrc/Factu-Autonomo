@@ -231,6 +231,74 @@ acceptance(
       const response = await fetch(endpoint(), { headers: requestHeaders() });
       expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
     });
+    it("opens a real inbox-style sha256: fingerprint through the existing private archive without rewriting the expense", async () => {
+      const inboxId = randomUUID(),
+        expenseId = "synthetic-inbox-original-expense";
+      const inbox = await admin
+        .from("expense_inbox_items")
+        .insert({
+          id: inboxId,
+          user_id: users[0].id,
+          alias_token: "synthetic-originals",
+          attachment_filename: "synthetic-inbox.pdf",
+          attachment_content_type: "application/pdf",
+          attachment_size: bytes.length,
+          attachment_hash: `sha256:${digest}`,
+          status: "processed",
+          processed_at: new Date().toISOString(),
+        });
+      expect(inbox.error).toBeNull();
+      const inserted = await admin
+        .from("central_business_entities")
+        .insert({
+          user_id: users[0].id,
+          entity_type: "expense",
+          entity_id: expenseId,
+          current_version: 1,
+          deleted: false,
+          current_payload: {
+            ...expense,
+            id: expenseId,
+            sourceInboxItemId: inboxId,
+          },
+          content_hash: "synthetic-local-only",
+          actor_device_id: "synthetic-fixture",
+          actor_session_hash: "synthetic-fixture",
+        });
+      expect(inserted.error).toBeNull();
+      const archived = await admin
+        .from("expense_original_files")
+        .insert({
+          user_id: users[0].id,
+          binding_kind: "inbox",
+          binding_id: digest,
+          sha256: digest,
+          mime_type: "application/pdf",
+          file_name: "synthetic-inbox.pdf",
+          byte_size: bytes.length,
+        });
+      expect(archived.error).toBeNull();
+      const response = await fetch(
+        `${appUrl}/api/expenses/${expenseId}/original`,
+        { headers: requestHeaders() },
+      );
+      expect(response.status).toBe(200);
+      expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
+      const status = await fetch(`${appUrl}/api/expenses/originals/status`, {
+        method: "POST",
+        headers: { ...requestHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ expenseIds: [expenseId] }),
+      });
+      expect(await status.json()).toEqual({
+        originals: { [expenseId]: "archived" },
+      });
+      const unchanged = await admin
+        .from("expense_inbox_items")
+        .select("attachment_hash")
+        .eq("id", inboxId)
+        .single();
+      expect(unchanged.data?.attachment_hash).toBe(`sha256:${digest}`);
+    });
     it("revocation removes file access immediately", async () => {
       const revoked = await admin
         .from("app_company_members")

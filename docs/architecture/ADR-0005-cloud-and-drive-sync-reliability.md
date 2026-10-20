@@ -312,6 +312,10 @@ Esta excepción no reactiva Drive en los escáneres ni modifica Notificaciones.
    existente de ADR-0011 solo despierta esa consulta con `expense_originals`;
    no transmite binarios, importes, nombres o enlaces ni recarga formularios.
    No se añade un temporizador de polling por gasto.
+7. El fingerprint del buzón conserva su formato histórico `sha256:<hex>`.
+   Solo la clave de búsqueda del archivo se normaliza a los 64 dígitos hex;
+   no se reescribe el buzón, el gasto ni su procedencia. Las pruebas cubren
+   tanto la lectura de un archivo ya guardado como la recuperación antigua.
 
 Regresiones: `expense-originals/*.test.ts`, contratos del buzón/Drive,
 `auxiliary-wakeups.test.ts`, typecheck, lint y aceptación local sintética de

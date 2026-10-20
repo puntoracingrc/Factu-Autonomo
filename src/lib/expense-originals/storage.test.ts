@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Expense } from "@/lib/types";
+import { getExpenseInboxOriginalAttachment } from "@/lib/expense-inbox-server";
 import {
   archiveOriginal,
   originalDigest,
@@ -236,38 +237,70 @@ describe("private expense originals: exact immutable bytes", () => {
       fixture.rows.get("central_business_entities")?.[0].current_payload,
     ).toEqual(savedExpense);
   });
-  it("links email originals only through their own sourceInboxItemId and exact hash", async () => {
-    centralExpense({ sourceInboxItemId: "inbox-1" });
+  it.each(["sha256:", ""])(
+    "links email originals using the actual inbox hash format (%s)",
+    async (prefix) => {
+      centralExpense({ sourceInboxItemId: "inbox-1" });
+      fixture.rows.set("expense_inbox_items", [
+        {
+          user_id: company,
+          id: "inbox-1",
+          status: "processed",
+          attachment_hash: `${prefix}${originalDigest(bytes)}`,
+          attachment_filename: "email.pdf",
+        },
+      ]);
+      expect(
+        await listExpenseOriginalStatuses(company, [savedExpense.id]),
+      ).toEqual({ [savedExpense.id]: "inbox" });
+      await archiveInboxOriginalIfCloud({
+        userId: company,
+        billingUserId: company,
+        bytes,
+        fileName: "email",
+        mimeType: "application/pdf",
+      });
+      expect(
+        (await getExpenseOriginal(company, savedExpense.id)).bytes,
+      ).toEqual(bytes);
+      expect(
+        await listExpenseOriginalStatuses(company, [savedExpense.id]),
+      ).toEqual({ [savedExpense.id]: "archived" });
+      expect(fixture.rows.get("expense_original_files")?.[0]).toMatchObject({
+        binding_kind: "inbox",
+        binding_id: originalDigest(bytes),
+        file_name: "email.pdf",
+      });
+    },
+  );
+  it("recovers a legacy provider original into a hex-only binding without rewriting the tagged inbox fingerprint", async () => {
+    centralExpense({ sourceInboxItemId: "legacy-inbox" });
+    const taggedHash = `sha256:${originalDigest(bytes)}`;
     fixture.rows.set("expense_inbox_items", [
       {
         user_id: company,
-        id: "inbox-1",
+        id: "legacy-inbox",
         status: "processed",
-        attachment_hash: originalDigest(bytes),
-        attachment_filename: "email.pdf",
+        attachment_hash: taggedHash,
+        attachment_filename: "legacy.pdf",
       },
     ]);
-    expect(
-      await listExpenseOriginalStatuses(company, [savedExpense.id]),
-    ).toEqual({ [savedExpense.id]: "inbox" });
-    await archiveInboxOriginalIfCloud({
-      userId: company,
-      billingUserId: company,
-      bytes,
-      fileName: "email",
-      mimeType: "application/pdf",
+    vi.mocked(getExpenseInboxOriginalAttachment).mockResolvedValueOnce({
+      buffer: Buffer.from(bytes),
+      contentType: "application/pdf",
+      sourceSha256: taggedHash,
     });
     expect((await getExpenseOriginal(company, savedExpense.id)).bytes).toEqual(
       bytes,
     );
-    expect(
-      await listExpenseOriginalStatuses(company, [savedExpense.id]),
-    ).toEqual({ [savedExpense.id]: "archived" });
     expect(fixture.rows.get("expense_original_files")?.[0]).toMatchObject({
       binding_kind: "inbox",
       binding_id: originalDigest(bytes),
-      file_name: "email.pdf",
+      sha256: originalDigest(bytes),
     });
+    expect(fixture.rows.get("expense_inbox_items")?.[0].attachment_hash).toBe(
+      taggedHash,
+    );
   });
   it("does not fabricate a missing historical original", async () => {
     centralExpense({ sourceInboxItemId: "old-inbox" });
