@@ -1709,7 +1709,7 @@ export function AppStoreProvider({
           replayFromStartWhenNoActiveInvoices:
             options.replayFromStartWhenNoActiveInvoices,
         });
-        if (centralInvoiceEventsAreUnchanged(baseline, pulled)) {
+        if (!writeBlockRef.current && centralInvoiceEventsAreUnchanged(baseline, pulled)) {
           if (!workspaceIsActive() || dataRef.current !== baseline ||
             inspectPersistedData(baseline).status !== "applied") {
             return { status: "blocked", reason: "stale_precondition" } as const;
