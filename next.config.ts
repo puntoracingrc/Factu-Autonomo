@@ -46,6 +46,14 @@ const appNoIndexRoutes = [
 ];
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [{
+      source: "/",
+      has: [{ type: "host", value: "fast.facturacion-autonomos.app" }],
+      destination: "/rapido/index.html",
+      permanent: false,
+    }];
+  },
   async rewrites() {
     return [{ source: "/rapido", destination: "/rapido/index.html" }];
   },
