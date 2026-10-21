@@ -73,6 +73,10 @@ try {
   page.on("request", request => requests.push({ method: request.method(), path: new URL(request.url()).pathname }));
   await page.goto(`${origin}/rapido/index.html`);
   await page.getByRole("button", { name: "Reintentar acceso", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Instalar en el móvil", exact: true }).click();
+  await page.getByRole("heading", { name: "Poner el icono de Factu Rápido", exact: true }).waitFor();
+  assert.equal(await page.locator(".quick-install-url").inputValue(), `${origin}/rapido/index.html`);
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
   assert.equal(await page.getByRole("button", { name: "Entrar con Google", exact: true }).count(), 0);
   await page.getByRole("button", { name: "Reintentar acceso", exact: true }).click();
   await page.getByRole("button", { name: "Crear factura", exact: true }).waitFor();
@@ -90,12 +94,39 @@ try {
     assert(layout.buttons.slice(1).every((button,index) => button.y >= layout.buttons[index].bottom + 10), "Home buttons must always be stacked");
     assert(layout.buttons.every(button => button.fontSize >= 22 && button.height >= 100 && button.color === "rgb(17, 17, 17)"));
     assert(layout.scrollWidth <= width, "No horizontal overflow");
+    const installPosition = await page.locator(".quick-install-button").boundingBox();
+    const appPosition = await page.locator(".topbar").boundingBox();
+    assert(installPosition.height >= 44 && installPosition.y + installPosition.height <= appPosition.y, "Install action stays at the top with a mobile-size tap target");
     layouts.push(layout);
     if (width === 390) await page.screenshot({ path: path.join(output, "inicio-sin-esloganes.png"), fullPage: true });
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Crear factura", exact: true }).click();
   for (const [key, value] of Object.entries({ name: "Cliente sintético", nif: "12345678Z", address: "Calle Dos 2", postalCode: "08002", city: "Barcelona" })) await page.locator(`[data-client="${key}"]`).fill(value);
+  const accessCounts = { attempts, configs };
+  // Synthetic browser events affect only installation UI, not the open form.
+  await page.locator('[data-client="address"]').focus();
+  await page.evaluate(() => {
+    window.quickInstallCalls = 0;
+    const event = new Event("beforeinstallprompt", { cancelable: true });
+    Object.assign(event, { prompt: async () => { window.quickInstallCalls++; }, userChoice: Promise.resolve({ outcome: "dismissed" }) });
+    window.dispatchEvent(event);
+    if (!event.defaultPrevented) throw new Error("Install prompt was not captured");
+  });
+  assert.equal(await page.locator('[data-client="address"]').evaluate(input => input === document.activeElement), true);
+  await page.getByRole("button", { name: "Instalar en el móvil", exact: true }).click();
+  await page.getByRole("button", { name: "Instalar en el móvil", exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => window.quickInstallCalls), 1);
+  await page.getByRole("button", { name: "Instalar en el móvil", exact: true }).click();
+  await page.getByRole("heading", { name: "Poner el icono de Factu Rápido", exact: true }).waitFor();
+  assert.equal(await page.locator('[data-client="address"]').inputValue(), "Calle Dos 2");
+  await page.screenshot({ path: path.join(output, "instalar-sin-perder-formulario.png"), fullPage: true });
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
+  assert.equal(await page.locator("#quick-install").isHidden(), true);
+  assert.equal(await page.locator('[data-client="name"]').inputValue(), "Cliente sintético");
+  assert.equal(await page.locator('[data-client="address"]').inputValue(), "Calle Dos 2");
+  assert.deepEqual({ attempts, configs }, accessCounts, "Installation must not reinitialize access or reload the app");
   await page.screenshot({ path: path.join(output, "cliente-legible.png"), fullPage: true });
   await page.getByRole("button", { name: "Siguiente →" }).click();
   await page.locator('[data-item="description"]').fill("Cambio de cinta de persiana");
@@ -157,7 +188,7 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem("main-company-sentinel")), "excluded-company-synthetic");
   assert(!requests.some(request => request.method === "POST" || request.path.startsWith("/_next/") || request.path.endsWith("/issue")));
   assert.deepEqual(errors, []);
-  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
+  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, installation:{nativePromptOnce:true,manualInstructions:true,visibleBeforeLogin:true,formAndFocusPreserved:true,noAccessReload:true},customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
   await writeFile(path.join(output, "shell-result.json"), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
 } finally {

@@ -40,3 +40,17 @@ label,.company,.suggestions strong{font-size:16px}
 .customer-action span{font-size:26px;line-height:1}
 .customer-action:last-child{background:#fff;border-color:#b8c8b9}
 .customer-change,.customer-home{width:100%}
+.quick-install{max-width:698px;margin:0 auto;padding:12px 24px 0;color:#111}
+.quick-install[hidden],.quick-install-help[hidden]{display:none}
+.quick-install-button{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:44px;border:1px solid #a5bba7;border-radius:10px;padding:10px 14px;background:#fff;color:#111;font:inherit;font-size:16px;font-weight:750;cursor:pointer}
+.quick-install-button:disabled{cursor:wait}
+.quick-install-button>span:first-child{font-size:23px;line-height:1}
+.quick-install-help{margin-top:10px;padding:16px;background:#fff;border:1px solid #cbd7cb;border-radius:12px;overflow-wrap:anywhere}
+.quick-install-help h2{font-size:19px;margin:0 0 10px}
+.quick-install-help p{font-size:15px;line-height:1.5;margin:8px 0}
+.quick-install-help label{display:block;margin:14px 0 10px;font-size:14px}
+.quick-install-url{display:block;width:100%;min-width:0;margin-top:6px;font-size:14px}
+.quick-install-actions{display:flex;flex-wrap:wrap;gap:10px}
+.quick-install-actions button{min-height:44px;border:1px solid #a5bba7;border-radius:9px;padding:9px 14px;background:#fff;color:#111;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+.quick-install-copy{background:#dafa9b!important}
+.quick-install-status:empty{display:none}
