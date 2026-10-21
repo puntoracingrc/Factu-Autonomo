@@ -92,20 +92,6 @@ export async function searchQuickCatalog(context: QuickContext, kind: string, qu
   if (error) databaseError(error);
   return data;
 }
-export async function readQuickCustomerPage(context: QuickContext, query: string, pageText: string) {
-  if (!/^(0|[1-9]\d{0,2})$/.test(pageText) || Number(pageText) > 400) throw new QuickError(400, "INVALID_PAGE", "Página de clientes no válida.");
-  const page = Number(pageText);
-  if (query.trim()) return { results: await searchQuickCatalog(context,"customer",query), hasMore: false, nextPage: 0 };
-  // Read only this company's small contact projection, never whole customer
-  // payloads or any invoice/history. The extra row determines pagination.
-  const { data,error } = await context.admin.from("central_business_entities")
-    .select("id:entity_id,name:current_payload->>name,nif:current_payload->>nif,address:current_payload->>address,postalCode:current_payload->>postalCode,city:current_payload->>city,email:current_payload->>email,phone:current_payload->>phone,streetType:current_payload->>streetType,addressExtra:current_payload->>addressExtra")
-    .eq("user_id",context.scope.user_id).eq("entity_type","customer").eq("deleted",false)
-    .order("current_payload->>name",{ascending:true,nullsFirst:false}).order("entity_id",{ascending:true})
-    .range(page * 25,page * 25 + 25);
-  if (error) databaseError(error);
-  return { results: (data ?? []).slice(0,25), hasMore: (data?.length ?? 0) > 25, nextPage: page + 1 };
-}
 export async function cancelQuickOperation(context: QuickContext, intent: QuickIntent) {
   const { data,error } = await context.admin.rpc("cancel_quick_operation_v1",{ p_actor_id:context.scope.actor_id,p_operation_id:intent.operationId,p_intent_hash:intentHash(intent) });
   if (error) databaseError(error);

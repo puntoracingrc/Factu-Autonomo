@@ -29,8 +29,6 @@ let accessBusy = false;
 let customerRows: Array<Record<string,unknown>> = [];
 let selectedCustomer: QuickCustomer | undefined;
 let customerQuery = "";
-let customerNextPage = 0;
-let customerHasMore = false;
 let customerLoading = false;
 let customerError = "";
 let customerSerial = 0;
@@ -90,11 +88,10 @@ function renderHome() {
 }
 function customerContent() {
   if (selectedCustomer) return quickCustomerCard(selectedCustomer);
+  if (customerQuery.trim().length < 2) return "";
   if (customerError) return `<p role="alert">${escape(customerError)}</p><button class="secondary" data-action="customer-retry">Reintentar búsqueda</button>`;
-  if (customerQuery.trim().length === 1) return '<p>Escribe al menos dos caracteres.</p>';
   return `<div class="customer-list">${customerRows.map((row,index) => `<button class="customer-item" data-action="customer-select" data-index="${index}"><strong>${escape(row.name || "Sin nombre")}</strong>${row.nif ? `<span>${escape(row.nif)}</span>` : ""}</button>`).join("")}</div>
-    ${customerLoading ? '<p role="status">Cargando clientes…</p>' : !customerRows.length ? '<p>No hay clientes que mostrar.</p>' : ""}
-    ${customerHasMore ? `<button class="secondary customer-more" data-action="customer-more" ${customerLoading ? "disabled" : ""}>Cargar más clientes</button>` : ""}`;
+    ${customerLoading ? '<p role="status">Buscando clientes…</p>' : !customerRows.length ? '<p>No se encontraron clientes.</p>' : ""}`;
 }
 function customersScreen() {
   return `<div class="form-title"><h1>Buscar cliente</h1></div><label>Nombre o NIF<input id="directory-search" type="search" value="${escape(customerQuery)}" autocomplete="off" placeholder="Buscar cliente"></label><div id="customer-content" class="customer-content">${customerContent()}</div><button class="secondary customer-home" data-action="home">Inicio</button>`;
@@ -103,18 +100,16 @@ function updateCustomerContent() {
   const content = document.querySelector("#customer-content");
   if (content) content.innerHTML = customerContent();
 }
-async function loadCustomers(append = false) {
+async function loadCustomers() {
   const serial = ++customerSerial;
   const query = customerQuery.trim();
-  selectedCustomer = undefined; customerError = ""; customerLoading = true;
-  if (!append) { customerRows = []; customerNextPage = 0; customerHasMore = false; }
+  selectedCustomer = undefined; customerError = ""; customerRows = []; customerLoading = query.length >= 2;
   updateCustomerContent();
-  if (query.length === 1) { customerLoading = false; updateCustomerContent(); return; }
+  if (query.length < 2) return;
   try {
-    const result = await api<{results:Array<Record<string,unknown>>;hasMore:boolean;nextPage:number}>(`customers?q=${encodeURIComponent(query)}&page=${append ? customerNextPage : 0}`);
+    const result = await api<{results:Array<Record<string,unknown>>}>(`search?kind=customer&q=${encodeURIComponent(query)}`);
     if (serial !== customerSerial || view !== "customers") return;
-    customerRows = [...new Map([...(append ? customerRows : []),...result.results].map(row => [row.id,row])).values()];
-    customerHasMore = result.hasMore; customerNextPage = result.nextPage;
+    customerRows = result.results;
   } catch (error) {
     if (serial !== customerSerial || view !== "customers") return;
     customerError = error instanceof Error ? error.message : "No se pudieron cargar los clientes.";
@@ -287,7 +282,7 @@ root.addEventListener("input",event => {
   const input = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
   if (input.id === "directory-search") {
     customerQuery = input.value; selectedCustomer = undefined; customerSerial++; clearTimeout(customerTimer);
-    customerRows = []; customerHasMore = false; customerError = ""; customerLoading = true; updateCustomerContent();
+    customerRows = []; customerError = ""; customerLoading = customerQuery.trim().length >= 2; updateCustomerContent();
     customerTimer = setTimeout(() => { if (view === "customers") void loadCustomers(); },400); return;
   }
   if (input.id === "customer-search" || input.id === "product-search") { search(input as HTMLInputElement,input.id === "customer-search" ? "customer" : "product"); return; }
@@ -322,9 +317,10 @@ root.addEventListener("click",event => {
       if (action === "retry-access") { await startAccess(); return; }
       if (!bootstrap || busy) return;
       if (action === "customers") {
-        customerQuery = ""; selectedCustomer = undefined; customerRows = []; view = "customers"; notice = ""; render(); window.scrollTo(0,0); await loadCustomers(); return;
+        customerSerial++; clearTimeout(customerTimer); customerQuery = ""; selectedCustomer = undefined; customerRows = []; customerError = ""; customerLoading = false;
+        view = "customers"; notice = ""; render(); window.scrollTo(0,0); return;
       }
-      if (action === "customer-more" || action === "customer-retry") { if (!customerLoading) await loadCustomers(action === "customer-more"); return; }
+      if (action === "customer-retry") { if (!customerLoading) await loadCustomers(); return; }
       if (action === "customer-select") {
         const row = customerRows[Number(button.dataset.index)]; if (!row) return;
         customerSerial++; customerLoading = false; selectedCustomer = quickCustomer(row); updateCustomerContent();

@@ -27,12 +27,12 @@ const server = http.createServer(async (req, res) => {
     }
     res.end(JSON.stringify({ actorId: actor, companyId: actor, companyName: "Empresa antigua sintética", defaultVat: 21, vatRates: [0, 4, 10, 21], vatExempt: false, iban: "ES0000000000000000000000" })); return;
   }
-  if (pathname === "/api/factu-rapido/customers") {
+  if (pathname === "/api/factu-rapido/search") {
     directoryQueries++; res.setHeader("Content-Type", "application/json");
     const params = new URL(req.url,"http://127.0.0.1").searchParams;
-    const query = (params.get("q") ?? "").toLowerCase(), page = Number(params.get("page") ?? 0);
+    const query = (params.get("q") ?? "").toLowerCase();
     const matches = contacts.filter(contact => `${contact.name} ${contact.nif}`.toLowerCase().includes(query));
-    res.end(JSON.stringify({results:query ? matches : matches.slice(page*2,page*2+2),hasMore:!query && page===0,nextPage:page+1})); return;
+    res.end(JSON.stringify({results:query.length >= 2 ? matches : []})); return;
   }
   const file = path.resolve(root, `.${pathname}`);
   if (!pathname.startsWith("/rapido/") || !file.startsWith(`${root}${path.sep}`)) { res.statusCode = 404; res.end(); return; }
@@ -102,9 +102,13 @@ try {
   assert.equal(directoryQueries,0,"The home/form must not eagerly load the customer directory");
   await page.getByRole("button",{name:"Volver al inicio",exact:true}).click();
   await page.getByRole("button",{name:"Buscar cliente",exact:true}).click();
+  await page.waitForLoadState("networkidle");
+  assert.equal(directoryQueries,0,"Opening customer search must not preload or list contacts");
+  assert.equal(await page.locator(".customer-item").count(),0);
+  await page.locator("#directory-search").fill("Alfa");
   await page.getByRole("button",{name:/Cliente Alfa/}).waitFor();
-  await page.getByRole("button",{name:"Cargar más clientes",exact:true}).click();
-  await page.getByRole("button",{name:/Cliente Gamma/}).waitFor();
+  assert.equal(await page.locator(".customer-item").count(),1);
+  assert.equal(await page.getByRole("button",{name:/Cliente Beta/}).count(),0);
   await page.locator("#directory-search").fill("Beta");
   await page.getByRole("button",{name:/Cliente Beta/}).click();
   await page.getByRole("heading",{name:"Cliente Beta",exact:true}).waitFor();
@@ -117,6 +121,7 @@ try {
   await page.getByRole("heading",{name:"Conceptos y notas",exact:true}).waitFor();
   await page.getByRole("button",{name:"Volver al inicio",exact:true}).click();
   await page.getByRole("button",{name:"Buscar cliente",exact:true}).click();
+  await page.locator("#directory-search").fill("Beta");
   await page.getByRole("button",{name:/Cliente Beta/}).click();
   await page.getByRole("button",{name:"Crear presupuesto",exact:true}).click();
   await page.getByRole("heading",{name:"Cliente",exact:true}).waitFor();

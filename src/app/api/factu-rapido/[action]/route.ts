@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { readTextBody } from "@/lib/server/request-body";
 import { parseQuickIntent } from "@/lib/quick-invoicing/model";
-import { authenticateQuick, cancelQuickOperation, issueQuickDocument, QuickError, readQuickCustomerPage, readQuickDocument, runQuickCustomerJobs, searchQuickCatalog } from "@/lib/quick-invoicing/server";
+import { authenticateQuick, cancelQuickOperation, issueQuickDocument, QuickError, readQuickDocument, runQuickCustomerJobs, searchQuickCatalog } from "@/lib/quick-invoicing/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +24,6 @@ export async function GET(request: Request, route: RouteContext) {
         defaultVat: scope.profile.iva.defaultRate, vatRates: scope.profile.iva.rates, vatExempt: scope.profile.vatExempt === true, iban: scope.profile.iban ?? "" });
     }
     if (action === "search") return json({ ok: true, results: await searchQuickCatalog(context, url.searchParams.get("kind") ?? "", url.searchParams.get("q") ?? "") });
-    if (action === "customers") return json({ ok: true, ...await readQuickCustomerPage(context,url.searchParams.get("q") ?? "",url.searchParams.get("page") ?? "0") });
     if (action === "document") {
       const id = url.searchParams.get("operationId") ?? "";
       if (!/^[0-9a-f-]{36}$/i.test(id)) throw new QuickError(400, "INVALID_OPERATION", "Operación no válida.");

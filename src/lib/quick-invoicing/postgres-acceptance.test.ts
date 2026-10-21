@@ -130,29 +130,26 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers:{...headers,Authorization:`Bearer ${users[2].token}`}})).status).toBe(403);
     expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`)).status).toBe(401);
   });
-  it("pages a minimal customer directory, searches the whole company and denies another company", async () => {
-    const prefix = `quick-page-${randomUUID()}`;
-    const rows = Array.from({length:26},(_,index) => ({user_id:users[0].id,entity_type:"customer",entity_id:`${prefix}-${index}`,current_version:1,deleted:false,
-      current_payload:{name:`Contacto página ${String(index).padStart(2,"0")}`,nif:`PAGE${index}`,address:"Dos 2",city:"Barcelona",postalCode:"08002",privateNote:"not-for-quick-directory"},content_hash:"synthetic",actor_device_id:"fixture",actor_session_hash:"fixture"}));
-    const foreign = {...rows[0],user_id:users[1].id,entity_id:`${prefix}-foreign`,current_payload:{...rows[0].current_payload,name:"Otro tenant no visible"}};
+  it("returns only matching contacts, no empty-search preload or foreign company data", async () => {
+    const id = `quick-search-${randomUUID()}`;
+    const own = {user_id:users[0].id,entity_type:"customer",entity_id:id,current_version:1,deleted:false,
+      current_payload:{name:"Martínez Búsqueda",nif:"SEARCH25",address:"Dos 2",city:"Barcelona",postalCode:"08002",privateNote:"not-for-quick-search"},content_hash:"synthetic",actor_device_id:"fixture",actor_session_hash:"fixture"};
+    const foreign = {...own,user_id:users[1].id,entity_id:`id-foreign-${id}`};
     const headers = {Authorization:`Bearer ${users[0].token}`,"X-Factu-Device-Token":"synthetic-quick-012345678901234567890"};
     try {
-      expect((await admin.from("central_business_entities").insert([...rows,foreign])).error).toBeNull();
-      const first = await fetch(`${appUrl}/api/factu-rapido/customers`,{headers});
-      const body = await first.json();
-      expect(first.status).toBe(200); expect(body.results).toHaveLength(25); expect(body.hasMore).toBe(true);
-      expect(body.results[0]).toMatchObject({id:rows[0].entity_id,name:rows[0].current_payload.name});
-      expect(JSON.stringify(body)).not.toMatch(/not-for-quick-directory|Otro tenant/);
+      expect((await admin.from("central_business_entities").insert([own,foreign])).error).toBeNull();
+      const empty = await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=`,{headers});
+      expect(await empty.json()).toMatchObject({results:[]});
+      const searched = await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=${encodeURIComponent("martinez busqueda")}`,{headers});
+      const body = await searched.json();
+      expect(searched.status).toBe(200); expect(body.results).toHaveLength(1);
+      expect(body.results[0]).toMatchObject({id,name:own.current_payload.name});
+      expect(JSON.stringify(body)).not.toContain("not-for-quick-search");
       expect(body.results[0]).not.toHaveProperty("current_payload");
-      const next = await fetch(`${appUrl}/api/factu-rapido/customers?page=1`,{headers});
-      expect(await next.json()).toMatchObject({hasMore:false,results:[{id:rows[25].entity_id}]});
-      const searched = await fetch(`${appUrl}/api/factu-rapido/customers?q=${encodeURIComponent("Contacto pagina 25")}`,{headers});
-      expect(await searched.json()).toMatchObject({hasMore:false,results:[{id:rows[25].entity_id}]});
-      expect((await fetch(`${appUrl}/api/factu-rapido/customers?page=-1`,{headers})).status).toBe(400);
-      expect((await fetch(`${appUrl}/api/factu-rapido/customers`,{headers:{...headers,"X-Factu-Company-Id":users[1].id}})).status).toBe(403);
-      expect((await fetch(`${appUrl}/api/factu-rapido/customers`)).status).toBe(401);
+      expect((await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=martinez`,{headers:{...headers,"X-Factu-Company-Id":users[1].id}})).status).toBe(403);
+      expect((await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=martinez`)).status).toBe(401);
     } finally {
-      await admin.from("central_business_entities").delete().in("user_id",users.slice(0,2).map(user => user.id)).in("entity_id",[...rows.map(row => row.entity_id),foreign.entity_id]);
+      await admin.from("central_business_entities").delete().in("user_id",users.slice(0,2).map(user => user.id)).in("entity_id",[id,foreign.entity_id]);
     }
   });
   it("commits invoice + number + frozen client + pending admission atomically; replay does not reserve a second number",async () => {
