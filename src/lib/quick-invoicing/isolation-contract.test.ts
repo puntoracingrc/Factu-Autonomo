@@ -26,6 +26,7 @@ describe("private quick-app isolation and durable acknowledgement contract",() =
     }
     expect(app).toContain("<span>Crear factura</span>");
     expect(app).toContain("<span>Crear presupuesto</span>");
+    expect(app).toContain("<span>Buscar cliente</span>");
   });
   it("wraps the existing central authorities, enqueues before acknowledgement and has an independent runner",() => {
     const sql = source("supabase/migrations/20261021043637_quick_invoicing_pilot.sql");

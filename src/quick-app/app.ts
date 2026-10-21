@@ -4,6 +4,7 @@ import type { Client, LineItem } from "@/lib/types";
 import { readLocal, saveLocal, type QuickLocalState } from "./storage";
 import { escapeHtml as escape } from "./html";
 import { quickAccessScreen } from "./access-screen";
+import { quickCustomer, quickCustomerCard, quickCustomerStartStep, type QuickCustomer } from "./customer";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -14,7 +15,7 @@ let bootstrap: QuickBootstrap;
 let localKey = "";
 let deviceToken = "";
 let state: QuickLocalState = {};
-let view: "home" | "form" | "result" = "home";
+let view: "home" | "form" | "result" | "customers" = "home";
 let busy = false;
 let notice = "";
 let saveChain = Promise.resolve();
@@ -25,6 +26,15 @@ let pdf: Awaited<ReturnType<(typeof import("./pdf"))["quickPdf"]>> | undefined;
 let pdfLoading = false;
 let pdfModulePromise: Promise<typeof import("./pdf")> | undefined;
 let accessBusy = false;
+let customerRows: Array<Record<string,unknown>> = [];
+let selectedCustomer: QuickCustomer | undefined;
+let customerQuery = "";
+let customerNextPage = 0;
+let customerHasMore = false;
+let customerLoading = false;
+let customerError = "";
+let customerSerial = 0;
+let customerTimer: ReturnType<typeof setTimeout> | undefined;
 const loadPdfModule = () => pdfModulePromise ??= import("./pdf").catch(error => { pdfModulePromise = undefined; throw error; });
 
 class ApiError extends Error {
@@ -72,10 +82,43 @@ function field(label: string, key: keyof Client, options: { required?: boolean; 
 function renderHome() {
   return `<h1 class="sr-only">Crear documento</h1>
     <div class="home-actions"><button data-action="new-invoice" class="hero-button invoice"><span class="button-symbol" aria-hidden="true">↗</span><span>Crear factura</span><b aria-hidden="true">→</b></button>
-    <button data-action="new-quote" class="hero-button quote"><span class="button-symbol" aria-hidden="true">≡</span><span>Crear presupuesto</span><b aria-hidden="true">→</b></button></div>
+    <button data-action="new-quote" class="hero-button quote"><span class="button-symbol" aria-hidden="true">≡</span><span>Crear presupuesto</span><b aria-hidden="true">→</b></button>
+    <button data-action="customers" class="hero-button quote"><span class="button-symbol" aria-hidden="true">⌕</span><span>Buscar cliente</span><b aria-hidden="true">→</b></button></div>
     ${state.intent ? `<button class="resume" data-action="resume">${state.pending ? "Comprobar emisión pendiente" : "Continuar documento sin terminar"}<span>→</span></button>` : ""}
     ${state.receipt ? `<button class="resume" data-action="last">Abrir ${escape(state.receipt.document.number)}<span>↗</span></button>` : ""}
     <div id="install-area"></div>`;
+}
+function customerContent() {
+  if (selectedCustomer) return quickCustomerCard(selectedCustomer);
+  if (customerError) return `<p role="alert">${escape(customerError)}</p><button class="secondary" data-action="customer-retry">Reintentar búsqueda</button>`;
+  if (customerQuery.trim().length === 1) return '<p>Escribe al menos dos caracteres.</p>';
+  return `<div class="customer-list">${customerRows.map((row,index) => `<button class="customer-item" data-action="customer-select" data-index="${index}"><strong>${escape(row.name || "Sin nombre")}</strong>${row.nif ? `<span>${escape(row.nif)}</span>` : ""}</button>`).join("")}</div>
+    ${customerLoading ? '<p role="status">Cargando clientes…</p>' : !customerRows.length ? '<p>No hay clientes que mostrar.</p>' : ""}
+    ${customerHasMore ? `<button class="secondary customer-more" data-action="customer-more" ${customerLoading ? "disabled" : ""}>Cargar más clientes</button>` : ""}`;
+}
+function customersScreen() {
+  return `<div class="form-title"><h1>Buscar cliente</h1></div><label>Nombre o NIF<input id="directory-search" type="search" value="${escape(customerQuery)}" autocomplete="off" placeholder="Buscar cliente"></label><div id="customer-content" class="customer-content">${customerContent()}</div><button class="secondary customer-home" data-action="home">Inicio</button>`;
+}
+function updateCustomerContent() {
+  const content = document.querySelector("#customer-content");
+  if (content) content.innerHTML = customerContent();
+}
+async function loadCustomers(append = false) {
+  const serial = ++customerSerial;
+  const query = customerQuery.trim();
+  selectedCustomer = undefined; customerError = ""; customerLoading = true;
+  if (!append) { customerRows = []; customerNextPage = 0; customerHasMore = false; }
+  updateCustomerContent();
+  if (query.length === 1) { customerLoading = false; updateCustomerContent(); return; }
+  try {
+    const result = await api<{results:Array<Record<string,unknown>>;hasMore:boolean;nextPage:number}>(`customers?q=${encodeURIComponent(query)}&page=${append ? customerNextPage : 0}`);
+    if (serial !== customerSerial || view !== "customers") return;
+    customerRows = [...new Map([...(append ? customerRows : []),...result.results].map(row => [row.id,row])).values()];
+    customerHasMore = result.hasMore; customerNextPage = result.nextPage;
+  } catch (error) {
+    if (serial !== customerSerial || view !== "customers") return;
+    customerError = error instanceof Error ? error.message : "No se pudieron cargar los clientes.";
+  } finally { if (serial === customerSerial) { customerLoading = false; updateCustomerContent(); } }
 }
 function clientStep() {
   const full = state.intent?.kind === "factura";
@@ -128,7 +171,7 @@ function renderResult() {
     <button class="resume" data-action="home">Volver al inicio<span>→</span></button>`;
 }
 function render() {
-  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : renderResult()}</main>`;
+  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : view === "customers" ? customersScreen() : renderResult()}</main>`;
   if (view === "form") updateTotals();
 }
 function updateTotals() {
@@ -145,11 +188,13 @@ function updateTotals() {
 function emptyLine(): LineItem {
   return { id: crypto.randomUUID(), description:"",quantity:1,unitPrice:0,ivaPercent:bootstrap.vatExempt ? 0 : bootstrap.defaultVat,unit:"ud" };
 }
-function start(kind: QuickIntent["kind"]) {
+function start(kind: QuickIntent["kind"], customer?: QuickCustomer) {
   if (state.pending) { view = "form"; state.step = 3; notice = "Comprueba primero el documento pendiente; no se creará otro con un número distinto."; render(); return; }
   if (state.intent && !confirm("Hay un documento sin terminar. ¿Quieres descartarlo y empezar otro?")) return;
   state.intent = { operationId:crypto.randomUUID(),kind,date:new Date().toLocaleDateString("sv-SE"),client:{name:""},items:[emptyLine()],notes:"",paymentMethod:"efectivo",paid:false };
-  state.step = 1; view = "form"; notice = ""; saveDraft(); render();
+  if (customer) { state.intent.client = structuredClone(customer.client); state.intent.customerId = customer.id; }
+  state.step = customer ? quickCustomerStartStep(kind,customer) : 1; view = "form"; notice = ""; saveDraft(); render();
+  if (state.step === 2) void loadPdfModule().catch(() => undefined);
 }
 function validateStep() {
   const intent = state.intent!;
@@ -241,6 +286,11 @@ function search(input: HTMLInputElement, kind: "customer" | "product") {
 }
 root.addEventListener("input",event => {
   const input = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+  if (input.id === "directory-search") {
+    customerQuery = input.value; selectedCustomer = undefined; customerSerial++; clearTimeout(customerTimer);
+    customerRows = []; customerHasMore = false; customerError = ""; customerLoading = true; updateCustomerContent();
+    customerTimer = setTimeout(() => { if (view === "customers") void loadCustomers(); },400); return;
+  }
   if (input.id === "customer-search" || input.id === "product-search") { search(input as HTMLInputElement,input.id === "customer-search" ? "customer" : "product"); return; }
   if (!state.intent || state.pending || busy) return;
   if (input.dataset.client) {
@@ -272,6 +322,18 @@ root.addEventListener("click",event => {
       if (action === "login") { await login(); return; }
       if (action === "retry-access") { await startAccess(); return; }
       if (!bootstrap || busy) return;
+      if (action === "customers") {
+        customerQuery = ""; selectedCustomer = undefined; customerRows = []; view = "customers"; notice = ""; render(); await loadCustomers(); return;
+      }
+      if (action === "customer-more" || action === "customer-retry") { if (!customerLoading) await loadCustomers(action === "customer-more"); return; }
+      if (action === "customer-select") {
+        const row = customerRows[Number(button.dataset.index)]; if (!row) return;
+        customerSerial++; customerLoading = false; selectedCustomer = quickCustomer(row); updateCustomerContent(); return;
+      }
+      if (action === "customer-change") { selectedCustomer = undefined; updateCustomerContent(); return; }
+      if (action === "customer-invoice" || action === "customer-quote") {
+        if (selectedCustomer) start(action === "customer-invoice" ? "factura" : "presupuesto",selectedCustomer); return;
+      }
       if (action === "new-invoice" || action === "new-quote") { start(action === "new-invoice" ? "factura" : "presupuesto"); return; }
       if (action === "home") { view = "home"; notice = ""; render(); return; }
       if (action === "resume") { view = "form"; state.step = state.pending ? 3 : state.step ?? 1; notice = ""; render(); return; }

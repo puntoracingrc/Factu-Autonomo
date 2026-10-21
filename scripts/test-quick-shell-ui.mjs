@@ -11,7 +11,8 @@ const output = path.resolve(process.env.FACTU_QUICK_SHELL_OUTPUT ?? "output/quic
 const root = path.resolve("public");
 const actor = "00000000-0000-4000-8000-000000000001";
 const sessionId = "00000000-0000-4000-8000-000000000002";
-let attempts = 0, configs = 0;
+let attempts = 0, configs = 0, directoryQueries = 0;
+const contacts = ["Alfa","Beta","Gamma"].map((name,index) => ({id:`contact-${index}`,name:`Cliente ${name}`,nif:`SYN00${index}`,address:"Calle Dos 2",postalCode:"08002",city:"Barcelona",email:`cliente-${index}@example.test`,phone:"600000000"}));
 const server = http.createServer(async (req, res) => {
   const pathname = new URL(req.url, "http://127.0.0.1").pathname;
   if (pathname === "/api/factu-rapido/config") {
@@ -25,6 +26,13 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: false, code: "device_session_conflict", message: "La sesión anterior tarda en liberarse." })); return;
     }
     res.end(JSON.stringify({ actorId: actor, companyId: actor, companyName: "Empresa antigua sintética", defaultVat: 21, vatRates: [0, 4, 10, 21], vatExempt: false, iban: "ES0000000000000000000000" })); return;
+  }
+  if (pathname === "/api/factu-rapido/customers") {
+    directoryQueries++; res.setHeader("Content-Type", "application/json");
+    const params = new URL(req.url,"http://127.0.0.1").searchParams;
+    const query = (params.get("q") ?? "").toLowerCase(), page = Number(params.get("page") ?? 0);
+    const matches = contacts.filter(contact => `${contact.name} ${contact.nif}`.toLowerCase().includes(query));
+    res.end(JSON.stringify({results:query ? matches : matches.slice(page*2,page*2+2),hasMore:!query && page===0,nextPage:page+1})); return;
   }
   const file = path.resolve(root, `.${pathname}`);
   if (!pathname.startsWith("/rapido/") || !file.startsWith(`${root}${path.sep}`)) { res.statusCode = 404; res.end(); return; }
@@ -53,6 +61,7 @@ try {
     localStorage.setItem("main-company-sentinel", "excluded-company-synthetic");
   }, { origin, session: { access_token: token, refresh_token: "synthetic-local-only", expires_at: exp, expires_in: 3600, token_type: "bearer", user: { id: actor, aud: "authenticated", email: "quick-access@example.test" } } });
   const page = await context.newPage();
+  page.on("dialog",dialog => dialog.accept()); // Only this disposable synthetic context.
   const errors = [], requests = [], layouts = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("request", request => requests.push({ method: request.method(), path: new URL(request.url()).pathname }));
@@ -71,8 +80,8 @@ try {
         return { y: rect.y, bottom: rect.bottom, height: rect.height, fontSize: parseFloat(style.fontSize), color: style.color };
       }) };
     });
-    assert.equal(layout.buttons.length, 2);
-    assert(layout.buttons[1].y >= layout.buttons[0].bottom + 10, "Home buttons must always be stacked");
+    assert.equal(layout.buttons.length, 3);
+    assert(layout.buttons.slice(1).every((button,index) => button.y >= layout.buttons[index].bottom + 10), "Home buttons must always be stacked");
     assert(layout.buttons.every(button => button.fontSize >= 22 && button.height >= 100 && button.color === "rgb(17, 17, 17)"));
     assert(layout.scrollWidth <= width, "No horizontal overflow");
     layouts.push(layout);
@@ -90,10 +99,32 @@ try {
   await page.getByRole("radio", { name: "Transferencia", exact: true }).check();
   await page.getByRole("checkbox", { name: /Pagado/ }).check();
   await page.screenshot({ path: path.join(output, "pago-legible.png"), fullPage: true });
+  assert.equal(directoryQueries,0,"The home/form must not eagerly load the customer directory");
+  await page.getByRole("button",{name:"Volver al inicio",exact:true}).click();
+  await page.getByRole("button",{name:"Buscar cliente",exact:true}).click();
+  await page.getByRole("button",{name:/Cliente Alfa/}).waitFor();
+  await page.getByRole("button",{name:"Cargar más clientes",exact:true}).click();
+  await page.getByRole("button",{name:/Cliente Gamma/}).waitFor();
+  await page.locator("#directory-search").fill("Beta");
+  await page.getByRole("button",{name:/Cliente Beta/}).click();
+  await page.getByRole("heading",{name:"Cliente Beta",exact:true}).waitFor();
+  await page.screenshot({path:path.join(output,"ficha-cliente.png"),fullPage:true});
+  await page.getByRole("button",{name:"Crear factura",exact:true}).click();
+  await page.getByRole("heading",{name:"Conceptos y notas",exact:true}).waitFor();
+  await page.getByRole("button",{name:"Atrás",exact:true}).click();
+  assert.equal(await page.locator('[data-client="name"]').inputValue(),"Cliente Beta");
+  assert.equal(await page.locator('[data-client="nif"]').inputValue(),"SYN001");
+  await page.getByRole("button",{name:"Volver al inicio",exact:true}).click();
+  await page.getByRole("button",{name:"Buscar cliente",exact:true}).click();
+  await page.getByRole("button",{name:/Cliente Beta/}).click();
+  await page.getByRole("button",{name:"Crear presupuesto",exact:true}).click();
+  await page.getByRole("heading",{name:"Conceptos y notas",exact:true}).waitFor();
+  await page.getByRole("button",{name:"Atrás",exact:true}).click();
+  assert.equal(await page.locator('[data-client="name"]').inputValue(),"Cliente Beta");
   assert.equal(await page.evaluate(() => localStorage.getItem("main-company-sentinel")), "excluded-company-synthetic");
   assert(!requests.some(request => request.method === "POST" || request.path.startsWith("/_next/") || request.path.endsWith("/issue")));
   assert.deepEqual(errors, []);
-  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, layouts, consoleErrors: errors };
+  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],layouts, consoleErrors: errors };
   await writeFile(path.join(output, "shell-result.json"), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
 } finally {

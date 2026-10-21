@@ -27,3 +27,16 @@ label,.company,.suggestions strong{font-size:16px}
 .loading p,.login>p:not(.eyebrow){color:#111;font-size:17px}
 .login .hint{font-size:14px!important}
 .login h1{font-size:32px}
+.customer-content{margin:16px 0;display:grid;gap:12px;font-size:16px;color:#111}
+.customer-list{display:grid;gap:8px}
+.customer-item{width:100%;border:1px solid #cbd7cb;border-radius:12px;padding:14px;background:#fff;text-align:left;color:#111;min-height:60px}
+.customer-item strong{display:block;font-size:17px;overflow-wrap:anywhere}
+.customer-item span{display:block;font-size:14px;margin-top:3px}
+.customer-card{background:#fff;border:1px solid #cbd7cb;border-radius:14px;padding:17px;overflow-wrap:anywhere}
+.customer-card h2{font-size:21px;line-height:1.2;margin:0 0 10px}
+.customer-card p{font-size:15px;margin-top:5px}
+.customer-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.customer-action{display:grid;justify-items:center;align-content:center;gap:8px;min-height:100px;padding:14px 8px;border:1px solid #bed281;border-radius:12px;background:#dafa9b;color:#111;font-size:16px;font-weight:750}
+.customer-action span{font-size:26px;line-height:1}
+.customer-action:last-child{background:#fff;border-color:#b8c8b9}
+.customer-more,.customer-change,.customer-home{width:100%}
