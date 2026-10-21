@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { quickInstaller, quickInstallUrl, type QuickInstallPrompt } from "./install";
+import { quickInstaller, quickInstallUrl, quickInstallationConfirmed, type QuickInstallPrompt } from "./install";
 
 function offer(outcome: "accepted" | "dismissed" = "accepted") {
   const event = new Event("beforeinstallprompt", { cancelable: true }) as QuickInstallPrompt;
@@ -9,6 +9,23 @@ function offer(outcome: "accepted" | "dismissed" = "accepted") {
 }
 
 describe("independent quick-app installation", () => {
+  it("recognizes the quick app's installed window without confusing the main app", () => {
+    expect(quickInstallationConfirmed("https://fast.facturacion-autonomos.app", true)).toBe(true);
+    expect(quickInstallationConfirmed("https://facturacion-autonomos.app", true)).toBe(false);
+    expect(quickInstallationConfirmed("https://fast.facturacion-autonomos.app", false)).toBe(false);
+  });
+  it("recognizes only the exact quick app reported by the browser", () => {
+    const app = {platform:"webapp",url:"/rapido/manifest.webmanifest",id:"https://fast.facturacion-autonomos.app/rapido/"};
+    expect(quickInstallationConfirmed("https://fast.facturacion-autonomos.app", false, [app])).toBe(true);
+    expect(quickInstallationConfirmed("https://fast.facturacion-autonomos.app", false, [{...app,id:undefined}])).toBe(true);
+    for (const other of [
+      {...app,url:"/manifest.json",id:"/"},
+      {...app,id:"/"},
+      {...app,platform:"play"},
+      {...app,url:"https://facturacion-autonomos.app/rapido/manifest.webmanifest"},
+      {...app,url:"https://[invalid"},
+    ]) expect(quickInstallationConfirmed("https://fast.facturacion-autonomos.app",false,[other])).toBe(false);
+  });
   it("separates installation from every public main-app origin", () => {
     for (const host of ["facturacion-autonomos.app", "factu-autonomo.vercel.app", "factu-autonomo-persianas-almar-web-s-projects.vercel.app", "factu-autonomo-git-main-persianas-almar-web-s-projects.vercel.app"]) {
       expect(quickInstallUrl(`https://${host}`)).toBe("https://fast.facturacion-autonomos.app/rapido/index.html");

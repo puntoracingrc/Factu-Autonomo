@@ -203,6 +203,14 @@ try {
   // Simulate the old public hostname with loopback responses only. No real
   // site, OAuth flow, service worker or business data is contacted here.
   const oldOrigin = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+  await oldOrigin.addInitScript(() => {
+    const nativeMatch = window.matchMedia.bind(window);
+    window.matchMedia = query => {
+      const result = nativeMatch(query);
+      if (query === "(display-mode: standalone)") Object.defineProperty(result, "matches", { value: true });
+      return result;
+    };
+  });
   await oldOrigin.route("**/*", async route => {
     const url = new URL(route.request().url());
     assert.equal(url.origin, "https://facturacion-autonomos.app");
@@ -228,9 +236,39 @@ try {
   assert.equal(await oldPage.evaluate(() => window.quickInstallCalls), 0, "Never offer the enclosing main PWA as the quick app");
   await oldPage.screenshot({ path: path.join(output, "instalacion-origen-independiente.png"), fullPage: true });
   await oldOrigin.close();
+  for (const mode of ["standalone", "browser-installed", "other-app", "api-error"]) {
+    const installed = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    await installed.route("**/*", async route => {
+      const url = new URL(route.request().url());
+      assert.equal(url.origin, "https://fast.facturacion-autonomos.app");
+      assert.equal(route.request().method(), "GET");
+      const response = await fetch(`${origin}${url.pathname}${url.search}`);
+      await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
+    });
+    await installed.addInitScript(mode => {
+      const nativeMatch = window.matchMedia.bind(window);
+      window.matchMedia = query => {
+        const result = nativeMatch(query);
+        if (query === "(display-mode: standalone)") Object.defineProperty(result, "matches", { value: mode === "standalone" });
+        return result;
+      };
+      Object.defineProperty(navigator, "getInstalledRelatedApps", { value: async () => {
+        if (mode === "api-error") throw new Error("Synthetic unavailable browser API");
+        return [{platform:"webapp",url:mode === "browser-installed" ? "/rapido/manifest.webmanifest" : "/manifest.json",id:mode === "browser-installed" ? "/rapido/" : "/"}];
+      } });
+    }, mode);
+    const installedPage = await installed.newPage();
+    installedPage.on("pageerror", error => errors.push(error.message));
+    await installedPage.goto("https://fast.facturacion-autonomos.app/rapido/index.html");
+    await installedPage.getByRole("button", { name: "Entrar con Google", exact: true }).waitFor();
+    const expectedHidden = mode === "standalone" || mode === "browser-installed";
+    assert.equal(await installedPage.locator("#quick-install").isHidden(), expectedHidden, mode);
+    if (mode === "standalone") await installedPage.screenshot({ path: path.join(output, "sin-aviso-app-instalada-sintetica.png"), fullPage: true });
+    await installed.close();
+  }
   assert(!requests.some(request => request.method === "POST" || request.path.startsWith("/_next/") || request.path.endsWith("/issue")));
   assert.deepEqual(errors, []);
-  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, installation:{nativePromptOnce:true,manualInstructions:true,visibleBeforeLogin:true,formAndFocusPreserved:true,noAccessReload:true,independentOrigin:true,mainAppPromptRejected:true},customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
+  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, installation:{nativePromptOnce:true,manualInstructions:true,visibleBeforeLogin:true,formAndFocusPreserved:true,noAccessReload:true,independentOrigin:true,mainAppPromptRejected:true,hiddenInInstalledWindow:true,hiddenWhenBrowserConfirms:true,unrelatedAppNotHidden:true,optionalApiFailureSafe:true},customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
   await writeFile(path.join(output, "shell-result.json"), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
 } finally {
