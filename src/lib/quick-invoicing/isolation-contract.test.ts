@@ -45,5 +45,9 @@ describe("private quick-app isolation and durable acknowledgement contract",() =
     expect(app).not.toContain("Empresa antigua");
     expect(source("src/quick-app/access-screen.ts")).not.toContain("Persianas Almar");
     expect(source("src/lib/quick-invoicing/server.ts")).toContain("request.headers.get(FACTU_COMPANY_HEADER)");
+    const teamScope = source("supabase/migrations/20261021144649_quick_invoicing_team_scope.sql");
+    expect(teamScope).toContain("m.role in ('owner', 'admin')");
+    expect(teamScope).toContain("for share of a");
+    expect(teamScope).not.toMatch(/31fd96e3|ebf7802a|persianasalmar@gmail|persidomo@gmail|spitfireibanez@gmail/);
   });
 });

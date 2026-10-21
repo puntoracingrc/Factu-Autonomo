@@ -12,6 +12,8 @@ requiere ahora membresía activa `owner` o `admin` en la empresa habilitada.
 Ser administrador por sí solo no habilita la app: sigue exigiéndose la concesión
 explícita privada. Revocar la membresía o desactivar la concesión bloquea el
 acceso. No se amplían automáticamente permisos del programa completo.
+La RPC mantiene un bloqueo compartido de la concesión durante su transacción;
+reasignarla espera a terminar cualquier operación que ya la estaba utilizando.
 
 Cada solicitud salvo bootstrap debe identificar la empresa que muestra el editor.
 Una pestaña anterior, una app cacheada sin esa cabecera o una petición de otra
