@@ -6,6 +6,7 @@ import { escapeHtml as escape } from "./html";
 import { quickAccessScreen } from "./access-screen";
 import { quickCustomer, quickCustomerCard, type QuickCustomer } from "./customer";
 import { quickCompanyRequestHeaders } from "@/lib/quick-invoicing/request-scope";
+import { mountQuickInstall } from "./install";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -85,8 +86,7 @@ function renderHome() {
     <button data-action="new-quote" class="hero-button quote"><span class="button-symbol" aria-hidden="true">≡</span><span>Crear presupuesto</span><b aria-hidden="true">→</b></button>
     <button data-action="customers" class="hero-button quote"><span class="button-symbol" aria-hidden="true">⌕</span><span>Buscar cliente</span><b aria-hidden="true">→</b></button></div>
     ${state.intent ? `<button class="resume" data-action="resume">${state.pending ? "Comprobar emisión pendiente" : "Continuar documento sin terminar"}<span>→</span></button>` : ""}
-    ${state.receipt ? `<button class="resume" data-action="last">Abrir ${escape(state.receipt.document.number)}<span>↗</span></button>` : ""}
-    <div id="install-area"></div>`;
+    ${state.receipt ? `<button class="resume" data-action="last">Abrir ${escape(state.receipt.document.number)}<span>↗</span></button>` : ""}`;
 }
 function customerContent() {
   if (selectedCustomer) return quickCustomerCard(selectedCustomer);
@@ -421,7 +421,6 @@ async function initialize() {
   auth.auth.onAuthStateChange((event) => {
     if (event === "SIGNED_OUT") { notice = "La sesión ha terminado. Tu documento sigue guardado en este dispositivo."; loginScreen(notice); }
   });
-  if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/rapido/sw.js",{scope:"/rapido/"}).catch(() => undefined);
 }
 async function startAccess() {
   if (accessBusy) return;
@@ -437,4 +436,6 @@ async function startAccess() {
     else root.innerHTML = quickAccessScreen(message,"retry");
   } finally { accessBusy = false; }
 }
+mountQuickInstall(document.querySelector<HTMLElement>("#quick-install")!);
+if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/rapido/sw.js",{scope:"/rapido/"}).catch(() => undefined);
 void startAccess();
