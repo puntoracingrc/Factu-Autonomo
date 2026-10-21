@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { quickInstaller, type QuickInstallPrompt } from "./install";
+import { quickInstaller, quickInstallUrl, type QuickInstallPrompt } from "./install";
 
 function offer(outcome: "accepted" | "dismissed" = "accepted") {
   const event = new Event("beforeinstallprompt", { cancelable: true }) as QuickInstallPrompt;
@@ -9,6 +9,16 @@ function offer(outcome: "accepted" | "dismissed" = "accepted") {
 }
 
 describe("independent quick-app installation", () => {
+  it("separates installation from every public main-app origin", () => {
+    for (const host of ["facturacion-autonomos.app", "factu-autonomo.vercel.app", "factu-autonomo-persianas-almar-web-s-projects.vercel.app", "factu-autonomo-git-main-persianas-almar-web-s-projects.vercel.app"]) {
+      expect(quickInstallUrl(`https://${host}`)).toBe("https://fast.facturacion-autonomos.app/rapido/index.html");
+    }
+  });
+  it("keeps the independent origin, local development and previews self-contained", () => {
+    for (const origin of ["https://fast.facturacion-autonomos.app", "http://127.0.0.1:3100", "https://quick-preview.example"]) {
+      expect(quickInstallUrl(origin)).toBe(`${origin}/rapido/index.html`);
+    }
+  });
   it("opens and closes manual instructions when the native prompt is unavailable", async () => {
     const changed = vi.fn();
     const installer = quickInstaller(changed);

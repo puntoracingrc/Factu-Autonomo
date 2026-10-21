@@ -200,9 +200,37 @@ try {
   await guestPage.getByRole("heading", { name: "Poner el icono de Factu Rápido", exact: true }).waitFor();
   assert.equal(await guestPage.locator(".quick-install-url").inputValue(), `${origin}/rapido/index.html`);
   await guest.close();
+  // Simulate the old public hostname with loopback responses only. No real
+  // site, OAuth flow, service worker or business data is contacted here.
+  const oldOrigin = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+  await oldOrigin.route("**/*", async route => {
+    const url = new URL(route.request().url());
+    assert.equal(url.origin, "https://facturacion-autonomos.app");
+    assert.equal(route.request().method(), "GET");
+    const response = await fetch(`${origin}${url.pathname}${url.search}`);
+    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
+  });
+  const oldPage = await oldOrigin.newPage();
+  await oldPage.goto("https://facturacion-autonomos.app/rapido/index.html?synthetic=not-copied#not-copied");
+  await oldPage.getByRole("button", { name: "Entrar con Google", exact: true }).waitFor();
+  await oldPage.evaluate(() => {
+    window.quickInstallCalls = 0;
+    const event = new Event("beforeinstallprompt", { cancelable: true });
+    Object.assign(event, { prompt: async () => { window.quickInstallCalls++; }, userChoice: Promise.resolve({ outcome: "accepted" }) });
+    window.dispatchEvent(event);
+    window.dispatchEvent(new Event("appinstalled"));
+  });
+  await oldPage.getByRole("button", { name: "Instalar en el móvil", exact: true }).click();
+  assert.equal(await oldPage.locator(".quick-install-url").inputValue(), "https://fast.facturacion-autonomos.app/rapido/index.html");
+  const separateLink = oldPage.getByRole("link", { name: "Abrir para instalar", exact: true });
+  assert.equal(await separateLink.getAttribute("href"), "https://fast.facturacion-autonomos.app/rapido/index.html");
+  assert.equal(await separateLink.getAttribute("target"), "_blank");
+  assert.equal(await oldPage.evaluate(() => window.quickInstallCalls), 0, "Never offer the enclosing main PWA as the quick app");
+  await oldPage.screenshot({ path: path.join(output, "instalacion-origen-independiente.png"), fullPage: true });
+  await oldOrigin.close();
   assert(!requests.some(request => request.method === "POST" || request.path.startsWith("/_next/") || request.path.endsWith("/issue")));
   assert.deepEqual(errors, []);
-  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, installation:{nativePromptOnce:true,manualInstructions:true,visibleBeforeLogin:true,formAndFocusPreserved:true,noAccessReload:true},customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
+  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, installation:{nativePromptOnce:true,manualInstructions:true,visibleBeforeLogin:true,formAndFocusPreserved:true,noAccessReload:true,independentOrigin:true,mainAppPromptRejected:true},customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
   await writeFile(path.join(output, "shell-result.json"), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
 } finally {

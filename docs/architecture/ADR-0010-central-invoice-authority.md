@@ -23,6 +23,14 @@ el almacenamiento existente por actor y empresa, sin borrar la copia anterior.
 Las operaciones antiguas y su historial no se mueven ni renumeran. Los cambios de
 admisión son configuración privada, nunca IDs o correos en código o migraciones.
 
+La instalación independiente se ofrece desde `fast.facturacion-autonomos.app`:
+Android puede considerar `/rapido/` parte de la PWA principal ya instalada en
+el mismo origen. La raíz de `fast` lleva al shell rápido, sin cargar el programa
+completo. El acceso anterior sigue disponible y nunca se redirige un editor
+abierto: instalar desde allí abre la nueva dirección en otra pestaña. Sesiones,
+borradores y almacenamiento local no se copian entre orígenes; el nuevo acceso
+requiere su propia sesión y mantiene exactamente la misma admisión por empresa.
+
 Regresiones: ámbito de peticiones, pertenencia/ revocación, emisión autenticada
 por administrador, cambio de admisión, aislamiento y rechazo de clientes antiguos.
 
