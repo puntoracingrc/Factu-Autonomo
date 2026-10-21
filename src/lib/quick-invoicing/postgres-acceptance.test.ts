@@ -158,7 +158,10 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     const allowed = await post(headers);
     expect(allowed.status).toBe(400); // Auth passed; explicit consent/input missing. No live AI key is used in CI.
     expect(await allowed.json()).toMatchObject({code:"AI_CONSENT_REQUIRED"});
-    expect(allowed.headers.get("Cache-Control")).toBe("no-store, private");
+    // Next dev replaces transport Cache-Control with no-store, max-age=0.
+    // The route's private header is also checked directly by its unit test.
+    expect(allowed.headers.get("Cache-Control")).toMatch(/\bno-store\b/);
+    expect(allowed.headers.get("Cache-Control")).not.toMatch(/\bpublic\b|s-maxage=[1-9]/);
     expect((await post({"Content-Type":"application/json"})).status).toBe(401);
     expect((await post({...headers,Authorization:`Bearer ${users[2].token}`})).status).toBe(403);
     expect((await post({...headers,"X-Factu-Company-Id":users[1].id})).status).toBe(403);
