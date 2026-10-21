@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { quickCustomer, quickCustomerCard, quickCustomerStartStep } from "./customer";
+import { quickCustomer, quickCustomerCard } from "./customer";
 
 const row = { id:"customer-one",name:"Cliente de prueba",nif:"12345678Z",address:"Dos 2",postalCode:"08002",city:"Barcelona",phone:"600000000",email:"cliente@example.test",privateNote:"not-in-document" };
 describe("quick customer selection", () => {
@@ -10,11 +10,9 @@ describe("quick customer selection", () => {
     expect(customer.client).not.toHaveProperty("id");
     expect(customer.client).not.toHaveProperty("privateNote");
   });
-  it("opens concepts with a complete customer and asks for missing invoice data", () => {
-    expect(quickCustomerStartStep("factura",quickCustomer(row))).toBe(2);
-    expect(quickCustomerStartStep("presupuesto",quickCustomer({id:"one",name:"Solo nombre"}))).toBe(2);
-    expect(quickCustomerStartStep("factura",quickCustomer({id:"one",name:"Solo nombre"}))).toBe(1);
-    expect(quickCustomerStartStep("presupuesto",quickCustomer({id:"one"}))).toBe(1);
+  it("leaves missing fiscal fields empty for review instead of inventing them", () => {
+    expect(quickCustomer({id:"one",name:"Solo nombre"}).client).toMatchObject({name:"Solo nombre",nif:"",address:"",postalCode:"",city:""});
+    expect(quickCustomer({id:"one"}).client.name).toBe("");
   });
   it("renders a compact, escaped card with two creation actions", () => {
     const html = quickCustomerCard(quickCustomer({...row,name:'<img src=x onerror="alert(1)">'}));

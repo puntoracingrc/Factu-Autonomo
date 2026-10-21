@@ -4,7 +4,7 @@ import type { Client, LineItem } from "@/lib/types";
 import { readLocal, saveLocal, type QuickLocalState } from "./storage";
 import { escapeHtml as escape } from "./html";
 import { quickAccessScreen } from "./access-screen";
-import { quickCustomer, quickCustomerCard, quickCustomerStartStep, type QuickCustomer } from "./customer";
+import { quickCustomer, quickCustomerCard, type QuickCustomer } from "./customer";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -193,8 +193,7 @@ function start(kind: QuickIntent["kind"], customer?: QuickCustomer) {
   if (state.intent && !confirm("Hay un documento sin terminar. ¿Quieres descartarlo y empezar otro?")) return;
   state.intent = { operationId:crypto.randomUUID(),kind,date:new Date().toLocaleDateString("sv-SE"),client:{name:""},items:[emptyLine()],notes:"",paymentMethod:"efectivo",paid:false };
   if (customer) { state.intent.client = structuredClone(customer.client); state.intent.customerId = customer.id; }
-  state.step = customer ? quickCustomerStartStep(kind,customer) : 1; view = "form"; notice = ""; saveDraft(); render();
-  if (state.step === 2) void loadPdfModule().catch(() => undefined);
+  state.step = 1; view = "form"; notice = ""; saveDraft(); render(); window.scrollTo(0,0);
 }
 function validateStep() {
   const intent = state.intent!;
@@ -323,26 +322,27 @@ root.addEventListener("click",event => {
       if (action === "retry-access") { await startAccess(); return; }
       if (!bootstrap || busy) return;
       if (action === "customers") {
-        customerQuery = ""; selectedCustomer = undefined; customerRows = []; view = "customers"; notice = ""; render(); await loadCustomers(); return;
+        customerQuery = ""; selectedCustomer = undefined; customerRows = []; view = "customers"; notice = ""; render(); window.scrollTo(0,0); await loadCustomers(); return;
       }
       if (action === "customer-more" || action === "customer-retry") { if (!customerLoading) await loadCustomers(action === "customer-more"); return; }
       if (action === "customer-select") {
         const row = customerRows[Number(button.dataset.index)]; if (!row) return;
-        customerSerial++; customerLoading = false; selectedCustomer = quickCustomer(row); updateCustomerContent(); return;
+        customerSerial++; customerLoading = false; selectedCustomer = quickCustomer(row); updateCustomerContent();
+        document.querySelector<HTMLInputElement>("#directory-search")?.blur(); window.scrollTo(0,0); return;
       }
       if (action === "customer-change") { selectedCustomer = undefined; updateCustomerContent(); return; }
       if (action === "customer-invoice" || action === "customer-quote") {
         if (selectedCustomer) start(action === "customer-invoice" ? "factura" : "presupuesto",selectedCustomer); return;
       }
       if (action === "new-invoice" || action === "new-quote") { start(action === "new-invoice" ? "factura" : "presupuesto"); return; }
-      if (action === "home") { view = "home"; notice = ""; render(); return; }
+      if (action === "home") { view = "home"; notice = ""; render(); window.scrollTo(0,0); return; }
       if (action === "resume") { view = "form"; state.step = state.pending ? 3 : state.step ?? 1; notice = ""; render(); return; }
       if (action === "last") {
         const current = await api<{receipt:QuickReceipt|null}>(`document?operationId=${encodeURIComponent(state.receipt!.operationId)}`);
         if (!current.receipt) throw new Error("No se encontró este documento en el servidor.");
         await acceptReceipt(current.receipt); return;
       }
-      if (action === "back") { if ((state.step ?? 1) <= 1) view = "home"; else if (!state.pending) state.step!--; else { notice = "Comprueba primero la emisión pendiente."; } saveDraft(); render(); return; }
+      if (action === "back") { if ((state.step ?? 1) <= 1) view = "home"; else if (!state.pending) state.step!--; else { notice = "Comprueba primero la emisión pendiente."; } saveDraft(); render(); window.scrollTo(0,0); return; }
       if (action === "next") {
         if (state.pending || state.step === 3) { await emit(); return; }
         validateStep(); state.step = (state.step ?? 1)+1; notice = ""; saveDraft(); render(); window.scrollTo(0,0);

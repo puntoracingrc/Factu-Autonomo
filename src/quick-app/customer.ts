@@ -8,10 +8,6 @@ export function quickCustomer(row: Record<string,unknown>): QuickCustomer {
   for (const key of ["nif","address","postalCode","city","email","phone","streetType","addressExtra"] as const) client[key] = String(row[key] ?? "");
   return { id: String(row.id ?? ""), client };
 }
-export function quickCustomerStartStep(kind: "factura" | "presupuesto", customer: QuickCustomer) {
-  const required: Array<keyof Client> = kind === "factura" ? ["name","nif","address","postalCode","city"] : ["name"];
-  return required.every(key => String(customer.client[key] ?? "").trim()) ? 2 : 1;
-}
 export function quickCustomerCard(customer: QuickCustomer) {
   const client = customer.client;
   const details = [client.nif,formatAddressBlock(client),client.phone,client.email].filter(Boolean);
