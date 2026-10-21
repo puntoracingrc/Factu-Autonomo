@@ -70,12 +70,11 @@ function field(label: string, key: keyof Client, options: { required?: boolean; 
   return `<label>${label}${options.required ? '<span class="required"> *</span>' : ""}<input data-client="${key}" name="${key}" value="${escape(state.intent?.client[key])}" type="${options.type ?? "text"}" autocomplete="${options.autocomplete ?? "off"}" maxlength="${key === "name" ? 200 : key === "address" ? 250 : 100}"></label>`;
 }
 function renderHome() {
-  return `<section class="welcome"><p class="eyebrow">MENOS PASOS. TODO EN ORDEN.</p><h1>Del trabajo<br>al documento.</h1><p>Lo sencillo, sin cargar todo lo demás.</p></section>
-    <div class="home-actions"><button data-action="new-invoice" class="hero-button invoice"><span class="button-symbol">↗</span><span>Crear factura<small>Emitir y compartir al terminar</small></span><b>→</b></button>
-    <button data-action="new-quote" class="hero-button quote"><span class="button-symbol">≡</span><span>Crear presupuesto<small>Tu propuesta, en un momento</small></span><b>→</b></button></div>
+  return `<h1 class="sr-only">Crear documento</h1>
+    <div class="home-actions"><button data-action="new-invoice" class="hero-button invoice"><span class="button-symbol" aria-hidden="true">↗</span><span>Crear factura</span><b aria-hidden="true">→</b></button>
+    <button data-action="new-quote" class="hero-button quote"><span class="button-symbol" aria-hidden="true">≡</span><span>Crear presupuesto</span><b aria-hidden="true">→</b></button></div>
     ${state.intent ? `<button class="resume" data-action="resume">${state.pending ? "Comprobar emisión pendiente" : "Continuar documento sin terminar"}<span>→</span></button>` : ""}
     ${state.receipt ? `<button class="resume" data-action="last">Abrir ${escape(state.receipt.document.number)}<span>↗</span></button>` : ""}
-    <p class="home-foot"><span class="dot"></span>Numeración y guardado en el servidor de Factu.<br>La SL no se utiliza en esta prueba.</p>
     <div id="install-area"></div>`;
 }
 function clientStep() {
@@ -85,7 +84,7 @@ function clientStep() {
     ${field("Nombre o razón social","name",{ required:true, autocomplete:"name" })}
     <div class="two">${field("NIF / CIF","nif",{ required:full })}${field("Teléfono","phone",{ type:"tel",autocomplete:"tel" })}</div>
     ${field("Dirección","address",{ required:full, autocomplete:"street-address" })}
-    <div class="two postal">${field("Código postal","postalCode",{ required:full,autocomplete:"postal-code" })}${field("Población","city",{ required:full,autocomplete:"address-level2" })}</div>
+    <div class="two postal">${field("C. postal","postalCode",{ required:full,autocomplete:"postal-code" })}${field("Población","city",{ required:full,autocomplete:"address-level2" })}</div>
     ${field("Email (opcional)","email",{ type:"email",autocomplete:"email" })}
     <p class="hint">El cliente nuevo se guarda en la agenda después de confirmar el documento.</p></section>`;
 }
@@ -113,7 +112,7 @@ function paymentStep() {
 function renderForm() {
   const intent = state.intent!;
   const step = state.step ?? 1;
-  return `<div class="form-title"><p class="eyebrow">${intent.kind === "factura" ? "NUEVA FACTURA" : "NUEVO PRESUPUESTO"}</p><h1>${["","¿Para quién?","¿Qué has hecho?","Todo listo."][step]}</h1></div>
+  return `<div class="form-title"><p class="eyebrow">${intent.kind === "factura" ? "NUEVA FACTURA" : "NUEVO PRESUPUESTO"}</p><h1>${["","Cliente","Conceptos y notas","Pago"][step]}</h1></div>
     <nav class="steps" aria-label="Pasos del documento">${["Cliente","Conceptos","Pago"].map((name,i) => `<span class="${step === i+1 ? "current" : step > i+1 ? "complete" : ""}" ${step === i+1 ? 'aria-current="step"' : ""}><b>${step > i+1 ? "✓" : i+1}</b>${name}</span>`).join("")}</nav>
     <form id="document-form"><fieldset class="form-content" ${state.pending || busy ? "disabled" : ""}>${step === 1 ? clientStep() : step === 2 ? conceptsStep() : paymentStep()}</fieldset></form>
     <footer class="form-footer">${step > 1 ? `<div class="totals"><span>Base <b id="base-total"></b></span><span>IVA <b id="vat-total"></b></span><strong>Total <b id="grand-total"></b></strong></div>` : ""}
@@ -123,13 +122,13 @@ function renderForm() {
 }
 function renderResult() {
   const receipt = state.receipt!;
-  return `<section class="result-head"><div class="success-mark">✓</div><p class="eyebrow">GUARDADO Y CONFIRMADO POR FACTU</p><h1>${escape(receipt.document.number)}</h1><p>${escape(receipt.document.client.name)}</p><strong>${money(quickTotals(receipt.document.items,receipt.profile.vatExempt).total)}</strong></section>
+  return `<section class="result-head"><div class="success-mark">✓</div><p class="eyebrow">Documento guardado</p><h1>${escape(receipt.document.number)}</h1><p>${escape(receipt.document.client.name)}</p><strong>${money(quickTotals(receipt.document.items,receipt.profile.vatExempt).total)}</strong></section>
     <div class="pdf-actions"><button data-action="share" class="primary" ${pdf ? "" : "disabled"}>Compartir PDF ↗</button><button data-action="open-pdf" class="secondary" ${pdf ? "" : "disabled"}>Abrir PDF</button></div>
     <div id="pdf-view" class="pdf-view">${pdf ? `<iframe title="PDF del documento confirmado" src="${escape(pdf.url)}"></iframe>` : `<p>${pdfLoading ? "Preparando tu PDF…" : "El documento ya está guardado. Puedes volver a generar el PDF sin emitirlo otra vez."}</p><button class="secondary" data-action="retry-pdf">Preparar PDF</button>`}</div>
     <button class="resume" data-action="home">Volver al inicio<span>→</span></button>`;
 }
 function render() {
-  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : renderResult()}</main><div class="bottom-caption">RÁPIDO EN EL MÓVIL. GUARDADO EN FACTU.</div>`;
+  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : renderResult()}</main>`;
   if (view === "form") updateTotals();
 }
 function updateTotals() {
@@ -329,7 +328,7 @@ async function login() {
   const { error } = await auth.auth.signInWithOAuth({ provider:"google",options:{ redirectTo:`${location.origin}/rapido/index.html`,queryParams:{prompt:"select_account"} } });
   if (error) throw error;
 }
-function loginScreen(message = "Una factura sencilla no necesita abrir todo el programa.") {
+function loginScreen(message = "Inicia sesión para continuar.") {
   root.innerHTML = quickAccessScreen(message,"login");
 }
 async function initialize() {
