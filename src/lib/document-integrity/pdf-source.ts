@@ -10,6 +10,7 @@ import {
   deriveLegacySnapshotForReadOnly,
 } from "@/lib/document-integrity/snapshots";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
+import { profileForQuickDocument } from "@/lib/quick-invoicing/context";
 import {
   resolveIssuerForDocument,
   type IssuerProfile,
@@ -139,6 +140,7 @@ function liveViewModel(
   doc: Document,
   profile: BusinessProfile,
 ): DocumentPdfViewModel {
+  profile = profileForQuickDocument(doc, profile);
   if (doc.documentSnapshot || doc.pdfSnapshot) {
     assertDocumentSnapshotsIntegrity(doc);
   }

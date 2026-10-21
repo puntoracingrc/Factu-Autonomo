@@ -1,8 +1,30 @@
 # ADR-0006: Fiabilidad del maestro de clientes
 
 - Estado: aceptado
-- Versión: 1
-- Fecha: 2026-07-14
+- Versión: 2
+- Fecha: 2026-10-21
+
+## Decisión de producto V2: admisión diferida en Factu Rápido
+
+El propietario solicita una aplicación móvil separada, limitada mediante alta
+privada en servidor a su cuenta y una empresa piloto. Solo en ese flujo, el
+cliente escrito se conserva íntegro dentro del documento antes de confirmar
+su número; no se exige crear la ficha maestra en el camino crítico.
+
+La misma transacción que emite encola una tarea durable de admisión. El servidor
+la procesa tras responder y `pg_cron` la recupera aunque se cierre el teléfono.
+Reintentos, CAS y el bloqueo de propietario conservan la deduplicación por NIF
+normalizado. Sin NIF se exige nombre completo coincidente conservando palabras y
+letras Unicode: la clave compacta del buscador de productos no es una identidad
+de cliente. Una coincidencia inequívoca incorpora únicamente un alias operativo;
+nunca sustituye los campos de una ficha existente ni reescribe el documento.
+Identidades contradictorias, múltiples coincidencias o tombstones quedan en
+revisión, no se fusionan ni resucitan. La agenda se publica por el outbox normal.
+
+El flujo general y sus garantías siguen intactos. El guardado confirmado del
+documento no se presenta como confirmación anticipada del alta del cliente.
+Regresiones adicionales: `quick-invoicing/model.test.ts`,
+`quick-invoicing/postgres-acceptance.test.ts` y el contrato de aislamiento.
 
 ## Contexto
 

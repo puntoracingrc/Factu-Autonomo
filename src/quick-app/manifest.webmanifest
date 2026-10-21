@@ -1,0 +1,16 @@
+{
+  "id": "/rapido/",
+  "name": "Factu Rápido",
+  "short_name": "Factu Rápido",
+  "description": "Facturas y presupuestos rápidos. Piloto privado.",
+  "start_url": "/rapido/index.html",
+  "scope": "/rapido/",
+  "display": "standalone",
+  "background_color": "#f7f8f4",
+  "theme_color": "#123d35",
+  "lang": "es",
+  "icons": [
+    { "src": "/rapido/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/rapido/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,8 +1,44 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 10
-- Fecha: 2026-10-20
+- Version: 11
+- Fecha: 2026-10-21
+
+## Decisión de producto V11: emisión rápida privada e independiente
+
+`/rapido/` es una PWA independiente: no monta AppProviders/AppStore, no descarga
+el historial ni inicia las colas globales. La elegibilidad actor/empresa procede
+exclusivamente de una tabla privada de servidor y requiere propietario activo.
+No contiene IDs reales en código y un header o cuerpo no puede seleccionar otra
+empresa. Conserva comprobación real de sesión, plan, dispositivo, activación,
+kill switch, validación fiscal, cuota e idempotencia de la autoridad existente.
+
+Una operación estable guarda número, documento completo, contexto PDF mínimo y
+tarea de admisión del cliente en una sola transacción que llama a la autoridad
+existente. Nunca reserva un número para un envío posterior ni confirma antes
+del commit. Un corte de respuesta se recupera por la misma operación, incluso
+si después cambia el perfil. Un documento eliminado no se vuelve a emitir al
+recuperarlo. El alta de clientes pasa al proceso durable de ADR-0006 V2.
+
+Volver a editar una petición ambigua exige tomar el mismo bloqueo central que
+la emisión: si ya existe se recupera; si no, se registra una cancelación técnica
+sin copia documental. Una petición anterior retrasada ya no puede emitir con
+esa identidad. Solo entonces se reutilizan los campos con una operación nueva.
+
+El contexto `FACTU_QUICK_PDF_V1` congela plantilla e IVA, nunca IRPF, cuestionarios,
+costes o márgenes. La recepción normal lo usa solo para esos documentos y
+construye los mismos snapshots verificables y PDF que el programa completo.
+Los datos y las series existentes no se migran ni reconcilian automáticamente.
+Sin conexión puede conservarse el formulario, nunca emitir con número local.
+
+El pago rápido admite efectivo, tarjeta, transferencia y Bizum. Elegir método
+no acredita cobro; solo la casilla explícita Pagado marca la factura cobrada.
+Transferencia incorpora el IBAN del perfil capturado. No se crea un recibo.
+La PWA no recarga formularios al recuperar el foco y su almacenamiento/caché
+tiene un namespace separado, acotado al formulario pendiente y último documento.
+
+Regresiones: `quick-invoicing/*test.ts`, `quick-app/storage.test.ts`, contratos
+de emisión/recepción, PDF, clientes, durabilidad y aislamiento por empresa.
 
 ## Fiabilidad V10: recepción sin reescrituras vacías
 

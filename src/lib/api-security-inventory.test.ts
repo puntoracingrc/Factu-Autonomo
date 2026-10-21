@@ -101,6 +101,7 @@ const expectedMethods: Record<string, string[]> = {
   "expenses/scan/route.ts": ["GET", "POST"],
   "expenses/[id]/original/route.ts": ["GET", "POST"],
   "expenses/originals/status/route.ts": ["POST"],
+  "factu-rapido/[action]/route.ts": ["GET", "POST"],
   "google-auth/token/route.ts": ["POST"],
   "fiscal-notifications/audit/route.ts": ["POST"],
   "google-drive/token/route.ts": ["POST"],
@@ -244,6 +245,10 @@ const scheduledRoutes = [
   "security/health-alert/route.ts",
 ] as const;
 
+// Only GET config is public (the same public Supabase URL/anon key embedded
+// by the main app). Every catalog/document action has a private pilot guard.
+const quickPilotRoutes = ["factu-rapido/[action]/route.ts"] as const;
+
 const distributedRateLimitedRoutes = [
   ...adminRoutes,
   ...adminLearningRoutes,
@@ -253,6 +258,7 @@ const distributedRateLimitedRoutes = [
 ];
 
 const boundedBodyRoutes = [
+  "factu-rapido/[action]/route.ts",
   "admin/ai-learning/correct/route.ts",
   "admin/ai-learning/feedback/route.ts",
   "admin/errors/route.ts",
@@ -353,6 +359,7 @@ describe("API security inventory", () => {
       ...signedWebhookRoutes,
       ...flagControlledRoutes,
       ...scheduledRoutes,
+      ...quickPilotRoutes,
     ].sort();
     expect(classified).toEqual(Object.keys(expectedMethods).sort());
     expect(new Set(classified).size).toBe(classified.length);
@@ -390,6 +397,16 @@ describe("API security inventory", () => {
       expect(sourceFor(route), route).toContain("CRON_SECRET");
       expect(sourceFor(route), route).toContain("timingSafeEqual");
     }
+  });
+
+  it("keeps quick data behind live identity, device, rate and private company enrollment",()=>{
+    const route = sourceFor(quickPilotRoutes[0]);
+    const guard = readFileSync(new URL("./quick-invoicing/server.ts",import.meta.url),"utf8");
+    expect(route).toContain('if (action === "config")');
+    expect(route).toContain("await authenticateQuick(request)");
+    expect(route.slice(route.indexOf('if (action === "config")'),route.indexOf("const context = await authenticateQuick(request)",route.indexOf("export async function GET")))).not.toContain("SERVICE_ROLE");
+    for(const capability of ["getUserSessionFromBearer(","quick_invoicing_scope_v1","ensureCloudDeviceAccess(","checkRateLimit("]) expect(guard).toContain(capability);
+    expect(route).toContain("64 * 1024");
   });
 
   it("keeps the security alert scheduler versioned and protected", () => {

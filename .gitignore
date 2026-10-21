@@ -35,6 +35,7 @@ artifacts/invoice-real-qa/
 # next.js
 /.next/
 /out/
+/public/rapido/
 
 # production
 /build

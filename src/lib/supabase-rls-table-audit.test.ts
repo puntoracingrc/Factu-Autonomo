@@ -207,6 +207,8 @@ const companyAiEntitlementsMigrationSource = readFileSync(
 );
 const expenseOriginalsMigrationSource = readFileSync(new URL("../../supabase/migrations/20261020191232_expense_original_files_private.sql",import.meta.url),"utf8");
 const expenseOriginalServiceTables = ["expense_original_files"];
+const quickPilotMigrationSource = readFileSync(new URL("../../supabase/migrations/20261021043637_quick_invoicing_pilot.sql",import.meta.url),"utf8");
+const quickPilotServiceTables = ["quick_invoicing_access","quick_document_operations","quick_customer_jobs","quick_cancelled_operations"];
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -320,6 +322,7 @@ const classifiedTables = new Set([
   ...companyWorkspaceServiceTables,
   ...companyAiEntitlementServiceTables,
   ...expenseOriginalServiceTables,
+  ...quickPilotServiceTables,
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -347,6 +350,13 @@ function publicTablesFromMigrations() {
 }
 
 describe("Supabase table-by-table RLS audit hardening", () => {
+  it("keeps the quick pilot, operations and deferred jobs private and service-only",()=>{
+    for(const table of quickPilotServiceTables) expect(quickPilotMigrationSource).toContain(`alter table public.${table} enable row level security`);
+    expect(quickPilotMigrationSource).toContain("revoke all on public.quick_invoicing_access, public.quick_document_operations, public.quick_customer_jobs, public.quick_cancelled_operations from public, anon, authenticated");
+    expect(quickPilotMigrationSource).not.toMatch(/create policy/i);
+    for(const name of ["quick_invoicing_scope_v1","read_quick_document_v1","commit_quick_document_v1","cancel_quick_operation_v1","search_quick_catalog_v1","process_quick_customer_jobs_v1"])
+      expect(quickPilotMigrationSource).toMatch(new RegExp(`revoke all on function public\\.${name}[^;]+from public,anon,authenticated`));
+  });
   it("keeps expense originals server-only with insert/select but no overwrite or delete grant",()=>{
     for(const table of expenseOriginalServiceTables){
       expect(expenseOriginalsMigrationSource).toContain(`alter table public.${table} enable row level security`);

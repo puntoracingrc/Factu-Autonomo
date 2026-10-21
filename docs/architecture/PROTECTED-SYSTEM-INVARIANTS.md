@@ -193,6 +193,8 @@ Contrato: [ADR-0006](ADR-0006-customer-master-reliability.md).
 - Búsqueda, orden y carga por tramos cubren toda la colección sin omisiones.
 - Editar, borrar o fusionar el maestro conserva byte-semánticamente el cliente
   congelado, snapshots, PDF, sellos, hashes y evidencia de documentos emitidos.
+- Solo Factu Rápido admite el alta diferida autorizada por ADR-0006 V2: documento
+  y tarea durable se confirman juntos, sin deduplicar por nombre contra otro NIF.
 
 Regresiones mínimas: `customer-master-reliability-contract.test.ts`,
 `customers.test.ts`, `customer-document-links.test.ts`,
@@ -239,6 +241,9 @@ Contrato: [ADR-0010](ADR-0010-central-invoice-authority.md).
   Compartir número no autoriza borrar, sustituir ni ocultar otra factura.
 - PITR es opcional. Antes de la apertura general sí se exige una copia
   recuperable y una restauración ensayada.
+- El piloto privado Factu Rápido de ADR-0010 V11 no carga el programa completo,
+  pero conserva su autoridad, controles y commit atómico; nunca confirma solo
+  una reserva de número ni permite seleccionar otra empresa desde el teléfono.
 
 Regresiones mínimas: `central-invoice-authority/activation.test.ts`,
 `protected-system-invariants-contract.test.ts` y

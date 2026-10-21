@@ -255,6 +255,13 @@ export interface Document {
   /** Forma de pago visible en el PDF (transferencia, Bizum, etc.) */
   paymentTerms?: string;
   status: DocumentStatus;
+  /** Contexto mínimo de render capturado por el servidor de Factu Rápido. */
+  quickPdfContext?: {
+    schema: "FACTU_QUICK_PDF_V1";
+    template: DocumentTemplateSettings;
+    iva: IvaSettings;
+    vatExempt: boolean;
+  };
   /** Encabezado del emisor congelado al emitir (no cambia si editas Configuración). */
   issuer?: IssuerSnapshot;
   rectification?: RectificationInfo;
