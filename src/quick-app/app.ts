@@ -2,11 +2,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { parseQuickIntent, QUICK_METHODS, quickPaymentTerms, quickTotals, type QuickBootstrap, type QuickIntent, type QuickReceipt } from "@/lib/quick-invoicing/model";
 import type { Client, LineItem } from "@/lib/types";
 import { readLocal, saveLocal, type QuickLocalState } from "./storage";
+import { escapeHtml as escape } from "./html";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 const money = (amount: number) => new Intl.NumberFormat("es-ES",{ style:"currency",currency:"EUR" }).format(amount);
-const escape = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]!);
 const labels = { efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia", bizum: "Bizum" };
 let auth: SupabaseClient;
 let bootstrap: QuickBootstrap;
@@ -88,12 +88,12 @@ function clientStep() {
     <p class="hint">El cliente nuevo se guarda en la agenda después de confirmar el documento.</p></section>`;
 }
 function vatOptions(value: number) {
-  return [...new Set([...bootstrap.vatRates,value])].sort((a,b) => a-b).map(rate => `<option value="${rate}" ${rate === value ? "selected" : ""}>${rate}%</option>`).join("");
+  return [...new Set([...bootstrap.vatRates,value])].sort((a,b) => a-b).map(rate => `<option value="${escape(rate)}" ${rate === value ? "selected" : ""}>${escape(rate)}%</option>`).join("");
 }
 function line(item: LineItem, index: number) {
   return `<article class="line-card" data-line="${escape(item.id)}"><div class="line-heading"><span>CONCEPTO ${index+1}</span><button type="button" class="remove-line" data-action="remove-line" data-id="${escape(item.id)}" aria-label="Eliminar concepto ${index+1}">×</button></div>
     <label class="sr-only" for="description-${escape(item.id)}">Descripción del concepto ${index+1}</label><textarea id="description-${escape(item.id)}" data-item="description" rows="2" maxlength="2000" placeholder="Ej. Cambio de cinta de persiana">${escape(item.description)}</textarea>
-    <div class="line-values"><label>Cantidad<input data-item="quantity" type="number" inputmode="decimal" min="0.0001" step="any" value="${item.quantity}"></label><label>Precio sin IVA<input data-item="unitPrice" type="number" inputmode="decimal" min="0" step="any" value="${item.unitPrice}"></label><label>IVA<select data-item="ivaPercent" ${bootstrap.vatExempt ? "disabled" : ""}>${vatOptions(item.ivaPercent)}</select></label></div>
+    <div class="line-values"><label>Cantidad<input data-item="quantity" type="number" inputmode="decimal" min="0.0001" step="any" value="${escape(item.quantity)}"></label><label>Precio sin IVA<input data-item="unitPrice" type="number" inputmode="decimal" min="0" step="any" value="${escape(item.unitPrice)}"></label><label>IVA<select data-item="ivaPercent" ${bootstrap.vatExempt ? "disabled" : ""}>${vatOptions(item.ivaPercent)}</select></label></div>
     <div class="line-bottom"><span>Unidad: ${escape(item.unit ?? "ud")}</span><strong data-line-total="${escape(item.id)}"></strong></div></article>`;
 }
 function conceptsStep() {
@@ -103,7 +103,7 @@ function conceptsStep() {
 }
 function paymentStep() {
   const intent = state.intent!;
-  return `<section class="panel"><label>Fecha del documento<input id="date" type="date" value="${intent.date}" min="2000-01-01" max="2099-12-31"></label><fieldset class="payment-methods"><legend>Forma de pago</legend><div class="method-grid">${QUICK_METHODS.map(method => `<label class="method"><input type="radio" name="payment" value="${method}" ${method === intent.paymentMethod ? "checked" : ""}><span>${labels[method]}</span></label>`).join("")}</div></fieldset>
+  return `<section class="panel"><label>Fecha del documento<input id="date" type="date" value="${escape(intent.date)}" min="2000-01-01" max="2099-12-31"></label><fieldset class="payment-methods"><legend>Forma de pago</legend><div class="method-grid">${QUICK_METHODS.map(method => `<label class="method"><input type="radio" name="payment" value="${method}" ${method === intent.paymentMethod ? "checked" : ""}><span>${labels[method]}</span></label>`).join("")}</div></fieldset>
     ${intent.kind === "factura" ? `<label class="paid-check"><input id="paid" type="checkbox" ${intent.paid ? "checked" : ""}><span>Pagado<small>Márcalo solo si ya has recibido el dinero.</small></span></label>` : ""}
     <div class="payment-preview"><span>ASÍ APARECERÁ EN EL DOCUMENTO</span><p id="payment-preview-text">${escape(quickPaymentTerms(intent.paymentMethod,intent.paid,bootstrap.iban))}</p></div>
     <div class="review-client"><span>CLIENTE</span><strong>${escape(intent.client.name)}</strong><small>${intent.items.length} concepto${intent.items.length === 1 ? "" : "s"}</small></div></section>`;
