@@ -3,6 +3,7 @@ import { parseQuickIntent, QUICK_METHODS, quickPaymentTerms, quickTotals, type Q
 import type { Client, LineItem } from "@/lib/types";
 import { readLocal, saveLocal, type QuickLocalState } from "./storage";
 import { escapeHtml as escape } from "./html";
+import { quickAccessScreen } from "./access-screen";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -23,6 +24,7 @@ let suggestions: Array<Record<string, unknown>> = [];
 let pdf: Awaited<ReturnType<(typeof import("./pdf"))["quickPdf"]>> | undefined;
 let pdfLoading = false;
 let pdfModulePromise: Promise<typeof import("./pdf")> | undefined;
+let accessBusy = false;
 const loadPdfModule = () => pdfModulePromise ??= import("./pdf").catch(error => { pdfModulePromise = undefined; throw error; });
 
 class ApiError extends Error {
@@ -269,6 +271,7 @@ root.addEventListener("click",event => {
   void (async () => {
     try {
       if (action === "login") { await login(); return; }
+      if (action === "retry-access") { await startAccess(); return; }
       if (!bootstrap || busy) return;
       if (action === "new-invoice" || action === "new-quote") { start(action === "new-invoice" ? "factura" : "presupuesto"); return; }
       if (action === "home") { view = "home"; notice = ""; render(); return; }
@@ -327,12 +330,14 @@ async function login() {
   if (error) throw error;
 }
 function loginScreen(message = "Una factura sencilla no necesita abrir todo el programa.") {
-  root.innerHTML = `<main class="login"><div class="brand-mark">F<span>↗</span></div><p class="eyebrow">FACTU RÁPIDO · PILOTO PRIVADO</p><h1>Lo sencillo,<br>más rápido.</h1><p>${escape(message)}</p><button class="primary" data-action="login">Entrar con Google</button><p class="hint">Solo tu cuenta y Persianas Almar, la empresa antigua. La SL queda fuera.</p></main>`;
+  root.innerHTML = quickAccessScreen(message,"login");
 }
 async function initialize() {
-  const config = await fetch("/api/factu-rapido/config",{cache:"no-store"}).then(response => response.json());
-  if (!config.url || !config.anonKey) throw new Error("El acceso rápido aún no está configurado.");
-  auth = createClient(config.url,config.anonKey,{ auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true} });
+  if (!auth) {
+    const config = await fetch("/api/factu-rapido/config",{cache:"no-store"}).then(response => response.json());
+    if (!config.url || !config.anonKey) throw new Error("El acceso rápido aún no está configurado.");
+    auth = createClient(config.url,config.anonKey,{ auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true} });
+  }
   const storedDevice = (await readLocal("__device__"))?.deviceToken;
   deviceToken = storedDevice || crypto.randomUUID();
   if (!storedDevice) await saveLocal("__device__",{deviceToken});
@@ -359,4 +364,18 @@ async function initialize() {
   });
   if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/rapido/sw.js",{scope:"/rapido/"}).catch(() => undefined);
 }
-void initialize().catch(error => loginScreen(error instanceof Error ? error.message : "No se pudo preparar tu acceso."));
+async function startAccess() {
+  if (accessBusy) return;
+  accessBusy = true;
+  const retryButton = root.querySelector<HTMLButtonElement>('[data-action="retry-access"]');
+  if (retryButton) retryButton.disabled = true;
+  try { await initialize(); }
+  catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo preparar tu acceso.";
+    // A temporary device lease, connection error or another open quick window
+    // is not a request for another Google session. Keep the verified session.
+    if (error instanceof ApiError && (error.status === 401 || error.code === "PILOT_ONLY")) loginScreen(message);
+    else root.innerHTML = quickAccessScreen(message,"retry");
+  } finally { accessBusy = false; }
+}
+void startAccess();
