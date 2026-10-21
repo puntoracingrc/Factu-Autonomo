@@ -1,8 +1,46 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 12
+- Version: 13
 - Fecha: 2026-10-21
+
+## Decisión de producto V13: rellenado opcional con texto o imagen
+
+Factu Rápido incorpora un bloque plegado «Rellenar con IA» para interpretar
+cliente, conceptos y notas, o el documento completo. Es una propuesta editable,
+no una emisión, una reserva de número ni un alta de cliente. La IA nunca acredita
+el cobro: la casilla Pagado sigue siendo explícita. No modifica documentos ya
+emitidos, el maestro, las series ni la tarea durable de admisión de clientes.
+
+La ruta privada reutiliza sesión verificada, admisión y pertenencia vigentes,
+dispositivo y empresa fijada en el editor. Aplica una ventana de peticiones
+independiente para no consumir la de emisión, el derecho ilimitado de la empresa
+o el plan/cuota de IA del propietario de facturación (una unidad por rellenado).
+Un fallo de comprobación de uso no permite enviar al proveedor. La entrada no
+puede elegir otra empresa, emisor, número, identidad, cobro ni secreto.
+
+Se requiere consentimiento explícito para enviar el contenido a OpenAI, el
+proveedor existente; se usa la configuración del lector de clientes y el cliente
+HTTP de servidor con timeout, `store: false`, esquema estricto y validación local.
+Texto y OCR se tratan como datos no fiables, nunca instrucciones ejecutables.
+Los campos ausentes no se inventan; precios desconocidos quedan a cero con aviso.
+Los precios unitarios explícitamente con IVA se convierten una sola vez.
+
+El texto fuente (máximo 10.000 caracteres) y la imagen (JPG/PNG/WebP, hasta
+1,5 MB optimizada) solo viven temporalmente en memoria: no se archivan en Factu,
+IndexedDB, copias ni outboxes. La foto se recodifica al elegirla para reducir
+tamaño y retirar metadatos. Solo los campos estructurados aplicados entran en el
+borrador local habitual. Las condiciones del proveedor siguen siendo las de su
+servicio externo; `store: false` no se presenta como retención cero.
+
+Abrir el bloque no descarga datos de clientes ni ejecuta IA. Un cambio manual
+durante el análisis impide aplicar automáticamente el resultado; reemplazar
+datos escritos exige aceptación explícita. Navegar, cambiar formulario, empresa
+o terminar sesión invalida el resultado pendiente, sin recargar la aplicación.
+La interpretación nunca sustituye las validaciones centrales al emitir.
+
+Regresiones: `ai-fill*.test.ts`, la ruta privada, ámbito de peticiones,
+`scripts/test-quick-ai-fill-ui.mjs --local` y los contratos anteriores de Fast.
 
 ## Decisión de producto V12: equipo autorizado y cambio de empresa privada
 

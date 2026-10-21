@@ -8,7 +8,7 @@ describe("quick workspace pinning across a private enrollment change", () => {
     expect(quickCompanyScopeProblem(null, "current-company", true)).toBeNull();
     expect(quickCompanyScopeProblem("previous-company", "current-company", true)?.status).toBe(403);
   });
-  it.each(["issue", "cancel", "search?kind=customer&q=test", "document?operationId=test"])(
+  it.each(["issue", "cancel", "autofill", "search?kind=customer&q=test", "document?operationId=test"])(
     "rejects stale and unpinned %s without moving old form data into the new company", action => {
       const stale = quickCompanyRequestHeaders(action, "previous-company");
       expect(stale).toEqual({ [FACTU_COMPANY_HEADER]: "previous-company" });
