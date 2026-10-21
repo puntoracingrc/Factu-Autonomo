@@ -7,6 +7,8 @@ import { quickAccessScreen } from "./access-screen";
 import { quickCustomer, quickCustomerCard, type QuickCustomer } from "./customer";
 import { quickCompanyRequestHeaders } from "@/lib/quick-invoicing/request-scope";
 import { mountQuickInstall } from "./install";
+import { mountQuickAiFill } from "./ai-fill";
+import { applyQuickAiSuggestion, quickAiReplacesData } from "@/lib/quick-invoicing/ai-fill";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -35,16 +37,21 @@ let customerLoading = false;
 let customerError = "";
 let customerSerial = 0;
 let customerTimer: ReturnType<typeof setTimeout> | undefined;
+let unmountAi: (() => void) | undefined;
+let sessionActive = false;
 const loadPdfModule = () => pdfModulePromise ??= import("./pdf").catch(error => { pdfModulePromise = undefined; throw error; });
 
 class ApiError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message); }
 }
-async function api<T>(action: string, body?: unknown): Promise<T> {
+async function api<T>(action: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const companyHeaders = quickCompanyRequestHeaders(action, bootstrap?.companyId);
   const { data, error } = await auth.auth.getSession();
   if (error || !data.session) throw new ApiError(401,"SIGN_IN_REQUIRED","Inicia sesión para continuar. Tu borrador no se ha borrado.");
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) controller.abort();
   const timeout = setTimeout(() => controller.abort(),30_000);
   try {
     const response = await fetch(`/api/factu-rapido/${action}`, {
@@ -56,7 +63,7 @@ async function api<T>(action: string, body?: unknown): Promise<T> {
     const result = await response.json();
     if (!response.ok || result.ok === false) throw new ApiError(response.status,result.code ?? "UNCONFIRMED",result.message ?? "No se pudo confirmar la operación.");
     return result as T;
-  } finally { clearTimeout(timeout); }
+  } finally { clearTimeout(timeout); signal?.removeEventListener("abort", abort); }
 }
 function persist() {
   const captured = structuredClone(state);
@@ -154,6 +161,7 @@ function renderForm() {
   const step = state.step ?? 1;
   return `<div class="form-title"><p class="eyebrow">${intent.kind === "factura" ? "NUEVA FACTURA" : "NUEVO PRESUPUESTO"}</p><h1>${["","Cliente","Conceptos y notas","Pago"][step]}</h1></div>
     <nav class="steps" aria-label="Pasos del documento">${["Cliente","Conceptos","Pago"].map((name,i) => `<span class="${step === i+1 ? "current" : step > i+1 ? "complete" : ""}" ${step === i+1 ? 'aria-current="step"' : ""}><b>${step > i+1 ? "✓" : i+1}</b>${name}</span>`).join("")}</nav>
+    ${!state.pending && !busy ? '<div id="quick-ai-fill"></div>' : ""}
     <form id="document-form"><fieldset class="form-content" ${state.pending || busy ? "disabled" : ""}>${step === 1 ? clientStep() : step === 2 ? conceptsStep() : paymentStep()}</fieldset></form>
     <footer class="form-footer">${step > 1 ? `<div class="totals"><span>Base <b id="base-total"></b></span><span>IVA <b id="vat-total"></b></span><strong>Total <b id="grand-total"></b></strong></div>` : ""}
     ${state.pending ? '<p class="pending-info">Esta operación está guardada en el móvil. Comprobaremos si el servidor ya la emitió antes de reintentar.</p>' : ""}
@@ -168,8 +176,24 @@ function renderResult() {
     <button class="resume" data-action="home">Volver al inicio<span>→</span></button>`;
 }
 function render() {
+  unmountAi?.(); unmountAi = undefined;
   root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : view === "customers" ? customersScreen() : renderResult()}</main>`;
   if (view === "form") updateTotals();
+  const host = root.querySelector<HTMLElement>("#quick-ai-fill");
+  if (host && state.intent) unmountAi = mountQuickAiFill(host, {
+    basis: { scope: localKey, operationId: state.intent.operationId, snapshot: JSON.stringify(state.intent), target: "document" },
+    readBasis: () => ({ scope: localKey, operationId: state.intent!.operationId, snapshot: JSON.stringify(state.intent), target: "document" }),
+    kind: state.intent.kind, request: (body, signal) => api("autofill", body, signal),
+    apply: (suggestion, basis, explicit) => {
+      if (!sessionActive || localKey !== basis.scope || view !== "form" || !state.intent || state.intent.operationId !== basis.operationId || state.pending || busy) return false;
+      const changed = JSON.stringify(state.intent) !== basis.snapshot;
+      const replaces = quickAiReplacesData(state.intent, suggestion, basis.target);
+      if (!explicit && (changed || replaces)) return false;
+      if (explicit && (changed || replaces) && !confirm("Se sustituirán los campos detectados por la IA. Revisa después el cliente y los conceptos. ¿Continuar?")) return false;
+      state.intent = applyQuickAiSuggestion(state.intent, suggestion, basis.target, bootstrap, () => crypto.randomUUID());
+      saveDraft(); return true;
+    }, renderForm: render,
+  });
 }
 function updateTotals() {
   if (!state.intent) return;
@@ -282,6 +306,7 @@ function search(input: HTMLInputElement, kind: "customer" | "product") {
 }
 root.addEventListener("input",event => {
   const input = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+  if (input.closest("#quick-ai-fill")) return;
   if (input.id === "directory-search") {
     customerQuery = input.value; selectedCustomer = undefined; customerSerial++; clearTimeout(customerTimer);
     customerRows = []; customerError = ""; customerLoading = customerQuery.trim().length >= 2; updateCustomerContent();
@@ -389,6 +414,7 @@ async function login() {
   if (error) throw error;
 }
 function loginScreen(message = "Inicia sesión para continuar.") {
+  sessionActive = false; unmountAi?.(); unmountAi = undefined;
   root.innerHTML = quickAccessScreen(message,"login");
 }
 async function initialize() {
@@ -403,6 +429,7 @@ async function initialize() {
   const session = await auth.auth.getSession();
   if (!session.data.session) { loginScreen(); return; }
   bootstrap = await api<QuickBootstrap>("bootstrap");
+  sessionActive = true;
   localKey = `${bootstrap.actorId}:${bootstrap.companyId}`;
   state = await readLocal(localKey) ?? {};
   if (state.pending) { view = "form"; state.intent = state.pending; state.step = 3; notice = "Hay una emisión pendiente de confirmar. Recuperaremos la misma operación."; }

@@ -55,3 +55,19 @@ label,.company,.suggestions strong{font-size:16px}
 .quick-install-copy{background:#dafa9b!important}
 .quick-install-open{display:flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid #a5bba7;border-radius:9px;background:#dafa9b;color:#111;text-decoration:none;font-size:16px;font-weight:750}
 .quick-install-status:empty{display:none}
+.ai-fill{margin:0 0 18px;border:1px solid #b8c8b9;border-radius:12px;background:#fff;color:#111}
+.ai-fill>summary{display:flex;align-items:center;gap:8px;padding:13px 15px;min-height:48px;cursor:pointer;list-style:none;font-size:16px;font-weight:750}
+.ai-fill>summary::-webkit-details-marker{display:none}
+.ai-toggle{margin-left:auto}.ai-fill[open] .ai-toggle{transform:rotate(45deg)}
+.ai-fill-body{display:grid;gap:12px;padding:0 15px 15px}
+.ai-fill-body label{font-size:15px}.ai-fill-body textarea{margin:0;min-height:110px}
+.ai-image-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ai-image-actions .secondary{padding:10px 7px;font-size:15px}
+.ai-image-preview{display:flex;align-items:center;gap:15px;min-width:0}
+.ai-image-preview img{max-width:110px;max-height:120px;object-fit:contain;border:1px solid #dfe5df;border-radius:8px}
+.ai-image-preview .text-button{width:auto;text-align:left;font-size:15px}
+.ai-consent{display:flex;align-items:flex-start;gap:10px;line-height:1.4}
+.ai-consent input{width:20px;height:20px;flex-shrink:0;accent-color:#123d35;margin:1px 0 0}
+.ai-privacy{font-size:13px;line-height:1.4;color:#111}
+.ai-message{font-size:14px;line-height:1.5;white-space:pre-line;overflow-wrap:anywhere}
+.ai-message:empty{display:none}.ai-submit,.ai-apply{width:100%}
