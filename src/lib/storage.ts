@@ -2042,6 +2042,16 @@ function storedRawMatchesExpected(
     const parsedResult = readCachedParsedStoredData(storage, storageKey, raw);
     if (!parsedResult.ok) return false;
     const parsed = parsedResult.value;
+    // The exact persisted projection is also a valid CAS baseline. A derived
+    // read model can raise counters/add integrity signals without a write.
+    // Losing the equivalent-object cache must not turn our unchanged bytes
+    // into a concurrent edit. Compare every persisted field, not timestamps.
+    if (
+      stableStringifySnapshot(parsed) ===
+      stableStringifySnapshot(projectAppDataForPersistence(expected, parsed))
+    ) {
+      return true;
+    }
     const normalizedCurrent =
       cachedNormalizedSnapshot(cached) ?? normalizeLoadedData(parsed);
     rememberPersistedSnapshot(storage, storageKey, raw, {

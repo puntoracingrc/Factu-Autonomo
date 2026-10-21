@@ -34,6 +34,16 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 
 ### Recepción ligera e indicador de recuperación (V24)
 
+Corrección compatible del 2026-10-21: la precondición local reconoce también
+la proyección persistida exacta, comparando todos sus campos antes de derivar
+el modelo de lectura. Releer puede elevar un contador o añadir una señal de
+integridad sin escribir; perder la caché de referencias no convierte esos
+mismos bytes en una edición concurrente. No se elige por fecha ni se ignoran
+campos: una diferencia real, otra clave de empresa o un estado indeterminado
+siguen bloqueados. El borrado confirmado sigue recibiendo ambos outboxes con
+CAS y readback, sin reenviar el comando ni adelantar el cursor.
+Regresión: `central-invoice-authority/management-storage-roundtrip.test.ts`.
+
 La solicitud del propietario del 2026-10-20 simplifica la coordinación del
 cliente sin retirar permisos, CAS, idempotencia ni readback. Un fallo de acceso,
 dispositivo, negocio, facturas o expediente fiscal se sigue por separado. Solo

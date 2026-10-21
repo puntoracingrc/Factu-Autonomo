@@ -70,6 +70,17 @@ function compactPdfTextLine(parts: Array<string | undefined>): string | null {
   return line || null;
 }
 
+function containsPrintedIban(text: string | undefined, iban: string): boolean {
+  const compact = iban.replace(/\s/gu, "").toUpperCase();
+  if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/u.test(compact)) return false;
+  // Match the complete account, allowing ordinary/nonbreaking grouping spaces.
+  // Different accounts or a longer reference must never hide the issuer IBAN.
+  return new RegExp(
+    `(?:^|[^A-Z0-9])${[...compact].join("\\s*")}(?![A-Z0-9])`,
+    "iu",
+  ).test(text ?? "");
+}
+
 function formatIssuerDetailLines(
   issuer: DocumentPdfViewModel["issuer"],
 ): string[] {
@@ -726,7 +737,9 @@ export function buildDocumentPdfFromViewModel(
     footerY += 5;
   }
 
-  if (issuer.iban && doc.type === "factura" && !isRect) {
+  if (issuer.iban && doc.type === "factura" && !isRect &&
+      !containsPrintedIban(doc.salesTerms, issuer.iban) &&
+      !(template.showPaymentBox && containsPrintedIban(doc.paymentTerms, issuer.iban))) {
     pdf.setFontSize(bodyFontSize);
     pdf.text(`IBAN: ${issuer.iban}`, 14, footerY + 4);
   }
