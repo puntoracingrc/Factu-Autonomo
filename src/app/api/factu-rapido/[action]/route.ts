@@ -5,7 +5,7 @@ import { authenticateQuick, cancelQuickOperation, issueQuickDocument, QuickError
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-const headers = { "Cache-Control": "no-store, private", Vary: "Authorization, X-Factu-Device-Token", "X-Robots-Tag": "noindex, nofollow" };
+const headers = { "Cache-Control": "no-store, private", Vary: "Authorization, X-Factu-Device-Token, X-Factu-Company-Id", "X-Robots-Tag": "noindex, nofollow" };
 function json(body: unknown, status = 200) { return NextResponse.json(body, { status, headers }); }
 function failed(error: unknown) {
   if (error instanceof QuickError) return json({ ok: false, code: error.code, message: error.message }, error.status);
@@ -16,7 +16,7 @@ export async function GET(request: Request, route: RouteContext) {
   try {
     const { action } = await route.params;
     if (action === "config") return json({ url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "", anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" });
-    const context = await authenticateQuick(request);
+    const context = await authenticateQuick(request, { allowBootstrap: action === "bootstrap" });
     const url = new URL(request.url);
     if (action === "bootstrap") {
       const { scope } = context;

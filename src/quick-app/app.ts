@@ -5,6 +5,7 @@ import { readLocal, saveLocal, type QuickLocalState } from "./storage";
 import { escapeHtml as escape } from "./html";
 import { quickAccessScreen } from "./access-screen";
 import { quickCustomer, quickCustomerCard, type QuickCustomer } from "./customer";
+import { quickCompanyRequestHeaders } from "@/lib/quick-invoicing/request-scope";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -39,6 +40,7 @@ class ApiError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message); }
 }
 async function api<T>(action: string, body?: unknown): Promise<T> {
+  const companyHeaders = quickCompanyRequestHeaders(action, bootstrap?.companyId);
   const { data, error } = await auth.auth.getSession();
   if (error || !data.session) throw new ApiError(401,"SIGN_IN_REQUIRED","Inicia sesión para continuar. Tu borrador no se ha borrado.");
   const controller = new AbortController();
@@ -46,7 +48,7 @@ async function api<T>(action: string, body?: unknown): Promise<T> {
   try {
     const response = await fetch(`/api/factu-rapido/${action}`, {
       method: body === undefined ? "GET" : "POST", cache: "no-store", signal: controller.signal,
-      headers: { Authorization: `Bearer ${data.session.access_token}`, "X-Factu-Device-Token": deviceToken,
+      headers: { Authorization: `Bearer ${data.session.access_token}`, "X-Factu-Device-Token": deviceToken, ...companyHeaders,
         ...(body === undefined ? {} : { "Content-Type":"application/json" }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -70,8 +72,8 @@ function saveDraft() {
   });
 }
 function header() {
-  return `<header class="topbar"><button class="wordmark" data-action="home" aria-label="Volver al inicio">Factu<span>Rápido ↗</span></button><span class="pilot">PRUEBA PRIVADA</span></header>
-    <div class="company"><span class="dot"></span>${escape(bootstrap.companyName)}<span>Empresa antigua</span></div>`;
+  return `<header class="topbar"><button class="wordmark" data-action="home" aria-label="Volver al inicio">Factu<span>Rápido ↗</span></button><span class="pilot">ACCESO PRIVADO</span></header>
+    <div class="company"><span class="dot"></span>${escape(bootstrap.companyName)}</div>`;
 }
 function status() { return `<p id="notice" role="status" class="notice ${notice ? "" : "empty"}">${escape(notice)}</p>`; }
 function field(label: string, key: keyof Client, options: { required?: boolean; type?: string; autocomplete?: string } = {}) {

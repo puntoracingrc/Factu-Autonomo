@@ -121,6 +121,15 @@ jobs:
           STRIPE_WEBHOOK_SECRET: whsec_test
           STRIPE_SECRET_KEY: sk_test_local_acceptance_dummy
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          # Only this disposable localhost server: exercise quick admin HTTP
+          # issuance through the real activation gates and local migrated DB.
+          CENTRAL_INVOICE_AUTHORITY_MODE: required
+          CENTRAL_INVOICE_AUTHORITY_CANARY_TEST_ONLY: "true"
+          CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION: central-invoice-authority-v1
+          CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY: "true"
+          CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED: "true"
+          CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED: "true"
+          CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED: "true"
         run: |
           npm run dev > /tmp/factura-autonomo-next.log 2>&1 &
           echo "$!" > /tmp/factura-autonomo-next.pid

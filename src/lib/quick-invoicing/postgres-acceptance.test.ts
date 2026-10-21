@@ -128,13 +128,14 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers:{...headers,"X-Factu-Company-Id":users[1].id}})).status).toBe(403);
     expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers:{...headers,Authorization:`Bearer ${users[2].token}`}})).status).toBe(403);
     expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`)).status).toBe(401);
+    expect((await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=test`,{headers})).status).toBe(409);
   });
   it("returns only matching contacts, no empty-search preload or foreign company data", async () => {
     const id = `quick-search-${randomUUID()}`;
     const own = {user_id:users[0].id,entity_type:"customer",entity_id:id,current_version:1,deleted:false,
       current_payload:{name:"Martínez Búsqueda",nif:"SEARCH25",address:"Dos 2",city:"Barcelona",postalCode:"08002",privateNote:"not-for-quick-search"},content_hash:"synthetic",actor_device_id:"fixture",actor_session_hash:"fixture"};
     const foreign = {...own,user_id:users[1].id,entity_id:`id-foreign-${id}`};
-    const headers = {Authorization:`Bearer ${users[0].token}`,"X-Factu-Device-Token":"synthetic-quick-012345678901234567890"};
+    const headers = {Authorization:`Bearer ${users[0].token}`,"X-Factu-Device-Token":"synthetic-quick-012345678901234567890","X-Factu-Company-Id":users[0].id};
     try {
       expect((await admin.from("central_business_entities").insert([own,foreign])).error).toBeNull();
       const empty = await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=`,{headers});
@@ -278,5 +279,70 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     expect((await admin.rpc("process_quick_customer_jobs_v1",{p_limit:25})).error).toBeNull();
     const rows = await admin.from("central_business_entities").select("current_payload").eq("user_id",users[0].id).eq("entity_type","customer");
     expect(rows.data?.filter(row=>names.includes(row.current_payload.name))).toHaveLength(4);
+  });
+  it("admits an explicitly enrolled active admin through real HTTP issuance without changing their main-app role",async()=>{
+    const actor = users[2];
+    const headers = {Authorization:`Bearer ${actor.token}`,"X-Factu-Device-Token":"synthetic-admin-quick-012345678901234567890","X-Factu-Company-Id":users[0].id};
+    try {
+      expect((await admin.from("quick_invoicing_access").insert({actor_user_id:actor.id,company_id:users[0].id,enabled:true})).error).toBeNull();
+      const scope = await admin.rpc("quick_invoicing_scope_v1",{p_actor_id:actor.id});
+      expect(scope.error).toBeNull();
+      expect(scope.data).toMatchObject({actor_id:actor.id,company_id:users[0].id,user_id:users[0].id,billing_user_id:users[0].id});
+      const boot = await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers});
+      expect({status:boot.status,body:await boot.json()}).toMatchObject({status:200,body:{actorId:actor.id,companyId:users[0].id}});
+      const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID()});
+      const issued = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
+      const body = await issued.json();
+      expect({status:issued.status,body}).toMatchObject({status:200,body:{ok:true,receipt:{operationId:intent.operationId}}});
+      const replay = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
+      expect((await replay.json()).receipt.document.number).toBe(body.receipt.document.number);
+      const operation = await admin.from("quick_document_operations").select("actor_user_id,company_id,user_id").eq("operation_id",intent.operationId).single();
+      expect(operation.data).toEqual({actor_user_id:actor.id,company_id:users[0].id,user_id:users[0].id});
+      const membership = await admin.from("app_company_members").select("role,status").eq("company_id",users[0].id).eq("user_id",actor.id).single();
+      expect(membership.data).toEqual({role:"admin",status:"active"});
+      expect((await admin.from("app_company_members").update({status:"revoked"}).eq("company_id",users[0].id).eq("user_id",actor.id)).error).toBeNull();
+      expect((await admin.rpc("quick_invoicing_scope_v1",{p_actor_id:actor.id})).error?.code).toBe("42501");
+      expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers})).status).toBe(403);
+      expect((await admin.from("app_company_members").update({status:"active"}).eq("company_id",users[0].id).eq("user_id",actor.id)).error).toBeNull();
+      expect((await admin.from("quick_invoicing_access").update({enabled:false}).eq("actor_user_id",actor.id)).error).toBeNull();
+      expect((await admin.rpc("quick_invoicing_scope_v1",{p_actor_id:actor.id})).error?.code).toBe("42501");
+    } finally {
+      await admin.from("app_company_members").update({status:"active"}).eq("company_id",users[0].id).eq("user_id",actor.id);
+      await admin.from("quick_invoicing_access").delete().eq("actor_user_id",actor.id);
+    }
+  });
+  it("switches private enrollment without reassigning operations or accepting stale and unpinned editors",async()=>{
+    const prior = await fixture("presupuesto","","Cambio de empresa sintético");
+    const created = await admin.rpc("commit_quick_document_v1",prior.args);
+    expect(created.error).toBeNull();
+    const headers = {Authorization:`Bearer ${users[0].token}`,"X-Factu-Device-Token":"synthetic-switch-quick-012345678901234567890"};
+    try {
+      expect((await admin.from("quick_invoicing_access").update({company_id:users[1].id}).eq("actor_user_id",users[0].id)).error).toBeNull();
+      const boot = await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers});
+      expect({status:boot.status,body:await boot.json()}).toMatchObject({status:200,body:{companyId:users[1].id}});
+      const scope = await admin.rpc("quick_invoicing_scope_v1",{p_actor_id:users[0].id});
+      expect(scope.data).toMatchObject({company_id:users[1].id,user_id:users[1].id,billing_user_id:users[0].id});
+      const old = await admin.rpc("read_quick_document_v1",{p_actor_id:users[0].id,p_operation_id:prior.intent.operationId});
+      expect(old.error).toBeNull(); expect(old.data).toBeNull();
+      expect((await admin.rpc("commit_quick_document_v1",prior.args)).error?.code).toBe("P4504");
+      const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID()});
+      for (const method of ["search?kind=customer&q=test","document?operationId="+prior.intent.operationId,"issue","cancel"]) {
+        const post = method === "issue" || method === "cancel";
+        for (const [pin,status] of [[undefined,409],[users[0].id,403]] as const) {
+          const rejected = await fetch(`${appUrl}/api/factu-rapido/${method}`,{method:post?"POST":"GET",
+            headers:{...headers,...(pin?{"X-Factu-Company-Id":pin}:{}),...(post?{"Content-Type":"application/json"}:{})},
+            ...(post?{body:JSON.stringify(intent)}:{})});
+          expect(rejected.status).toBe(status);
+        }
+      }
+      expect((await admin.from("quick_document_operations").select("operation_id").eq("operation_id",intent.operationId)).data).toHaveLength(0);
+      const preserved = await admin.from("quick_document_operations").select("company_id,user_id").eq("operation_id",prior.intent.operationId).single();
+      expect(preserved.data).toEqual({company_id:users[0].id,user_id:users[0].id});
+      const products = await fetch(`${appUrl}/api/factu-rapido/search?kind=product&q=AL%20PRA1%20R`,{headers:{...headers,"X-Factu-Company-Id":users[1].id}});
+      expect(products.status).toBe(200);
+      expect((await products.json()).results).toEqual([expect.objectContaining({name:"Producto SL no permitido"})]);
+    } finally {
+      await admin.from("quick_invoicing_access").update({company_id:users[0].id}).eq("actor_user_id",users[0].id);
+    }
   });
 });
