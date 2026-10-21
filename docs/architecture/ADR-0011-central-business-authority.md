@@ -28,6 +28,15 @@ pero la recuperación no depende de la vida del navegador ni de esa función.
 Regresiones: `quick-invoicing/postgres-acceptance.test.ts`, contratos de autoridad,
 maestro de clientes, idempotencia, outbox y separación de empresa/cuenta.
 
+Corrección compatible de ciclo de vida: los presupuestos rápidos se construyen
+con `editableQuoteWithLocalStatus`, igual que los presupuestos operativos del
+programa. No reciben `issuer` ni `issuedAt` de factura: esos campos implicarían
+evidencia histórica protegida y bloquearían su edición. Conservan número central,
+cliente, condiciones, validez y contexto PDF. Volver a Borrador permite el borrado
+ordinario; no se relaja `DeletePolicy`, no se reinterpretan documentos existentes
+ni cambia la emisión fiscal. La aceptación usa el constructor de producción y
+comprueba editar, pasar a Borrador, borrar y no resucitar al recuperar la operación.
+
 ## Fiabilidad V37: recepción inmediata y coordinación de segundo plano
 
 Los avisos Realtime siguen siendo solo señales para leer el outbox por cursor,

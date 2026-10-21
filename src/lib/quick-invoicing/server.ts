@@ -12,14 +12,12 @@ import { evaluateCentralInvoiceAuthorityActivation } from "@/lib/central-invoice
 import { createCentralBusinessNumberedDocument } from "@/lib/central-business-authority/numbered-document-service";
 import { evaluateCentralBusinessAuthorityActivation } from "@/lib/central-business-authority/activation";
 import { normalizeNumbering } from "@/lib/numbering";
-import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
 import { migrateCustomer } from "@/lib/customers";
 import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import type { BusinessProfile, Document } from "@/lib/types";
 import { quickIssuedDocument, quickRenderProfile } from "./render";
-import { quickPdfContext } from "./context";
-import { quickClientSnapshot } from "./client-snapshot";
-import { quickPaymentTerms, type QuickIntent, type QuickReceipt } from "./model";
+import { buildQuickDocumentPayload } from "./payload";
+import { type QuickIntent, type QuickReceipt } from "./model";
 
 if (typeof window !== "undefined") throw new Error("Factu Rápido: módulo exclusivo del servidor.");
 
@@ -119,21 +117,7 @@ export async function issueQuickDocument(context: QuickContext, intent: QuickInt
   }
   const createdAt = new Date().toISOString();
   const id = `quick-${intent.operationId}`;
-  const terms = quickPaymentTerms(intent.paymentMethod, intent.paid, profile.iban ?? "");
-  const payload: Omit<Document, "number"> = {
-    id, type: intent.kind, date: intent.date, customerId: intent.customerId ?? id,
-    client: quickClientSnapshot(intent.client), items: intent.items, notes: intent.notes,
-    status: intent.kind === "factura" && intent.paid ? "pagado" : "enviado",
-    salesTerms: terms,
-    issuer: captureIssuerSnapshot(profile, createdAt), quickPdfContext: quickPdfContext(profile),
-    createdAt, updatedAt: createdAt, issuedAt: createdAt,
-    ...(intent.kind === "factura" ? { paymentStatus: intent.paid ? "paid" as const : "pending" as const, ...(intent.paid ? { paidAt: createdAt } : {}) } : {}),
-  };
-  if (intent.kind === "presupuesto" && (profile.quoteValidityDays ?? 0) > 0) {
-    const until = new Date(`${intent.date}T12:00:00Z`);
-    until.setUTCDate(until.getUTCDate() + (profile.quoteValidityDays ?? 0));
-    payload.dueDate = until.toISOString().slice(0,10);
-  }
+  const payload = buildQuickDocumentPayload(intent, profile, createdAt);
   const validation = validateDocumentEmission(payload, profile);
   if (!validation.ok) throw new QuickError(400, "INVALID_DOCUMENT", validation.message ?? "Revisa el documento.");
   const customer = intent.customerId ? null : migrateCustomer({

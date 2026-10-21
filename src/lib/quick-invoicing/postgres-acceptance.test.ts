@@ -8,14 +8,16 @@ import { buildCentralInvoiceAuthorityIssueRpcArgs } from "@/lib/central-invoice-
 import { buildCentralBusinessNumberedDocumentCreateCommand } from "@/lib/central-business-authority/numbered-document-command";
 import { buildCentralBusinessNumberedDocumentCreateRpcArgs } from "@/lib/central-business-authority/numbered-document-rpc-adapter";
 import { migrateCustomer, findCustomerByIdOrMergedId } from "@/lib/customers";
-import { captureIssuerSnapshot } from "@/lib/issuer-snapshot";
-import { quickPdfContext } from "./context";
-import { parseQuickIntent, quickPaymentTerms } from "./model";
+import { parseQuickIntent } from "./model";
+import { buildQuickDocumentPayload } from "./payload";
+import { buildCentralBusinessMutationCommand } from "@/lib/central-business-authority/mutation-command";
+import { buildCentralBusinessMutationRpcArgs } from "@/lib/central-business-authority/mutation-rpc-adapter";
+import { deleteSharedQuote, editSharedQuote } from "@/lib/central-business-authority/shared-business-transitions";
 import { intentHash } from "./server";
 import { syntheticIntent, syntheticProfile } from "./test-fixtures";
 import { quickRenderProfile, quickIssuedDocument } from "./render";
 import { quickClientSnapshot } from "./client-snapshot";
-import type { Customer } from "@/lib/types";
+import { EMPTY_DATA, type Customer, type Document } from "@/lib/types";
 
 const acceptance = process.env.CENTRAL_GLOBAL_SYNTHETIC_LOCAL_ENABLED === "true" ? describe : describe.skip;
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -33,10 +35,7 @@ function sql(query: string) {
 async function fixture(kind: "factura" | "presupuesto" = "factura", nif = "12345678Z", name = "Cliente sintético") {
   const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID(),kind,client:{...syntheticIntent().client,nif,name},paymentMethod:"transferencia",paid:kind === "factura"});
   const id = `quick-${intent.operationId}`;
-  const payload = {id,type:kind,date:intent.date,client:quickClientSnapshot(intent.client),customerId:id,items:intent.items,notes:intent.notes,
-    status:kind === "factura" ? "pagado" as const : "enviado" as const,
-    salesTerms:quickPaymentTerms(intent.paymentMethod,intent.paid,syntheticProfile.iban),
-    issuer:captureIssuerSnapshot(syntheticProfile,now),quickPdfContext:quickPdfContext(syntheticProfile),createdAt:now,updatedAt:now,issuedAt:now};
+  const payload = buildQuickDocumentPayload(intent, syntheticProfile, now);
   const auth = {userId:users[0].id,deviceId:"synthetic-quick-device",sessionId:randomUUID(),userIdSource:"test" as const};
   let args;
   if (kind === "factura") {
@@ -236,6 +235,37 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
       p_idempotency_key_hash:sha(randomUUID()),p_request_hash:sha(randomUUID()),p_document_id:row.invoice_id,p_identity_id:row.rpc_result.identity_id,
       p_expected_version:row.document_version,p_action:"delete",p_document_payload:null,p_emitted_snapshot:null});
     expect(deleted.error).toBeNull();
+    expect((await admin.rpc("read_quick_document_v1",{p_actor_id:users[0].id,p_operation_id:args.p_operation_id})).error?.code).toBe("P4503");
+    expect((await admin.rpc("commit_quick_document_v1",args)).error?.code).toBe("P4503");
+  });
+  it("uses the production quote payload through main-program edit, draft, deletion and tombstone recovery",async () => {
+    const {args} = await fixture("presupuesto", "", "Cliente prueba de edición");
+    const created = await admin.rpc("commit_quick_document_v1",args);
+    expect(created.error).toBeNull();
+    let quote = created.data.document as Document;
+    let version = created.data.document_version as number;
+    const originalNumber = quote.number;
+    const auth = {userId:users[0].id,deviceId:"synthetic-quick-edit",sessionId:randomUUID(),userIdSource:"test" as const};
+    const mutate = (operationKind:"upsert"|"delete", payload:Document|null) => admin.rpc("mutate_central_business_entity_v1",
+      buildCentralBusinessMutationRpcArgs(buildCentralBusinessMutationCommand({auth,idempotencyKey:`quick-quote-test:${randomUUID()}`,
+        entityType:"quote",entityId:quote.id,expectedVersion:version,operationKind,payload:payload ? JSON.parse(JSON.stringify(payload)) : null})));
+    for (const status of ["enviado","borrador"] as const) {
+      const changed = editSharedQuote({...EMPTY_DATA,documents:[quote]},{...quote,status,notes:"Corregido desde el programa"},now).value;
+      const saved = await mutate("upsert",changed);
+      expect(saved.error).toBeNull();
+      const canonical = await admin.from("central_business_entities").select("current_version,current_payload")
+        .eq("user_id",users[0].id).eq("entity_type","quote").eq("entity_id",quote.id).single();
+      expect(canonical.error).toBeNull();
+      expect(canonical.data?.current_version).toBe(++version);
+      expect(canonical.data?.current_payload).toMatchObject({number:originalNumber,status,notes:changed.notes});
+      quote = canonical.data!.current_payload as Document;
+    }
+    expect(deleteSharedQuote({...EMPTY_DATA,documents:[quote]},quote.id).data.documents).toEqual([]);
+    const removed = await mutate("delete",null);
+    expect(removed.error).toBeNull();
+    const tombstone = await admin.from("central_business_entities").select("deleted,current_version")
+      .eq("user_id",users[0].id).eq("entity_type","quote").eq("entity_id",quote.id).single();
+    expect(tombstone.data).toMatchObject({deleted:true,current_version:version+1});
     expect((await admin.rpc("read_quick_document_v1",{p_actor_id:users[0].id,p_operation_id:args.p_operation_id})).error?.code).toBe("P4503");
     expect((await admin.rpc("commit_quick_document_v1",args)).error?.code).toBe("P4503");
   });
