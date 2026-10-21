@@ -25,6 +25,7 @@ const appNoStoreHeaders = [
 ];
 
 const appNoIndexRoutes = [
+  "/rapido/:path*",
   "/admin/:path*",
   "/auth/callback/:path*",
   "/avisos/:path*",
@@ -45,6 +46,9 @@ const appNoIndexRoutes = [
 ];
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [{ source: "/rapido", destination: "/rapido/index.html" }];
+  },
   outputFileTracingIncludes: {
     "/api/verifactu/register": [
       "./test/fixtures/verifactu-official-artifacts/**/*",

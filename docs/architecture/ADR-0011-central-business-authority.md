@@ -1,8 +1,32 @@
 # ADR-0011: Autoridad central para datos operativos
 
 - Estado: aceptado
-- Version: 37
-- Fecha: 2026-10-20
+- Version: 38
+- Fecha: 2026-10-21
+
+## Decisión de producto V38: presupuestos y agenda de Factu Rápido
+
+La PWA privada de ADR-0010 V11 emite presupuestos mediante
+`create_central_business_document_v1`, sin una segunda numeración ni descarga
+de AppData. Confirmación, documento numerado, operación recuperable y admisión
+diferida del cliente se confirman juntos. Las señales Realtime y el outbox son
+los mismos que consume el programa principal. Se conserva el contexto visual
+capturado por el servidor; un presupuesto nunca acredita cobro.
+
+La búsqueda central solo devuelve 15 clientes o productos como máximo y admite
+referencias con espacios/guiones. Productos expone únicamente nombre,
+referencia, descripción, unidad, IVA y precio de venta configurado: ningún coste,
+margen, imagen o cálculo complejo. Un precio ausente no se inventa ni deriva
+de costes. No se copia la colección completa en el teléfono.
+
+El worker durable de clientes utiliza la misma mutación versionada y el mismo
+bloqueo por propietario del programa, con CAS, huella y evento normal. Preserva
+campos maestros y documentos congelados. Errores transitorios se reintentan con
+backoff; una ambigüedad queda en revisión. `after()` acelera el procesamiento,
+pero la recuperación no depende de la vida del navegador ni de esa función.
+
+Regresiones: `quick-invoicing/postgres-acceptance.test.ts`, contratos de autoridad,
+maestro de clientes, idempotencia, outbox y separación de empresa/cuenta.
 
 ## Fiabilidad V37: recepción inmediata y coordinación de segundo plano
 

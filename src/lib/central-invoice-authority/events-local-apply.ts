@@ -1,4 +1,5 @@
 import { issueDraftDocumentWithStatus } from "@/lib/document-integrity/issuance";
+import { profileForQuickDocument } from "@/lib/quick-invoicing/context";
 import { assertDocumentSnapshotsIntegrity } from "@/lib/document-integrity/snapshots";
 import { originalStatusAfterRectification } from "@/lib/rectificativas";
 import type {
@@ -345,7 +346,7 @@ function buildReceivedIssuedDocument(input: {
   const issued = issueDraftDocumentWithStatus(
     stripLocalIntegrityForReceivedDraft(input.doc, input.event),
     normalizeRequestedStatus(input.doc.status),
-    input.profile,
+    profileForQuickDocument(input.doc, input.profile),
     input.doc.issuedAt ?? input.event.createdAt,
   );
 
