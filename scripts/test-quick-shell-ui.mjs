@@ -186,6 +186,20 @@ try {
   assert.equal(await page.locator('[data-client="name"]').inputValue(),"Cliente Beta");
   assert.equal(await page.locator('[data-client="address"]').inputValue(),"Dirección corregida para el documento");
   assert.equal(await page.evaluate(() => localStorage.getItem("main-company-sentinel")), "excluded-company-synthetic");
+  // A first visit with no account/session can install the public shell too.
+  const guest = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await guest.route("**/*", async route => {
+    assert.equal(new URL(route.request().url()).origin, origin);
+    await route.continue();
+  });
+  const guestPage = await guest.newPage();
+  guestPage.on("pageerror", error => errors.push(error.message));
+  await guestPage.goto(`${origin}/rapido/index.html`);
+  await guestPage.getByRole("button", { name: "Entrar con Google", exact: true }).waitFor();
+  await guestPage.getByRole("button", { name: "Instalar en el móvil", exact: true }).click();
+  await guestPage.getByRole("heading", { name: "Poner el icono de Factu Rápido", exact: true }).waitFor();
+  assert.equal(await guestPage.locator(".quick-install-url").inputValue(), `${origin}/rapido/index.html`);
+  await guest.close();
   assert(!requests.some(request => request.method === "POST" || request.path.startsWith("/_next/") || request.path.endsWith("/issue")));
   assert.deepEqual(errors, []);
   const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, installation:{nativePromptOnce:true,manualInstructions:true,visibleBeforeLogin:true,formAndFocusPreserved:true,noAccessReload:true},customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
