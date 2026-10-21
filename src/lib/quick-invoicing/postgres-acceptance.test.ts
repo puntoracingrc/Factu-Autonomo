@@ -130,6 +130,28 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers:{...headers,Authorization:`Bearer ${users[2].token}`}})).status).toBe(403);
     expect((await fetch(`${appUrl}/api/factu-rapido/bootstrap`)).status).toBe(401);
   });
+  it("returns only matching contacts, no empty-search preload or foreign company data", async () => {
+    const id = `quick-search-${randomUUID()}`;
+    const own = {user_id:users[0].id,entity_type:"customer",entity_id:id,current_version:1,deleted:false,
+      current_payload:{name:"Martínez Búsqueda",nif:"SEARCH25",address:"Dos 2",city:"Barcelona",postalCode:"08002",privateNote:"not-for-quick-search"},content_hash:"synthetic",actor_device_id:"fixture",actor_session_hash:"fixture"};
+    const foreign = {...own,user_id:users[1].id,entity_id:`id-foreign-${id}`};
+    const headers = {Authorization:`Bearer ${users[0].token}`,"X-Factu-Device-Token":"synthetic-quick-012345678901234567890"};
+    try {
+      expect((await admin.from("central_business_entities").insert([own,foreign])).error).toBeNull();
+      const empty = await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=`,{headers});
+      expect(await empty.json()).toMatchObject({results:[]});
+      const searched = await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=${encodeURIComponent("martinez busqueda")}`,{headers});
+      const body = await searched.json();
+      expect(searched.status).toBe(200); expect(body.results).toHaveLength(1);
+      expect(body.results[0]).toMatchObject({id,name:own.current_payload.name});
+      expect(JSON.stringify(body)).not.toContain("not-for-quick-search");
+      expect(body.results[0]).not.toHaveProperty("current_payload");
+      expect((await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=martinez`,{headers:{...headers,"X-Factu-Company-Id":users[1].id}})).status).toBe(403);
+      expect((await fetch(`${appUrl}/api/factu-rapido/search?kind=customer&q=martinez`)).status).toBe(401);
+    } finally {
+      await admin.from("central_business_entities").delete().in("user_id",users.slice(0,2).map(user => user.id)).in("entity_id",[id,foreign.entity_id]);
+    }
+  });
   it("commits invoice + number + frozen client + pending admission atomically; replay does not reserve a second number",async () => {
     const {intent,args} = await fixture();
     const [first,second] = await Promise.all([admin.rpc("commit_quick_document_v1",args),admin.rpc("commit_quick_document_v1",args)]);

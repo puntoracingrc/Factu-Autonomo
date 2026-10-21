@@ -3,6 +3,8 @@ import { parseQuickIntent, QUICK_METHODS, quickPaymentTerms, quickTotals, type Q
 import type { Client, LineItem } from "@/lib/types";
 import { readLocal, saveLocal, type QuickLocalState } from "./storage";
 import { escapeHtml as escape } from "./html";
+import { quickAccessScreen } from "./access-screen";
+import { quickCustomer, quickCustomerCard, type QuickCustomer } from "./customer";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -13,7 +15,7 @@ let bootstrap: QuickBootstrap;
 let localKey = "";
 let deviceToken = "";
 let state: QuickLocalState = {};
-let view: "home" | "form" | "result" = "home";
+let view: "home" | "form" | "result" | "customers" = "home";
 let busy = false;
 let notice = "";
 let saveChain = Promise.resolve();
@@ -23,6 +25,14 @@ let suggestions: Array<Record<string, unknown>> = [];
 let pdf: Awaited<ReturnType<(typeof import("./pdf"))["quickPdf"]>> | undefined;
 let pdfLoading = false;
 let pdfModulePromise: Promise<typeof import("./pdf")> | undefined;
+let accessBusy = false;
+let customerRows: Array<Record<string,unknown>> = [];
+let selectedCustomer: QuickCustomer | undefined;
+let customerQuery = "";
+let customerLoading = false;
+let customerError = "";
+let customerSerial = 0;
+let customerTimer: ReturnType<typeof setTimeout> | undefined;
 const loadPdfModule = () => pdfModulePromise ??= import("./pdf").catch(error => { pdfModulePromise = undefined; throw error; });
 
 class ApiError extends Error {
@@ -68,13 +78,42 @@ function field(label: string, key: keyof Client, options: { required?: boolean; 
   return `<label>${label}${options.required ? '<span class="required"> *</span>' : ""}<input data-client="${key}" name="${key}" value="${escape(state.intent?.client[key])}" type="${options.type ?? "text"}" autocomplete="${options.autocomplete ?? "off"}" maxlength="${key === "name" ? 200 : key === "address" ? 250 : 100}"></label>`;
 }
 function renderHome() {
-  return `<section class="welcome"><p class="eyebrow">MENOS PASOS. TODO EN ORDEN.</p><h1>Del trabajo<br>al documento.</h1><p>Lo sencillo, sin cargar todo lo demás.</p></section>
-    <div class="home-actions"><button data-action="new-invoice" class="hero-button invoice"><span class="button-symbol">↗</span><span>Crear factura<small>Emitir y compartir al terminar</small></span><b>→</b></button>
-    <button data-action="new-quote" class="hero-button quote"><span class="button-symbol">≡</span><span>Crear presupuesto<small>Tu propuesta, en un momento</small></span><b>→</b></button></div>
+  return `<h1 class="sr-only">Crear documento</h1>
+    <div class="home-actions"><button data-action="new-invoice" class="hero-button invoice"><span class="button-symbol" aria-hidden="true">↗</span><span>Crear factura</span><b aria-hidden="true">→</b></button>
+    <button data-action="new-quote" class="hero-button quote"><span class="button-symbol" aria-hidden="true">≡</span><span>Crear presupuesto</span><b aria-hidden="true">→</b></button>
+    <button data-action="customers" class="hero-button quote"><span class="button-symbol" aria-hidden="true">⌕</span><span>Buscar cliente</span><b aria-hidden="true">→</b></button></div>
     ${state.intent ? `<button class="resume" data-action="resume">${state.pending ? "Comprobar emisión pendiente" : "Continuar documento sin terminar"}<span>→</span></button>` : ""}
     ${state.receipt ? `<button class="resume" data-action="last">Abrir ${escape(state.receipt.document.number)}<span>↗</span></button>` : ""}
-    <p class="home-foot"><span class="dot"></span>Numeración y guardado en el servidor de Factu.<br>La SL no se utiliza en esta prueba.</p>
     <div id="install-area"></div>`;
+}
+function customerContent() {
+  if (selectedCustomer) return quickCustomerCard(selectedCustomer);
+  if (customerQuery.trim().length < 2) return "";
+  if (customerError) return `<p role="alert">${escape(customerError)}</p><button class="secondary" data-action="customer-retry">Reintentar búsqueda</button>`;
+  return `<div class="customer-list">${customerRows.map((row,index) => `<button class="customer-item" data-action="customer-select" data-index="${index}"><strong>${escape(row.name || "Sin nombre")}</strong>${row.nif ? `<span>${escape(row.nif)}</span>` : ""}</button>`).join("")}</div>
+    ${customerLoading ? '<p role="status">Buscando clientes…</p>' : !customerRows.length ? '<p>No se encontraron clientes.</p>' : ""}`;
+}
+function customersScreen() {
+  return `<div class="form-title"><h1>Buscar cliente</h1></div><label>Nombre o NIF<input id="directory-search" type="search" value="${escape(customerQuery)}" autocomplete="off" placeholder="Buscar cliente"></label><div id="customer-content" class="customer-content">${customerContent()}</div><button class="secondary customer-home" data-action="home">Inicio</button>`;
+}
+function updateCustomerContent() {
+  const content = document.querySelector("#customer-content");
+  if (content) content.innerHTML = customerContent();
+}
+async function loadCustomers() {
+  const serial = ++customerSerial;
+  const query = customerQuery.trim();
+  selectedCustomer = undefined; customerError = ""; customerRows = []; customerLoading = query.length >= 2;
+  updateCustomerContent();
+  if (query.length < 2) return;
+  try {
+    const result = await api<{results:Array<Record<string,unknown>>}>(`search?kind=customer&q=${encodeURIComponent(query)}`);
+    if (serial !== customerSerial || view !== "customers") return;
+    customerRows = result.results;
+  } catch (error) {
+    if (serial !== customerSerial || view !== "customers") return;
+    customerError = error instanceof Error ? error.message : "No se pudieron cargar los clientes.";
+  } finally { if (serial === customerSerial) { customerLoading = false; updateCustomerContent(); } }
 }
 function clientStep() {
   const full = state.intent?.kind === "factura";
@@ -83,7 +122,7 @@ function clientStep() {
     ${field("Nombre o razón social","name",{ required:true, autocomplete:"name" })}
     <div class="two">${field("NIF / CIF","nif",{ required:full })}${field("Teléfono","phone",{ type:"tel",autocomplete:"tel" })}</div>
     ${field("Dirección","address",{ required:full, autocomplete:"street-address" })}
-    <div class="two postal">${field("Código postal","postalCode",{ required:full,autocomplete:"postal-code" })}${field("Población","city",{ required:full,autocomplete:"address-level2" })}</div>
+    <div class="two postal">${field("C. postal","postalCode",{ required:full,autocomplete:"postal-code" })}${field("Población","city",{ required:full,autocomplete:"address-level2" })}</div>
     ${field("Email (opcional)","email",{ type:"email",autocomplete:"email" })}
     <p class="hint">El cliente nuevo se guarda en la agenda después de confirmar el documento.</p></section>`;
 }
@@ -111,7 +150,7 @@ function paymentStep() {
 function renderForm() {
   const intent = state.intent!;
   const step = state.step ?? 1;
-  return `<div class="form-title"><p class="eyebrow">${intent.kind === "factura" ? "NUEVA FACTURA" : "NUEVO PRESUPUESTO"}</p><h1>${["","¿Para quién?","¿Qué has hecho?","Todo listo."][step]}</h1></div>
+  return `<div class="form-title"><p class="eyebrow">${intent.kind === "factura" ? "NUEVA FACTURA" : "NUEVO PRESUPUESTO"}</p><h1>${["","Cliente","Conceptos y notas","Pago"][step]}</h1></div>
     <nav class="steps" aria-label="Pasos del documento">${["Cliente","Conceptos","Pago"].map((name,i) => `<span class="${step === i+1 ? "current" : step > i+1 ? "complete" : ""}" ${step === i+1 ? 'aria-current="step"' : ""}><b>${step > i+1 ? "✓" : i+1}</b>${name}</span>`).join("")}</nav>
     <form id="document-form"><fieldset class="form-content" ${state.pending || busy ? "disabled" : ""}>${step === 1 ? clientStep() : step === 2 ? conceptsStep() : paymentStep()}</fieldset></form>
     <footer class="form-footer">${step > 1 ? `<div class="totals"><span>Base <b id="base-total"></b></span><span>IVA <b id="vat-total"></b></span><strong>Total <b id="grand-total"></b></strong></div>` : ""}
@@ -121,13 +160,13 @@ function renderForm() {
 }
 function renderResult() {
   const receipt = state.receipt!;
-  return `<section class="result-head"><div class="success-mark">✓</div><p class="eyebrow">GUARDADO Y CONFIRMADO POR FACTU</p><h1>${escape(receipt.document.number)}</h1><p>${escape(receipt.document.client.name)}</p><strong>${money(quickTotals(receipt.document.items,receipt.profile.vatExempt).total)}</strong></section>
+  return `<section class="result-head"><div class="success-mark">✓</div><p class="eyebrow">Documento guardado</p><h1>${escape(receipt.document.number)}</h1><p>${escape(receipt.document.client.name)}</p><strong>${money(quickTotals(receipt.document.items,receipt.profile.vatExempt).total)}</strong></section>
     <div class="pdf-actions"><button data-action="share" class="primary" ${pdf ? "" : "disabled"}>Compartir PDF ↗</button><button data-action="open-pdf" class="secondary" ${pdf ? "" : "disabled"}>Abrir PDF</button></div>
     <div id="pdf-view" class="pdf-view">${pdf ? `<iframe title="PDF del documento confirmado" src="${escape(pdf.url)}"></iframe>` : `<p>${pdfLoading ? "Preparando tu PDF…" : "El documento ya está guardado. Puedes volver a generar el PDF sin emitirlo otra vez."}</p><button class="secondary" data-action="retry-pdf">Preparar PDF</button>`}</div>
     <button class="resume" data-action="home">Volver al inicio<span>→</span></button>`;
 }
 function render() {
-  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : renderResult()}</main><div class="bottom-caption">RÁPIDO EN EL MÓVIL. GUARDADO EN FACTU.</div>`;
+  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : view === "customers" ? customersScreen() : renderResult()}</main>`;
   if (view === "form") updateTotals();
 }
 function updateTotals() {
@@ -144,11 +183,12 @@ function updateTotals() {
 function emptyLine(): LineItem {
   return { id: crypto.randomUUID(), description:"",quantity:1,unitPrice:0,ivaPercent:bootstrap.vatExempt ? 0 : bootstrap.defaultVat,unit:"ud" };
 }
-function start(kind: QuickIntent["kind"]) {
+function start(kind: QuickIntent["kind"], customer?: QuickCustomer) {
   if (state.pending) { view = "form"; state.step = 3; notice = "Comprueba primero el documento pendiente; no se creará otro con un número distinto."; render(); return; }
   if (state.intent && !confirm("Hay un documento sin terminar. ¿Quieres descartarlo y empezar otro?")) return;
   state.intent = { operationId:crypto.randomUUID(),kind,date:new Date().toLocaleDateString("sv-SE"),client:{name:""},items:[emptyLine()],notes:"",paymentMethod:"efectivo",paid:false };
-  state.step = 1; view = "form"; notice = ""; saveDraft(); render();
+  if (customer) { state.intent.client = structuredClone(customer.client); state.intent.customerId = customer.id; }
+  state.step = 1; view = "form"; notice = ""; saveDraft(); render(); window.scrollTo(0,0);
 }
 function validateStep() {
   const intent = state.intent!;
@@ -240,6 +280,11 @@ function search(input: HTMLInputElement, kind: "customer" | "product") {
 }
 root.addEventListener("input",event => {
   const input = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+  if (input.id === "directory-search") {
+    customerQuery = input.value; selectedCustomer = undefined; customerSerial++; clearTimeout(customerTimer);
+    customerRows = []; customerError = ""; customerLoading = customerQuery.trim().length >= 2; updateCustomerContent();
+    customerTimer = setTimeout(() => { if (view === "customers") void loadCustomers(); },400); return;
+  }
   if (input.id === "customer-search" || input.id === "product-search") { search(input as HTMLInputElement,input.id === "customer-search" ? "customer" : "product"); return; }
   if (!state.intent || state.pending || busy) return;
   if (input.dataset.client) {
@@ -269,16 +314,31 @@ root.addEventListener("click",event => {
   void (async () => {
     try {
       if (action === "login") { await login(); return; }
+      if (action === "retry-access") { await startAccess(); return; }
       if (!bootstrap || busy) return;
+      if (action === "customers") {
+        customerSerial++; clearTimeout(customerTimer); customerQuery = ""; selectedCustomer = undefined; customerRows = []; customerError = ""; customerLoading = false;
+        view = "customers"; notice = ""; render(); window.scrollTo(0,0); return;
+      }
+      if (action === "customer-retry") { if (!customerLoading) await loadCustomers(); return; }
+      if (action === "customer-select") {
+        const row = customerRows[Number(button.dataset.index)]; if (!row) return;
+        customerSerial++; customerLoading = false; selectedCustomer = quickCustomer(row); updateCustomerContent();
+        document.querySelector<HTMLInputElement>("#directory-search")?.blur(); window.scrollTo(0,0); return;
+      }
+      if (action === "customer-change") { selectedCustomer = undefined; updateCustomerContent(); return; }
+      if (action === "customer-invoice" || action === "customer-quote") {
+        if (selectedCustomer) start(action === "customer-invoice" ? "factura" : "presupuesto",selectedCustomer); return;
+      }
       if (action === "new-invoice" || action === "new-quote") { start(action === "new-invoice" ? "factura" : "presupuesto"); return; }
-      if (action === "home") { view = "home"; notice = ""; render(); return; }
+      if (action === "home") { view = "home"; notice = ""; render(); window.scrollTo(0,0); return; }
       if (action === "resume") { view = "form"; state.step = state.pending ? 3 : state.step ?? 1; notice = ""; render(); return; }
       if (action === "last") {
         const current = await api<{receipt:QuickReceipt|null}>(`document?operationId=${encodeURIComponent(state.receipt!.operationId)}`);
         if (!current.receipt) throw new Error("No se encontró este documento en el servidor.");
         await acceptReceipt(current.receipt); return;
       }
-      if (action === "back") { if ((state.step ?? 1) <= 1) view = "home"; else if (!state.pending) state.step!--; else { notice = "Comprueba primero la emisión pendiente."; } saveDraft(); render(); return; }
+      if (action === "back") { if ((state.step ?? 1) <= 1) view = "home"; else if (!state.pending) state.step!--; else { notice = "Comprueba primero la emisión pendiente."; } saveDraft(); render(); window.scrollTo(0,0); return; }
       if (action === "next") {
         if (state.pending || state.step === 3) { await emit(); return; }
         validateStep(); state.step = (state.step ?? 1)+1; notice = ""; saveDraft(); render(); window.scrollTo(0,0);
@@ -326,13 +386,15 @@ async function login() {
   const { error } = await auth.auth.signInWithOAuth({ provider:"google",options:{ redirectTo:`${location.origin}/rapido/index.html`,queryParams:{prompt:"select_account"} } });
   if (error) throw error;
 }
-function loginScreen(message = "Una factura sencilla no necesita abrir todo el programa.") {
-  root.innerHTML = `<main class="login"><div class="brand-mark">F<span>↗</span></div><p class="eyebrow">FACTU RÁPIDO · PILOTO PRIVADO</p><h1>Lo sencillo,<br>más rápido.</h1><p>${escape(message)}</p><button class="primary" data-action="login">Entrar con Google</button><p class="hint">Solo tu cuenta y Persianas Almar, la empresa antigua. La SL queda fuera.</p></main>`;
+function loginScreen(message = "Inicia sesión para continuar.") {
+  root.innerHTML = quickAccessScreen(message,"login");
 }
 async function initialize() {
-  const config = await fetch("/api/factu-rapido/config",{cache:"no-store"}).then(response => response.json());
-  if (!config.url || !config.anonKey) throw new Error("El acceso rápido aún no está configurado.");
-  auth = createClient(config.url,config.anonKey,{ auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true} });
+  if (!auth) {
+    const config = await fetch("/api/factu-rapido/config",{cache:"no-store"}).then(response => response.json());
+    if (!config.url || !config.anonKey) throw new Error("El acceso rápido aún no está configurado.");
+    auth = createClient(config.url,config.anonKey,{ auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true} });
+  }
   const storedDevice = (await readLocal("__device__"))?.deviceToken;
   deviceToken = storedDevice || crypto.randomUUID();
   if (!storedDevice) await saveLocal("__device__",{deviceToken});
@@ -359,4 +421,18 @@ async function initialize() {
   });
   if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/rapido/sw.js",{scope:"/rapido/"}).catch(() => undefined);
 }
-void initialize().catch(error => loginScreen(error instanceof Error ? error.message : "No se pudo preparar tu acceso."));
+async function startAccess() {
+  if (accessBusy) return;
+  accessBusy = true;
+  const retryButton = root.querySelector<HTMLButtonElement>('[data-action="retry-access"]');
+  if (retryButton) retryButton.disabled = true;
+  try { await initialize(); }
+  catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo preparar tu acceso.";
+    // A temporary device lease, connection error or another open quick window
+    // is not a request for another Google session. Keep the verified session.
+    if (error instanceof ApiError && (error.status === 401 || error.code === "PILOT_ONLY")) loginScreen(message);
+    else root.innerHTML = quickAccessScreen(message,"retry");
+  } finally { accessBusy = false; }
+}
+void startAccess();

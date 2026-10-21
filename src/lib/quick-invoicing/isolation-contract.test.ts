@@ -17,6 +17,17 @@ describe("private quick-app isolation and durable acknowledgement contract",() =
     expect(sw).not.toContain("skipWaiting");
     expect(sw).not.toContain("factu-pwa-");
   });
+  it("keeps the quick interface functional without slogans or filler", () => {
+    const app = source("src/quick-app/app.ts");
+    const access = source("src/quick-app/access-screen.ts");
+    for (const phrase of ["MENOS PASOS", "Del trabajo", "Lo sencillo", "RÁPIDO EN EL MÓVIL", "Numeración y guardado en el servidor", "La SL no se utiliza"]) {
+      expect(app).not.toContain(phrase);
+      expect(access).not.toContain(phrase);
+    }
+    expect(app).toContain("<span>Crear factura</span>");
+    expect(app).toContain("<span>Crear presupuesto</span>");
+    expect(app).toContain("<span>Buscar cliente</span>");
+  });
   it("wraps the existing central authorities, enqueues before acknowledgement and has an independent runner",() => {
     const sql = source("supabase/migrations/20261021043637_quick_invoicing_pilot.sql");
     expect(sql).toContain("public.issue_central_invoice_v1(");
