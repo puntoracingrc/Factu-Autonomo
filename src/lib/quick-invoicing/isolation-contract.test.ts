@@ -37,4 +37,13 @@ describe("private quick-app isolation and durable acknowledgement contract",() =
     expect(sql).toContain("cron.schedule('factu-quick-customer-admission-v1'");
     expect(sql).not.toMatch(/31fd96e3|ebf7802a|persianasalmar@gmail/);
   });
+  it("pins each editor request and keeps the enrolled company name dynamic", () => {
+    const app = source("src/quick-app/app.ts");
+    expect(app).toContain("quickCompanyRequestHeaders(action, bootstrap?.companyId)");
+    expect(app).toContain("escape(bootstrap.companyName)");
+    expect(app).toContain("`${bootstrap.actorId}:${bootstrap.companyId}`");
+    expect(app).not.toContain("Empresa antigua");
+    expect(source("src/quick-app/access-screen.ts")).not.toContain("Persianas Almar");
+    expect(source("src/lib/quick-invoicing/server.ts")).toContain("request.headers.get(FACTU_COMPANY_HEADER)");
+  });
 });

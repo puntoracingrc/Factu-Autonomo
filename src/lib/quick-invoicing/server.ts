@@ -17,6 +17,8 @@ import { validateDocumentEmission } from "@/lib/invoice-compliance";
 import type { BusinessProfile, Document } from "@/lib/types";
 import { quickIssuedDocument, quickRenderProfile } from "./render";
 import { buildQuickDocumentPayload } from "./payload";
+import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
+import { quickCompanyScopeProblem } from "./request-scope";
 import { type QuickIntent, type QuickReceipt } from "./model";
 
 if (typeof window !== "undefined") throw new Error("Factu Rápido: módulo exclusivo del servidor.");
@@ -37,14 +39,14 @@ interface StoredReceipt {
   rpc_result: { identity_id: string; outbox_event_id: string; sequence: number };
 }
 function databaseError(error: { code?: string; message?: string }): never {
-  if (error.code === "42501") throw new QuickError(403, "PILOT_ONLY", "Esta prueba solo está habilitada para tu cuenta y la empresa antigua.");
+  if (error.code === "42501") throw new QuickError(403, "PILOT_ONLY", "Tu cuenta no tiene acceso a la empresa habilitada en Factu Rápido.");
   if (error.code === "P4502") throw new QuickError(409, "INTENT_MISMATCH", "Esta operación ya corresponde a otro contenido. Recupera primero su confirmación.");
   if (error.code === "P4503") throw new QuickError(410, "DOCUMENT_REMOVED", "Este documento fue eliminado desde el programa. No se volverá a emitir al reintentar.");
   if (error.code === "P4505") throw new QuickError(409, "PROFILE_CHANGED", "La configuración de la empresa cambió. Revisa los datos antes de volver a emitir.");
   if (error.code === "P4508") throw new QuickError(409, "OPERATION_CANCELLED", "Esta operación se canceló para volver a editar. Pulsa Volver a editar para recuperar los datos.");
   throw new QuickError(503, "CENTRAL_UNCONFIRMED", "No se pudo confirmar la operación. Conservamos tus datos: pulsa Comprobar y reintentar; no crees otra factura.");
 }
-export async function authenticateQuick(request: Request): Promise<QuickContext> {
+export async function authenticateQuick(request: Request, options: { allowBootstrap?: boolean } = {}): Promise<QuickContext> {
   const identity = await getUserSessionFromBearer(request.headers.get("authorization"), { requireEmailConfirmed: true });
   if (!identity) throw new QuickError(401, "SIGN_IN_REQUIRED", "Inicia sesión con tu cuenta de Google.");
   const admin = getSupabaseAdmin();
@@ -53,8 +55,8 @@ export async function authenticateQuick(request: Request): Promise<QuickContext>
   if (result.error) databaseError(result.error);
   const scope = result.data as QuickScope;
   if (!scope || scope.actor_id !== identity.user.id || !scope.company_id) throw new QuickError(403, "PILOT_ONLY", "Acceso no habilitado.");
-  const requested = request.headers.get("x-factu-company-id");
-  if (requested && requested !== scope.company_id) throw new QuickError(403, "COMPANY_NOT_ALLOWED", "La empresa solicitada no está incluida en esta prueba.");
+  const scopeProblem = quickCompanyScopeProblem(request.headers.get(FACTU_COMPANY_HEADER), scope.company_id, options.allowBootstrap);
+  if (scopeProblem) throw new QuickError(scopeProblem.status, scopeProblem.code, scopeProblem.message);
   const deviceToken = normalizeCloudDeviceToken(request.headers.get("x-factu-device-token"));
   if (!deviceToken) throw new QuickError(400, "INVALID_DEVICE", "No se pudo identificar este dispositivo.");
   const access = await ensureCloudDeviceAccess({ userId: scope.user_id, billingUserId: scope.billing_user_id,

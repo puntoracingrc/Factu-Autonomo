@@ -1,8 +1,28 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 11
+- Version: 12
 - Fecha: 2026-10-21
+
+## Decisión de producto V12: equipo autorizado y cambio de empresa privada
+
+El propietario solicita conectar Factu Rápido a su empresa activa, retirar la
+anterior e incorporar colaboradores concretos. La admisión privada por actor
+requiere ahora membresía activa `owner` o `admin` en la empresa habilitada.
+Ser administrador por sí solo no habilita la app: sigue exigiéndose la concesión
+explícita privada. Revocar la membresía o desactivar la concesión bloquea el
+acceso. No se amplían automáticamente permisos del programa completo.
+
+Cada solicitud salvo bootstrap debe identificar la empresa que muestra el editor.
+Una pestaña anterior, una app cacheada sin esa cabecera o una petición de otra
+empresa se rechazan antes de escribir; ningún formulario pendiente se reasigna
+silenciosamente. Bootstrap descubre la concesión vigente y abre exclusivamente
+el almacenamiento existente por actor y empresa, sin borrar la copia anterior.
+Las operaciones antiguas y su historial no se mueven ni renumeran. Los cambios de
+admisión son configuración privada, nunca IDs o correos en código o migraciones.
+
+Regresiones: ámbito de peticiones, pertenencia/ revocación, emisión autenticada
+por administrador, cambio de admisión, aislamiento y rechazo de clientes antiguos.
 
 ## Decisión de producto V11: emisión rápida privada e independiente
 

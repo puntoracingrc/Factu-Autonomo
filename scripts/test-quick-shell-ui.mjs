@@ -12,6 +12,8 @@ const root = path.resolve("public");
 const actor = "00000000-0000-4000-8000-000000000001";
 const sessionId = "00000000-0000-4000-8000-000000000002";
 let attempts = 0, configs = 0, directoryQueries = 0;
+const nextCompany = "00000000-0000-4000-8000-000000000003";
+let enrolledCompany = actor;
 const contacts = ["Alfa","Beta","Gamma"].map((name,index) => ({id:`contact-${index}`,name:`Cliente ${name}`,nif:`SYN00${index}`,address:"Calle Dos 2",postalCode:"08002",city:"Barcelona",email:`cliente-${index}@example.test`,phone:"600000000"}));
 const server = http.createServer(async (req, res) => {
   const pathname = new URL(req.url, "http://127.0.0.1").pathname;
@@ -25,10 +27,14 @@ const server = http.createServer(async (req, res) => {
       res.statusCode = 403;
       res.end(JSON.stringify({ ok: false, code: "device_session_conflict", message: "La sesión anterior tarda en liberarse." })); return;
     }
-    res.end(JSON.stringify({ actorId: actor, companyId: actor, companyName: "Empresa antigua sintética", defaultVat: 21, vatRates: [0, 4, 10, 21], vatExempt: false, iban: "ES0000000000000000000000" })); return;
+    res.end(JSON.stringify({ actorId: actor, companyId: enrolledCompany, companyName: enrolledCompany === actor ? "Empresa antigua sintética" : "Empresa SL sintética", defaultVat: 21, vatRates: [0, 4, 10, 21], vatExempt: false, iban: "ES0000000000000000000000" })); return;
   }
   if (pathname === "/api/factu-rapido/search") {
     directoryQueries++; res.setHeader("Content-Type", "application/json");
+    if (req.headers["x-factu-company-id"] !== enrolledCompany) {
+      res.statusCode = req.headers["x-factu-company-id"] ? 403 : 409;
+      res.end(JSON.stringify({ok:false,code:"COMPANY_NOT_ALLOWED",message:"La empresa abierta ya no está habilitada."})); return;
+    }
     const params = new URL(req.url,"http://127.0.0.1").searchParams;
     const query = (params.get("q") ?? "").toLowerCase();
     const matches = contacts.filter(contact => `${contact.name} ${contact.nif}`.toLowerCase().includes(query));
@@ -131,10 +137,27 @@ try {
   await page.getByRole("heading",{name:"Conceptos y notas",exact:true}).waitFor();
   await page.getByRole("button",{name:"Atrás",exact:true}).click();
   assert.equal(await page.locator('[data-client="address"]').inputValue(),"Dirección corregida para el documento");
+  // A stale editor remains pinned to its old company, not silently reassigned.
+  enrolledCompany = nextCompany;
+  await page.getByRole("button",{name:"Volver al inicio",exact:true}).click();
+  await page.getByRole("button",{name:"Buscar cliente",exact:true}).click();
+  await page.locator("#directory-search").fill("Alfa");
+  await page.getByText("La empresa abierta ya no está habilitada.",{exact:true}).waitFor();
+  await page.reload();
+  await page.getByRole("button",{name:"Crear factura",exact:true}).waitFor();
+  assert.equal(await page.locator(".company").innerText(),"Empresa SL sintética");
+  assert.equal(await page.getByRole("button",{name:/Continuar documento sin terminar/}).count(),0);
+  await page.screenshot({path:path.join(output,"empresa-activa-sl.png"),fullPage:true});
+  // Switching back restores, rather than erases or moves, the prior form.
+  enrolledCompany = actor;
+  await page.reload();
+  await page.getByRole("button",{name:/Continuar documento sin terminar/}).click();
+  assert.equal(await page.locator('[data-client="name"]').inputValue(),"Cliente Beta");
+  assert.equal(await page.locator('[data-client="address"]').inputValue(),"Dirección corregida para el documento");
   assert.equal(await page.evaluate(() => localStorage.getItem("main-company-sentinel")), "excluded-company-synthetic");
   assert(!requests.some(request => request.method === "POST" || request.path.startsWith("/_next/") || request.path.endsWith("/issue")));
   assert.deepEqual(errors, []);
-  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],layouts, consoleErrors: errors };
+  const result = { ok: true, syntheticOnly: true, bootstrapAttempts: attempts, configRequests: configs, repeatedOAuth: false, customerDirectoryQueries:directoryQueries,customerFlows:["selected-customer-invoice","selected-customer-quote"],staleCompanyRejected:true,companyDraftsIsolatedAndPreserved:true,layouts, consoleErrors: errors };
   await writeFile(path.join(output, "shell-result.json"), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
 } finally {
