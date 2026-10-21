@@ -1,5 +1,8 @@
 import { escapeHtml } from "./html";
 
+const QUICK_ORIGIN = "https://fast.facturacion-autonomos.app";
+interface RelatedWebApp { platform?: string; url?: string; id?: string }
+
 export interface QuickInstallPrompt extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -13,9 +16,22 @@ export function quickInstallUrl(origin: string): string {
     "factu-autonomo-git-main-persianas-almar-web-s-projects.vercel.app",
   ]);
   const target = mainHosts.has(new URL(origin).hostname)
-    ? "https://fast.facturacion-autonomos.app"
+    ? QUICK_ORIGIN
     : origin;
   return new URL("/rapido/index.html", target).href;
+}
+
+export function quickInstallationConfirmed(origin: string, standalone: boolean, apps: readonly RelatedWebApp[] = []): boolean {
+  // A standalone window on the old hostname can belong to the main Factu PWA.
+  if (origin !== QUICK_ORIGIN) return false;
+  if (standalone) return true;
+  return apps.some(app => {
+    if (!app || app.platform !== "webapp" || !app.url) return false;
+    try {
+      return new URL(app.url, origin).href === `${origin}/rapido/manifest.webmanifest`
+        && (!app.id || new URL(app.id, origin).href === `${origin}/rapido/`);
+    } catch { return false; }
+  });
 }
 
 export function quickInstaller(changed: () => void) {
@@ -93,7 +109,24 @@ export function mountQuickInstall(host: HTMLElement) {
   window.addEventListener("appinstalled", () => {
     if (!separateOrigin) installer.requested();
   });
-  // Standalone mode alone is not proof this particular PWA is installed:
-  // Android may have opened /rapido/ inside the main Factu app's window.
-  // Keep manual installation help available in that case too.
+  const displayMode = window.matchMedia("(display-mode: standalone)");
+  const installNavigator = navigator as Navigator & {
+    standalone?: boolean;
+    getInstalledRelatedApps?: () => Promise<RelatedWebApp[]>;
+  };
+  const standalone = () => displayMode.matches || installNavigator.standalone === true;
+  const detectInstallation = () => {
+    if (quickInstallationConfirmed(location.origin, standalone())) {
+      installer.requested();
+      return;
+    }
+    if (location.origin !== QUICK_ORIGIN || !installNavigator.getInstalledRelatedApps) return;
+    // No storage flag: uninstalling and revisiting must offer installation again.
+    // The optional browser query never delays authentication or touches a form.
+    void Promise.resolve().then(() => installNavigator.getInstalledRelatedApps!()).then(apps => {
+      if (quickInstallationConfirmed(location.origin, standalone(), apps)) installer.requested();
+    }).catch(() => { /* Unknown installation state keeps the install action available. */ });
+  };
+  displayMode.addEventListener?.("change", detectInstallation);
+  detectInstallation();
 }
