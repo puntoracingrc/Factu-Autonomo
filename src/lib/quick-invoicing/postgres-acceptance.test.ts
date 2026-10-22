@@ -328,7 +328,9 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
       const issued = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
       const body = await issued.json();
       expect({status:issued.status,body}).toMatchObject({status:200,body:{ok:true,receipt:{operationId:intent.operationId}}});
-      expect(body.receipt.document.paymentStatus).toBe("pending");
+      expect(body.receipt.document.status).toBe("enviado");
+      expect(body.receipt.document.paymentStatus).not.toBe("paid");
+      expect(isCollectedDocument(body.receipt.document)).toBe(false);
       const replay = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
       expect((await replay.json()).receipt.document.number).toBe(body.receipt.document.number);
       const operation = await admin.from("quick_document_operations").select("actor_user_id,company_id,user_id").eq("operation_id",intent.operationId).single();
