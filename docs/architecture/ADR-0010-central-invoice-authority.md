@@ -1,8 +1,38 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 14
+- Version: 15
 - Fecha: 2026-10-22
+
+## Decisión de producto V15: cobro independiente y factura diferida
+
+El propietario autoriza emitir sin haber cobrado y cobrar antes de emitir.
+«Cobrar más tarde» deja la factura pendiente; fallar Stripe, no preparar el
+enlace o que el cliente no pague nunca bloquea una emisión confirmada.
+
+«Cobrar» en el inicio admite importe total, concepto y cliente opcional. Su
+solicitud privada e idempotente se guarda en servidor y tiene historial paginado.
+No es una factura, no reserva numeración fiscal y no crea documentos al cobrar.
+La prueba de pago y la protección de sesiones de V14 se mantienen.
+
+El usuario puede hacer después la factura en Factu principal y vincularla desde
+Fast por su identidad técnica, número visible, versión e importe exacto. No se
+infiere una relación por importe o cliente: el usuario elige la factura. Solo una
+factura ordinaria propia, íntegra y pendiente es elegible. Un pago ya confirmado
+se aplica al vincular; una factura vinculada antes del pago sigue pendiente hasta
+confirmación real. Ambos órdenes usan el mismo RPC de cobro central, su outbox y
+la proyección normal de Factu: `isCollectedDocument` es el predicado del check verde.
+Pruebas, referencias sin cobrar y pagos de otra empresa nunca lo activan.
+
+Como alternativa opcional, Fast puede preparar la factura. Un ID de comando
+estable permite recuperarla sin emitir otra. Fallar su vinculación conserva
+tanto el cobro como la factura emitida y avisa de la revisión pendiente. Una
+solicitud solo se asocia a una factura y una factura no adquiere dos checkouts
+activos por mezclar los dos recorridos. No incluye cobros parciales.
+
+Regresiones V15: aceptación PostgreSQL con cobro antes/después de factura,
+emisión por el RPC de Factu principal, proyección de eventos hasta el predicado
+del check verde, replay, aislamiento, importes, modo test y recuperación UI.
 
 ## Decisión de producto V14: cobro propio por enlace o QR en Fast
 

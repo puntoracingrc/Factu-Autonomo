@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const migrationsDir = new URL("../../supabase/migrations/", import.meta.url);
 const quickStripeMigrationSource = readFileSync(new URL("../../supabase/migrations/20261022062133_quick_stripe_collections.sql",import.meta.url),"utf8");
+const quickStandaloneMigrationSource = readFileSync(new URL("../../supabase/migrations/20261022124844_quick_stripe_standalone_collections.sql",import.meta.url),"utf8");
 const migrationSource = readFileSync(
   new URL(
     "../../supabase/migrations/20260709113000_rls_table_audit_hardening.sql",
@@ -325,6 +326,7 @@ const classifiedTables = new Set([
   ...expenseOriginalServiceTables,
   ...quickPilotServiceTables,
   "quick_stripe_payments",
+  "quick_payment_requests",
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
@@ -352,6 +354,12 @@ function publicTablesFromMigrations() {
 }
 
 describe("Supabase table-by-table RLS audit hardening", () => {
+  it("keeps payment requests private and invoice linking behind invoker RPCs", () => {
+    expect(quickStandaloneMigrationSource).toContain("alter table public.quick_payment_requests enable row level security");
+    expect(quickStandaloneMigrationSource).toContain("revoke all on public.quick_payment_requests from public, anon, authenticated");
+    expect(quickStandaloneMigrationSource).toContain("security invoker set search_path");
+    expect(quickStandaloneMigrationSource).not.toContain("security definer");
+  });
   it("keeps Stripe collection evidence service-only with RLS and invoker RPCs", () => {
     expect(quickStripeMigrationSource).toContain("alter table public.quick_stripe_payments enable row level security");
     expect(quickStripeMigrationSource).toContain("revoke all on public.quick_stripe_payments from public, anon, authenticated");

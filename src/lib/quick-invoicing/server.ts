@@ -20,7 +20,6 @@ import { buildQuickDocumentPayload } from "./payload";
 import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { quickCompanyScopeProblem } from "./request-scope";
 import { type QuickIntent, type QuickReceipt } from "./model";
-import { quickStripeConfig } from "./payments-config";
 
 if (typeof window !== "undefined") throw new Error("Factu Rápido: módulo exclusivo del servidor.");
 
@@ -106,9 +105,6 @@ export async function issueQuickDocument(context: QuickContext, intent: QuickInt
   const replay = await readQuickDocument(context, intent.operationId, hash);
   if (replay) return replay;
   const { scope, admin } = context;
-  if (intent.paymentMethod === "stripe" && quickStripeConfig()?.companyId !== scope.company_id) {
-    throw new QuickError(403, "CARD_PAYMENTS_UNAVAILABLE", "El cobro por enlace no está habilitado para esta empresa. Elige otra forma de pago.");
-  }
   const profile = scope.profile;
   if (profile.verifactu?.enabled) throw new QuickError(409, "QUICK_NOT_SUPPORTED", "Esta prueba no admite el registro VeriFactu activo. Utiliza el programa completo.");
   if (intent.paymentMethod === "transferencia" && !profile.iban?.trim()) throw new QuickError(400, "IBAN_MISSING", "Añade el IBAN de la empresa en el programa antes de usar transferencia.");

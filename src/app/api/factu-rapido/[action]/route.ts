@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { readTextBody } from "@/lib/server/request-body";
 import { parseQuickIntent } from "@/lib/quick-invoicing/model";
 import { quickStripeConfig } from "@/lib/quick-invoicing/payments-config";
+import { finishQuickCollectionInvoice } from "@/lib/quick-invoicing/collections-server";
 import { authenticateQuick, cancelQuickOperation, issueQuickDocument, QuickError, readQuickDocument, runQuickCustomerJobs, searchQuickCatalog } from "@/lib/quick-invoicing/server";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,6 @@ export async function POST(request: Request, route: RouteContext) {
     if (action === "cancel") return json({ ok:true, ...await cancelQuickOperation(context,intent) });
     const receipt = await issueQuickDocument(context, intent);
     after(async () => { await runQuickCustomerJobs(context).catch(() => undefined); });
-    return json({ ok: true, receipt });
+    return json({ ok: true, receipt: await finishQuickCollectionInvoice(context, receipt) });
   } catch (error) { return failed(error); }
 }

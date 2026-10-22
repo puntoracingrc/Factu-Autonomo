@@ -9,19 +9,23 @@ import { quickCompanyRequestHeaders } from "@/lib/quick-invoicing/request-scope"
 import { mountQuickInstall } from "./install";
 import { mountQuickAiFill } from "./ai-fill";
 import { quickCardPaymentPanel } from "./payments";
+import { createQuickCollections } from "./collections";
+import type { QuickCollection } from "@/lib/quick-invoicing/collections-model";
 import { stripeCheckoutUrl, type QuickCardPayment } from "@/lib/quick-invoicing/payments-model";
 import { applyQuickAiSuggestion, quickAiReplacesData } from "@/lib/quick-invoicing/ai-fill";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 const money = (amount: number) => new Intl.NumberFormat("es-ES",{ style:"currency",currency:"EUR" }).format(amount);
-const labels = { efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia", bizum: "Bizum", stripe: "Enlace o QR" };
+const labels = { pendiente: "Cobrar más tarde", efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia", bizum: "Bizum", stripe: "Enlace o QR" };
 let auth: SupabaseClient;
 let bootstrap: QuickBootstrap;
 let localKey = "";
 let deviceToken = "";
 let state: QuickLocalState = {};
-let view: "home" | "form" | "result" | "customers" = "home";
+let view: "home" | "form" | "result" | "customers" | "collections" = "home";
+let collections: ReturnType<typeof createQuickCollections> | undefined;
+let collectionGeneration = 0;
 let busy = false;
 let notice = "";
 let saveChain = Promise.resolve();
@@ -73,8 +77,9 @@ async function api<T>(action: string, body?: unknown, signal?: AbortSignal): Pro
 }
 function persist() {
   const captured = structuredClone(state);
+  const capturedKey = localKey;
   // Serial writes preserve the newest keystroke, including while backgrounded.
-  const next = saveChain.catch(() => undefined).then(() => saveLocal(localKey,captured));
+  const next = saveChain.catch(() => undefined).then(() => saveLocal(capturedKey,captured));
   saveChain = next;
   return next;
 }
@@ -97,6 +102,7 @@ function renderHome() {
   return `<h1 class="sr-only">Crear documento</h1>
     <div class="home-actions"><button data-action="new-invoice" class="hero-button invoice"><span class="button-symbol" aria-hidden="true">↗</span><span>Crear factura</span><b aria-hidden="true">→</b></button>
     <button data-action="new-quote" class="hero-button quote"><span class="button-symbol" aria-hidden="true">≡</span><span>Crear presupuesto</span><b aria-hidden="true">→</b></button>
+    ${bootstrap.cardPaymentsEnabled ? '<button data-action="collections" class="hero-button invoice"><span class="button-symbol" aria-hidden="true">€</span><span>Cobrar</span><b aria-hidden="true">→</b></button>' : ""}
     <button data-action="customers" class="hero-button quote"><span class="button-symbol" aria-hidden="true">⌕</span><span>Buscar cliente</span><b aria-hidden="true">→</b></button></div>
     ${state.intent ? `<button class="resume" data-action="resume">${state.pending ? "Comprobar emisión pendiente" : "Continuar documento sin terminar"}<span>→</span></button>` : ""}
     ${state.receipt ? `<button class="resume" data-action="last">Abrir ${escape(state.receipt.document.number)}<span>↗</span></button>` : ""}`;
@@ -157,8 +163,10 @@ function conceptsStep() {
 }
 function paymentStep() {
   const intent = state.intent!;
-  return `<section class="panel"><label>Fecha del documento<input id="date" type="date" value="${escape(intent.date)}" min="2000-01-01" max="2099-12-31"></label><fieldset class="payment-methods"><legend>Forma de pago</legend><div class="method-grid">${QUICK_METHODS.filter(method => method !== "stripe" || (bootstrap.cardPaymentsEnabled && intent.kind === "factura")).map(method => `<label class="method"><input type="radio" name="payment" value="${method}" ${method === intent.paymentMethod ? "checked" : ""}><span>${labels[method]}</span></label>`).join("")}</div></fieldset>
-    ${intent.paymentMethod === "stripe" ? `<p class="hint">Al emitir prepararemos el enlace y el QR. El cobro se confirmará automáticamente con Stripe.${bootstrap.cardPaymentsTestMode ? " Modo de prueba: no se cobra dinero real." : ""}</p>` : intent.kind === "factura" ? `<label class="paid-check"><input id="paid" type="checkbox" ${intent.paid ? "checked" : ""}><span>Pagado<small>Márcalo solo si ya has recibido el dinero.</small></span></label>` : ""}
+  const fromCollection = state.collectionInvoice?.operationId === intent.operationId;
+  return `<section class="panel"><label>Fecha del documento<input id="date" type="date" value="${escape(intent.date)}" min="2000-01-01" max="2099-12-31"></label>
+    ${fromCollection ? `<p class="hint">Cobro asociado: ${money(state.collectionInvoice!.amount / 100)}. Revisa que el total coincida. La factura se emitirá aunque el cliente todavía no haya pagado.</p>` : `<fieldset class="payment-methods"><legend>Forma de pago</legend><div class="method-grid">${QUICK_METHODS.filter(method => method !== "stripe" || (bootstrap.cardPaymentsEnabled && intent.kind === "factura")).map(method => `<label class="method"><input type="radio" name="payment" value="${method}" ${method === intent.paymentMethod ? "checked" : ""}><span>${labels[method]}</span></label>`).join("")}</div></fieldset>`}
+    ${intent.paymentMethod === "stripe" ? `<p class="hint">Al emitir prepararemos el enlace y el QR. Puedes enviarlos ahora y cobrar más tarde. La factura queda emitida aunque el cliente no pague.${bootstrap.cardPaymentsTestMode ? " Modo de prueba: no se cobra dinero real." : ""}</p>` : intent.paymentMethod === "pendiente" ? '<p class="hint">La factura se emitirá pendiente de pago. Puedes enviarla ahora y cobrarla después.</p>' : intent.kind === "factura" ? `<label class="paid-check"><input id="paid" type="checkbox" ${intent.paid ? "checked" : ""}><span>Pagado<small>Márcalo solo si ya has recibido el dinero.</small></span></label>` : ""}
     <div class="payment-preview"><span>ASÍ APARECERÁ EN EL DOCUMENTO</span><p id="payment-preview-text">${escape(quickPaymentTerms(intent.paymentMethod,intent.paid,bootstrap.iban))}</p></div>
     <div class="review-client"><span>CLIENTE</span><strong>${escape(intent.client.name)}</strong><small>${intent.items.length} concepto${intent.items.length === 1 ? "" : "s"}</small></div></section>`;
 }
@@ -184,7 +192,8 @@ function renderResult() {
 }
 function render() {
   unmountAi?.(); unmountAi = undefined;
-  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : view === "customers" ? customersScreen() : renderResult()}</main>`;
+  root.innerHTML = `${header()}<main class="main">${status()}${view === "home" ? renderHome() : view === "form" ? renderForm() : view === "customers" ? customersScreen() : view === "collections" ? collections?.html() ?? "" : renderResult()}</main>`;
+  if (view === "collections") collections?.mount(root);
   if (view === "form") updateTotals();
   const host = root.querySelector<HTMLElement>("#quick-ai-fill");
   if (host && state.intent) unmountAi = mountQuickAiFill(host, {
@@ -219,9 +228,30 @@ function emptyLine(): LineItem {
 function start(kind: QuickIntent["kind"], customer?: QuickCustomer) {
   if (state.pending) { view = "form"; state.step = 3; notice = "Comprueba primero el documento pendiente; no se creará otro con un número distinto."; render(); return; }
   if (state.intent && !confirm("Hay un documento sin terminar. ¿Quieres descartarlo y empezar otro?")) return;
-  state.intent = { operationId:crypto.randomUUID(),kind,date:new Date().toLocaleDateString("sv-SE"),client:{name:""},items:[emptyLine()],notes:"",paymentMethod:"efectivo",paid:false };
+  delete state.collectionInvoice;
+  state.intent = { operationId:crypto.randomUUID(),kind,date:new Date().toLocaleDateString("sv-SE"),client:{name:""},items:[emptyLine()],notes:"",paymentMethod:"pendiente",paid:false };
   if (customer) { state.intent.client = structuredClone(customer.client); state.intent.customerId = customer.id; }
   state.step = 1; view = "form"; notice = ""; saveDraft(); render(); window.scrollTo(0,0);
+}
+async function invoiceFromCollection(collection: QuickCollection, receipt: QuickReceipt | null) {
+  if (state.pending && state.pending.operationId !== collection.invoiceOperationId) {
+    view = "form"; notice = "Comprueba primero la emisión pendiente. El cobro sigue guardado en Cobrar."; render(); return;
+  }
+  if (receipt) {
+    if (state.intent && state.intent.operationId !== receipt.operationId && !confirm("Hay un documento sin terminar. ¿Quieres abrir esta factura?")) return;
+    await acceptReceipt(receipt);
+    await requestCardPayment(false, true); return;
+  }
+  if (state.intent?.operationId === collection.invoiceOperationId) { view = "form"; render(); return; }
+  const previous = state.intent;
+  start("factura");
+  if (!state.intent || state.intent === previous || view !== "form") return;
+  state.intent.operationId = collection.invoiceOperationId!;
+  state.intent.client.name = collection.customerName;
+  const rate = bootstrap.vatExempt ? 0 : bootstrap.defaultVat;
+  state.intent.items = [{ ...emptyLine(), description: collection.description, unitPrice: Number((collection.amount / 100 / (1 + rate / 100)).toFixed(6)), ivaPercent: rate }];
+  state.collectionInvoice = { operationId: collection.invoiceOperationId!, amount: collection.amount };
+  await persist(); render();
 }
 function validateStep() {
   const intent = state.intent!;
@@ -249,7 +279,9 @@ async function preparePdf() {
 async function acceptReceipt(receipt: QuickReceipt) {
   if (state.receipt?.operationId !== receipt.operationId) { cardSerial++; cardPayment = undefined; cardQr = undefined; cardBusy = false; }
   state.receipt = receipt; delete state.intent; delete state.pending; delete state.step;
+  delete state.collectionInvoice;
   view = "result"; notice = "";
+  if (receipt.collectionLinkPending) notice = "La factura está emitida. Revisa la vinculación con su cobro desde Cobrar; no hace falta emitir otra.";
   try { await persist(); } catch { notice = "Documento confirmado en el servidor. No se pudo guardar su acceso reciente en este móvil; conserva el PDF."; }
   if (pdf) URL.revokeObjectURL(pdf.url);
   pdf = undefined; render(); await preparePdf();
@@ -339,7 +371,7 @@ root.addEventListener("input",event => {
   else if (input.id === "date") state.intent.date = input.value;
   else if (input.name === "payment") {
     state.intent.paymentMethod = input.value as QuickIntent["paymentMethod"];
-    if (state.intent.paymentMethod === "stripe") state.intent.paid = false;
+    if (state.intent.paymentMethod === "stripe" || state.intent.paymentMethod === "pendiente") state.intent.paid = false;
     saveDraft(); render(); return;
   }
   else if (input.id === "paid") state.intent.paid = (input as HTMLInputElement).checked;
@@ -357,6 +389,8 @@ root.addEventListener("click",event => {
       if (action === "login") { await login(); return; }
       if (action === "retry-access") { await startAccess(); return; }
       if (!bootstrap || busy) return;
+      if (view === "collections" && button.closest("#quick-collections")) return;
+      if (action === "collections" && collections) { view = "collections"; notice = ""; render(); await collections.open(); return; }
       if (action === "payment-create" || action === "payment-check") { await requestCardPayment(action === "payment-create"); return; }
       if (action === "payment-copy" || action === "payment-share") {
         const url = stripeCheckoutUrl(cardPayment?.url);
@@ -442,6 +476,8 @@ async function login() {
   if (error) throw error;
 }
 function loginScreen(message = "Inicia sesión para continuar.") {
+  collectionGeneration++;
+  collections = undefined;
   cardSerial++; cardPayment = undefined; cardQr = undefined; cardBusy = false;
   sessionActive = false; unmountAi?.(); unmountAi = undefined;
   root.innerHTML = quickAccessScreen(message,"login");
@@ -487,6 +523,10 @@ async function initialize() {
   sessionActive = true;
   localKey = `${bootstrap.actorId}:${bootstrap.companyId}`;
   state = await readLocal(localKey) ?? {};
+  const collectionScope = localKey, generation = ++collectionGeneration;
+  collections = createQuickCollections({ api, local: () => state, persist,
+    active: () => sessionActive && localKey === collectionScope && generation === collectionGeneration && view === "collections",
+    render, invoice: invoiceFromCollection, home: () => { view = "home"; notice = ""; render(); window.scrollTo(0, 0); } });
   if (state.pending) { view = "form"; state.intent = state.pending; state.step = 3; notice = "Hay una emisión pendiente de confirmar. Recuperaremos la misma operación."; }
   if (navigator.locks) {
     // A second quick window must not overwrite the first window's pending

@@ -1,10 +1,24 @@
-# Cobro propio de facturas en Fast
+# Cobros propios en Fast y estado compartido con Factu
 
 Elige «Enlace o QR» al emitir una factura, o «Preparar enlace y QR» en la
 confirmación de una factura pendiente. El cliente abre Stripe Checkout sin
 necesitar cuenta. La pantalla permite compartir/copiar el enlace y comprobar
 el cobro. Un enlace dura 23 horas; tras caducidad confirmada puede renovarse.
-La factura siempre existe antes del cobro y no se altera su emisión fiscal.
+«Cobrar más tarde» emite la factura pendiente, sin preparar ni esperar pagos.
+Elegir enlace/QR tampoco bloquea una factura ya confirmada si Stripe falla.
+
+Desde Inicio → «Cobrar» se indica importe total, concepto y cliente opcional.
+El cobro queda guardado en el servidor y puede recuperarse, compartirse o pagarse
+más tarde. No requiere emitir ninguna factura en Fast ni crea una factura fiscal.
+Después de hacer la factura en **Factu principal**, se abre el cobro guardado,
+se busca su número y se pulsa Vincular. El servidor comprueba identidad, empresa,
+versión, integridad e importe exacto. No enlaza automáticamente por parecido.
+Si el pago real está confirmado, Factu recibe el evento central y muestra su check
+verde; si no se ha cobrado, permanece pendiente. El modo test nunca activa ese check.
+
+También se puede preparar la factura en Fast de forma opcional. Su comando es
+estable: un timeout o una vinculación fallida no obliga a volver a emitirla.
+Un importe distinto requiere revisión; esta entrega no reparte cobros parciales.
 
 ## Configuración privada de servidor
 
@@ -27,7 +41,7 @@ hace Connect ni cobra facturas de otros comerciantes con la cuenta de Factu.
 
 ## Webhook y despliegue
 
-1. Validar Quality y Supabase Acceptance del commit exacto y la migración nueva.
+1. Validar Quality y Supabase Acceptance del commit exacto y las dos migraciones nuevas de cobros.
    No aplicar `db push` al historial antiguo sin reconciliar.
 2. Registrar `/api/webhooks/stripe-collections` para los eventos
    `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
@@ -41,7 +55,7 @@ hace Connect ni cobra facturas de otros comerciantes con la cuenta de Factu.
 4. Activar live únicamente con la cuenta y la empresa verificadas. Cambiar el
    nombre comercial público no cambia el titular fiscal de Stripe.
 
-La tabla `quick_stripe_payments` y sus RPC son privadas, con RLS y sin grants
+Las tablas `quick_stripe_payments`, `quick_payment_requests` y sus RPC son privadas, con RLS y sin grants
 al navegador. La confirmación real y el evento central de cobro son atómicos.
 Al desactivar `QUICK_STRIPE_ENABLED` se oculta la creación, pero la ruta firmada
 sigue procesando pagos ya iniciados mientras se conserve su configuración.

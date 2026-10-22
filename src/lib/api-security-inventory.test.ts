@@ -104,6 +104,7 @@ const expectedMethods: Record<string, string[]> = {
   "factu-rapido/[action]/route.ts": ["GET", "POST"],
   "factu-rapido/autofill/route.ts": ["POST"],
   "factu-rapido/payment/route.ts": ["GET", "POST"],
+  "factu-rapido/collection/route.ts": ["GET", "POST"],
   "google-auth/token/route.ts": ["POST"],
   "fiscal-notifications/audit/route.ts": ["POST"],
   "google-drive/token/route.ts": ["POST"],
@@ -251,7 +252,7 @@ const scheduledRoutes = [
 
 // Only GET config is public (the same public Supabase URL/anon key embedded
 // by the main app). Every catalog/document action has a private pilot guard.
-const quickPilotRoutes = ["factu-rapido/[action]/route.ts", "factu-rapido/autofill/route.ts", "factu-rapido/payment/route.ts"] as const;
+const quickPilotRoutes = ["factu-rapido/[action]/route.ts", "factu-rapido/autofill/route.ts", "factu-rapido/payment/route.ts", "factu-rapido/collection/route.ts"] as const;
 
 const distributedRateLimitedRoutes = [
   ...adminRoutes,
@@ -262,6 +263,7 @@ const distributedRateLimitedRoutes = [
 ];
 
 const boundedBodyRoutes = [
+  "factu-rapido/collection/route.ts",
   "factu-rapido/payment/route.ts",
   "webhooks/stripe-collections/route.ts",
   "factu-rapido/[action]/route.ts",
