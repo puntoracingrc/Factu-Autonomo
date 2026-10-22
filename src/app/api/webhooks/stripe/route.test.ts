@@ -156,6 +156,22 @@ function quotaPackEvent(
 }
 
 describe("POST /api/webhooks/stripe", () => {
+  it.each(["checkout.session.completed", "checkout.session.async_payment_succeeded"])("keeps signed Fast collections out of subscription billing: %s", async (type) => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    vi.mocked(getStripe).mockReturnValue(fakeStripe({
+      id: "evt_quick_synthetic",
+      type,
+      data: { object: { id: "cs_test_synthetic", mode: "payment", metadata: { flow: "factu_quick_collection_v1" } } },
+    }) as never);
+    const response = await POST(stripeRequest());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ received: true, handler: "invoice_collections" });
+    expect(reserveStripeEvent).not.toHaveBeenCalled();
+    expect(grantPaidReferralReward).not.toHaveBeenCalled();
+    expect(completeStripeScanPackEvent).not.toHaveBeenCalled();
+    expect(completeStripeQuotaPackEvent).not.toHaveBeenCalled();
+    expect(sendPaymentReceiptEmail).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.mocked(markStripeEventProcessed).mockResolvedValue(undefined);
     vi.mocked(markStripeEventFailed).mockResolvedValue("failed");

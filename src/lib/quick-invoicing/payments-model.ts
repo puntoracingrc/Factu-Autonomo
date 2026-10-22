@@ -1,6 +1,8 @@
 import type { QuickReceipt } from "./model";
 import { quickTotals } from "./model";
 
+export const QUICK_COLLECTION_FLOW = "factu_quick_collection_v1";
+
 export interface QuickCardPayment {
   status: "open" | "creating" | "paid" | "expired" | "review";
   amount: number;

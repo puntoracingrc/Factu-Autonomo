@@ -1,11 +1,11 @@
 import Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { quickStripeConfig, type QuickStripeConfig } from "./payments-config";
-import { quickCardAmount, stripeCheckoutUrl, type QuickCardPayment } from "./payments-model";
+import { QUICK_COLLECTION_FLOW, quickCardAmount, stripeCheckoutUrl, type QuickCardPayment } from "./payments-model";
 import { QuickError, readQuickDocument, type QuickContext } from "./server";
 
 if (typeof window !== "undefined") throw new Error("Cobros: módulo exclusivo de servidor.");
-export const QUICK_COLLECTION_FLOW = "factu_quick_collection_v1";
+export { QUICK_COLLECTION_FLOW } from "./payments-model";
 export interface StoredQuickPayment {
   id: string; operation_id: string; company_id: string; user_id: string; invoice_id: string;
   invoice_hash: string; invoice_number: string; amount: number; currency: string;

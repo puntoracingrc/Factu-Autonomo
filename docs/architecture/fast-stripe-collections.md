@@ -33,6 +33,9 @@ hace Connect ni cobra facturas de otros comerciantes con la cuenta de Factu.
    `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
    `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`.
    Debe recibir el cuerpo original y su firma. No reutilizar el webhook Billing.
+   Si Billing recibe también una sesión de Fast, la reconoce después de validar
+   la firma y la excluye de suscripciones, créditos y recompensas; la confirma
+   exclusivamente el endpoint de cobros o una consulta autenticada a Stripe.
 3. Probar en modo test todo el recorrido de checkout, retorno y webhook; consultar
    el ledger y verificar que la factura continúa pendiente de cobro real.
 4. Activar live únicamente con la cuenta y la empresa verificadas. Cambiar el

@@ -35,6 +35,7 @@ import { getStripe, planFromStripePriceId } from "@/lib/billing/stripe";
 import { APP_BRAND_NAME } from "@/lib/brand";
 import { readTextBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { QUICK_COLLECTION_FLOW } from "@/lib/quick-invoicing/payments-model";
 
 export const runtime = "nodejs";
 
@@ -501,6 +502,13 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch {
     return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
+  }
+
+  // The same merchant account can deliver these signed events to both
+  // endpoints. Invoice collections never enter subscription/credit ledgers.
+  if (event.type.startsWith("checkout.session.") &&
+    (event.data.object as Stripe.Checkout.Session).metadata?.flow === QUICK_COLLECTION_FLOW) {
+    return NextResponse.json({ received: true, handler: "invoice_collections" });
   }
 
   let reservation;
