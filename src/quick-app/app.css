@@ -71,3 +71,11 @@ label,.company,.suggestions strong{font-size:16px}
 .ai-privacy{font-size:13px;line-height:1.4;color:#111}
 .ai-message{font-size:14px;line-height:1.5;white-space:pre-line;overflow-wrap:anywhere}
 .ai-message:empty{display:none}.ai-submit,.ai-apply{width:100%}
+
+.card-payment { margin: 20px 0; padding: 20px; border: 1px solid #c9d9d1; border-radius: 20px; background: #fff; }
+.card-payment h2 { margin: 0 0 12px; font-size: 1.2rem; }
+.card-payment > button { margin-top: 12px; width: 100%; }
+.payment-actions { display: grid; gap: 10px; margin-top: 14px; }
+.payment-qr { display: flex; justify-content: center; margin: 14px 0; }
+.payment-qr img { max-width: 100%; height: auto; background: white; }
+.payment-test { padding: 10px; background: #fff2cf; border-radius: 8px; font-weight: 700; }

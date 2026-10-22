@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { readTextBody } from "@/lib/server/request-body";
 import { parseQuickIntent } from "@/lib/quick-invoicing/model";
+import { quickStripeConfig } from "@/lib/quick-invoicing/payments-config";
 import { authenticateQuick, cancelQuickOperation, issueQuickDocument, QuickError, readQuickDocument, runQuickCustomerJobs, searchQuickCatalog } from "@/lib/quick-invoicing/server";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +21,10 @@ export async function GET(request: Request, route: RouteContext) {
     const url = new URL(request.url);
     if (action === "bootstrap") {
       const { scope } = context;
+      const cards = quickStripeConfig();
       return json({ ok: true, actorId: scope.actor_id, companyId: scope.company_id, companyName: scope.company_name,
-        defaultVat: scope.profile.iva.defaultRate, vatRates: scope.profile.iva.rates, vatExempt: scope.profile.vatExempt === true, iban: scope.profile.iban ?? "" });
+        defaultVat: scope.profile.iva.defaultRate, vatRates: scope.profile.iva.rates, vatExempt: scope.profile.vatExempt === true, iban: scope.profile.iban ?? "",
+        cardPaymentsEnabled: cards?.companyId === scope.company_id, cardPaymentsTestMode: cards ? !cards.livemode : false });
     }
     if (action === "search") return json({ ok: true, results: await searchQuickCatalog(context, url.searchParams.get("kind") ?? "", url.searchParams.get("q") ?? "") });
     if (action === "document") {

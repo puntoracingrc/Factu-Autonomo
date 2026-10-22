@@ -20,6 +20,7 @@ import { buildQuickDocumentPayload } from "./payload";
 import { FACTU_COMPANY_HEADER } from "@/lib/companies/types";
 import { quickCompanyScopeProblem } from "./request-scope";
 import { type QuickIntent, type QuickReceipt } from "./model";
+import { quickStripeConfig } from "./payments-config";
 
 if (typeof window !== "undefined") throw new Error("Factu Rápido: módulo exclusivo del servidor.");
 
@@ -46,7 +47,7 @@ function databaseError(error: { code?: string; message?: string }): never {
   if (error.code === "P4508") throw new QuickError(409, "OPERATION_CANCELLED", "Esta operación se canceló para volver a editar. Pulsa Volver a editar para recuperar los datos.");
   throw new QuickError(503, "CENTRAL_UNCONFIRMED", "No se pudo confirmar la operación. Conservamos tus datos: pulsa Comprobar y reintentar; no crees otra factura.");
 }
-export async function authenticateQuick(request: Request, options: { allowBootstrap?: boolean; purpose?: "autofill" } = {}): Promise<QuickContext> {
+export async function authenticateQuick(request: Request, options: { allowBootstrap?: boolean; purpose?: "autofill" | "payment" } = {}): Promise<QuickContext> {
   const identity = await getUserSessionFromBearer(request.headers.get("authorization"), { requireEmailConfirmed: true });
   if (!identity) throw new QuickError(401, "SIGN_IN_REQUIRED", "Inicia sesión con tu cuenta de Google.");
   const admin = getSupabaseAdmin();
@@ -63,7 +64,7 @@ export async function authenticateQuick(request: Request, options: { allowBootst
     sessionId: identity.sessionId, token: deviceToken, userAgent: request.headers.get("user-agent") ?? undefined, name: "Factu Rápido" });
   if (!access.allowed) throw new QuickError(403, access.reason, access.message);
   const issue = request.method === "POST";
-  const rate = await checkRateLimit(request, { namespace: options.purpose === "autofill" ? "quick_ai_autofill" : issue ? "quick_issue" : "quick_read", limit: issue ? 20 : 100, windowMs: issue ? 600_000 : 60_000 }, identity.user.id);
+  const rate = await checkRateLimit(request, { namespace: options.purpose === "autofill" ? "quick_ai_autofill" : options.purpose === "payment" ? "quick_payment" : issue ? "quick_issue" : "quick_read", limit: issue ? 20 : 100, windowMs: issue ? 600_000 : 60_000 }, identity.user.id);
   if (!rate.allowed) throw new QuickError(429, "RATE_LIMITED", "Espera un momento antes de volver a intentarlo.");
   return { admin, scope: { ...scope, profile: quickRenderProfile(scope.profile) }, sessionId: identity.sessionId, deviceId: hashCloudDeviceToken(deviceToken), email: identity.user.email };
 }
@@ -105,6 +106,9 @@ export async function issueQuickDocument(context: QuickContext, intent: QuickInt
   const replay = await readQuickDocument(context, intent.operationId, hash);
   if (replay) return replay;
   const { scope, admin } = context;
+  if (intent.paymentMethod === "stripe" && quickStripeConfig()?.companyId !== scope.company_id) {
+    throw new QuickError(403, "CARD_PAYMENTS_UNAVAILABLE", "El cobro por enlace no está habilitado para esta empresa. Elige otra forma de pago.");
+  }
   const profile = scope.profile;
   if (profile.verifactu?.enabled) throw new QuickError(409, "QUICK_NOT_SUPPORTED", "Esta prueba no admite el registro VeriFactu activo. Utiliza el programa completo.");
   if (intent.paymentMethod === "transferencia" && !profile.iban?.trim()) throw new QuickError(400, "IBAN_MISSING", "Añade el IBAN de la empresa en el programa antes de usar transferencia.");

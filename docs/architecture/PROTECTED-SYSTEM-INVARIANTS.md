@@ -245,6 +245,10 @@ Contrato: [ADR-0010](ADR-0010-central-invoice-authority.md).
   pero conserva su autoridad, controles y commit atómico; nunca confirma solo
   una reserva de número ni permite seleccionar otra empresa desde el teléfono.
 
+- ADR-0010 V14 añade cobro propio por enlace/QR: solo Stripe autenticado puede
+  acreditar dinero real; pruebas aisladas, ledger privado e idempotencia durable
+  conservan contenido fiscal y autoridad central.
+
 Regresiones mínimas: `central-invoice-authority/activation.test.ts`,
 `protected-system-invariants-contract.test.ts` y
 `validate:central-invoice-authority-phase1`.
