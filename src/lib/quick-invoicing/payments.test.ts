@@ -40,6 +40,23 @@ function session(row: StoredQuickPayment): Stripe.Checkout.Session {
 beforeEach(() => { vi.clearAllMocks(); vi.unstubAllEnvs(); for (const [key,value] of Object.entries(env)) vi.stubEnv(key,value); f.read.mockResolvedValue(structuredClone(receipt)); f.account.mockResolvedValue({id:config.accountId,charges_enabled:true}); });
 
 describe("Quick card payment scope, amounts and provider confirmations", () => {
+  it("confirms an independent collection using its bound collection ID without inventing an invoice", async () => {
+    const row = payment({ operation_id: null, collection_id: company, invoice_id: null, invoice_hash: null, invoice_number: null });
+    const provider = session(row);
+    provider.metadata = { flow: QUICK_COLLECTION_FLOW, payment_id: row.id, collection_id: company };
+    const admin = db(row, { ...row, status: "paid" });
+    expect((await reconcileQuickStripeSession(admin as unknown as SupabaseClient, {} as Stripe, config, provider, "evt_independent")).status).toBe("paid");
+    expect(admin.rpc).toHaveBeenCalledWith("confirm_quick_stripe_payment_v1", expect.objectContaining({ p_payment_id: row.id, p_amount: 9680 }));
+    expect(admin.rpc.mock.calls).toHaveLength(1);
+  });
+  it("rejects an independent provider session that names a different collection", async () => {
+    const row = payment({ operation_id: null, collection_id: company, invoice_id: null, invoice_hash: null, invoice_number: null });
+    const provider = session(row);
+    provider.metadata = { flow: QUICK_COLLECTION_FLOW, payment_id: row.id, collection_id: "forged" };
+    const admin = db(row);
+    await expect(reconcileQuickStripeSession(admin as unknown as SupabaseClient, {} as Stripe, config, provider, "evt_independent")).rejects.toThrow();
+    expect(admin.rpc).not.toHaveBeenCalled();
+  });
   it("does not enable a merchant implicitly or expose test/live credentials across environments", () => {
     expect(quickStripeConfig({})).toBeNull();
     expect(quickStripeConfig({...env,QUICK_STRIPE_MODE:"live"})).toBeNull();

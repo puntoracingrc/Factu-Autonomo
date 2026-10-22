@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildCentralInvoiceAuthorityDocumentFormIssueRequest } from "@/lib/central-invoice-authority/document-form-canary";
 import { buildCentralInvoiceAuthorityIssueCommand } from "@/lib/central-invoice-authority/issue-command";
 import { buildCentralInvoiceAuthorityIssueRpcArgs } from "@/lib/central-invoice-authority/issue-rpc-adapter";
@@ -20,6 +20,8 @@ import { quickClientSnapshot } from "./client-snapshot";
 import { getCentralInvoiceAuthorityEventThroughRpc, type CentralInvoiceAuthorityEventsRpcClient } from "@/lib/central-invoice-authority/events-rpc-adapter";
 import { applyCentralInvoiceAuthorityPulledEventsToDocuments } from "@/lib/central-invoice-authority/events-local-apply";
 import { isCollectedDocument } from "@/lib/income";
+import { searchQuickCollectionInvoices } from "./collections-server";
+import type { QuickContext } from "./server";
 import { EMPTY_DATA, type Customer, type Document } from "@/lib/types";
 
 const acceptance = process.env.CENTRAL_GLOBAL_SYNTHETIC_LOCAL_ENABLED === "true" ? describe : describe.skip;
@@ -322,10 +324,11 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
       expect(scope.data).toMatchObject({actor_id:actor.id,company_id:users[0].id,user_id:users[0].id,billing_user_id:users[0].id});
       const boot = await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers});
       expect({status:boot.status,body:await boot.json()}).toMatchObject({status:200,body:{actorId:actor.id,companyId:users[0].id}});
-      const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID()});
+      const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID(),paymentMethod:"stripe",paid:false});
       const issued = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
       const body = await issued.json();
       expect({status:issued.status,body}).toMatchObject({status:200,body:{ok:true,receipt:{operationId:intent.operationId}}});
+      expect(body.receipt.document.paymentStatus).toBe("pending");
       const replay = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
       expect((await replay.json()).receipt.document.number).toBe(body.receipt.document.number);
       const operation = await admin.from("quick_document_operations").select("actor_user_id,company_id,user_id").eq("operation_id",intent.operationId).single();
@@ -506,6 +509,13 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     const issued = await admin.rpc("issue_central_invoice_v1", f.args.p_args);
     expect(issued.error).toBeNull();
     const invoiceId = issued.data[0].document_id;
+    try {
+      for (const [key, value] of Object.entries({ QUICK_STRIPE_ENABLED: "true", QUICK_STRIPE_COMPANY_ID: actor,
+        QUICK_STRIPE_ACCOUNT_ID: "acct_synthetic", QUICK_STRIPE_MODE: "test", QUICK_STRIPE_SECRET_KEY: "sk_test_synthetic", QUICK_STRIPE_WEBHOOK_SECRET: "whsec_synthetic" })) vi.stubEnv(key, value);
+      const context = { admin, scope: { actor_id: actor, company_id: actor, user_id: actor } } as QuickContext;
+      const candidates = await searchQuickCollectionInvoices(context, issued.data[0].full_number);
+      expect(candidates).toContainEqual(expect.objectContaining({ id: invoiceId, amount: 9680, version: 1 }));
+    } finally { vi.unstubAllEnvs(); }
     expect((await admin.from("quick_document_operations").select("operation_id").eq("operation_id", f.intent.operationId)).data).toEqual([]);
     await expectFactuGreenCheck(invoiceId, false);
     expect((await admin.rpc("create_quick_payment_request_v1", { p_actor_id: actor, p_id: id, p_amount: 9680, p_description: "Cobro independiente para Factu", p_customer_name: "" })).error).toBeNull();
