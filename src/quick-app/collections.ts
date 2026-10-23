@@ -4,6 +4,7 @@ import { stripeCheckoutUrl } from "@/lib/quick-invoicing/payments-model";
 import type { QuickReceipt } from "@/lib/quick-invoicing/model";
 import type { QuickLocalState } from "./storage";
 import { quickCardPaymentPanel } from "./payments";
+import { quickTerminalIntent } from "@/lib/quick-invoicing/terminal-model";
 import { escapeHtml as escape } from "./html";
 
 interface Options {
@@ -14,6 +15,7 @@ interface Options {
   persist(): Promise<void>;
   invoice(collection: QuickCollection, receipt: QuickReceipt | null): Promise<void>;
   home(): void;
+  nfcEnabled?: boolean;
 }
 const money = (amount: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(amount / 100);
 const status = (row: QuickCollection) => row.payment?.status === "paid" ? row.payment.testMode ? "Prueba confirmada" : "Cobrado"
@@ -22,6 +24,7 @@ const status = (row: QuickCollection) => row.payment?.status === "paid" ? row.pa
 export function createQuickCollections(options: Options) {
   let rows: QuickCollection[] = [], next: string | undefined, selected: QuickCollection | undefined;
   let mode: "list" | "new" | "detail" = "list", busy = false, message = "", qr: string | undefined, serial = 0;
+  let nfcIntent: string | undefined;
   let invoiceQuery = "", invoices: QuickCollectionInvoice[] = [], searched = false;
   let draft = options.local().collectionPending ?? options.local().collectionDraft ?? { id: crypto.randomUUID(), amount: 0, description: "", customerName: "" };
   const render = () => { if (options.active()) options.render(); };
@@ -36,7 +39,7 @@ export function createQuickCollections(options: Options) {
   }
   async function show(collection: QuickCollection, current: () => boolean) {
     if (!current()) return;
-    selected = collection; mode = "detail"; qr = undefined;
+    selected = collection; mode = "detail"; qr = undefined; nfcIntent = undefined;
     const url = stripeCheckoutUrl(collection.payment?.url);
     if (url && collection.payment?.status === "open") {
       const { default: code } = await import("qrcode");
@@ -65,10 +68,11 @@ export function createQuickCollections(options: Options) {
           <label>Importe total (IVA incluido)<input id="collection-amount" type="number" inputmode="decimal" min="0.50" max="999999.99" step="0.01" value="${draft.amount ? escape((draft.amount / 100).toFixed(2)) : ""}"></label>
           <label>Concepto<input id="collection-description" maxlength="500" value="${escape(draft.description)}" placeholder="Ej. Reparación de persiana"></label>
           <label>Cliente (opcional)<input id="collection-customer" maxlength="200" value="${escape(draft.customerName)}"></label>
-        </fieldset>${button("save", pending ? "Comprobar y recuperar cobro" : "Guardar y preparar enlace o QR", true)}` : selected ? `
+        </fieldset>${button("save", pending ? "Comprobar y recuperar cobro" : "Guardar y preparar enlace o QR", true)}
+        ${options.nfcEnabled && !pending ? button("save-nfc", "Guardar y cobrar por NFC") : ""}` : selected ? `
         <div class="collection-summary"><strong>${money(selected.amount)}</strong><h2>${escape(selected.description)}</h2><p>${escape(selected.customerName)}</p>
           <p>${selected.invoiceLinked ? `Factura ${escape(selected.invoiceNumber || "")} vinculada a este cobro.` : "Sin factura vinculada. Puedes hacerla después en Factu. Este cobro no es una factura."}</p></div>
-        ${quickCardPaymentPanel(selected.payment, busy, qr, !selected.invoiceLinked)}
+        ${quickCardPaymentPanel(selected.payment, busy, qr, !selected.invoiceLinked, options.nfcEnabled, nfcIntent)}
         ${selected.invoiceLinked && selected.invoiceUrl ? `<a class="secondary collection-invoice-link" href="${escape(selected.invoiceUrl)}" target="_blank" rel="noopener">Abrir factura en Factu ↗</a>`
           : selected.invoiceOperationId ? button("invoice", "Continuar o recuperar factura") : `
           <section class="collection-link"><h2>Vincular factura de Factu</h2><p class="hint">Cuando la tengas hecha en Factu, búscala aquí. Si este cobro ya está confirmado, la factura aparecerá cobrada en Factu; si todavía no, seguirá pendiente.</p>
@@ -106,7 +110,7 @@ export function createQuickCollections(options: Options) {
       }
       if (action === "refresh" || action === "list" || action === "more") { void load(action === "more"); return; }
       void run(async current => {
-        if (action === "save") {
+        if (action === "save" || action === "save-nfc") {
           const intent: QuickCollectionIntent = options.local().collectionPending ?? parseQuickCollection(draft);
           options.local().collectionPending = structuredClone(intent); await options.persist();
           if (!current()) return;
@@ -114,15 +118,25 @@ export function createQuickCollections(options: Options) {
           if (!current()) return;
           delete options.local().collectionPending; delete options.local().collectionDraft; await options.persist();
           await show(saved.collection, current); render();
+          if (action === "save-nfc") {
+            const result = await options.api<{grant?:string;payment:NonNullable<QuickCollection["payment"]>}>("terminal", {action:"prepare",collectionId:intent.id});
+            if (current()) { selected = {...saved.collection,payment:result.payment}; nfcIntent = result.grant ? quickTerminalIntent(result.grant) : undefined; }
+            return;
+          }
           const prepared = await options.api<{ collection: QuickCollection }>("collection", { action: "prepare", id: intent.id });
           await show(prepared.collection, current);
         } else if (action === "open") {
           invoices = []; invoiceQuery = ""; searched = false;
           const result = await options.api<{ collection: QuickCollection }>(`collection?id=${encodeURIComponent(target.dataset.id!)}`);
           await show(result.collection, current);
-        } else if ((action === "payment-create" || action === "payment-check") && selected) {
+        } else if (action === "payment-nfc" && selected) {
+          const id=selected.id;
+          const result=await options.api<{grant?:string;payment:NonNullable<QuickCollection["payment"]>}>("terminal",{action:"prepare",collectionId:id});
+          if (current() && selected?.id===id) {selected={...selected,payment:result.payment}; qr=undefined; nfcIntent=result.grant ? quickTerminalIntent(result.grant) : undefined;}
+        } else if ((action === "payment-create" || action === "payment-check" || action === "payment-link") && selected) {
           const id = selected.id;
-          const result = action === "payment-create" ? await options.api<{ collection: QuickCollection }>("collection", { action: "prepare", id })
+          if (action === "payment-link") await options.api("terminal",{action:"cancel",collectionId:id});
+          const result = action === "payment-create" || action === "payment-link" ? await options.api<{ collection: QuickCollection }>("collection", { action: "prepare", id })
             : await options.api<{ collection: QuickCollection }>(`collection?id=${encodeURIComponent(id)}`);
           await show(result.collection, current);
         } else if ((action === "payment-copy" || action === "payment-share") && selected?.payment?.status === "open") {
