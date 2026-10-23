@@ -434,6 +434,12 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     expect((await admin.from("quick_terminal_grants").insert({token_hash:tokenHash,payment_id:nfc.data.id,actor_id:actor,company_id:actor,session_hash:sessionHash,device_hash:deviceHash})).error).toBeNull();
     expect((await anon.from("quick_terminal_grants").select("*")).error).not.toBeNull();
     expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).toBeNull();
+    sql(`update public.quick_terminal_grants set expires_at=now()-interval '1 second' where token_hash='${tokenHash}'`);
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).not.toBeNull();
+    sql(`update public.quick_terminal_grants set expires_at=now()+interval '10 minutes',session_hash='${sha(randomUUID())}' where token_hash='${tokenHash}'`);
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).not.toBeNull();
+    sql(`update public.quick_terminal_grants set session_hash='${sessionHash}' where token_hash='${tokenHash}'`);
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).toBeNull();
     expect((await admin.from("user_devices").update({status:"revoked"}).eq("user_id",actor).eq("token_hash",deviceHash)).error).toBeNull();
     expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).not.toBeNull();
     expect((await admin.from("quick_terminal_grants").delete().eq("token_hash",tokenHash)).error).toBeNull();

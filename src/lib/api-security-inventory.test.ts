@@ -435,6 +435,21 @@ describe("API security inventory", () => {
     expect(guard).toContain('options.purpose === "autofill" ? "quick_ai_autofill"');
   });
 
+  it("limits native NFC access to a short-lived payment grant revalidated in the database",()=>{
+    const route=sourceFor("factu-rapido/terminal-device/route.ts");
+    const server=readFileSync(new URL("./quick-invoicing/terminal-server.ts",import.meta.url),"utf8");
+    const sql=readFileSync(new URL("../../supabase/migrations/20261023060138_quick_stripe_terminal_nfc.sql",import.meta.url),"utf8");
+    expect(route).toContain("terminalDeviceAction(request,action)");
+    expect(route).toContain("maxBytes:256");
+    expect(server).toContain('admin.rpc("read_quick_terminal_grant_v1"');
+    expect(server).toContain('namespace:"quick_terminal"');
+    expect(sql).toContain("expires_at>now()");
+    expect(sql).toContain("quick_terminal_private.session_active(v_grant.actor_id,v_grant.session_hash)");
+    expect(sql).toContain("public.claim_cloud_device_session");
+    expect(sql).toContain("revoke all on schema quick_terminal_private from public,anon,authenticated");
+    expect(sql).not.toMatch(/grant\s+select\s+on\s+auth[.]sessions/i);
+  });
+
   it("keeps the security alert scheduler versioned and protected", () => {
     const workflow = readFileSync(securityScheduler, "utf8");
     expect(workflow).toContain('cron: "*/15 * * * *"');
