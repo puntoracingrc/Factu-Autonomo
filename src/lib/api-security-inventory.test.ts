@@ -105,6 +105,8 @@ const expectedMethods: Record<string, string[]> = {
   "factu-rapido/autofill/route.ts": ["POST"],
   "factu-rapido/payment/route.ts": ["GET", "POST"],
   "factu-rapido/collection/route.ts": ["GET", "POST"],
+  "factu-rapido/terminal/route.ts": ["POST"],
+  "factu-rapido/terminal-device/route.ts": ["POST"],
   "google-auth/token/route.ts": ["POST"],
   "fiscal-notifications/audit/route.ts": ["POST"],
   "google-drive/token/route.ts": ["POST"],
@@ -252,7 +254,7 @@ const scheduledRoutes = [
 
 // Only GET config is public (the same public Supabase URL/anon key embedded
 // by the main app). Every catalog/document action has a private pilot guard.
-const quickPilotRoutes = ["factu-rapido/[action]/route.ts", "factu-rapido/autofill/route.ts", "factu-rapido/payment/route.ts", "factu-rapido/collection/route.ts"] as const;
+const quickPilotRoutes = ["factu-rapido/[action]/route.ts", "factu-rapido/autofill/route.ts", "factu-rapido/payment/route.ts", "factu-rapido/collection/route.ts", "factu-rapido/terminal/route.ts", "factu-rapido/terminal-device/route.ts"] as const;
 
 const distributedRateLimitedRoutes = [
   ...adminRoutes,
@@ -263,6 +265,8 @@ const distributedRateLimitedRoutes = [
 ];
 
 const boundedBodyRoutes = [
+  "factu-rapido/terminal/route.ts",
+  "factu-rapido/terminal-device/route.ts",
   "factu-rapido/collection/route.ts",
   "factu-rapido/payment/route.ts",
   "webhooks/stripe-collections/route.ts",
@@ -429,6 +433,21 @@ describe("API security inventory", () => {
     expect(route).not.toMatch(/issueQuickDocument|runQuickCustomerJobs|after\(/);
     const guard = readFileSync(new URL("./quick-invoicing/server.ts", import.meta.url), "utf8");
     expect(guard).toContain('options.purpose === "autofill" ? "quick_ai_autofill"');
+  });
+
+  it("limits native NFC access to a short-lived payment grant revalidated in the database",()=>{
+    const route=sourceFor("factu-rapido/terminal-device/route.ts");
+    const server=readFileSync(new URL("./quick-invoicing/terminal-server.ts",import.meta.url),"utf8");
+    const sql=readFileSync(new URL("../../supabase/migrations/20261023060138_quick_stripe_terminal_nfc.sql",import.meta.url),"utf8");
+    expect(route).toContain("terminalDeviceAction(request,action)");
+    expect(route).toContain("maxBytes:256");
+    expect(server).toContain('admin.rpc("read_quick_terminal_grant_v1"');
+    expect(server).toContain('namespace:"quick_terminal"');
+    expect(sql).toContain("expires_at>now()");
+    expect(sql).toContain("quick_terminal_private.session_active(v_grant.actor_id,v_grant.session_hash)");
+    expect(sql).toContain("public.claim_cloud_device_session");
+    expect(sql).toContain("revoke all on schema quick_terminal_private from public,anon,authenticated");
+    expect(sql).not.toMatch(/grant\s+select\s+on\s+auth[.]sessions/i);
   });
 
   it("keeps the security alert scheduler versioned and protected", () => {

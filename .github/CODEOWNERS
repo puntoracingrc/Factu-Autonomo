@@ -73,6 +73,7 @@
 /src/lib/central-authority/**                          @puntoracingrc
 /src/lib/quick-invoicing/**                            @puntoracingrc
 /src/quick-app/**                                      @puntoracingrc
+/android/nfc/**                                       @puntoracingrc
 /src/app/api/factu-rapido/**                            @puntoracingrc
 /supabase/migrations/*quick_invoicing*                 @puntoracingrc
 /scripts/build-quick-app.mjs                           @puntoracingrc
