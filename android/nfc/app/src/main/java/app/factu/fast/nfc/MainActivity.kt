@@ -93,7 +93,7 @@ class MainActivity : Activity() {
         val attempt = generation
         worker.execute {
             try {
-                val connection = URL("https://fast.facturacion-autonomos.app/api/factu-rapido/terminal-device").openConnection() as HttpsURLConnection
+                val connection = URL(BuildConfig.API_ORIGIN + "/api/factu-rapido/terminal-device").openConnection() as java.net.HttpURLConnection
                 val result = try {
                     connection.requestMethod = "POST"; connection.instanceFollowRedirects = false
                     connection.connectTimeout = 15000; connection.readTimeout = 20000; connection.doOutput = true
@@ -147,7 +147,7 @@ class MainActivity : Activity() {
                         if (selected || readers.isEmpty() || isFinishing) return
                         selected = true
                         discovering = false
-                        val config = ConnectionConfiguration.TapToPayConnectionConfiguration(TapUseCase.Pay(info.getString("locationId")), true, object : TapToPayReaderListener {})
+                        val config = ConnectionConfiguration.TapToPayConnectionConfiguration(TapUseCase.Pay(info.getString("locationId")), true, object : TapToPayReaderListener {}, info.getString("merchantName"))
                         terminal.connectReader(readers.first(), config, object : ReaderCallback {
                             override fun onSuccess(reader: Reader) { active = null; retrieveAndProcess() }
                             override fun onFailure(e: TerminalException) { sdkFailure(e) }

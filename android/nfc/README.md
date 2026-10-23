@@ -8,14 +8,14 @@ tarjeta y PIN. Nunca almacena claves API, sesiones de Google ni datos de tarjeta
 ## Construcción
 
 Requiere JDK 21+, Android SDK 37 y las licencias oficiales del SDK instaladas.
-`./gradlew :app:assembleRelease` genera un APK release sin firmar. AGP 9.3.0,
+`./gradlew :app:assembleProductionRelease` genera un APK release sin firmar. AGP 9.3.0,
 Gradle 9.6.1 y Stripe Terminal 6.0.0 están fijados. Firmar con `apksigner` y una
 clave privada de distribución conservada fuera del repositorio; no usar la
 firma debug. Conservar la misma clave para futuras actualizaciones. Verificar
 la firma con `apksigner verify --print-certs` antes de publicar el archivo.
 
-La distribución descargable usa el release `fast-nfc-v1.0.0` de GitHub con
-`fast-nfc-1.0.0.apk`; publicar únicamente el APK y su checksum, nunca la clave
+La distribución descargable usa el release `fast-nfc-v1.0.1` de GitHub con
+`fast-nfc-1.0.1.apk`; publicar únicamente el APK y su checksum, nunca la clave
 de firma. `src/quick-app/nfc.html` explica la instalación desde el teléfono.
 
 ## Configuración privada
@@ -24,6 +24,7 @@ Además de la configuración de Checkout existente:
 
 - `QUICK_STRIPE_NFC_ENABLED=true`.
 - `QUICK_STRIPE_TERMINAL_LOCATION_ID=tml_...` de la misma cuenta y modo.
+- `QUICK_STRIPE_TERMINAL_DISPLAY_NAME` con el nombre comercial visible al cliente.
 - Clave restringida: Checkout Sessions escritura, Charges lectura, Accounts
   lectura, Payment Intents escritura, Terminal Connection Tokens escritura y
   Terminal Locations lectura. No concede transferencias ni reembolsos.
@@ -52,6 +53,12 @@ No ejecutar cobros reales como QA automatizado. El propietario hace cualquier
 prueba con dinero real en el teléfono. El callback Android solo solicita una
 comprobación; la confirmación procede de Stripe autenticado y del commit de
 Factu. Una prueba nunca marca pagada una factura real.
+
+Para aceptación física por USB, `assembleAcceptanceRelease` genera un paquete
+separado `.acceptance`, rotulado «Fast NFC pruebas», que solo usa el servidor
+local `127.0.0.1:3111` mediante `adb reverse`. Su excepción HTTP está limitada a
+loopback y no forma parte del APK público. Retirar esa instalación y el reverse
+al terminar. El APK público solo se conecta al origen HTTPS fijo de Fast.
 
 Ante un timeout, recuperar el mismo pago. Cambiar a enlace exige cancelar el
 PaymentIntent; cambiar a NFC exige caducar el Checkout. Una respuesta ambigua

@@ -43,7 +43,7 @@ grant execute on function quick_terminal_private.session_active(uuid,text) to se
 create function public.reserve_quick_terminal_payment_v1(p_actor_id uuid,p_operation_id uuid,p_collection_id uuid,
   p_expected_version integer,p_amount integer,p_account_id text,p_livemode boolean)
 returns jsonb language plpgsql security invoker set search_path='' as $$
-declare v_scope jsonb; v_payment public.quick_stripe_payments%rowtype; v_result jsonb;
+declare v_scope jsonb; v_payment public.quick_stripe_payments%rowtype; v_result jsonb; v_doc public.central_invoice_documents%rowtype;
 begin
   if coalesce((select auth.role()),'')<>'service_role' then raise exception using errcode='42501',message='STRIPE_SERVICE_ONLY'; end if;
   if (p_operation_id is null)=(p_collection_id is null) then raise exception using errcode='P4510',message='TERMINAL_ORIGIN_REQUIRED'; end if;
@@ -57,6 +57,15 @@ begin
     v_result:=public.reserve_quick_collection_payment_v1(p_actor_id,p_collection_id,p_account_id,p_livemode);
   else
     v_result:=public.reserve_quick_stripe_payment_v1(p_actor_id,p_operation_id,p_expected_version,p_amount,p_account_id,p_livemode);
+  end if;
+  if nullif(v_result->>'invoice_id','') is not null and v_result->>'status' in ('creating','open') then
+    select * into strict v_doc from public.central_invoice_documents where id=(v_result->>'invoice_id')::uuid and user_id=(v_scope->>'user_id')::uuid for update;
+    if v_doc.emitted_hash is distinct from v_result->>'invoice_hash'
+      or v_doc.emitted_hash is distinct from ('sha256:'||pg_catalog.encode(extensions.digest(pg_catalog.convert_to(v_doc.emitted_snapshot::text,'UTF8'),'sha256'),'hex'))
+      or jsonb_typeof(v_doc.emitted_snapshot->'taxSummary'->'total') is distinct from 'number'
+      or round((v_doc.emitted_snapshot->'taxSummary'->>'total')::numeric*100)::integer is distinct from (v_result->>'amount')::integer then
+      raise exception using errcode='P4510',message='TERMINAL_INVOICE_AMOUNT_CHANGED';
+    end if;
   end if;
   update public.quick_stripe_payments set channel='terminal' where id=(v_result->>'id')::uuid returning * into v_payment;
   return to_jsonb(v_payment);

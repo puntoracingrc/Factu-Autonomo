@@ -150,5 +150,6 @@ export async function terminalDeviceAction(request:Request,action:string) {
   }
   if (action!=="intent" || !intent.client_secret) throw new QuickError(400,"NFC_ACTION_INVALID","Acción NFC no válida.");
   return {clientSecret:intent.client_secret,locationId:location,amount:row.amount,currency:row.currency,
+    merchantName:(process.env.QUICK_STRIPE_TERMINAL_DISPLAY_NAME?.trim() || "Fast").slice(0,100),
     description:intent.description ?? "Cobro Fast",testMode:!row.livemode};
 }

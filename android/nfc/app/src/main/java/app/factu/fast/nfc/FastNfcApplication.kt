@@ -28,7 +28,7 @@ object NfcTokenProvider : ConnectionTokenProvider {
         if (credential == null) { callback.onFailure(ConnectionTokenException("Abre el cobro desde Fast.")); return }
         thread(name = "fast-nfc-token") {
             try {
-                val connection = URL("https://fast.facturacion-autonomos.app/api/factu-rapido/terminal-device").openConnection() as HttpsURLConnection
+                val connection = URL(BuildConfig.API_ORIGIN + "/api/factu-rapido/terminal-device").openConnection() as java.net.HttpURLConnection
                 val response = try {
                     connection.requestMethod = "POST"; connection.instanceFollowRedirects = false
                     connection.connectTimeout = 15000; connection.readTimeout = 20000; connection.doOutput = true

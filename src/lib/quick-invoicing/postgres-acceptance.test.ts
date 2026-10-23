@@ -438,6 +438,17 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).not.toBeNull();
     expect((await admin.from("quick_terminal_grants").delete().eq("token_hash",tokenHash)).error).toBeNull();
   });
+  it("Terminal rejects a collection whose linked invoice amount changed before preparing NFC",async()=>{
+    const actor=users[0].id,id=randomUUID(),f=await fixture("factura","12345678Z","NFC factura corregida",false);
+    const issued=await admin.rpc("commit_quick_document_v1",f.args);expect(issued.error).toBeNull();
+    expect((await admin.rpc("create_quick_payment_request_v1",{p_actor_id:actor,p_id:id,p_amount:9680,p_description:"NFC importe congelado",p_customer_name:""})).error).toBeNull();
+    expect((await admin.rpc("attach_quick_collection_to_invoice_v1",{p_actor_id:actor,p_id:id,p_invoice_id:issued.data.invoice_id,p_expected_version:1})).error).toBeNull();
+    sql(`update public.central_invoice_documents set emitted_snapshot=jsonb_set(emitted_snapshot,'{taxSummary,total}','120'::jsonb) where id='${issued.data.invoice_id}'::uuid;
+      update public.central_invoice_documents set emitted_hash='sha256:'||encode(extensions.digest(convert_to(emitted_snapshot::text,'UTF8'),'sha256'),'hex') where id='${issued.data.invoice_id}'::uuid`);
+    const reserved=await admin.rpc("reserve_quick_terminal_payment_v1",{p_actor_id:actor,p_operation_id:null,p_collection_id:id,p_expected_version:null,p_amount:9680,p_account_id:"acct_synthetic",p_livemode:true});
+    expect(reserved.error?.message).toBe("TERMINAL_INVOICE_AMOUNT_CHANGED");
+    expect((await admin.from("quick_stripe_payments").select("id").eq("collection_id",id)).data).toEqual([]);
+  });
   it("Stripe collection is private, concurrent-idempotent and atomic with central invoice events", async () => {
     const f = await fixture("factura", "12345678Z", "Cliente cobro sintético", false);
     const issued = await admin.rpc("commit_quick_document_v1", f.args);
