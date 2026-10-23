@@ -103,6 +103,8 @@ const expectedMethods: Record<string, string[]> = {
   "expenses/originals/status/route.ts": ["POST"],
   "factu-rapido/[action]/route.ts": ["GET", "POST"],
   "factu-rapido/autofill/route.ts": ["POST"],
+  "factu-rapido/payment/route.ts": ["GET", "POST"],
+  "factu-rapido/collection/route.ts": ["GET", "POST"],
   "google-auth/token/route.ts": ["POST"],
   "fiscal-notifications/audit/route.ts": ["POST"],
   "google-drive/token/route.ts": ["POST"],
@@ -127,6 +129,7 @@ const expectedMethods: Record<string, string[]> = {
   "verifactu/register/route.ts": ["POST"],
   "verifactu/status/route.ts": ["GET"],
   "webhooks/stripe/route.ts": ["POST"],
+  "webhooks/stripe-collections/route.ts": ["POST"],
   "workspace-history/archive/route.ts": ["GET", "OPTIONS", "POST"],
 };
 
@@ -234,6 +237,7 @@ const publicConstrainedRoutes = [
 const signedWebhookRoutes = [
   "expense-inbox/inbound/route.ts",
   "webhooks/stripe/route.ts",
+  "webhooks/stripe-collections/route.ts",
 ] as const;
 
 const flagControlledRoutes = [
@@ -248,7 +252,7 @@ const scheduledRoutes = [
 
 // Only GET config is public (the same public Supabase URL/anon key embedded
 // by the main app). Every catalog/document action has a private pilot guard.
-const quickPilotRoutes = ["factu-rapido/[action]/route.ts", "factu-rapido/autofill/route.ts"] as const;
+const quickPilotRoutes = ["factu-rapido/[action]/route.ts", "factu-rapido/autofill/route.ts", "factu-rapido/payment/route.ts", "factu-rapido/collection/route.ts"] as const;
 
 const distributedRateLimitedRoutes = [
   ...adminRoutes,
@@ -259,6 +263,9 @@ const distributedRateLimitedRoutes = [
 ];
 
 const boundedBodyRoutes = [
+  "factu-rapido/collection/route.ts",
+  "factu-rapido/payment/route.ts",
+  "webhooks/stripe-collections/route.ts",
   "factu-rapido/[action]/route.ts",
   "factu-rapido/autofill/route.ts",
   "admin/ai-learning/correct/route.ts",
@@ -515,6 +522,7 @@ describe("API security inventory", () => {
   });
 
   it("keeps webhooks signature-checked and bounded", () => {
+    expect(sourceFor("webhooks/stripe-collections/route.ts")).toContain("stripe.webhooks.constructEvent");
     expect(sourceFor("webhooks/stripe/route.ts")).toContain(
       "stripe.webhooks.constructEvent",
     );

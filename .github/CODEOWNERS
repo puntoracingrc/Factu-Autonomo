@@ -101,3 +101,7 @@
 /supabase/migrations/*affiliate*reward*                @puntoracingrc
 /supabase/referrals.sql                                @puntoracingrc
 /src/lib/supabase-rls-table-audit.test.ts              @puntoracingrc
+
+# Server-only own-merchant collections, separate from subscription billing.
+/src/app/api/webhooks/stripe-collections/**             @puntoracingrc
+/supabase/migrations/*quick_stripe*                     @puntoracingrc

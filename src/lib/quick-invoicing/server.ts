@@ -46,7 +46,7 @@ function databaseError(error: { code?: string; message?: string }): never {
   if (error.code === "P4508") throw new QuickError(409, "OPERATION_CANCELLED", "Esta operación se canceló para volver a editar. Pulsa Volver a editar para recuperar los datos.");
   throw new QuickError(503, "CENTRAL_UNCONFIRMED", "No se pudo confirmar la operación. Conservamos tus datos: pulsa Comprobar y reintentar; no crees otra factura.");
 }
-export async function authenticateQuick(request: Request, options: { allowBootstrap?: boolean; purpose?: "autofill" } = {}): Promise<QuickContext> {
+export async function authenticateQuick(request: Request, options: { allowBootstrap?: boolean; purpose?: "autofill" | "payment" } = {}): Promise<QuickContext> {
   const identity = await getUserSessionFromBearer(request.headers.get("authorization"), { requireEmailConfirmed: true });
   if (!identity) throw new QuickError(401, "SIGN_IN_REQUIRED", "Inicia sesión con tu cuenta de Google.");
   const admin = getSupabaseAdmin();
@@ -63,7 +63,7 @@ export async function authenticateQuick(request: Request, options: { allowBootst
     sessionId: identity.sessionId, token: deviceToken, userAgent: request.headers.get("user-agent") ?? undefined, name: "Factu Rápido" });
   if (!access.allowed) throw new QuickError(403, access.reason, access.message);
   const issue = request.method === "POST";
-  const rate = await checkRateLimit(request, { namespace: options.purpose === "autofill" ? "quick_ai_autofill" : issue ? "quick_issue" : "quick_read", limit: issue ? 20 : 100, windowMs: issue ? 600_000 : 60_000 }, identity.user.id);
+  const rate = await checkRateLimit(request, { namespace: options.purpose === "autofill" ? "quick_ai_autofill" : options.purpose === "payment" ? "quick_payment" : issue ? "quick_issue" : "quick_read", limit: issue ? 20 : 100, windowMs: issue ? 600_000 : 60_000 }, identity.user.id);
   if (!rate.allowed) throw new QuickError(429, "RATE_LIMITED", "Espera un momento antes de volver a intentarlo.");
   return { admin, scope: { ...scope, profile: quickRenderProfile(scope.profile) }, sessionId: identity.sessionId, deviceId: hashCloudDeviceToken(deviceToken), email: identity.user.email };
 }

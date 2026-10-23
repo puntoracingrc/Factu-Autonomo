@@ -10,11 +10,22 @@ import { syntheticIntent, syntheticProfile } from "./test-fixtures";
 import { quickClientSnapshot } from "./client-snapshot";
 
 describe("Factu Rápido: bounded intent and four explicit payment choices",() => {
-  it.each(QUICK_METHODS)("preserves paid and pending %s terms", method => {
+  it.each(QUICK_METHODS.filter(method => method !== "stripe" && method !== "pendiente"))("preserves paid and pending %s terms", method => {
     expect(parseQuickIntent({...syntheticIntent(),paymentMethod:method,paid:true}).paid).toBe(true);
     const suffix = {efectivo:"en efectivo",tarjeta:"por tarjeta",transferencia:"por transferencia",bizum:"por Bizum"}[method];
     expect(quickPaymentTerms(method,true,syntheticProfile.iban)).toBe(`Pagado ${suffix}${method === "transferencia" ? ` · IBAN: ${syntheticProfile.iban}` : ""}`);
     expect(quickPaymentTerms(method,false,"")).toBe(`Pago ${suffix}`);
+  });
+  it("issues an explicitly deferred invoice without declaring a payment", () => {
+    expect(parseQuickIntent({ ...syntheticIntent(), paymentMethod: "pendiente", paid: false }).paid).toBe(false);
+    expect(() => parseQuickIntent({ ...syntheticIntent(), paymentMethod: "pendiente", paid: true })).toThrow("pendiente");
+    expect(quickPaymentTerms("pendiente", false, "")).toBe("Pendiente de pago");
+  });
+  it("keeps link/QR invoices pending until server-confirmed collection", () => {
+    expect(parseQuickIntent({...syntheticIntent(),paymentMethod:"stripe",paid:false}).paid).toBe(false);
+    expect(() => parseQuickIntent({...syntheticIntent(),paymentMethod:"stripe",paid:true})).toThrow("Stripe");
+    expect(() => parseQuickIntent({...syntheticIntent(),kind:"presupuesto",paymentMethod:"stripe"})).toThrow("factura");
+    expect(quickPaymentTerms("stripe",false,"")).toBe("Pago por tarjeta mediante enlace o QR");
   });
   it("strips authority, accounting, images and costs supplied by a browser",() => {
     const parsed = parseQuickIntent({...syntheticIntent(),companyId:"another-company",number:"F-9999",issuer:{name:"forged"},irpfPercent:99,

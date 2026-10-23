@@ -1,7 +1,7 @@
 import type { BusinessProfile, Client, Document, LineItem } from "@/lib/types";
 import { documentTotals } from "@/lib/calculations";
 
-export const QUICK_METHODS = ["efectivo", "tarjeta", "transferencia", "bizum"] as const;
+export const QUICK_METHODS = ["pendiente", "efectivo", "tarjeta", "transferencia", "bizum", "stripe"] as const;
 export type QuickPaymentMethod = (typeof QUICK_METHODS)[number];
 export interface QuickIntent {
   operationId: string;
@@ -22,12 +22,15 @@ export interface QuickBootstrap {
   vatRates: number[];
   vatExempt: boolean;
   iban: string;
+  cardPaymentsEnabled?: boolean;
+  cardPaymentsTestMode?: boolean;
 }
 export interface QuickReceipt {
   operationId: string;
   document: Document;
   profile: BusinessProfile;
   customerPending: boolean;
+  collectionLinkPending?: boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,6 +60,8 @@ export function parseQuickIntent(value: unknown): QuickIntent {
   if (!/^20\d\d-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsedDate.valueOf()) || parsedDate.toISOString().slice(0, 10) !== date) throw new Error("Fecha no válida.");
   if (!QUICK_METHODS.includes(raw.paymentMethod as QuickPaymentMethod) || typeof raw.paid !== "boolean") throw new Error("Forma de pago no válida.");
   if (raw.kind === "presupuesto" && raw.paid) throw new Error("Un presupuesto no acredita un cobro.");
+  if (raw.paymentMethod === "stripe" && (raw.paid || raw.kind !== "factura")) throw new Error("El cobro por enlace solo se confirma con Stripe y requiere una factura.");
+  if (raw.paymentMethod === "pendiente" && raw.paid) throw new Error("Una factura pendiente no puede declararse ya cobrada.");
   const client = record(raw.client);
   const parsedClient: Client = {
     name: text(client.name, 200, true),
@@ -92,7 +97,8 @@ export function parseQuickIntent(value: unknown): QuickIntent {
   };
 }
 export function quickPaymentTerms(method: QuickPaymentMethod, paid: boolean, iban: string): string {
-  const labels = { efectivo: "en efectivo", tarjeta: "por tarjeta", transferencia: "por transferencia", bizum: "por Bizum" };
+  if (method === "pendiente") return "Pendiente de pago";
+  const labels = { efectivo: "en efectivo", tarjeta: "por tarjeta", transferencia: "por transferencia", bizum: "por Bizum", stripe: "por tarjeta mediante enlace o QR" };
   return `${paid ? "Pagado" : "Pago"} ${labels[method]}${method === "transferencia" && iban.trim() ? ` · IBAN: ${iban.trim()}` : ""}`;
 }
 export function quickTotals(items: LineItem[], vatExempt = false) {

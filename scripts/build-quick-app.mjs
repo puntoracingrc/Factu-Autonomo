@@ -38,7 +38,7 @@ const css = path.basename(entry[1].cssBundle);
 // This is an independent PWA, not a second rendering of the main Next app.
 const source = await readFile(path.join(root,"src/quick-app/index.html"),"utf8");
 await writeFile(path.join(outdir,"index.html"),source.replace("__QUICK_JS__",js).replace("__QUICK_CSS__",css));
-for (const file of ["manifest.webmanifest","icon.svg"]) await copyFile(path.join(root,"src/quick-app",file),path.join(outdir,file));
+for (const file of ["manifest.webmanifest","icon.svg","pago.html"]) await copyFile(path.join(root,"src/quick-app",file),path.join(outdir,file));
 const icon = await loadImage(await readFile(path.join(root,"src/quick-app/icon.svg")));
 for (const size of [192,512]) {
   const canvas = createCanvas(size,size);

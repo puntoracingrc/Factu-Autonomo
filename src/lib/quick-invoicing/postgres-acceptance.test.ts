@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildCentralInvoiceAuthorityDocumentFormIssueRequest } from "@/lib/central-invoice-authority/document-form-canary";
 import { buildCentralInvoiceAuthorityIssueCommand } from "@/lib/central-invoice-authority/issue-command";
 import { buildCentralInvoiceAuthorityIssueRpcArgs } from "@/lib/central-invoice-authority/issue-rpc-adapter";
@@ -17,6 +17,11 @@ import { intentHash } from "./server";
 import { syntheticIntent, syntheticProfile } from "./test-fixtures";
 import { quickRenderProfile, quickIssuedDocument } from "./render";
 import { quickClientSnapshot } from "./client-snapshot";
+import { getCentralInvoiceAuthorityEventThroughRpc, type CentralInvoiceAuthorityEventsRpcClient } from "@/lib/central-invoice-authority/events-rpc-adapter";
+import { applyCentralInvoiceAuthorityPulledEventsToDocuments } from "@/lib/central-invoice-authority/events-local-apply";
+import { isCollectedDocument } from "@/lib/income";
+import { searchQuickCollectionInvoices } from "./collections-server";
+import type { QuickContext } from "./server";
 import { EMPTY_DATA, type Customer, type Document } from "@/lib/types";
 
 const acceptance = process.env.CENTRAL_GLOBAL_SYNTHETIC_LOCAL_ENABLED === "true" ? describe : describe.skip;
@@ -32,8 +37,19 @@ function local(value: string) {
 function sql(query: string) {
   return execFileSync("psql",[dbUrl,"-X","-v","ON_ERROR_STOP=1","-At","-c",query],{encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
 }
-async function fixture(kind: "factura" | "presupuesto" = "factura", nif = "12345678Z", name = "Cliente sintético") {
-  const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID(),kind,client:{...syntheticIntent().client,nif,name},paymentMethod:"transferencia",paid:kind === "factura"});
+async function expectFactuGreenCheck(invoiceId: string, collected: boolean) {
+  const eventRow = await admin.from("central_invoice_outbox").select("id").eq("document_id", invoiceId).order("created_at", { ascending: false }).limit(1).single();
+  expect(eventRow.error).toBeNull();
+  const event = await getCentralInvoiceAuthorityEventThroughRpc(admin as unknown as CentralInvoiceAuthorityEventsRpcClient,
+    { userId: users[0].id, deviceId: "synthetic-quick-device", eventId: eventRow.data!.id });
+  expect(event).not.toBeNull();
+  const applied = applyCentralInvoiceAuthorityPulledEventsToDocuments({ documents: [], profile: syntheticProfile, events: [event!] });
+  expect(applied.conflicts).toEqual([]); expect(applied.documents).toHaveLength(1);
+  // This exact predicate renders Factu's green CheckCircle2.
+  expect(isCollectedDocument(applied.documents[0])).toBe(collected);
+}
+async function fixture(kind: "factura" | "presupuesto" = "factura", nif = "12345678Z", name = "Cliente sintético", paid = kind === "factura", operationId = randomUUID()) {
+  const intent = parseQuickIntent({...syntheticIntent(),operationId,kind,client:{...syntheticIntent().client,nif,name},paymentMethod:"transferencia",paid});
   const id = `quick-${intent.operationId}`;
   const payload = buildQuickDocumentPayload(intent, syntheticProfile, now);
   const auth = {userId:users[0].id,deviceId:"synthetic-quick-device",sessionId:randomUUID(),userIdSource:"test" as const};
@@ -91,6 +107,8 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     if (!admin || !dbUrl || !users.length) return;
     const ids = users.map(user => `'${user.id}'::uuid`).join(",");
     sql(`begin; set local session_replication_role=replica;
+      delete from public.quick_stripe_payments where user_id in (${ids});
+      delete from public.quick_payment_requests where user_id in (${ids});
       delete from public.quick_customer_jobs where user_id in (${ids});
       delete from public.quick_document_operations where user_id in (${ids});
       delete from public.quick_cancelled_operations where actor_user_id in (${ids});
@@ -306,10 +324,13 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
       expect(scope.data).toMatchObject({actor_id:actor.id,company_id:users[0].id,user_id:users[0].id,billing_user_id:users[0].id});
       const boot = await fetch(`${appUrl}/api/factu-rapido/bootstrap`,{headers});
       expect({status:boot.status,body:await boot.json()}).toMatchObject({status:200,body:{actorId:actor.id,companyId:users[0].id}});
-      const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID()});
+      const intent = parseQuickIntent({...syntheticIntent(),operationId:randomUUID(),paymentMethod:"stripe",paid:false});
       const issued = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
       const body = await issued.json();
       expect({status:issued.status,body}).toMatchObject({status:200,body:{ok:true,receipt:{operationId:intent.operationId}}});
+      expect(body.receipt.document.status).toBe("enviado");
+      expect(body.receipt.document.paymentStatus).not.toBe("paid");
+      expect(isCollectedDocument(body.receipt.document)).toBe(false);
       const replay = await fetch(`${appUrl}/api/factu-rapido/issue`,{method:"POST",headers:{...headers,"Content-Type":"application/json"},body:JSON.stringify(intent)});
       expect((await replay.json()).receipt.document.number).toBe(body.receipt.document.number);
       const operation = await admin.from("quick_document_operations").select("actor_user_id,company_id,user_id").eq("operation_id",intent.operationId).single();
@@ -362,4 +383,158 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
       await admin.from("quick_invoicing_access").update({company_id:users[0].id}).eq("actor_user_id",users[0].id);
     }
   });
+  it("Stripe collection is private, concurrent-idempotent and atomic with central invoice events", async () => {
+    const f = await fixture("factura", "12345678Z", "Cliente cobro sintético", false);
+    const issued = await admin.rpc("commit_quick_document_v1", f.args);
+    expect(issued.error).toBeNull();
+    const invoiceId = issued.data.invoice_id;
+    const original = await admin.from("central_invoice_documents").select("*").eq("id",invoiceId).single();
+    expect(original.error).toBeNull();
+    const args = {p_actor_id:users[0].id,p_operation_id:f.intent.operationId,p_expected_version:1,p_amount:9680,p_account_id:"acct_synthetic",p_livemode:true};
+    expect((await anon.rpc("reserve_quick_stripe_payment_v1",args)).error).not.toBeNull();
+    expect((await users[0].client.from("quick_stripe_payments").select("*")).error).not.toBeNull();
+    expect((await admin.rpc("reserve_quick_stripe_payment_v1",{...args,p_actor_id:users[2].id})).error).not.toBeNull();
+    const results = await Promise.all([admin.rpc("reserve_quick_stripe_payment_v1",args),admin.rpc("reserve_quick_stripe_payment_v1",args)]);
+    results.forEach(result => expect(result.error).toBeNull());
+    expect(results[0].data.id).toBe(results[1].data.id);
+    const paymentId=results[0].data.id, sessionId=`cs_test_${paymentId}`, intentId=`pi_${paymentId}`;
+    expect((await admin.rpc("bind_quick_stripe_session_v1",{p_payment_id:paymentId,p_session_id:sessionId,p_url:"https://checkout.stripe.com/c/pay/synthetic"})).error).toBeNull();
+    expect((await admin.rpc("bind_quick_stripe_session_v1",{p_payment_id:paymentId,p_session_id:"cs_test_another",p_url:"https://checkout.stripe.com/c/pay/synthetic"})).error).not.toBeNull();
+    const confirmation={p_payment_id:paymentId,p_session_id:sessionId,p_account_id:"acct_synthetic",p_livemode:true,p_amount:9680,p_currency:"eur",p_intent_id:intentId,p_paid_at:"2026-10-22T09:00:00Z",p_event_id:`evt_${paymentId}`,p_review_reason:null};
+    expect((await admin.rpc("confirm_quick_stripe_payment_v1",{...confirmation,p_amount:1})).error).not.toBeNull();
+    expect((await admin.rpc("confirm_quick_stripe_payment_v1",confirmation)).data.status).toBe("paid");
+    const after = await admin.from("central_invoice_documents").select("*").eq("id",invoiceId).single();
+    expect(after.error).toBeNull();
+    expect(after.data.current_payload.document).toMatchObject({status:"pagado",paymentStatus:"paid"});
+    expect(after.data.emitted_hash).toBe(original.data.emitted_hash);
+    expect(after.data.emitted_snapshot).toEqual(original.data.emitted_snapshot);
+    expect(after.data.current_payload.document.items).toEqual(original.data.current_payload.document.items);
+    expect(after.data.current_version).toBe(original.data.current_version+1);
+    await expectFactuGreenCheck(invoiceId, true);
+    expect((await admin.rpc("confirm_quick_stripe_payment_v1",{...confirmation,p_event_id:`check:${sessionId}`})).data.status).toBe("paid");
+    expect((await admin.from("central_invoice_documents").select("current_version").eq("id",invoiceId).single()).data?.current_version).toBe(after.data.current_version);
+    const flagged=await admin.rpc("confirm_quick_stripe_payment_v1",{...confirmation,p_review_reason:"REFUND_OR_DISPUTE"});
+    expect(flagged.error).toBeNull();expect(flagged.data.status).toBe("review");
+  });
+  it("retains real payment evidence for review if the invoice changed after checkout", async () => {
+    const f=await fixture("factura","12345678Z","Cliente edición sintética",false);
+    const issued=await admin.rpc("commit_quick_document_v1",f.args);expect(issued.error).toBeNull();
+    const reserved=await admin.rpc("reserve_quick_stripe_payment_v1",{p_actor_id:users[0].id,p_operation_id:f.intent.operationId,p_expected_version:1,p_amount:9680,p_account_id:"acct_synthetic",p_livemode:true});
+    expect(reserved.error).toBeNull();
+    // A synthetic concurrent fiscal edit; never touches a real document.
+    sql(`update public.central_invoice_documents set emitted_hash='sha256:synthetic-edited' where id='${issued.data.invoice_id}'::uuid`);
+    const result=await admin.rpc("confirm_quick_stripe_payment_v1",{p_payment_id:reserved.data.id,p_session_id:`cs_test_${reserved.data.id}`,p_account_id:"acct_synthetic",p_livemode:true,p_amount:9680,p_currency:"eur",p_intent_id:`pi_${reserved.data.id}`,p_paid_at:"2026-10-22T09:00:00Z",p_event_id:`evt_${reserved.data.id}`,p_review_reason:null});
+    expect(result.error).toBeNull();expect(result.data.status).toBe("review");expect(result.data.paid_at).not.toBeNull();
+    const invoice=await admin.from("central_invoice_documents").select("current_payload").eq("id",issued.data.invoice_id).single();
+    expect(invoice.data?.current_payload.document.paymentStatus).toBe("pending");
+  });
+
+  it("never credits test-mode money to an invoice and preserves a separate live checkout slot", async () => {
+    const f=await fixture("factura","12345678Z","Cliente pago de prueba",false);
+    const issued=await admin.rpc("commit_quick_document_v1",f.args);expect(issued.error).toBeNull();
+    const args={p_actor_id:users[0].id,p_operation_id:f.intent.operationId,p_expected_version:1,p_amount:9680,p_account_id:"acct_synthetic",p_livemode:false};
+    const reserved=await admin.rpc("reserve_quick_stripe_payment_v1",args);expect(reserved.error).toBeNull();
+    const result=await admin.rpc("confirm_quick_stripe_payment_v1",{p_payment_id:reserved.data.id,p_session_id:`cs_test_${reserved.data.id}`,p_account_id:"acct_synthetic",p_livemode:false,p_amount:9680,p_currency:"eur",p_intent_id:`pi_${reserved.data.id}`,p_paid_at:"2026-10-22T09:00:00Z",p_event_id:`evt_${reserved.data.id}`,p_review_reason:null});
+    expect(result.error).toBeNull();expect(result.data.status).toBe("paid");
+    const invoice=await admin.from("central_invoice_documents").select("current_payload,current_version").eq("id",issued.data.invoice_id).single();
+    expect(invoice.data?.current_payload.document.paymentStatus).toBe("pending");expect(invoice.data?.current_version).toBe(1);
+    const live=await admin.rpc("reserve_quick_stripe_payment_v1",{...args,p_livemode:true});
+    expect(live.error).toBeNull();expect(live.data.id).not.toBe(reserved.data.id);
+  });
+
+  it("records payment before any invoice, then links one immutable invoice exactly once", async () => {
+    const id = randomUUID(), actor = users[0].id;
+    const countBefore = await admin.from("central_invoice_documents").select("id", { count: "exact", head: true }).eq("user_id", actor);
+    const create = { p_actor_id: actor, p_id: id, p_amount: 9680, p_description: "Reparación sin factura todavía", p_customer_name: "Cliente de prueba" };
+    expect((await anon.rpc("create_quick_payment_request_v1", create)).error).not.toBeNull();
+    expect((await users[0].client.from("quick_payment_requests").select("*")).error).not.toBeNull();
+    const created = await Promise.all([admin.rpc("create_quick_payment_request_v1", create), admin.rpc("create_quick_payment_request_v1", create)]);
+    created.forEach(result => expect(result.error).toBeNull());
+    expect(created[0].data.id).toBe(created[1].data.id);
+    expect((await admin.rpc("create_quick_payment_request_v1", { ...create, p_amount: 1 })).error).not.toBeNull();
+    const reserve = { p_actor_id: actor, p_id: id, p_account_id: "acct_synthetic", p_livemode: true };
+    expect((await admin.rpc("reserve_quick_collection_payment_v1", { ...reserve, p_actor_id: users[2].id })).error).not.toBeNull();
+    const reserved = await Promise.all([admin.rpc("reserve_quick_collection_payment_v1", reserve), admin.rpc("reserve_quick_collection_payment_v1", reserve)]);
+    reserved.forEach(result => expect(result.error).toBeNull());
+    expect(reserved[0].data.id).toBe(reserved[1].data.id); expect(reserved[0].data.invoice_id).toBeNull();
+    const paymentId = reserved[0].data.id;
+    const confirmed = await admin.rpc("confirm_quick_stripe_payment_v1", { p_payment_id: paymentId, p_session_id: `cs_${paymentId}`, p_account_id: "acct_synthetic", p_livemode: true,
+      p_amount: 9680, p_currency: "eur", p_intent_id: `pi_${paymentId}`, p_paid_at: "2026-10-20T09:00:00Z", p_event_id: `evt_${paymentId}`, p_review_reason: null });
+    expect(confirmed.error).toBeNull(); expect(confirmed.data.status).toBe("paid"); expect(confirmed.data.invoice_id).toBeNull();
+    expect((await admin.from("central_invoice_documents").select("id", { count: "exact", head: true }).eq("user_id", actor)).count).toBe(countBefore.count);
+    const prepare = { p_actor_id: actor, p_id: id };
+    const targets = await Promise.all([admin.rpc("prepare_quick_collection_invoice_v1", prepare), admin.rpc("prepare_quick_collection_invoice_v1", prepare)]);
+    targets.forEach(result => expect(result.error).toBeNull());
+    const operationId = targets[0].data.invoice_operation_id;
+    expect(operationId).toBe(targets[1].data.invoice_operation_id);
+    const f = await fixture("factura", "12345678Z", "Cliente cobro anterior", false, operationId);
+    const issued = await admin.rpc("commit_quick_document_v1", f.args); expect(issued.error).toBeNull();
+    const original = await admin.from("central_invoice_documents").select("*").eq("id", issued.data.invoice_id).single();
+    expect(original.data.current_payload.document.paymentStatus).toBe("pending");
+    const args = { p_actor_id: actor, p_id: id, p_operation_id: operationId, p_expected_version: 1, p_amount: 9680 };
+    expect((await admin.rpc("attach_quick_collection_invoice_v1", { ...args, p_operation_id: randomUUID() })).error).not.toBeNull();
+    expect((await admin.rpc("attach_quick_collection_invoice_v1", { ...args, p_amount: 1 })).error).not.toBeNull();
+    expect((await admin.rpc("attach_quick_collection_invoice_v1", args)).error).toBeNull();
+    const after = await admin.from("central_invoice_documents").select("*").eq("id", issued.data.invoice_id).single();
+    expect(after.data.current_payload.document).toMatchObject({ paymentStatus: "paid", paidAt: "2026-10-20T09:00:00+00:00" });
+    expect(after.data.emitted_hash).toBe(original.data.emitted_hash); expect(after.data.emitted_snapshot).toEqual(original.data.emitted_snapshot);
+    expect(after.data.current_version).toBe(original.data.current_version + 1);
+    expect((await admin.rpc("attach_quick_collection_invoice_v1", { ...args, p_expected_version: after.data.current_version })).error).toBeNull();
+    expect((await admin.from("central_invoice_documents").select("current_version").eq("id", issued.data.invoice_id).single()).data?.current_version).toBe(after.data.current_version);
+  });
+
+  it.each([true, false])("does not block invoice issuance before an independent payment (live=%s)", async livemode => {
+    const id = randomUUID(), actor = users[0].id;
+    expect((await admin.rpc("create_quick_payment_request_v1", { p_actor_id: actor, p_id: id, p_amount: 9680, p_description: "Pagar más tarde", p_customer_name: "" })).error).toBeNull();
+    const reserved = await admin.rpc("reserve_quick_collection_payment_v1", { p_actor_id: actor, p_id: id, p_account_id: "acct_synthetic", p_livemode: livemode });
+    expect(reserved.error).toBeNull();
+    const target = await admin.rpc("prepare_quick_collection_invoice_v1", { p_actor_id: actor, p_id: id }); expect(target.error).toBeNull();
+    const f = await fixture("factura", "12345678Z", "Cliente factura antes de pagar", false, target.data.invoice_operation_id);
+    const issued = await admin.rpc("commit_quick_document_v1", f.args); expect(issued.error).toBeNull();
+    expect((await admin.rpc("attach_quick_collection_invoice_v1", { p_actor_id: actor, p_id: id, p_operation_id: f.intent.operationId, p_expected_version: 1, p_amount: 9680 })).error).toBeNull();
+    const pending = await admin.from("central_invoice_documents").select("current_payload,current_version").eq("id", issued.data.invoice_id).single();
+    expect(pending.data?.current_payload.document.paymentStatus).toBe("pending"); expect(pending.data?.current_version).toBe(1);
+    await expectFactuGreenCheck(issued.data.invoice_id, false);
+    const paymentId = reserved.data.id;
+    const paid = await admin.rpc("confirm_quick_stripe_payment_v1", { p_payment_id: paymentId, p_session_id: `cs_${paymentId}`, p_account_id: "acct_synthetic", p_livemode: livemode,
+      p_amount: 9680, p_currency: "eur", p_intent_id: `pi_${paymentId}`, p_paid_at: "2026-10-22T09:00:00Z", p_event_id: `evt_${paymentId}`, p_review_reason: null });
+    expect(paid.error).toBeNull(); expect(paid.data.status).toBe("paid");
+    const after = await admin.from("central_invoice_documents").select("current_payload,current_version").eq("id", issued.data.invoice_id).single();
+    expect(after.data?.current_payload.document.paymentStatus).toBe(livemode ? "paid" : "pending");
+    expect(after.data?.current_version).toBe(livemode ? 2 : 1);
+    await expectFactuGreenCheck(issued.data.invoice_id, livemode);
+  });
+
+  it("links a standalone collection to an invoice issued by the main Factu RPC, not by Fast", async () => {
+    const actor = users[0].id, id = randomUUID();
+    const f = await fixture("factura", "12345678Z", "Factura de Factu principal", false);
+    const issued = await admin.rpc("issue_central_invoice_v1", f.args.p_args);
+    expect(issued.error).toBeNull();
+    const invoiceId = issued.data[0].document_id;
+    try {
+      for (const [key, value] of Object.entries({ QUICK_STRIPE_ENABLED: "true", QUICK_STRIPE_COMPANY_ID: actor,
+        QUICK_STRIPE_ACCOUNT_ID: "acct_synthetic", QUICK_STRIPE_MODE: "test", QUICK_STRIPE_SECRET_KEY: "sk_test_synthetic", QUICK_STRIPE_WEBHOOK_SECRET: "whsec_synthetic" })) vi.stubEnv(key, value);
+      const context = { admin, scope: { actor_id: actor, company_id: actor, user_id: actor } } as QuickContext;
+      const candidates = await searchQuickCollectionInvoices(context, issued.data[0].full_number);
+      expect(candidates).toContainEqual(expect.objectContaining({ id: invoiceId, amount: 9680, version: 1 }));
+    } finally { vi.unstubAllEnvs(); }
+    expect((await admin.from("quick_document_operations").select("operation_id").eq("operation_id", f.intent.operationId)).data).toEqual([]);
+    await expectFactuGreenCheck(invoiceId, false);
+    expect((await admin.rpc("create_quick_payment_request_v1", { p_actor_id: actor, p_id: id, p_amount: 9680, p_description: "Cobro independiente para Factu", p_customer_name: "" })).error).toBeNull();
+    const reserved = await admin.rpc("reserve_quick_collection_payment_v1", { p_actor_id: actor, p_id: id, p_account_id: "acct_synthetic", p_livemode: true });
+    expect(reserved.error).toBeNull(); const paymentId = reserved.data.id;
+    const paid = await admin.rpc("confirm_quick_stripe_payment_v1", { p_payment_id: paymentId, p_session_id: `cs_${paymentId}`, p_account_id: "acct_synthetic", p_livemode: true,
+      p_amount: 9680, p_currency: "eur", p_intent_id: `pi_${paymentId}`, p_paid_at: "2026-10-22T09:00:00Z", p_event_id: `evt_${paymentId}`, p_review_reason: null });
+    expect(paid.error).toBeNull();
+    const link = { p_actor_id: actor, p_id: id, p_invoice_id: invoiceId, p_expected_version: 1 };
+    expect((await anon.rpc("attach_quick_collection_to_invoice_v1", link)).error).not.toBeNull();
+    expect((await admin.rpc("attach_quick_collection_to_invoice_v1", { ...link, p_actor_id: users[2].id })).error).not.toBeNull();
+    expect((await admin.rpc("attach_quick_collection_to_invoice_v1", { ...link, p_expected_version: 2 })).error).not.toBeNull();
+    const linked = await admin.rpc("attach_quick_collection_to_invoice_v1", link);
+    expect(linked.error).toBeNull(); expect(linked.data.invoice_id).toBe(invoiceId);
+    await expectFactuGreenCheck(invoiceId, true);
+    expect((await admin.rpc("attach_quick_collection_to_invoice_v1", link)).error).toBeNull();
+    expect((await admin.from("central_invoice_documents").select("current_version").eq("id", invoiceId).single()).data?.current_version).toBe(2);
+  });
+
 });

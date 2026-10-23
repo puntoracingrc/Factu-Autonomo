@@ -1,10 +1,14 @@
 import type { QuickIntent, QuickReceipt } from "@/lib/quick-invoicing/model";
+import type { QuickCollectionIntent } from "@/lib/quick-invoicing/collections-model";
 export interface QuickLocalState {
   deviceToken?: string;
   intent?: QuickIntent;
   pending?: QuickIntent;
   receipt?: QuickReceipt;
   step?: number;
+  collectionDraft?: QuickCollectionIntent;
+  collectionPending?: QuickCollectionIntent;
+  collectionInvoice?: { operationId: string; amount: number };
 }
 const DB = "factu-quick-private-v1";
 let database: Promise<IDBDatabase> | undefined;
