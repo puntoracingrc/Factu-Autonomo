@@ -4,7 +4,7 @@ import { ensureCloudDeviceAccess, normalizeCloudDeviceToken } from "@/lib/cloud/
 import { checkRateLimit } from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { evaluateCentralBusinessAuthorityActivation } from "@/lib/central-business-authority/activation";
-import { listCatalogProducts, readCatalogFamilies, readCatalogProduct } from "@/lib/product-catalog-lite/reader";
+import { listCatalogProducts, readCatalogFamilies, readCatalogProduct, readCatalogIdentities, readCatalogInvoiceSources } from "@/lib/product-catalog-lite/reader";
 
 export const dynamic = "force-dynamic";
 const headers = {"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization, X-Factu-Company-Id, X-Factu-Device-Token","X-Robots-Tag":"noindex, nofollow, noarchive"};
@@ -27,11 +27,13 @@ export async function GET(request: Request) {
   const offset = Number(params.get("offset") ?? "0");
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1_000_000) return json({ok:false,message:"Página no válida."},400);
   try {
-    if (action === "detail") {
+    if (action === "detail" || action === "sources") {
       const id = params.get("id") ?? ""; if (!id || id.length>200) return json({ok:false,message:"Producto no válido."},400);
       const record = await readCatalogProduct(admin,auth.userId,id);
+      if(action==="sources"&&record)return json({ok:true,...await readCatalogInvoiceSources(admin,auth.userId,record.product,offset)});
       return record ? json({ok:true,...record,canEdit:activation.writesEnabled}) : json({ok:false,message:"Este producto ya no está disponible."},404);
     }
+    if (action === "identities") return json({ok:true,...await readCatalogIdentities(admin,auth.userId,offset)});
     if (action === "families") return json({ok:true,...await readCatalogFamilies(admin,auth.userId,offset)});
     if (action !== "list") return json({ok:false,message:"Consulta no válida."},400);
     return json({ok:true,...await listCatalogProducts(admin,auth.userId,{q:(params.get("q") ?? "").slice(0,100),family:(params.get("family") ?? "").slice(0,200),offset}),canEdit:activation.writesEnabled});

@@ -4,6 +4,7 @@ import {
   type PurchaseProductSummary,
 } from "./purchase-products";
 import type { AppData, Product } from "./types";
+import { mergedPriceSources, withPriceSourceSummary } from "./product-price-sources";
 
 export const UNCATEGORIZED_PRODUCT_FAMILY = "Sin familia";
 
@@ -214,8 +215,14 @@ export function mergeProductRecordsInAppData(
     );
   }
 
-  const merged = normalizeProductCatalogItem({
+  let priceSources;
+  try {priceSources=mergedPriceSources([keep,...removed]);}
+  catch(error){return structureError(data,"collision",(error as Error).message);}
+  const merged = withPriceSourceSummary(normalizeProductCatalogItem({
     ...keep,
+    ...(priceSources.length?{priceSources}:{}),
+    purchasePriceSourceId:keep.purchasePriceSourceId??removed.find(p=>p.purchase)?.purchasePriceSourceId,
+    salePriceSourceId:keep.salePriceSourceId??removed.find(p=>p.sales)?.salePriceSourceId,
     aliases: [
       ...(keep.aliases ?? []),
       ...removed.flatMap((product) => [
@@ -250,7 +257,7 @@ export function mergeProductRecordsInAppData(
       keep.attributes ??
       removed.find((product) => product.attributes?.length)?.attributes,
     updatedAt: options.now ?? new Date().toISOString(),
-  });
+  }));
 
   return {
     ok: true,

@@ -1,11 +1,11 @@
 import {beforeEach,describe,it,expect,vi} from "vitest";
-const f=vi.hoisted(()=>({auth:vi.fn(),rate:vi.fn(),device:vi.fn(),admin:vi.fn(),activation:vi.fn(),list:vi.fn(),detail:vi.fn(),families:vi.fn()}));
+const f=vi.hoisted(()=>({auth:vi.fn(),rate:vi.fn(),device:vi.fn(),admin:vi.fn(),activation:vi.fn(),list:vi.fn(),detail:vi.fn(),families:vi.fn(),identities:vi.fn(),sources:vi.fn()}));
 vi.mock("@/lib/companies/server",()=>({getCompanyRouteAuthFromBearer:f.auth,normalizeCompanyId:(id:string)=>id&&/^[0-9a-f-]{36}$/.test(id)?id:null}));
 vi.mock("@/lib/server/rate-limit",()=>({checkRateLimit:f.rate}));
 vi.mock("@/lib/cloud/devices",()=>({ensureCloudDeviceAccess:f.device,normalizeCloudDeviceToken:(t:string)=>t}));
 vi.mock("@/lib/supabase/admin",()=>({getSupabaseAdmin:f.admin}));
 vi.mock("@/lib/central-business-authority/activation",()=>({evaluateCentralBusinessAuthorityActivation:f.activation}));
-vi.mock("@/lib/product-catalog-lite/reader",()=>({listCatalogProducts:f.list,readCatalogProduct:f.detail,readCatalogFamilies:f.families}));
+vi.mock("@/lib/product-catalog-lite/reader",()=>({listCatalogProducts:f.list,readCatalogProduct:f.detail,readCatalogFamilies:f.families,readCatalogIdentities:f.identities,readCatalogInvoiceSources:f.sources}));
 import {GET} from "./route";
 const company="00000000-0000-4000-8000-000000000001";
 const request=(query="",headers:Record<string,string>={})=>new Request("https://example.test/api/catalogo"+query,{headers:{Authorization:"Bearer synthetic","X-Factu-Company-Id":company,"X-Factu-Device-Token":"synthetic-device",...headers}});
@@ -19,4 +19,6 @@ describe("private catalog reader",()=>{
  it("rejects invalid page and returns missing detail without falling back to another company",async()=>{expect((await GET(request("?offset=-1"))).status).toBe(400);f.detail.mockResolvedValue(null);expect((await GET(request("?action=detail&id=missing"))).status).toBe(404);expect(f.detail).toHaveBeenCalledWith({},"owner-resolved-server","missing")});
  it("keeps failures reattemptable, never presenting them as an empty catalog",async()=>{f.list.mockRejectedValue(Error("private database details"));const r=await GET(request());expect(r.status).toBe(503);expect(JSON.stringify(await r.json())).not.toContain("private database")});
  it("bounds family metadata queries",async()=>{expect((await GET(request("?action=families&offset=1000"))).status).toBe(200);expect(f.families).toHaveBeenCalledWith({},"owner-resolved-server",1000)});
+ it("scopes admission identities and invoice evidence to the verified owner",async()=>{f.identities.mockResolvedValue({identities:[],next:null});expect((await GET(request("?action=identities&offset=1000"))).status).toBe(200);expect(f.identities).toHaveBeenCalledWith({},"owner-resolved-server",1000);const product={id:"p",name:"Synthetic"};f.detail.mockResolvedValue({product,version:1});f.sources.mockResolvedValue({sources:[],next:null,reviewed:0});expect((await GET(request("?action=sources&id=p&offset=50"))).status).toBe(200);expect(f.sources).toHaveBeenCalledWith({},"owner-resolved-server",product,50)});
+
 });

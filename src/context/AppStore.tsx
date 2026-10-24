@@ -1,4 +1,5 @@
 "use client";
+import { recordManualProductCreation } from "@/lib/product-price-sources";
 
 import {
   createContext,
@@ -817,13 +818,13 @@ function createProductWithIdentity(
   product: Omit<Product, "id" | "createdAt" | "updatedAt">,
   identity: { id: string; now: string },
 ): Product {
-  return normalizeProductCatalogItem({
+  return recordManualProductCreation(normalizeProductCatalogItem({
     ...product,
     id: identity.id,
     key: product.key || purchaseProductKey(product.name),
     createdAt: identity.now,
     updatedAt: identity.now,
-  });
+  }), identity.now);
 }
 
 function findUniqueDocumentById(

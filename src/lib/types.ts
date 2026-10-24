@@ -644,6 +644,28 @@ export interface Expense {
 
 export type ProductSource = "manual" | "detected";
 
+/** Evidence for a quoted or paid unit price; never rewrites the source document. */
+export interface ProductPriceSource {
+  id: string;
+  kind: "manual" | "supplier_invoice" | "supplier_tariff" | "other";
+  supplierName?: string;
+  supplierReference?: string;
+  documentName?: string;
+  documentNumber?: string;
+  documentDate?: string;
+  sourceSha256?: string;
+  recordedAt: string;
+  unit: string;
+  listPrice?: number;
+  discountPercent?: number;
+  netUnitCost?: number;
+  saleUnitPrice?: number;
+  ivaPercent?: number;
+  expenseId?: string;
+  lineId?: string;
+  note?: string;
+}
+
 export interface ProductSaleFacet {
   enabled?: boolean;
   description?: string;
@@ -688,6 +710,11 @@ export interface ProductAttribute {
 /** Producto o material reutilizable; puede nacer manualmente o desde líneas escaneadas. */
 export interface Product {
   id: string;
+  priceSources?: ProductPriceSource[];
+  purchasePriceSourceId?: string;
+  salePriceSourceId?: string;
+  /** Compact read projection, valid only while the purchase signature matches. */
+  priceSourceSummary?: { purchase: string; purchaseSignature: string };
   /** Esquema compacto PNG/JPG, privado al mismo alcance de empresa que la ficha. */
   imageDataUrl?: string;
   /** Clave normalizada usada para respetar futuras detecciones del mismo producto. */
