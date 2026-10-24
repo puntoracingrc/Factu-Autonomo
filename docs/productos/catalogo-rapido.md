@@ -3,7 +3,8 @@
 Acceso web directo: `/catalogo/index.html` (también `/catalogo`). Es una shell
 estática independiente del árbol Next/React de la aplicación principal. Su
 buscador y sus controles están diseñados para móvil y escritorio. No carga
-AppData, facturas, gastos, fiscalidad, sincronización general ni PDFs.
+AppData, documentos, fiscalidad, sincronización general ni PDFs. El historial de
+precios consulta compras solo cuando el usuario lo solicita.
 
 ## Datos y permisos
 
@@ -31,7 +32,9 @@ AppData, facturas, gastos, fiscalidad, sincronización general ni PDFs.
 
 ## Precios
 
-El PVP de venta es `sales.unitPrice`, sin IVA. `pvp` es el campo heredado de
+El precio de venta guardado es `sales.unitPrice`, sin IVA. Las tarjetas muestran
+el PVP con el IVA configurado y la base sin IVA por separado; si falta el tipo
+no se inventa un PVP bruto. `pvp` es el campo heredado de
 la tarifa del proveedor, nunca se interpreta como precio de venta.
 `purchase.netUnitCost`/`cost` son coste neto, conservando por separado tarifa y
 descuento. La unidad de compra se distingue de la de venta. Una ficha con cálculo
@@ -50,3 +53,48 @@ búsqueda acotada de Factu Rápido.
   reinicia, migra ni detiene instancias existentes. El origen se fija a localhost.
   Verifica búsqueda/paginación, edición y readback real, conflicto entre equipos,
   respuesta perdida + recarga + replay, aislamiento y ausencia de carga de Next.
+
+
+## Origen y comparación de precios
+
+`Product.priceSources` conserva hasta 200 ofertas o precios documentados de la
+misma ficha; cada registro distingue proveedor, referencia, tarifa/descuento/coste,
+unidad, factura o archivo, fecha cuando consta y momento de registro. La tarifa
+puede incluir SHA-256 del original sin poner sus bytes en el repositorio o en
+activos públicos. `purchasePriceSourceId` y `salePriceSourceId` vinculan el precio
+vigente solo si importes, unidad y proveedor aún coinciden con su evidencia.
+
+La lista descarga únicamente una proyección compacta de origen ligada a la firma
+del precio; no descarga los historiales de 30 fichas. Si otro editor cambia el
+precio sin actualizar esa proyección, se muestra origen no documentado. Leer
+una ficha antigua nunca inventa una fecha, documento o alta manual para su precio.
+Altas y ediciones explícitas de precio conservan los registros anteriores y
+anotan la intervención manual; una oferta adicional no cambia el coste activo.
+La fusión explícita preserva las fuentes de las fichas absorbidas y bloquea una
+identidad de evidencia contradictoria o un historial de más de 200 registros.
+
+La consulta optativa `action=sources` recorre 50 compras por página del mismo
+propietario verificado. Solo devuelve líneas elegibles con nombre/alias completo
+exacto o referencia dentro del mismo proveedor. Muestra el progreso para no
+presentar una página sin coincidencias como ausencia de todo el histórico.
+Conserva la unidad de cada oferta; no elige el más barato entre unidades o
+características distintas. Una coincidencia de compra no se atribuye como origen
+del coste guardado sin evidencia de esa selección.
+
+## Admisión de tarifas
+
+La pantalla Importar tarifa admite `FACTU_SUPPLIER_PRICE_CATALOG_V1`: hasta 50
+referencias, precios de tarifa/venta sin IVA, descuento de compra y evidencia
+por referencia. El proveedor y los datos del negocio vienen solo del archivo
+privado elegido por el usuario. El coste se calcula al céntimo según el contrato
+del normalizador del maestro; la tarifa y descuento originales quedan separados.
+
+Una vista previa identifica la empresa de destino y los precios. El preflight
+paginado lee solo identidades, incluidas ocultas/retiradas: una referencia ajena
+o tombstone bloquea la admisión. Una tarifa ya admitida se omite sin reemplazar
+su ficha. Los IDs son estables por empresa, catálogo y referencia. Todos los
+productos nuevos se envían en un único `mutate-batch` existente con versión 0.
+La respuesta debe confirmar cada índice y versión; pérdida de respuesta,
+recarga o permiso temporal conservan exactamente el mismo lote en el sobre de
+sesión aislado, sin fabricar un segundo comando ni presentar éxito parcial.
+No hay nuevas tablas, migraciones, rutas de escritura ni cambios de permisos.

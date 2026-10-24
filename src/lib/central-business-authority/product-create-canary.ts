@@ -1,4 +1,5 @@
 "use client";
+import { recordManualProductCreation } from "@/lib/product-price-sources";
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import { isCentralAuthorityPublicRolloutUser } from "@/lib/central-authority/rollout";
@@ -124,13 +125,13 @@ function createProduct(
   draft: ProductDraft,
   identity: { id: string; now: string },
 ): Product {
-  return normalizeProductCatalogItem({
+  return recordManualProductCreation(normalizeProductCatalogItem({
     ...draft,
     id: identity.id,
     key: draft.key || purchaseProductKey(draft.name),
     createdAt: identity.now,
     updatedAt: identity.now,
-  });
+  }), identity.now);
 }
 
 function jsonProduct(product: Product): CentralBusinessJson {

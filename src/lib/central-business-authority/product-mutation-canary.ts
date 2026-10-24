@@ -2,6 +2,7 @@
 
 import type { AppDataDurabilityResult } from "@/lib/app-data-durability";
 import { normalizeProductCatalogItem } from "@/lib/purchase-products";
+import { recordManualPriceChange } from "@/lib/product-price-sources";
 import type { AppData, Product } from "@/lib/types";
 
 import type { CentralBusinessQueueStorage } from "./durable-queue";
@@ -65,10 +66,12 @@ export async function updateProductWithCentralCanary(input: {
     dependencies: {
       ...dependencies,
       fallback: () => {
-        const updated = normalizeProductCatalogItem({
+        const normalized = normalizeProductCatalogItem({
           ...input.product,
           updatedAt: (dependencies.now ?? (() => new Date().toISOString()))(),
         });
+        const before=dependencies.getCurrentData().products.find(p=>p.id===input.product.id);
+        const updated=before?recordManualPriceChange(before,normalized,normalized.updatedAt):normalized;
         dependencies.updateProductFallback(updated);
         return { ok: true, value: updated, delivery: "local" };
       },
@@ -76,10 +79,12 @@ export async function updateProductWithCentralCanary(input: {
         if (!data.products.some((product) => product.id === input.product.id)) {
           return { ok: false, error: "El producto ya no existe." };
         }
-        const updated = normalizeProductCatalogItem({
+        const normalized = normalizeProductCatalogItem({
           ...input.product,
           updatedAt: now,
         });
+        const before=data.products.find(p=>p.id===input.product.id)!;
+        const updated=recordManualPriceChange(before,normalized,now);
         return {
           ok: true,
           payload: jsonProduct(updated),

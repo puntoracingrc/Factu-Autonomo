@@ -30,6 +30,8 @@ import {
   ProductCatalogStructureManager,
   type ProductCatalogStructureEntry,
 } from "@/components/products/ProductCatalogStructureManager";
+import { ProductPriceSourcesDetails } from "@/components/products/ProductPriceSourcesDetails";
+import { priceSourceLabel, salePriceWithVat } from "@/lib/product-price-sources";
 import { ProductFormFields } from "@/components/products/ProductFormFields";
 import { ProductImageCatalogImport } from "@/components/products/ProductImageCatalogImport";
 import { ProductUnsavedChangesDialog } from "@/components/products/ProductUnsavedChangesDialog";
@@ -2149,6 +2151,8 @@ function ProductCard({
   onAutoEditConsumed: () => void;
   onMerge: (removeKey: string) => Promise<boolean>;
 }) {
+  const { getCurrentData } = useAppStore();
+  const sourceProduct = getCurrentData().products.find(p => p.id === product.productId);
   const [panelOpen, setPanelOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const initialProductDraft = () =>
@@ -2214,8 +2218,9 @@ function ProductCard({
   );
   const displayName = productDisplayName(product);
   const hasCustomDisplayName = productHasCustomDisplayName(product);
+  const grossSalePrice = salePriceWithVat(product.saleUnitPrice, product.saleIvaPercent ?? product.ivaPercent);
   const salePriceLabel = productHasSalePrice(product)
-    ? formatMoney(product.saleUnitPrice ?? 0)
+    ? grossSalePrice === null ? "IVA sin indicar" : formatMoney(grossSalePrice)
     : "Sin precio de venta";
   const costValue = productCostValue(product);
   const costLabel = costValue ? formatMoney(costValue) : "Sin coste informado";
@@ -2568,6 +2573,7 @@ function ProductCard({
               <span className="text-base font-black leading-tight text-slate-950 lg:text-lg">
                 {displayName}
               </span>
+              <p className="text-xs leading-relaxed text-slate-500">{sourceProduct ? priceSourceLabel(sourceProduct) : "Origen del precio no documentado"}</p>
               {product.usualSupplier?.supplierName ? (
                 <span className="text-xs font-semibold text-slate-500">
                   Proveedor: {supplierLabel}
@@ -2582,7 +2588,7 @@ function ProductCard({
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
             <CompactValue label="Coste neto" value={costLabel} />
-            <CompactValue label="Precio de venta" value={salePriceLabel} />
+            <CompactValue label="PVP con IVA" value={salePriceLabel} />
           </div>
           <div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
             <span className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-800">
@@ -2712,6 +2718,7 @@ function ProductCard({
               </span>
             ) : null}
           </div>
+          <ProductPriceSourcesDetails product={sourceProduct} />
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
             {formError ? (
               <div className="px-4 pt-4">
