@@ -1818,7 +1818,7 @@ describe("backup", () => {
     });
   });
 
-  it("exportar e importar copia conserva customerId y mergedCustomerIds", async () => {
+  it("exportar e importar copia conserva customerId, aliases y los dos contactos telefónicos", async () => {
     const blob = createBackupBlob({
       ...EMPTY_DATA,
       customers: [
@@ -1828,6 +1828,10 @@ describe("backup", () => {
           lastName: "López",
           name: "Ana López",
           mergedCustomerIds: ["legacy-1"],
+          phone: "600111222",
+          phoneContactName: "Ana",
+          phone2: "611222333",
+          phone2ContactName: "Portería",
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
         },
@@ -1853,6 +1857,9 @@ describe("backup", () => {
     expect("error" in result).toBe(false);
     if ("error" in result) return;
     expect(result.customers[0].mergedCustomerIds).toEqual(["legacy-1"]);
+    expect(result.customers[0]).toMatchObject({
+      phone: "600111222", phoneContactName: "Ana", phone2: "611222333", phone2ContactName: "Portería",
+    });
     expect(result.documents[0].customerId).toBe("customer-1");
   });
 

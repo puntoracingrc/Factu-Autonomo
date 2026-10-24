@@ -328,6 +328,27 @@ function harness(initial: AppData, storage = new MemoryStorage()) {
 }
 
 describe("central business events app data sync", () => {
+  it("recibe los dos contactos y permite vaciarlos en otro dispositivo sin cambiar documentos", () => {
+    const incoming = customer({ phone: "600111222", phoneContactName: "Marta", phone2: "611222333", phone2ContactName: "Portería" });
+    const historical = quote();
+    const added = buildCentralBusinessEventAppDataTransition({
+      data: { ...EMPTY_DATA, documents: [historical] }, event: event(incoming),
+    });
+    expect(added.data.customers[0]).toMatchObject(incoming);
+    const cleared = customer({ phone: "600111222" });
+    const updated = buildCentralBusinessEventAppDataTransition({
+      data: added.data, event: event(cleared, { entityVersion: 2 }),
+      knownVersion: { entityType: "customer", entityId: incoming.id, version: 1, deleted: false, contentHash: "hash-v1" },
+    });
+    expect(updated.data.customers[0].phone2).toBeUndefined();
+    expect(updated.data.customers[0].phone2ContactName).toBeUndefined();
+    expect(updated.data.customers[0].phoneContactName).toBeUndefined();
+    expect(updated.data.documents).toEqual([historical]);
+    expect(() => buildCentralBusinessEventAppDataTransition({
+      data: EMPTY_DATA, event: event(incoming, { payload: { ...incoming, phone2: 123 } }),
+    })).toThrow();
+  });
+
   it("adopta la copia durable más reciente antes de consumir un cursor compartido", () => {
     const memory: AppData = {
       ...EMPTY_DATA,

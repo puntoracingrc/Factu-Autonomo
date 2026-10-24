@@ -6,6 +6,7 @@ import { ArrowLeft, UserPlus, X } from "lucide-react";
 import { CustomerAiAutofill } from "@/components/clients/CustomerAiAutofill";
 import type { CustomerAiAutofillValues } from "@/components/clients/CustomerAiAutofill";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
+import { CustomerPhoneFields } from "@/components/clients/CustomerPhoneFields";
 import { GoogleAddressAutocomplete } from "@/components/places/GoogleAddressAutocomplete";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
@@ -32,6 +33,9 @@ const EMPTY_FORM = {
   nif: "",
   email: "",
   phone: "",
+  phoneContactName: "",
+  phone2: "",
+  phone2ContactName: "",
   streetType: "",
   residenceType: "" as AddressResidenceType,
   address: "",
@@ -124,6 +128,9 @@ export default function NuevoClientePage() {
           nif: form.nif,
           email: validation.email,
           phone: validation.phone,
+          phoneContactName: form.phoneContactName,
+          phone2: form.phone2,
+          phone2ContactName: form.phone2ContactName,
           streetType: form.streetType,
           residenceType: form.residenceType,
           address: form.address,
@@ -239,16 +246,7 @@ export default function NuevoClientePage() {
               onChange={(e) => updateFormField("nif", e.target.value)}
             />
           </Field>
-          <Field
-            label="Teléfono"
-            hint="El teléfono se usará para WhatsApp si está informado."
-          >
-            <Input
-              value={form.phone}
-              onChange={(e) => updateFormField("phone", e.target.value)}
-              placeholder="600 000 000"
-            />
-          </Field>
+          <CustomerPhoneFields values={form} onChange={updateFormField} />
           <Field
             label="Email"
             hint="Se usará para activar el envío por email en documentos guardados."

@@ -1,8 +1,29 @@
 # ADR-0006: Fiabilidad del maestro de clientes
 
 - Estado: aceptado
-- Versión: 2
-- Fecha: 2026-10-21
+- Versión: 3
+- Fecha: 2026-10-24
+
+## Decisión de producto V3: dos contactos telefónicos opcionales
+
+La ficha admite el teléfono anterior `phone`, su nombre de contacto opcional
+`phoneContactName`, y un segundo par `phone2` / `phone2ContactName`. Los nombres
+pueden corresponder a otras personas, también en clientes particulares; no son
+la razón social, el nombre fiscal ni `contactName` de empresa. Ningún campo nuevo
+es obligatorio ni se infiere el titular de un número sin indicación del usuario.
+
+Alta y edición usan la misma escritura central con CAS y confirmación durable.
+El outbox valida y conserva los campos, incluidas las eliminaciones explícitas;
+búsqueda y copias incluyen ambos contactos. No hay nueva tabla, almacenamiento
+paralelo, sondeo ni migración automática de fichas antiguas.
+
+Son datos operativos del maestro, no del snapshot fiscal ni del PDF. Editar desde
+un documento que no expone estos campos los preserva. La fusión prioriza los
+pares de la ficha conservada y solo completa huecos con pares de las absorbidas,
+sin asignar el nombre de un número a otro. No reescribe documentos emitidos.
+
+Regresiones adicionales: `customer-phones.test.ts`, recepción central y backup;
+la aceptación PostgreSQL verifica ambos contactos en los dispositivos sintéticos.
 
 ## Decisión de producto V2: admisión diferida en Factu Rápido
 

@@ -634,6 +634,10 @@ describeAcceptance(
           lastName: "",
           name: company.customerName,
           nif: `B1000000${index}`,
+          phone: "600111222",
+          phoneContactName: "Contacto principal sintético",
+          phone2: "611222333",
+          phone2ContactName: "Contacto alternativo sintético",
           createdAt: issuedAt,
           updatedAt: issuedAt,
         };
@@ -1158,6 +1162,14 @@ describeAcceptance(
           "client.name",
           company.customerName,
         );
+        for (const device of company.devices) {
+          expect(device.data.customers.find((entry) => entry.id === company.customerId)).toMatchObject({
+            phone: customer.phone,
+            phoneContactName: customer.phoneContactName,
+            phone2: customer.phone2,
+            phone2ContactName: customer.phone2ContactName,
+          });
+        }
 
         results.push({
           company,
