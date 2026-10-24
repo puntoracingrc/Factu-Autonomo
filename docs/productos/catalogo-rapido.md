@@ -36,6 +36,12 @@ precios consulta compras solo cuando el usuario lo solicita.
 
 ## Precios
 
+Las tarjetas y la ficha distinguen con texto y color: PVP disponible (verde),
+solo coste con PVP pendiente (ámbar), venta sin IVA pendiente de completar (azul)
+y sin precios (gris). Los ceros explícitos son precios conocidos; un IVA del
+0 % es válido. La etiqueta de la ficha cambia al editar los importes, sin guardar
+ni inventar un precio de venta a partir del coste o de la tarifa del proveedor.
+
 El precio de venta guardado es `sales.unitPrice`, sin IVA. Las tarjetas muestran
 el PVP con el IVA configurado y la base sin IVA por separado; si falta el tipo
 no se inventa un PVP bruto. `pvp` es el campo heredado de
