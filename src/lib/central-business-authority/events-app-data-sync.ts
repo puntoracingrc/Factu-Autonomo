@@ -242,6 +242,9 @@ function parseCustomerPayload(
     !optionalString(payload.nif) ||
     !optionalString(payload.email) ||
     !optionalString(payload.phone) ||
+    !optionalString(payload.phoneContactName) ||
+    !optionalString(payload.phone2) ||
+    !optionalString(payload.phone2ContactName) ||
     !optionalString(payload.streetType) ||
     !optionalString(payload.addressExtra) ||
     !optionalString(payload.residenceType) ||
@@ -268,6 +271,9 @@ function parseCustomerPayload(
       nif: payload.nif,
       email: payload.email,
       phone: payload.phone,
+      phoneContactName: payload.phoneContactName,
+      phone2: payload.phone2,
+      phone2ContactName: payload.phone2ContactName,
       streetType: payload.streetType,
       addressExtra: payload.addressExtra,
       residenceType: payload.residenceType as Customer["residenceType"],

@@ -20,6 +20,7 @@ import type {
   AddressResidenceType,
   Client,
   Customer,
+  CustomerPhoneDetails,
   CustomerType,
   Document,
 } from "./types";
@@ -216,6 +217,44 @@ export function normalizeCustomerEmail(email?: string | null): string {
 
 export function normalizeCustomerPhone(phone?: string | null): string {
   return normalizeContactPhone(phone);
+}
+
+/** Only writes fields supplied by a customer editor; document forms omit them. */
+function customerPhoneDetailsFromInput(
+  input: CustomerPhoneDetails,
+): CustomerPhoneDetails {
+  return {
+    ...("phoneContactName" in input
+      ? {
+          phoneContactName:
+            normalizeNamePart(input.phoneContactName ?? "") || undefined,
+        }
+      : {}),
+    ...("phone2" in input
+      ? { phone2: normalizeCustomerPhone(input.phone2) || undefined }
+      : {}),
+    ...("phone2ContactName" in input
+      ? {
+          phone2ContactName:
+            normalizeNamePart(input.phone2ContactName ?? "") || undefined,
+        }
+      : {}),
+  };
+}
+
+export function customerPhoneContacts(
+  customer: Pick<Customer, "phone"> & CustomerPhoneDetails,
+) {
+  return [
+    { slot: 1, phone: customer.phone, name: customer.phoneContactName },
+    { slot: 2, phone: customer.phone2, name: customer.phone2ContactName },
+  ].filter(
+    (contact): contact is {
+      slot: number;
+      phone: string;
+      name: string | undefined;
+    } => Boolean(contact.phone?.trim()),
+  );
 }
 
 export function isValidCustomerEmail(email?: string | null): boolean {
@@ -637,6 +676,9 @@ export function filterCustomers(customers: Customer[], query: string): Customer[
       migrated.nif,
       migrated.email,
       migrated.phone,
+      migrated.phoneContactName,
+      migrated.phone2,
+      migrated.phone2ContactName,
       getStreetType(migrated.streetType)?.label,
       formatStreetLine(migrated.streetType, migrated.address),
       migrated.address,
@@ -786,7 +828,7 @@ export function validateUniqueCustomer(
 export type CustomerInputValidation = CustomerNameValidation &
   CustomerContactValidation;
 
-export interface ClientInput {
+export interface ClientInput extends CustomerPhoneDetails {
   customerType?: CustomerType;
   firstName: string;
   lastName: string;
@@ -850,6 +892,9 @@ export function customerToFormValues(customer: Customer) {
     nif: migrated.nif ?? "",
     email: migrated.email ?? "",
     phone: migrated.phone ?? "",
+    phoneContactName: migrated.phoneContactName ?? "",
+    phone2: migrated.phone2 ?? "",
+    phone2ContactName: migrated.phone2ContactName ?? "",
     streetType: migrated.streetType ?? "",
     residenceType: normalizeResidenceType(migrated.residenceType),
     address: migrated.address ?? "",
@@ -1004,6 +1049,7 @@ export function ensureCustomerForDocument(
 
     const customer: Customer = {
       ...migrateCustomer(existing),
+      ...customerPhoneDetailsFromInput(input),
       customerType,
       firstName,
       lastName,
@@ -1048,6 +1094,7 @@ export function ensureCustomerForDocument(
 
   const customer: Customer = {
     id: "pending",
+    ...customerPhoneDetailsFromInput(input),
     customerType,
     firstName,
     lastName,
@@ -1087,6 +1134,7 @@ export function createCustomerInCollection(
 
   const created = migrateCustomer({
     ...customer,
+    ...customerPhoneDetailsFromInput(customer),
     firstName: validation.firstName ?? customer.firstName,
     lastName: validation.lastName ?? customer.lastName,
     email: validation.email,
@@ -1113,6 +1161,7 @@ export function updateCustomerInCollection(
 
   const updated = migrateCustomer({
     ...customer,
+    ...customerPhoneDetailsFromInput(customer),
     firstName: validation.firstName ?? customer.firstName,
     lastName: validation.lastName ?? customer.lastName,
     email: validation.email,
@@ -1165,6 +1214,7 @@ export function upsertCustomerForDocumentInCollection(
 export function customerPayloadFromInput(input: ClientInput) {
   const client = clientInputToSnapshot(input);
   return {
+    ...customerPhoneDetailsFromInput(input),
     customerType: client.customerType,
     firstName: client.firstName!,
     lastName: client.lastName!,

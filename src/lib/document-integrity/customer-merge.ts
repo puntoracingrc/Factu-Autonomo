@@ -1,4 +1,4 @@
-import { clientMatchesCustomer, customerToClient, migrateCustomer } from "@/lib/customers";
+import { clientMatchesCustomer, customerPhoneContacts, customerToClient, migrateCustomer } from "@/lib/customers";
 import type { Customer, Document } from "@/lib/types";
 import { isDocumentIntegrityLocked } from "@/lib/document-integrity";
 
@@ -74,12 +74,24 @@ export function mergeCustomerRecords(
     ]),
   ]).filter((id) => id !== keepId);
 
+  // Keep each contact name attached to its own number, never another person's.
+  const primary = customerPhoneContacts(keep).find((contact) => contact.slot === 1)
+    ?? removed.flatMap(customerPhoneContacts).find((contact) => contact.slot === 1);
+  const phoneKey = (phone: string) => phone.replace(/[^\d+]/g, "");
+  const secondary = customerPhoneContacts(keep).find((contact) => contact.slot === 2)
+    ?? removed.flatMap(customerPhoneContacts).find((contact) =>
+      !primary || phoneKey(contact.phone) !== phoneKey(primary.phone),
+    );
+
   const enrichedKeep: Customer = {
     ...migratedKeep,
     mergedCustomerIds,
     nif: keep.nif ?? removed.find((customer) => customer.nif)?.nif,
     email: keep.email ?? removed.find((customer) => customer.email)?.email,
-    phone: keep.phone ?? removed.find((customer) => customer.phone)?.phone,
+    phone: primary?.phone,
+    phoneContactName: primary ? primary.name : keep.phoneContactName,
+    phone2: secondary?.phone,
+    phone2ContactName: secondary ? secondary.name : keep.phone2ContactName,
     streetType:
       keep.streetType ??
       removed.find((customer) => customer.streetType)?.streetType,

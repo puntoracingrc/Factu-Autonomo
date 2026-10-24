@@ -17,6 +17,7 @@ import type { CustomerAiAutofillValues } from "@/components/clients/CustomerAiAu
 import { CustomerSortBar } from "@/components/clients/CustomerSortBar";
 import { CustomerDocumentActions } from "@/components/clients/CustomerDocumentActions";
 import { CustomerListSearch } from "@/components/clients/CustomerListSearch";
+import { CustomerPhoneFields } from "@/components/clients/CustomerPhoneFields";
 import { StreetTypeSelect } from "@/components/clients/StreetTypeSelect";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button } from "@/components/ui/Button";
@@ -41,6 +42,7 @@ import {
   customerListWindow,
   countDocumentsForCustomer,
   customerPayloadFromInput,
+  customerPhoneContacts,
   CUSTOMER_SORT_FIELD_LABELS,
   customerSortDirectionLabel,
   findCustomerByIdOrMergedId,
@@ -74,6 +76,9 @@ const EMPTY_FORM = {
   nif: "",
   email: "",
   phone: "",
+  phoneContactName: "",
+  phone2: "",
+  phone2ContactName: "",
   streetType: "",
   residenceType: "" as AddressResidenceType,
   address: "",
@@ -182,6 +187,9 @@ function DuplicateCustomerChoiceCard({
     ["NIF", migrated.nif || "Sin NIF"],
     ["Contacto", migrated.contactName || "Sin contacto"],
     ["Teléfono", migrated.phone || "Sin teléfono"],
+    ["Contacto teléfono 1", migrated.phoneContactName || "—"],
+    ["Teléfono 2", migrated.phone2 || "Sin teléfono"],
+    ["Contacto teléfono 2", migrated.phone2ContactName || "—"],
     ["Email", migrated.email || "Sin email"],
     ["Dirección", address || "Sin dirección"],
     ["Docs.", `${documentCount}`],
@@ -396,6 +404,9 @@ export default function ClientesPage() {
       nif: migrated.nif ?? "",
       email: migrated.email ?? "",
       phone: migrated.phone ?? "",
+      phoneContactName: migrated.phoneContactName ?? "",
+      phone2: migrated.phone2 ?? "",
+      phone2ContactName: migrated.phone2ContactName ?? "",
       streetType: migrated.streetType ?? "",
       residenceType: migrated.residenceType ?? "",
       address: migrated.address ?? "",
@@ -511,6 +522,9 @@ export default function ClientesPage() {
         nif: form.nif,
         email: validation.email,
         phone: validation.phone,
+        phoneContactName: form.phoneContactName,
+        phone2: form.phone2,
+        phone2ContactName: form.phone2ContactName,
         streetType: form.streetType,
         residenceType: form.residenceType,
         address: form.address,
@@ -832,16 +846,7 @@ export default function ClientesPage() {
                   onChange={(e) => updateFormField("nif", e.target.value)}
                 />
               </Field>
-              <Field
-                label="Teléfono"
-                hint="El teléfono se usará para WhatsApp si está informado."
-              >
-                <Input
-                  value={form.phone}
-                  onChange={(e) => updateFormField("phone", e.target.value)}
-                  placeholder="600 000 000"
-                />
-              </Field>
+              <CustomerPhoneFields values={form} onChange={updateFormField} />
               <Field
                 label="Email"
                 hint="Se usará para activar el envío por email en documentos guardados."
@@ -1064,19 +1069,22 @@ export default function ClientesPage() {
                         </p>
                       )}
                       <div className="mt-2 flex min-w-0 flex-wrap gap-2">
-                        {migrated.phone && (
+                        {customerPhoneContacts(migrated).map((contact) => (
                           <a
-                            href={customerWhatsappHref(migrated.phone)}
+                            key={contact.slot}
+                            href={customerWhatsappHref(contact.phone)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 transition-colors hover:bg-green-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
-                            aria-label={`Contactar por WhatsApp con ${getCustomerDisplayName(customer)}`}
+                            aria-label={`Contactar por WhatsApp con ${contact.name || getCustomerDisplayName(customer)}: ${contact.phone}`}
                             title="Abrir WhatsApp"
                           >
                             <MessageCircle className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{migrated.phone}</span>
+                            <span className="truncate">
+                              {contact.name ? `${contact.name}: ` : ""}{contact.phone}
+                            </span>
                           </a>
-                        )}
+                        ))}
                         {migrated.email && (
                           <a
                             href={customerEmailHref(migrated.email)}
@@ -1088,7 +1096,7 @@ export default function ClientesPage() {
                             <span className="truncate">{migrated.email}</span>
                           </a>
                         )}
-                        {!migrated.phone && !migrated.email && (
+                        {!migrated.phone && !migrated.phone2 && !migrated.email && (
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
                             Sin contacto de envío
                           </span>

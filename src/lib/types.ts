@@ -197,7 +197,14 @@ export interface Client {
   postalCode?: string;
 }
 
-export interface Customer {
+/** Contactos operativos: no forman parte de la identidad fiscal del cliente. */
+export interface CustomerPhoneDetails {
+  phoneContactName?: string;
+  phone2?: string;
+  phone2ContactName?: string;
+}
+
+export interface Customer extends CustomerPhoneDetails {
   id: string;
   customerType?: CustomerType;
   firstName: string;
