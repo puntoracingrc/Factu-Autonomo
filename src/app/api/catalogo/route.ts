@@ -36,6 +36,8 @@ export async function GET(request: Request) {
     if (action === "identities") return json({ok:true,...await readCatalogIdentities(admin,auth.userId,offset)});
     if (action === "families") return json({ok:true,...await readCatalogFamilies(admin,auth.userId,offset)});
     if (action !== "list") return json({ok:false,message:"Consulta no válida."},400);
-    return json({ok:true,...await listCatalogProducts(admin,auth.userId,{q:(params.get("q") ?? "").slice(0,100),family:(params.get("family") ?? "").slice(0,200),offset}),canEdit:activation.writesEnabled});
+    const family=(params.get("family") ?? "").slice(0,200),subfamily=(params.get("subfamily") ?? "").slice(0,200);
+    if(subfamily&&!family)return json({ok:false,message:"Selecciona una familia para filtrar por subfamilia."},400);
+    return json({ok:true,...await listCatalogProducts(admin,auth.userId,{q:(params.get("q") ?? "").slice(0,100),family,subfamily,offset}),canEdit:activation.writesEnabled});
   } catch { return json({ok:false,message:"No se pudo leer el catálogo. Reintenta en unos segundos."},503); }
 }
