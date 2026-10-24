@@ -1,0 +1,17 @@
+import { build } from "esbuild";
+import { readFile,writeFile,mkdir,readdir,unlink,copyFile } from "node:fs/promises";
+import {gzipSync} from "node:zlib";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."),outdir=path.join(root,"public/catalogo");
+await mkdir(outdir,{recursive:true});
+for(const file of await readdir(outdir,{withFileTypes:true}))if(file.isFile())await unlink(path.join(outdir,file.name));
+const result=await build({absWorkingDir:root,entryPoints:["src/catalog-app/app.ts"],outdir,bundle:true,format:"esm",target:"es2022",minify:true,entryNames:"app-[hash]",metafile:true,tsconfig:"tsconfig.json",legalComments:"none",define:{"process.env.NODE_ENV":'"production"'}});
+const entry=Object.entries(result.metafile.outputs).find(([,v])=>v.entryPoint==="src/catalog-app/app.ts");if(!entry)throw Error("Missing catalog entry");
+const inputs=Object.keys(result.metafile.inputs);
+for(const name of ["AppStore","AppProviders","CloudSyncContext","fiscal-models","tax-model-diagnostic","pdfjs","jspdf"])if(inputs.some(i=>i.includes(name)))throw Error("Heavy main app dependency: "+name);
+const bytes=gzipSync(await readFile(path.join(root,entry[0]))).length;if(bytes>100000)throw Error("Catalog exceeds 100 KB gzip");
+await writeFile(path.join(outdir,"index.html"),(await readFile("src/catalog-app/index.html","utf8")).replace("__JS__",path.basename(entry[0])).replace("__CSS__",path.basename(entry[1].cssBundle)));
+for(const name of ["manifest.webmanifest","icon.svg"])await copyFile(path.join(root,"src/catalog-app",name),path.join(outdir,name));
+await writeFile(path.join(outdir,"build-info.json"),JSON.stringify({initialGzipBytes:bytes,initialInputs:inputs}));
+console.log(`Factu Catálogo: ${Math.round(bytes/1024)} KB gzip, independent from the main app.`);

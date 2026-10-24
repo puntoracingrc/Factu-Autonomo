@@ -26,6 +26,7 @@ const appNoStoreHeaders = [
 
 const appNoIndexRoutes = [
   "/rapido/:path*",
+  "/catalogo/:path*",
   "/admin/:path*",
   "/auth/callback/:path*",
   "/avisos/:path*",
@@ -55,7 +56,7 @@ const nextConfig: NextConfig = {
     }];
   },
   async rewrites() {
-    return [{ source: "/rapido", destination: "/rapido/index.html" }];
+    return [{ source: "/rapido", destination: "/rapido/index.html" }, { source: "/catalogo", destination: "/catalogo/index.html" }];
   },
   outputFileTracingIncludes: {
     "/api/verifactu/register": [

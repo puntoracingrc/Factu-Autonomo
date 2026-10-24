@@ -6,8 +6,8 @@
     "build:quick": "node scripts/build-quick-app.mjs",
     "test:quick-ui": "node scripts/test-quick-app-local-ui.mjs --local",
     "pretest:quick-ui": "npm run build:quick",
-    "prebuild": "npm run build:quick",
-    "predev": "npm run build:quick",
+    "prebuild": "npm run build:quick && npm run build:catalog",
+    "predev": "npm run build:quick && npm run build:catalog",
     "dev": "next dev -p 3000",
     "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3000",
     "build": "next build",
@@ -370,7 +370,8 @@
     "test:phase1-acceptance": "node scripts/phase1-acceptance/run.mjs",
     "manual:screenshots": "node scripts/capture-manual-screenshots.mjs",
     "manual:verify": "vitest run src/lib/manual/ && node scripts/report-manual-screenshot-status.mjs --strict",
-    "manual:verify:contract": "vitest run src/lib/manual/ && node scripts/report-manual-screenshot-status.mjs"
+    "manual:verify:contract": "vitest run src/lib/manual/ && node scripts/report-manual-screenshot-status.mjs",
+    "build:catalog": "node scripts/build-catalog-app.mjs"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.3",
