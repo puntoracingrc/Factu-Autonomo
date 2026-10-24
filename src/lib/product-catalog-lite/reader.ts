@@ -12,10 +12,12 @@ function products(admin: SupabaseClient, owner: string, columns: string, count =
     .or("current_payload->>hidden.is.null,current_payload->>hidden.eq.false");
 }
 function amount(n: unknown): number | null { return typeof n === "number" && Number.isFinite(n) ? n : null; }
-export async function listCatalogProducts(admin: SupabaseClient, owner: string, input: {q:string; family:string; offset:number}) {
+export async function listCatalogProducts(admin: SupabaseClient, owner: string, input: {q:string; family:string; subfamily?:string; offset:number}) {
+  if(input.subfamily&&!input.family)throw new Error("CATALOG_INVALID_SUBFAMILY_FILTER");
   let query = products(admin,owner,summaryColumns,true);
   const filter = catalogSearchFilter(input.q); if (filter) query = query.or(filter);
   if (input.family) query = query.eq("current_payload->>family",input.family);
+  if (input.subfamily) query = query.eq("current_payload->>subfamily",input.subfamily);
   const result = await query.order("current_payload->>name",{ascending:true}).order("entity_id",{ascending:true}).range(input.offset,input.offset+CATALOG_PAGE_SIZE-1);
   if (result.error) throw new Error("CATALOG_READ_FAILED");
   const results: CatalogSummary[] = ((result.data ?? []) as unknown as Row[]).map(row => ({id:row.entity_id,version:row.current_version,name:row.name,sku:row.sku ?? "",family:row.family ?? "Sin familia",subfamily:row.subfamily ?? "",salePrice:amount(row.sales?.unitPrice),cost:amount(row.purchase?.netUnitCost ?? row.cost),unit:row.sales?.unit ?? row.unit ?? "ud",purchaseUnit:row.purchase?.unit ?? row.unit ?? "ud",vat:amount(row.sales?.ivaPercent ?? row.vat),supplierName:row.purchase?.supplierName??row.supplierName??"",priceOrigin:summaryPriceSourceLabel({...row,ivaPercent:row.vat} as unknown as Product)}));

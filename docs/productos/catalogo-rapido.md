@@ -21,6 +21,12 @@ precios consulta compras solo cuando el usuario lo solicita.
   nombre, referencias, descripciones, familias, notas y características; combina
   todos los términos, tolera mayúsculas y tildes y acota la expresión generada.
   Solo una ficha seleccionada descarga su payload completo y versión central.
+- Familias abre una navegación de dos niveles: familia y subfamilia, con una
+  opción para ver todos los productos de la familia y volver al nivel anterior.
+  Los filtros visibles de familia y subfamilia se combinan con la búsqueda,
+  el recuento y la paginación en servidor; nunca filtran solo la página cargada.
+  Una subfamilia siempre se consulta junto a su familia. Quitar filtros limpia
+  ambos niveles.
 - Las familias son metadata paginada; no se descarga una segunda copia de las
   fichas para construir el filtro. Puede asignarse una familia/subfamilia nueva
   escribiendo su nombre. No hay fusiones ni reorganizaciones masivas.
