@@ -1,5 +1,6 @@
 import type { Product, ProductAttribute, ProductPriceSource } from "@/lib/types";
 import { productPriceSources, recordManualPriceChange, isProductPriceSource } from "@/lib/product-price-sources";
+import { discountedProductCost } from "./decimal-prices";
 
 export interface CatalogSummary {
   id: string; version: number; name: string; sku: string; family: string; subfamily: string;
@@ -28,6 +29,14 @@ export function catalogNumber(text: string, label: string, maximum = 1e12): numb
   const n = Number(raw.replace(",", "."));
   if (!Number.isFinite(n) || n < 0 || n > maximum) throw new Error(`${label}: el importe está fuera de rango.`);
   return n;
+}
+export function recalculatedCatalogCost(edit: CatalogEdit): CatalogEdit {
+  const list=catalogNumber(edit.listPrice,"Tarifa"),discount=catalogNumber(edit.discount,"Descuento",100)??0;
+  if(list===undefined)throw new Error("Indica una tarifa para calcular el coste.");
+  const cost=discountedProductCost(list,discount);
+  return {...edit,cost:String(cost).replace(".",","),priceSources:edit.priceSources.map(source=>
+    source.id===edit.purchasePriceSourceId&&source.kind==="supplier_tariff"&&source.listPrice===list&&(source.discountPercent??0)===discount
+      ?{...source,netUnitCost:cost}:source)};
 }
 export function updatedCatalogProduct(base: Product, edit: CatalogEdit, now: string): Product {
   const name = edit.name.trim(); if (!name || name.length > 300) throw new Error("Escribe un nombre de hasta 300 caracteres.");

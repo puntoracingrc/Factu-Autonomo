@@ -1,6 +1,6 @@
 import {createClient,type SupabaseClient} from "@supabase/supabase-js";
 import {getOrCreateLocalCloudDeviceToken} from "@/lib/cloud/device-token";
-import {catalogEdit,updatedCatalogProduct,type CatalogSummary,type CatalogRecord,type CatalogEdit,catalogNumber} from "@/lib/product-catalog-lite/model";
+import {catalogEdit,updatedCatalogProduct,type CatalogSummary,type CatalogRecord,type CatalogEdit,catalogNumber,recalculatedCatalogCost} from "@/lib/product-catalog-lite/model";
 import type {Product,ProductPriceSource} from "@/lib/types";
 import {salePriceWithVat,isProductPriceSource} from "@/lib/product-price-sources";
 import {parseSupplierPriceCatalog,materializeSupplierPriceCatalog,planSupplierPriceAdmission,type CatalogIdentity} from "@/lib/product-catalog-lite/price-import";
@@ -105,7 +105,7 @@ root.addEventListener("click",event=>{const target=(event.target as Element).clo
  else if(action==="back"){if(leaveEditor()){view="products";error="";renderList()}}
  else if(action==="reload"){const id=current?.product.id;if(!pending&&id&&leaveEditor()){void openProduct(id)}}
  else if(action==="add-attribute"||action==="remove-attribute"){edit=readEdit();if(!edit)return;if(action==="add-attribute")edit.attributes.push({key:`attribute_${crypto.randomUUID()}`,label:"",value:""});else edit.attributes.splice(Number(target.dataset.index),1);renderEditor()}
- else if(action==="calculate-cost"){edit=readEdit();if(!edit)return;try{const list=Number(edit.listPrice.replace(",",".")),discount=Number(edit.discount.replace(",",".")||0);if(!edit.listPrice.trim()||!Number.isFinite(list)||list<0||!Number.isFinite(discount)||discount<0||discount>100)throw Error("Indica una tarifa y un descuento válidos.");edit.cost=(Math.round(list*(1-discount/100)*100)/100).toString().replace(".",",");error="";renderEditor()}catch(e){error=(e as Error).message;feedback()}}
+ else if(action==="calculate-cost"){edit=readEdit();if(!edit)return;try{edit=recalculatedCatalogCost(edit);error="";renderEditor()}catch(e){error=(e as Error).message;feedback()}}
 });
 window.addEventListener("beforeunload",event=>{if(view!=="editor"||pending||!current||!edit)return;const draft=readEdit();if(JSON.stringify(draft)!==JSON.stringify(catalogEdit(current.product))){event.preventDefault();event.returnValue=""}});
 void start();

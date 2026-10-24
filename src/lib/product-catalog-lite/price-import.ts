@@ -1,6 +1,7 @@
 import { sha256Hex } from "@/lib/document-integrity/snapshot-hash";
 import { isProductPriceSource, withPriceSourceSummary } from "@/lib/product-price-sources";
 import type { Product, ProductAttribute, ProductPriceSource } from "@/lib/types";
+import { discountedProductCost } from "./decimal-prices";
 
 export interface SupplierPriceCatalog {
   schema: "FACTU_SUPPLIER_PRICE_CATALOG_V1";
@@ -31,7 +32,7 @@ export function materializeSupplierPriceCatalog(catalog: SupplierPriceCatalog, c
     const externalId=`supplier-price-catalog:${catalog.catalogId}:${p.reference}`;
     const hash=sha256Hex(`${companyId}\0${externalId}`),id=`${hash.slice(0,8)}-${hash.slice(8,12)}-4${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
     // Match the existing product normalizer: monetary purchase costs use cents.
-    const cost=Math.round((p.listPrice*(1-p.discountPercent/100)+Number.EPSILON)*100)/100;
+    const cost=discountedProductCost(p.listPrice,p.discountPercent);
     const source:ProductPriceSource={...p.source,id:`tariff:${catalog.catalogId}:${p.reference}`,kind:"supplier_tariff",supplierName:catalog.supplierName,supplierReference:p.reference,recordedAt:now,unit:p.unit,listPrice:p.listPrice,discountPercent:p.discountPercent,netUnitCost:cost,saleUnitPrice:p.salePrice,ivaPercent:p.vatPercent};
     return withPriceSourceSummary({id,externalId,key:`${hash.slice(0,16)} ${p.reference}`,name:p.name,sku:p.reference,family:p.family,subfamily:p.subfamily,unit:p.unit,supplierName:catalog.supplierName,pvp:p.listPrice,cost,ivaPercent:p.vatPercent,
       sales:{enabled:true,description:p.description??p.name,unit:p.unit,unitPrice:p.salePrice,ivaPercent:p.vatPercent},purchase:{enabled:true,description:p.description??p.name,unit:p.unit,listPrice:p.listPrice,discountPercent:p.discountPercent,netUnitCost:cost,ivaPercent:p.vatPercent,supplierName:catalog.supplierName,supplierReference:p.reference,purchaseToSaleFactor:1},
