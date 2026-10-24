@@ -98,3 +98,12 @@ La respuesta debe confirmar cada índice y versión; pérdida de respuesta,
 recarga o permiso temporal conservan exactamente el mismo lote en el sobre de
 sesión aislado, sin fabricar un segundo comando ni presentar éxito parcial.
 No hay nuevas tablas, migraciones, rutas de escritura ni cambios de permisos.
+
+
+Los cálculos de descuento y PVP del catálogo convierten los decimales a razones
+enteras y redondean la mitad hacia arriba al céntimo. No usan el producto binario
+más un epsilon fijo. Recalcular el coste de una tarifa sin cambiar su tarifa ni
+descuento actualiza únicamente el coste derivado de esa misma evidencia. Si se
+cambia la tarifa o el descuento, se conserva la evidencia anterior y el nuevo
+precio queda registrado como intervención manual. Esta aritmética se limita al
+catálogo y no cambia el cálculo ni las evidencias de documentos fiscales.

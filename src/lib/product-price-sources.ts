@@ -1,4 +1,5 @@
 import type { Product, ProductPriceSource } from "./types";
+import { grossProductPrice } from "./product-catalog-lite/decimal-prices";
 
 export const PRICE_SOURCE_LABELS: Record<ProductPriceSource["kind"], string> = {
   manual: "Alta o edición manual", supplier_invoice: "Factura de proveedor",
@@ -39,7 +40,7 @@ export function priceSourceLabel(product: Product, side: "purchase" | "sale" = "
   return "Origen del precio no documentado";
 }
 export function salePriceWithVat(net: number | null | undefined, vat: number | null | undefined): number | null {
-  return net != null && vat != null && Number.isFinite(net) && Number.isFinite(vat) && net >= 0 && vat >= 0 && vat <= 100 ? Math.round((net*(1+vat/100)+Number.EPSILON)*100)/100 : null;
+  return net != null && vat != null && Number.isFinite(net) && Number.isFinite(vat) && net >= 0 && net<=1e12 && vat >= 0 && vat <= 100 ? grossProductPrice(net,vat) : null;
 }
 function purchaseSignature(p: Product) { return [p.purchase?.netUnitCost??p.cost,p.purchase?.listPrice??p.pvp,p.purchase?.discountPercent,p.purchase?.unit??p.unit??"ud",p.purchase?.supplierName??p.supplierName??""]; }
 export function withPriceSourceSummary(p: Product): Product {
