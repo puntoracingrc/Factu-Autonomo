@@ -9,7 +9,11 @@ precios consulta compras solo cuando el usuario lo solicita.
 ## Datos y permisos
 
 - Reutiliza Supabase Auth y el dispositivo del mismo propietario de facturación.
-  Muestra un selector explícito de las empresas autorizadas por el servidor.
+  Se vincula a una sola empresa autorizada y muestra su nombre sin selector.
+  Conserva la empresa elegida por cuenta y navegador; no elimina empresas ni
+  modifica sus permisos o datos. En un navegador nuevo con varias empresas se
+  exige elegir una antes de consultar productos. Si la conexión guardada pierde
+  acceso, nunca se abre otra empresa automáticamente.
 - `GET /api/catalogo` exige identidad, empresa exacta, sesión/dispositivo vivos,
   plan cloud, rate limit y autoridad central disponible. Todas las respuestas
   son privadas, `no-store` y `noindex`.
