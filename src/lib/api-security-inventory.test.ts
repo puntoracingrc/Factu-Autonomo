@@ -78,6 +78,7 @@ const expectedMethods: Record<string, string[]> = {
   "companies/[companyId]/access/route.ts": ["DELETE", "GET", "POST"],
   "companies/[companyId]/route.ts": ["PATCH"],
   "companies/route.ts": ["GET", "POST"],
+  "catalogo/route.ts": ["GET"],
   "customers/parse/route.ts": ["POST"],
   "document-sync/route.ts": [
     "DELETE",
@@ -165,6 +166,7 @@ const partnerRoutes = [
 ] as const;
 
 const bearerRoutes = [
+  "catalogo/route.ts",
   "admin/capabilities/route.ts",
   "billing/ai-usage/route.ts",
   "billing/checkout-scan-pack/route.ts",

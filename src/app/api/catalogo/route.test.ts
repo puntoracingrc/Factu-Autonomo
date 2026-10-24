@@ -1,0 +1,22 @@
+import {beforeEach,describe,it,expect,vi} from "vitest";
+const f=vi.hoisted(()=>({auth:vi.fn(),rate:vi.fn(),device:vi.fn(),admin:vi.fn(),activation:vi.fn(),list:vi.fn(),detail:vi.fn(),families:vi.fn()}));
+vi.mock("@/lib/companies/server",()=>({getCompanyRouteAuthFromBearer:f.auth,normalizeCompanyId:(id:string)=>id&&/^[0-9a-f-]{36}$/.test(id)?id:null}));
+vi.mock("@/lib/server/rate-limit",()=>({checkRateLimit:f.rate}));
+vi.mock("@/lib/cloud/devices",()=>({ensureCloudDeviceAccess:f.device,normalizeCloudDeviceToken:(t:string)=>t}));
+vi.mock("@/lib/supabase/admin",()=>({getSupabaseAdmin:f.admin}));
+vi.mock("@/lib/central-business-authority/activation",()=>({evaluateCentralBusinessAuthorityActivation:f.activation}));
+vi.mock("@/lib/product-catalog-lite/reader",()=>({listCatalogProducts:f.list,readCatalogProduct:f.detail,readCatalogFamilies:f.families}));
+import {GET} from "./route";
+const company="00000000-0000-4000-8000-000000000001";
+const request=(query="",headers:Record<string,string>={})=>new Request("https://example.test/api/catalogo"+query,{headers:{Authorization:"Bearer synthetic","X-Factu-Company-Id":company,"X-Factu-Device-Token":"synthetic-device",...headers}});
+beforeEach(()=>{vi.resetAllMocks();f.auth.mockResolvedValue({userId:"owner-resolved-server",actorUserId:"actor",companyId:company,billingUserId:"billing",sessionId:"live-session",userEmail:"synthetic@example.test"});f.rate.mockResolvedValue({allowed:true});f.device.mockResolvedValue({allowed:true});f.admin.mockReturnValue({});f.activation.mockReturnValue({enabled:true,writesEnabled:true});f.list.mockResolvedValue({results:[],total:0,hasMore:false});f.families.mockResolvedValue({families:[],next:null})});
+describe("private catalog reader",()=>{
+ it("authenticates before reading data",async()=>{f.auth.mockResolvedValue(null);expect((await GET(request())).status).toBe(401);expect(f.admin).not.toHaveBeenCalled();expect(f.list).not.toHaveBeenCalled()});
+ it("requires an explicit matching company",async()=>{expect((await GET(request("",{"X-Factu-Company-Id":""}))).status).toBe(400);f.auth.mockResolvedValue({companyId:"another-owner"});expect((await GET(request())).status).toBe(400);expect(f.admin).not.toHaveBeenCalled()});
+ it("enforces rate, plan/session and active device before every read",async()=>{f.rate.mockResolvedValue({allowed:false});expect((await GET(request())).status).toBe(429);expect(f.device).not.toHaveBeenCalled();f.rate.mockResolvedValue({allowed:true});f.device.mockResolvedValue({allowed:false,message:"Revoked",reason:"DEVICE_REVOKED"});expect((await GET(request())).status).toBe(403);expect(f.admin).not.toHaveBeenCalled()});
+ it("derives the owner from verified membership and never from query parameters",async()=>{const response=await GET(request("?q=motor&offset=30&userId=foreign"));expect(response.status).toBe(200);expect(f.list).toHaveBeenCalledWith({},"owner-resolved-server",{q:"motor",offset:30,family:""});expect(response.headers.get("cache-control")).toContain("no-store");expect(response.headers.get("vary")).toContain("X-Factu-Company-Id")});
+ it("retains read access with writing paused and exposes canEdit=false",async()=>{f.activation.mockReturnValue({enabled:true,writesEnabled:false});const response=await GET(request());expect((await response.json()).canEdit).toBe(false)});
+ it("rejects invalid page and returns missing detail without falling back to another company",async()=>{expect((await GET(request("?offset=-1"))).status).toBe(400);f.detail.mockResolvedValue(null);expect((await GET(request("?action=detail&id=missing"))).status).toBe(404);expect(f.detail).toHaveBeenCalledWith({},"owner-resolved-server","missing")});
+ it("keeps failures reattemptable, never presenting them as an empty catalog",async()=>{f.list.mockRejectedValue(Error("private database details"));const r=await GET(request());expect(r.status).toBe(503);expect(JSON.stringify(await r.json())).not.toContain("private database")});
+ it("bounds family metadata queries",async()=>{expect((await GET(request("?action=families&offset=1000"))).status).toBe(200);expect(f.families).toHaveBeenCalledWith({},"owner-resolved-server",1000)});
+});
