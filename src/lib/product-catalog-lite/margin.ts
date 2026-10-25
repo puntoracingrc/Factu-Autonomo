@@ -17,7 +17,7 @@ function unitKey(unit: string) {
 const difference=(a:number,b:number)=>(Math.round(a*100)-Math.round(b*100))/100;
 
 /** A read-only estimate. The stored cost is already discounted; no tariff/PVP fallback. */
-export function catalogMargin(product: Product, input: {
+export function catalogMargin(product: Pick<Product,"unit"|"sales"|"purchase"|"ivaPercent">, input: {
   sale: number | undefined; cost: number | undefined; saleVat: number | undefined; unit: string;
 }): Margin {
   if (!valid(input.sale) || !valid(input.cost)) return {pending:"Indica el PVP de venta y el coste neto para calcular el margen."};
