@@ -45,7 +45,8 @@ export function catalogSearchFilter(query: string): string | null {
     } else if (rule) {
       // A broad family like "Mandos y automatismos" also holds receivers and
       // switches. Only a family that names this kind exactly is sufficient.
-      groups.push(`or(${anyMatch(identityFields, pattern)},${column("family")}.imatch.${quoted(`^${pattern}$`)})`);
+      const identityPattern = rule.identityPrefixOnly ? `^${pattern}` : pattern;
+      groups.push(`or(${anyMatch(identityFields, identityPattern)},${column("family")}.imatch.${quoted(`^${pattern}$`)})`);
       groups.push(...noneMatch(["family", "subfamily"], wordPattern(rule.excludedCategories)));
       groups.push(...noneMatch(["name"], `${wordPattern(rule.excludedNamePrefixes)}.*${pattern}`));
     } else {
