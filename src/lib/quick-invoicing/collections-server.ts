@@ -34,7 +34,7 @@ function collectionView(row: StoredCollection, payment?: StoredQuickPayment | nu
 export async function readQuickCollection(context: QuickContext, id: string, refresh = true): Promise<QuickCollection> {
   const config = configuredQuickPayments(context.scope.company_id, true), row = await readStored(context, id);
   let payment = await latestPayment(context, id, config.livemode);
-  if (refresh && payment?.checkout_session_id) {
+  if (refresh && payment && (payment.checkout_session_id || payment.channel === "terminal")) {
     const stripe = quickStripeClient(config); await assertQuickStripeAccount(stripe, config);
     payment = await refreshQuickPayment(context.admin, stripe, config, payment);
   }

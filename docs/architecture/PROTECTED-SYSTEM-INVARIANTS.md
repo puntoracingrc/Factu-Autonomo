@@ -251,6 +251,9 @@ Contrato: [ADR-0010](ADR-0010-central-invoice-authority.md).
 - ADR-0010 V15 admite cobro sin factura y emisión sin cobro. Vincular después
   una factura de Factu exige identidad, empresa, versión e importe exactos; la
   confirmación central y su evento activan el mismo check verde de Factu.
+- ADR-0010 V16 añade Stripe Terminal en Android: NFC y Checkout comparten una
+  única reserva por cobro. El callback del teléfono nunca acredita dinero;
+  solo Stripe autenticado confirma el pago exacto y la transición central.
 
 Regresiones mínimas: `central-invoice-authority/activation.test.ts`,
 `protected-system-invariants-contract.test.ts` y

@@ -383,6 +383,78 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
       await admin.from("quick_invoicing_access").update({company_id:users[0].id}).eq("actor_user_id",users[0].id);
     }
   });
+  it("Terminal preserves the same single payment slot and central green check, before or after invoicing", async () => {
+    for (const beforeInvoice of [false,true]) {
+      const actor=users[0].id, collectionId=beforeInvoice ? randomUUID() : null;
+      let invoiceId:string|undefined, operationId:string|undefined;
+      if (collectionId) {
+        expect((await admin.rpc("create_quick_payment_request_v1",{p_actor_id:actor,p_id:collectionId,p_amount:9680,p_description:"NFC sintético antes de factura",p_customer_name:""})).error).toBeNull();
+      } else {
+        const f=await fixture("factura","12345678Z","NFC sintético",false); operationId=f.intent.operationId;
+        const issued=await admin.rpc("commit_quick_document_v1",f.args); expect(issued.error).toBeNull(); invoiceId=issued.data.invoice_id;
+      }
+      const args={p_actor_id:actor,p_operation_id:operationId ?? null,p_collection_id:collectionId,p_expected_version:1,p_amount:9680,p_account_id:"acct_synthetic",p_livemode:true};
+      expect((await anon.rpc("reserve_quick_terminal_payment_v1",args)).error).not.toBeNull();
+      const reserved=await Promise.all([admin.rpc("reserve_quick_terminal_payment_v1",args),admin.rpc("reserve_quick_terminal_payment_v1",args)]);
+      reserved.forEach(r=>expect(r.error).toBeNull()); expect(reserved[0].data.id).toBe(reserved[1].data.id);
+      const payment=reserved[0].data, intentId=`pi_${payment.id.replaceAll("-","")}`;
+      expect(payment.channel).toBe("terminal"); expect(payment.checkout_session_id).toBeNull();
+      expect((await admin.rpc("bind_quick_stripe_session_v1",{p_payment_id:payment.id,p_session_id:"cs_forged",p_url:"https://checkout.stripe.com/c/pay/synthetic"})).error).not.toBeNull();
+      expect((await admin.rpc("bind_quick_terminal_intent_v1",{p_payment_id:payment.id,p_intent_id:intentId})).error).toBeNull();
+      const confirm={p_payment_id:payment.id,p_account_id:"acct_synthetic",p_livemode:true,p_amount:9680,p_currency:"eur",p_intent_id:intentId,p_paid_at:now,p_event_id:`evt_${payment.id}`,p_review_reason:null};
+      expect((await admin.rpc("confirm_quick_terminal_payment_v1",{...confirm,p_amount:1})).error).not.toBeNull();
+      const confirmed=await admin.rpc("confirm_quick_terminal_payment_v1",confirm); expect(confirmed.error).toBeNull(); expect(confirmed.data.status).toBe("paid");
+      if (collectionId) {
+        expect(confirmed.data.invoice_id).toBeNull();
+        const f=await fixture("factura","12345678Z","NFC factura posterior",false);
+        const issued=await admin.rpc("commit_quick_document_v1",f.args); expect(issued.error).toBeNull(); invoiceId=issued.data.invoice_id;
+        const attach={p_actor_id:actor,p_id:collectionId,p_invoice_id:invoiceId,p_expected_version:1};
+        expect((await admin.rpc("attach_quick_collection_to_invoice_v1",attach)).error).toBeNull();
+      }
+      await expectFactuGreenCheck(invoiceId!,true);
+      const original=await admin.from("central_invoice_documents").select("current_version,emitted_hash").eq("id",invoiceId!).single();
+      expect((await admin.rpc("confirm_quick_terminal_payment_v1",{...confirm,p_event_id:"check:replay"})).error).toBeNull();
+      expect((await admin.from("central_invoice_documents").select("current_version,emitted_hash").eq("id",invoiceId!).single()).data).toEqual(original.data);
+    }
+  });
+  it("Terminal rejects an active Checkout and grants expire or revoke with their source session",async()=>{
+    const actor=users[0].id,id=randomUUID();
+    expect((await admin.rpc("create_quick_payment_request_v1",{p_actor_id:actor,p_id:id,p_amount:1000,p_description:"NFC aislado",p_customer_name:""})).error).toBeNull();
+    const qr=await admin.rpc("reserve_quick_collection_payment_v1",{p_actor_id:actor,p_id:id,p_account_id:"acct_synthetic",p_livemode:false}); expect(qr.error).toBeNull();
+    const args={p_actor_id:actor,p_operation_id:null,p_collection_id:id,p_expected_version:null,p_amount:1000,p_account_id:"acct_synthetic",p_livemode:false};
+    expect((await admin.rpc("reserve_quick_terminal_payment_v1",args)).error).not.toBeNull();
+    expect((await admin.from("quick_stripe_payments").update({status:"expired"}).eq("id",qr.data.id)).error).toBeNull();
+    const nfc=await admin.rpc("reserve_quick_terminal_payment_v1",args); expect(nfc.error).toBeNull();
+    const intentId=`pi_${nfc.data.id.replaceAll("-","")}`;
+    expect((await admin.rpc("bind_quick_terminal_intent_v1",{p_payment_id:nfc.data.id,p_intent_id:intentId})).error).toBeNull();
+    expect((await admin.rpc("confirm_quick_terminal_payment_v1",{p_payment_id:nfc.data.id,p_account_id:"acct_synthetic",p_livemode:false,p_amount:1000,p_currency:"eur",p_intent_id:intentId,p_paid_at:now,p_event_id:"evt_synthetic_test"})).data.status).toBe("paid");
+    const claims=JSON.parse(Buffer.from(users[0].token.split(".")[1],"base64url").toString()), deviceHash=sha(randomUUID()), tokenHash=sha(randomUUID());
+    const sessionHash=sha(`factu-cloud-session-v1:${claims.session_id}`);
+    expect((await admin.from("user_devices").insert({user_id:actor,token_hash:deviceHash,name:"NFC sintético",kind:"mobile",status:"active"})).error).toBeNull();
+    expect((await admin.from("quick_terminal_grants").insert({token_hash:tokenHash,payment_id:nfc.data.id,actor_id:actor,company_id:actor,session_hash:sessionHash,device_hash:deviceHash})).error).toBeNull();
+    expect((await anon.from("quick_terminal_grants").select("*")).error).not.toBeNull();
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).toBeNull();
+    sql(`update public.quick_terminal_grants set expires_at=now()-interval '1 second' where token_hash='${tokenHash}'`);
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).not.toBeNull();
+    sql(`update public.quick_terminal_grants set expires_at=now()+interval '10 minutes',session_hash='${sha(randomUUID())}' where token_hash='${tokenHash}'`);
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).not.toBeNull();
+    sql(`update public.quick_terminal_grants set session_hash='${sessionHash}' where token_hash='${tokenHash}'`);
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).toBeNull();
+    expect((await admin.from("user_devices").update({status:"revoked"}).eq("user_id",actor).eq("token_hash",deviceHash)).error).toBeNull();
+    expect((await admin.rpc("read_quick_terminal_grant_v1",{p_hash:tokenHash})).error).not.toBeNull();
+    expect((await admin.from("quick_terminal_grants").delete().eq("token_hash",tokenHash)).error).toBeNull();
+  });
+  it("Terminal rejects a collection whose linked invoice amount changed before preparing NFC",async()=>{
+    const actor=users[0].id,id=randomUUID(),f=await fixture("factura","12345678Z","NFC factura corregida",false);
+    const issued=await admin.rpc("commit_quick_document_v1",f.args);expect(issued.error).toBeNull();
+    expect((await admin.rpc("create_quick_payment_request_v1",{p_actor_id:actor,p_id:id,p_amount:9680,p_description:"NFC importe congelado",p_customer_name:""})).error).toBeNull();
+    expect((await admin.rpc("attach_quick_collection_to_invoice_v1",{p_actor_id:actor,p_id:id,p_invoice_id:issued.data.invoice_id,p_expected_version:1})).error).toBeNull();
+    sql(`update public.central_invoice_documents set emitted_snapshot=jsonb_set(emitted_snapshot,'{taxSummary,total}','120'::jsonb) where id='${issued.data.invoice_id}'::uuid;
+      update public.central_invoice_documents set emitted_hash='sha256:'||encode(extensions.digest(convert_to(emitted_snapshot::text,'UTF8'),'sha256'),'hex') where id='${issued.data.invoice_id}'::uuid`);
+    const reserved=await admin.rpc("reserve_quick_terminal_payment_v1",{p_actor_id:actor,p_operation_id:null,p_collection_id:id,p_expected_version:null,p_amount:9680,p_account_id:"acct_synthetic",p_livemode:true});
+    expect(reserved.error?.message).toBe("TERMINAL_INVOICE_AMOUNT_CHANGED");
+    expect((await admin.from("quick_stripe_payments").select("id").eq("collection_id",id)).data).toEqual([]);
+  });
   it("Stripe collection is private, concurrent-idempotent and atomic with central invoice events", async () => {
     const f = await fixture("factura", "12345678Z", "Cliente cobro sintético", false);
     const issued = await admin.rpc("commit_quick_document_v1", f.args);
