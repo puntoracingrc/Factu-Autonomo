@@ -39,7 +39,11 @@ import {
 
 export const CENTRAL_EXPENSE_BUNDLE_CANARY = "CENTRAL_EXPENSE_BUNDLE_CANARY_V1";
 
-type ExpenseBundleEntityType = "supplier" | "expense" | "recurring_expense";
+type ExpenseBundleEntityType =
+  | "supplier"
+  | "expense"
+  | "recurring_expense"
+  | "product";
 
 export interface CentralExpenseBundlePreparedMutation {
   entityType: ExpenseBundleEntityType;
@@ -58,7 +62,10 @@ export type CentralExpenseBundlePreparation<T> =
   | { ok: false; error: string };
 
 export type CentralExpenseBundleDelivery =
-  "local" | "central_confirmed" | "central_pending" | "central_review";
+  | "local"
+  | "central_confirmed"
+  | "central_pending"
+  | "central_review";
 
 export type CentralExpenseBundleResult<T> =
   | {
@@ -227,7 +234,19 @@ export async function saveCentralExpenseBundleWithCanary<T>(input: {
   try {
     return await withCentralBusinessQueueLock(ownerScope, async () => {
       const baseline = dependencies.getCurrentData();
-      const now = (dependencies.now ?? (() => new Date().toISOString()))();
+      const identity = await operationIdentity(input.operationId);
+      const queue = loadCentralBusinessDurableQueue(
+        ownerScope,
+        dependencies.storage,
+      );
+      const existingBatch = queue.operations.filter(
+        (operation) => operation.batchId === identity.batchId,
+      );
+      // A timeout must replay the original timestamps and provenance, even if
+      // the clock advanced before the user retried the same invoice.
+      const now =
+        existingBatch[0]?.enqueuedAt ??
+        (dependencies.now ?? (() => new Date().toISOString()))();
       const prepared = dependencies.prepareLocal({ data: baseline, now });
       if (!prepared.ok) return prepared;
       if (!validatePreparedMutations(prepared.mutations)) {
@@ -238,14 +257,6 @@ export async function saveCentralExpenseBundleWithCanary<T>(input: {
         };
       }
 
-      const identity = await operationIdentity(input.operationId);
-      const queue = loadCentralBusinessDurableQueue(
-        ownerScope,
-        dependencies.storage,
-      );
-      const existingBatch = queue.operations.filter(
-        (operation) => operation.batchId === identity.batchId,
-      );
       const batchEntityKeys = new Set(
         existingBatch.map((operation) =>
           entityKey(operation.input.entityType, operation.input.entityId),

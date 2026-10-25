@@ -1,4 +1,5 @@
 import type { AppData, Expense, Supplier } from "./types";
+import { productsWithExpenseCosts } from "./expense-catalog-costs";
 
 const OPERATION_ID = /^[A-Za-z0-9_-]{1,160}$/u;
 
@@ -53,7 +54,9 @@ export function buildScannedExpenseDurableTransition(input: {
       }
     : undefined;
   const supplierCollisions = createdSupplier
-    ? input.data.suppliers.filter((supplier) => supplier.id === createdSupplier.id)
+    ? input.data.suppliers.filter(
+        (supplier) => supplier.id === createdSupplier.id,
+      )
     : [];
   if (supplierCollisions.length > 1) {
     throw new Error("SCANNED_EXPENSE_SUPPLIER_COLLISION");
@@ -105,7 +108,17 @@ export function buildScannedExpenseDurableTransition(input: {
       )
     : [...input.data.expenses, expense];
   return {
-    data: { ...input.data, suppliers, expenses },
+    data: {
+      ...input.data,
+      suppliers,
+      expenses,
+      products: productsWithExpenseCosts({
+        expense,
+        products: input.data.products,
+        expenses: input.data.expenses,
+        now: input.now,
+      }),
+    },
     value: { expense, supplier: createdSupplier ?? supplierCollisions[0] },
   };
 }
