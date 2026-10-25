@@ -285,6 +285,18 @@ describe("expense-backed catalogue costs", () => {
     };
     expect(productsWithExpenseCosts(input(old, [updated]))[0]).toEqual(updated);
   });
+
+  it("does not let editing an earlier invoice overwrite a later purchase on the same day", () => {
+    const older = { ...invoice, createdAt: "2026-09-02T08:00:00.000Z" };
+    const later = {
+      ...invoice,
+      id: "synthetic-later-same-day",
+      createdAt: "2026-09-02T09:00:00.000Z",
+    };
+    expect(
+      productsWithExpenseCosts(input(older, [product], [older, later]))[0],
+    ).toEqual(product);
+  });
   it("rejects inconsistent extracted net prices and conflicting lines instead of last-line-wins", () => {
     const wrong = {
       ...invoice,

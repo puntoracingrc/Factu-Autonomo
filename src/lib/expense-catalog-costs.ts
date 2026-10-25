@@ -129,21 +129,26 @@ export function reviewExpenseCatalogCosts(input: {
           },
         ];
       const source = currentPriceSource(product);
-      const latestDates = expenses
+      const storedExpense = expenses.find((entry) => entry.id === expense.id);
+      const laterPurchase = expenses
         .filter((e) => e.id !== expense.id && e.amount > 0)
-        .flatMap((e) =>
+        .filter((e) =>
           (e.purchaseLines ?? []).some(
             (l) =>
               expensePurchaseLineIsEligibleForProductCatalog(e, l) &&
               matchingPurchaseProducts(l, e, [product]).length === 1,
-          )
-            ? [e.date]
-            : [],
+          ),
+        )
+        .some(
+          (entry) =>
+            entry.date > expense.date ||
+            (entry.date === expense.date &&
+              !!storedExpense &&
+              entry.createdAt > storedExpense.createdAt),
         );
       const sourceDate =
         source?.documentDate ?? source?.recordedAt.slice(0, 10);
-      if (sourceDate) latestDates.push(sourceDate);
-      if (latestDates.some((d) => d > expense.date))
+      if (laterPurchase || (sourceDate && sourceDate > expense.date))
         return [
           {
             ...item,

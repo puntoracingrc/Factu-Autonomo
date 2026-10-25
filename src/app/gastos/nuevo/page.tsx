@@ -318,7 +318,9 @@ export default function NuevoGastoPage() {
     setPaymentMethod(editingExpense.paymentMethod);
     setNotes(editingExpense.notes ?? "");
     setPurchaseDocument(editingExpense.purchaseDocument ?? {});
-    setPurchaseLines(editingExpense.purchaseLines ?? []);
+    // Reopening an invoice must review today's catalogue again; an acceptance
+    // from a previous save is not a standing approval for later cost changes.
+    setPurchaseLines((editingExpense.purchaseLines ?? []).map(line=>({...line,updateCatalogCost:undefined})));
     setWorkDocumentId(editingExpense.workDocumentId ?? "");
     setExpenseOrigin(editingExpense.origin === "scan" ? "scan" : "manual");
     setBusinessKind(
