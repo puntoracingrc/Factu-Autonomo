@@ -19,3 +19,9 @@ export function grossProductPrice(netPrice: number, vatPercent: number): number 
   const [price,priceScale]=ratio(netPrice),[vat,vatScale]=ratio(vatPercent);
   return cents(price*(BigInt(100)*vatScale+vat),priceScale*BigInt(100)*vatScale);
 }
+/** Cost of one sale unit when one purchase unit contains `factor` sale units. */
+export function convertedProductCost(netCost: number, factor: number): number {
+  if(factor<=0)throw Error("Factor fuera de rango.");
+  const [cost,costScale]=ratio(netCost),[units,unitScale]=ratio(factor);
+  return cents(cost*unitScale,costScale*units);
+}
