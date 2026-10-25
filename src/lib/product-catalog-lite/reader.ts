@@ -4,6 +4,7 @@ import { CATALOG_PAGE_SIZE, catalogSearchFilter, type CatalogSummary } from "./m
 import { summaryPriceSourceLabel } from "@/lib/product-price-sources";
 import { invoicePriceSources } from "./invoice-sources";
 import type { Expense } from "@/lib/types";
+import { catalogMargin } from "./margin";
 
 const summaryColumns = "entity_id,current_version,name:current_payload->>name,sku:current_payload->>sku,family:current_payload->>family,subfamily:current_payload->>subfamily,unit:current_payload->>unit,cost:current_payload->cost,pvp:current_payload->pvp,sales:current_payload->sales,purchase:current_payload->purchase,vat:current_payload->ivaPercent,priceSourceSummary:current_payload->priceSourceSummary,supplierName:current_payload->>supplierName";
 type Row = { entity_id:string; current_version:number; name:string; sku?:string; family:string; subfamily?:string; unit?:string; cost?:number; pvp?:number; sales?:Product["sales"]; purchase?:Product["purchase"]; vat?:number;priceSourceSummary?:Product["priceSourceSummary"];supplierName?:string };
@@ -20,7 +21,11 @@ export async function listCatalogProducts(admin: SupabaseClient, owner: string, 
   if (input.subfamily) query = query.eq("current_payload->>subfamily",input.subfamily);
   const result = await query.order("current_payload->>name",{ascending:true}).order("entity_id",{ascending:true}).range(input.offset,input.offset+CATALOG_PAGE_SIZE-1);
   if (result.error) throw new Error("CATALOG_READ_FAILED");
-  const results: CatalogSummary[] = ((result.data ?? []) as unknown as Row[]).map(row => ({id:row.entity_id,version:row.current_version,name:row.name,sku:row.sku ?? "",family:row.family ?? "Sin familia",subfamily:row.subfamily ?? "",salePrice:amount(row.sales?.unitPrice),cost:amount(row.purchase?.netUnitCost ?? row.cost),unit:row.sales?.unit ?? row.unit ?? "ud",purchaseUnit:row.purchase?.unit ?? row.unit ?? "ud",vat:amount(row.sales?.ivaPercent ?? row.vat),supplierName:row.purchase?.supplierName??row.supplierName??"",priceOrigin:summaryPriceSourceLabel({...row,ivaPercent:row.vat} as unknown as Product)}));
+  const results: CatalogSummary[] = ((result.data ?? []) as unknown as Row[]).map(row => {
+    const salePrice=amount(row.sales?.unitPrice),cost=amount(row.purchase?.netUnitCost ?? row.cost),vat=amount(row.sales?.ivaPercent ?? row.vat),unit=row.sales?.unit ?? row.unit ?? "ud";
+    const estimate=catalogMargin({unit:row.unit,sales:row.sales,purchase:row.purchase,ivaPercent:row.vat},{sale:salePrice ?? undefined,cost:cost ?? undefined,saleVat:vat ?? undefined,unit});
+    return {id:row.entity_id,version:row.current_version,name:row.name,sku:row.sku ?? "",family:row.family ?? "Sin familia",subfamily:row.subfamily ?? "",salePrice,cost,unit,purchaseUnit:row.purchase?.unit ?? row.unit ?? row.sales?.unit ?? "ud",vat,supplierName:row.purchase?.supplierName??row.supplierName??"",priceOrigin:summaryPriceSourceLabel({...row,ivaPercent:row.vat} as unknown as Product),saleUnitCost:"pending" in estimate?null:estimate.cost,estimatedBenefit:"pending" in estimate?null:estimate.margin,discountPercent:amount(row.purchase?.discountPercent)};
+  });
   return {results,total:result.count ?? 0,hasMore:input.offset+results.length<(result.count ?? 0)};
 }
 export async function readCatalogIdentities(admin: SupabaseClient, owner: string, offset: number) {

@@ -6,6 +6,9 @@ export interface CatalogSummary {
   id: string; version: number; name: string; sku: string; family: string; subfamily: string;
   salePrice: number | null; cost: number | null; unit: string; purchaseUnit: string; vat: number | null;
   supplierName?: string; priceOrigin?: string;
+  /** Cost and gross margin before VAT, expressed per sale unit when comparable. */
+  saleUnitCost?: number | null; estimatedBenefit?: number | null;
+  discountPercent?: number | null;
 }
 export interface CatalogRecord { product: Product; version: number }
 export interface CatalogEdit {

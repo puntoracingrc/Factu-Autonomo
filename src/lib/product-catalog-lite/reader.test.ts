@@ -33,4 +33,14 @@ describe("catalog family and subfamily query",()=>{
     const db=database();await expect(listCatalogProducts(db.client,"owner",{q:"",family:"",subfamily:"Montaje",offset:0})).rejects.toThrow("CATALOG_INVALID_SUBFAMILY_FILTER");
     expect(db.from).not.toHaveBeenCalled();
   });
+  it("returns the same sale-unit cost and benefit as the detail without extra queries",async()=>{
+    const db=database();
+    const row={entity_id:"synthetic-pack",current_version:1,name:"Caja de prueba",family:"Prueba",unit:"ud",sales:{unit:"ud",unitPrice:25,ivaPercent:21},purchase:{unit:"caja",purchaseToSaleFactor:10,netUnitCost:100,discountPercent:50,listPrice:200}};
+    db.query.range.mockResolvedValue({data:[row,{...row,entity_id:"unknown-unit",purchase:{...row.purchase,purchaseToSaleFactor:undefined}},{...row,entity_id:"cost-only",sales:{unit:"ud"}}],count:3,error:null} as never);
+    const result=await listCatalogProducts(db.client,"owner",{q:"",family:"",offset:0});
+    expect(result.results[0]).toMatchObject({cost:100,saleUnitCost:10,estimatedBenefit:15,salePrice:25,discountPercent:50});
+    expect(result.results[1]).toMatchObject({saleUnitCost:null,estimatedBenefit:null});
+    expect(result.results[2]).toMatchObject({salePrice:null,cost:100,estimatedBenefit:null});
+    expect(db.from).toHaveBeenCalledTimes(1);
+  });
 });
