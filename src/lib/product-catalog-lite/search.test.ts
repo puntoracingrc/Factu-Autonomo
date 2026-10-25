@@ -21,7 +21,8 @@ describe("catalog search vocabulary and exclusions", () => {
   it("limits lama and lamas to slats while retaining their broad accessory family", () => {
     const filter = catalogSearchFilter("lama");
     for (const term of ["lamas", "LAMAS", "lama lamas"]) expect(catalogSearchFilter(term)).toBe(filter);
-    expect(filter).toContain("lamas?");
+    expect(filter).toContain('current_payload->>name.imatch."^\\\\m(lamas?)\\\\M"');
+    expect(filter).toContain('current_payload->>subfamily.imatch."^\\\\m(lamas?)\\\\M"');
     expect(filter).toContain("^persianas?$");
     expect(filter).toContain("tirantes?");
     expect(filter).toContain("topes?");

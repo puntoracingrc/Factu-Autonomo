@@ -3,6 +3,8 @@
 export interface CatalogSearchRule {
   terms: readonly string[];
   pattern: string;
+  /** Require the name or subfamily to start with the product kind. */
+  identityPrefixOnly?: boolean;
   /** These categories describe another product, even when they mention this kind. */
   excludedCategories: string;
   /** A named component before the searched kind: "motor con mando", for example. */
@@ -21,6 +23,7 @@ export const CATALOG_SEARCH_RULES: readonly CatalogSearchRule[] = [
   {
     terms: ["lama", "lamas"],
     pattern: "lamas?",
+    identityPrefixOnly: true,
     // Lamas currently live under "Accesorios de persiana". Only the exact
     // complete-shutter family is excluded, alongside specific accessory kinds.
     excludedCategories: `^persianas?$|${lamaAccessories}`,
