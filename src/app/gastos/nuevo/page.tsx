@@ -106,6 +106,10 @@ import type {
 import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 import { expenseAlreadySavedFromInbox } from "@/lib/expense-inbox-lifecycle";
 
+import { reviewExpenseCatalogCosts } from "@/lib/expense-catalog-costs";
+import { ExpensePriceAlerts } from "@/components/expenses/ExpensePriceAlerts";
+import { ExpenseCatalogCostReview } from "@/components/expenses/ExpenseCatalogCostReview";
+
 function emptyPurchaseLine(
   partial: Partial<ExpensePurchaseLine> = {},
 ): ExpensePurchaseLine {
@@ -114,6 +118,7 @@ function emptyPurchaseLine(
     supplierReference: partial.supplierReference,
     description: partial.description ?? "",
     catalogProduct: partial.catalogProduct ?? false,
+    updateCatalogCost: partial.updateCatalogCost,
     sourceQuantity: partial.sourceQuantity,
     quantity: partial.quantity ?? 1,
     chargeQuantity: partial.chargeQuantity,
@@ -589,7 +594,35 @@ export default function NuevoGastoPage() {
 
   function updatePurchaseLine(id: string, patch: Partial<ExpensePurchaseLine>) {
     setPurchaseLines((prev) =>
-      prev.map((line) => (line.id === id ? { ...line, ...patch } : line)),
+      prev.map((line) => {
+        if (line.id !== id) return line;
+        const pricingChanged = [
+          "unitPrice",
+          "discountPercent",
+          "quantity",
+          "chargeQuantity",
+        ].some((key) => Object.hasOwn(patch, key));
+        const identityChanged = [
+          "description",
+          "supplierReference",
+          "unit",
+        ].some((key) => Object.hasOwn(patch, key));
+        return {
+          ...line,
+          ...(pricingChanged
+            ? {
+                netUnitPrice: undefined,
+                total: undefined,
+                calculationExpectedTotal: undefined,
+                calculationDifference: undefined,
+              }
+            : {}),
+          ...(pricingChanged || identityChanged
+            ? { updateCatalogCost: undefined }
+            : {}),
+          ...patch,
+        };
+      }),
     );
   }
 
@@ -1151,9 +1184,30 @@ export default function NuevoGastoPage() {
     return findExpensePurchaseLinePriceAlerts({
       currentLines,
       currentExpenseAmount: payload.expense.amount,
+      currentExpenseDate: payload.expense.date,
+      products: data.products,
       expenses: data.expenses,
       supplierId: match?.supplier.id,
       supplierName: match?.supplier.name ?? payload.supplier.name,
+    });
+  }
+
+  function catalogCostReviewsForScanPayload(payload: ExpenseScanPayload) {
+    const match = findBestSupplierMatch(data.suppliers, {
+      name: payload.supplier.name,
+      nif: payload.supplier.nif,
+    });
+    return reviewExpenseCatalogCosts({
+      expense: {
+        ...payload.expense,
+        supplierId: match?.supplier.id,
+        supplierName: match?.supplier.name ?? payload.supplier.name,
+        purchaseLines: payload.expense.purchaseLines?.map((line) =>
+          emptyPurchaseLine(line),
+        ),
+      },
+      products: data.products,
+      expenses: data.expenses,
     });
   }
 
@@ -1196,9 +1250,13 @@ export default function NuevoGastoPage() {
         Math.abs(priceAlert.discountChangePoints) >= 5
           ? ` · descuento ${priceAlert.previousDiscountPercent}% → ${priceAlert.currentDiscountPercent}%`
           : "";
-      return `Revisa ${priceAlert.description}: ahora ${formatMoney(priceAlert.currentUnitPrice)}, antes ${formatMoney(priceAlert.previousUnitPrice)}${discountText}.`;
+      return `Revisa ${priceAlert.description}: coste neto ahora ${formatMoney(priceAlert.currentNetUnitCost)}, antes ${formatMoney(priceAlert.previousNetUnitCost)}${discountText}${priceAlert.missingDiscount ? " · posible descuento no aplicado" : ""}.`;
     }
 
+    const costReview = catalogCostReviewsForScanPayload(review.payload).find(
+      (item) => item.needsReview,
+    );
+    if (costReview) return costReview.reason;
     if (review.payload.warnings.length > 0) return review.payload.warnings[0];
     if (review.payload.confidence < 0.8) {
       return "Lectura con poca confianza. Conviene revisar antes de guardar.";
@@ -1234,6 +1292,9 @@ export default function NuevoGastoPage() {
     if (duplicateScanReviewInCurrentBatch(review)) return "blocked";
     if (
       priceAlertsForScanPayload(review.payload).length > 0 ||
+      catalogCostReviewsForScanPayload(review.payload).some(
+        (item) => item.needsReview,
+      ) ||
       review.payload.warnings.length > 0 ||
       review.payload.confidence < 0.8
     ) {
@@ -1352,6 +1413,34 @@ export default function NuevoGastoPage() {
         ? line
         : { ...line, catalogProduct: false },
     );
+    const freshCostReviews = reviewExpenseCatalogCosts({
+      expense: {
+        ...payload.expense,
+        supplierId: resolved.supplierId,
+        supplierName: resolved.supplierName,
+        purchaseLines,
+      },
+      products: durableExpected.products,
+      expenses: durableExpected.expenses,
+    });
+    const freshPriceAlerts = findExpensePurchaseLinePriceAlerts({
+      currentLines: purchaseLines,
+      currentExpenseAmount: payload.expense.amount,
+      currentExpenseDate: payload.expense.date,
+      products: durableExpected.products,
+      expenses: durableExpected.expenses,
+      supplierId: resolved.supplierId,
+      supplierName: resolved.supplierName,
+    });
+    if (
+      freshCostReviews.some((item) => item.needsReview) ||
+      freshPriceAlerts.length > 0
+    ) {
+      setSaveSubmitError(
+        "Se ha detectado una variación de precio o descuento con los datos más recientes. Abre la factura para revisarla antes de guardarla.",
+      );
+      return { ok: false };
+    }
     const expensePayload: Omit<Expense, "id" | "createdAt"> = {
       date: payload.expense.date,
       sourceInboxItemId:
@@ -1527,6 +1616,8 @@ export default function NuevoGastoPage() {
       findExpensePurchaseLinePriceAlerts({
         currentLines: purchaseLines,
         currentExpenseAmount: currentAmount,
+        currentExpenseDate: date,
+        products: data.products,
         expenses: data.expenses,
         supplierId: selectedSupplierId ?? undefined,
         supplierName,
@@ -1534,11 +1625,39 @@ export default function NuevoGastoPage() {
       }),
     [
       data.expenses,
+      data.products,
+      date,
       currentAmount,
       editingExpense?.id,
       purchaseLines,
       selectedSupplierId,
       supplierName,
+    ],
+  );
+
+  const catalogCostReviews = useMemo(
+    () =>
+      reviewExpenseCatalogCosts({
+        expense: {
+          id: editingExpense?.id,
+          date,
+          amount: currentAmount,
+          supplierId: selectedSupplierId ?? undefined,
+          supplierName,
+          purchaseLines,
+        },
+        products: data.products,
+        expenses: data.expenses,
+      }),
+    [
+      editingExpense?.id,
+      date,
+      currentAmount,
+      selectedSupplierId,
+      supplierName,
+      purchaseLines,
+      data.products,
+      data.expenses,
     ],
   );
 
@@ -1599,7 +1718,9 @@ export default function NuevoGastoPage() {
     try {
       await handleSubmitOperation();
     } catch {
-      setSaveSubmitError("No se pudo completar el guardado. Conservamos el formulario; revisa la conexión antes de reintentar.");
+      setSaveSubmitError(
+        "No se pudo completar el guardado. Conservamos el formulario; revisa la conexión antes de reintentar.",
+      );
     } finally {
       saveSubmitBusyRef.current = false;
       setSaveSubmitBusy(false);
@@ -1716,7 +1837,10 @@ export default function NuevoGastoPage() {
         : date;
     const durableExpected = getCurrentData();
     const usesDurableScannedSave = Boolean(
-      businessKind !== "fixed" && (activeScanReview || activeInboxItemId),
+      businessKind !== "fixed" &&
+        (activeScanReview ||
+          activeInboxItemId ||
+          cleanedPurchaseLines.length > 0),
     );
 
     const hasSupplierName = Boolean(supplierName.trim());
@@ -1890,7 +2014,10 @@ export default function NuevoGastoPage() {
           : payload;
       const centralResult = await saveScannedExpenseDurably(durableExpense, {
         expected: durableExpected,
-        operationId: activeInboxItemId ?? activeScanReview!.id,
+        operationId:
+          activeInboxItemId ??
+          activeScanReview?.id ??
+          manualSupplierSaveOperationId(),
         supplier: resolved.create,
       });
       if (!centralResult.ok && !centralResult.localFailure) {
@@ -1960,17 +2087,28 @@ export default function NuevoGastoPage() {
       if (!originalExpenseId) {
         setOriginalFile(null);
         setPendingOriginal({ expenseId: null, ownerScope: originalOwnerScope });
-        setSaveSubmitError("El gasto quedó guardado sin archivo. Abre su ficha desde Gastos para adjuntar el original cuando se confirme en la nube.");
+        setSaveSubmitError(
+          "El gasto quedó guardado sin archivo. Abre su ficha desde Gastos para adjuntar el original cuando se confirme en la nube.",
+        );
         return;
       }
       try {
-        await uploadExpenseOriginal(originalExpenseId, originalFile, originalOwnerScope);
+        await uploadExpenseOriginal(
+          originalExpenseId,
+          originalFile,
+          originalOwnerScope,
+        );
         setOriginalFile(null);
       } catch (error) {
         // Financial commit already succeeded. Retry uploads only the attachment
         // for this exact expense; the selected File stays only in memory.
-        setPendingOriginal({ expenseId: originalExpenseId, ownerScope: originalOwnerScope });
-        setSaveSubmitError(`El gasto ya está guardado, pero no se pudo adjuntar el archivo. ${error instanceof Error ? error.message : "Reintenta con el mismo archivo."}`);
+        setPendingOriginal({
+          expenseId: originalExpenseId,
+          ownerScope: originalOwnerScope,
+        });
+        setSaveSubmitError(
+          `El gasto ya está guardado, pero no se pudo adjuntar el archivo. ${error instanceof Error ? error.message : "Reintenta con el mismo archivo."}`,
+        );
         return;
       }
     }
@@ -2015,10 +2153,18 @@ export default function NuevoGastoPage() {
             saveSubmitBusyRef.current = true;
             setSaveSubmitBusy(true);
             try {
-              await uploadExpenseOriginal(pendingOriginal.expenseId,originalFile,pendingOriginal.ownerScope);
+              await uploadExpenseOriginal(
+                pendingOriginal.expenseId,
+                originalFile,
+                pendingOriginal.ownerScope,
+              );
               router.push("/gastos");
             } catch (error) {
-              setSaveSubmitError(error instanceof Error ? error.message : "No se pudo adjuntar el original. Reintenta con el mismo archivo.");
+              setSaveSubmitError(
+                error instanceof Error
+                  ? error.message
+                  : "No se pudo adjuntar el original. Reintenta con el mismo archivo.",
+              );
             } finally {
               saveSubmitBusyRef.current = false;
               setSaveSubmitBusy(false);
@@ -2378,27 +2524,14 @@ export default function NuevoGastoPage() {
             )}
           </p>
         )}
-        {priceAlerts.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <p className="font-bold">Revisa precios o descuentos</p>
-            <ul className="mt-2 space-y-1">
-              {priceAlerts.map((alert) => (
-                <li key={alert.lineId}>
-                  <strong>{alert.description}</strong>: ahora{" "}
-                  {formatMoney(alert.currentUnitPrice)}, antes{" "}
-                  {formatMoney(alert.previousUnitPrice)}
-                  {Math.abs(alert.priceChangePercent) >= 15
-                    ? ` (${alert.priceChangePercent > 0 ? "sube" : "baja"} ${Math.abs(alert.priceChangePercent)}%)`
-                    : ""}
-                  {Math.abs(alert.discountChangePoints) >= 5
-                    ? ` · descuento ${alert.previousDiscountPercent}% → ${alert.currentDiscountPercent}%`
-                    : ""}
-                  . Última referencia: {alert.previousExpenseDescription},{" "}
-                  {alert.previousExpenseDate}.
-                </li>
-              ))}
-            </ul>
-          </div>
+        <ExpensePriceAlerts alerts={priceAlerts} />
+        {showExpenseForm && (
+          <ExpenseCatalogCostReview
+            reviews={catalogCostReviews}
+            onChange={(lineId, value) =>
+              updatePurchaseLine(lineId, { updateCatalogCost: value })
+            }
+          />
         )}
         {showExpenseForm && (
           <div ref={scanFormRef}>
@@ -3355,22 +3488,27 @@ export default function NuevoGastoPage() {
             onClick={() => void handleSubmit()}
             disabled={Boolean(blockingDuplicateExpense) || storageStateUnknown || saveSubmitBusy}
           >
-            {saveSubmitBusy ? "Guardando…" : storageStateUnknown
-              ? "Recarga antes de continuar"
-              : activeInboxItemId &&
-                  expenseAlreadySavedFromInbox(data.expenses, activeInboxItemId)
-                ? "Cerrar documento del buzón"
-                : fixedOperationAlreadySaved && activeInboxItemId
+            {saveSubmitBusy
+              ? "Guardando…"
+              : storageStateUnknown
+                ? "Recarga antes de continuar"
+                : activeInboxItemId &&
+                    expenseAlreadySavedFromInbox(
+                      data.expenses,
+                      activeInboxItemId,
+                    )
                   ? "Cerrar documento del buzón"
-                  : blockingDuplicateExpense
-                    ? "Factura ya guardada"
-                    : providerSummaryUpgradeTarget
-                      ? "Completar factura original"
-                      : editingExpense
-                        ? "Guardar cambios"
-                        : pendingScans.length > 0
-                          ? "Guardar y revisar siguiente"
-                          : "Guardar gasto"}
+                  : fixedOperationAlreadySaved && activeInboxItemId
+                    ? "Cerrar documento del buzón"
+                    : blockingDuplicateExpense
+                      ? "Factura ya guardada"
+                      : providerSummaryUpgradeTarget
+                        ? "Completar factura original"
+                        : editingExpense
+                          ? "Guardar cambios"
+                          : pendingScans.length > 0
+                            ? "Guardar y revisar siguiente"
+                            : "Guardar gasto"}
           </Button>
         )}
       </div>

@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { EMPTY_DATA, type Product } from "../types";
+import { prepareCentralScannedExpenseBundle } from "./expense-bundle-preparation";
 
 import {
   stableCentralBusinessJson,
@@ -1030,6 +1032,173 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       .eq("entity_id", "must-not-partially-commit-batch");
     expect(rolledBack.error).toBeNull();
     expect(rolledBack.data).toEqual([]);
+  });
+
+  it("saves an invoice and its catalogue cost together, replays safely and rolls back a stale cost", async () => {
+    const now = "2026-09-02T10:00:00.000Z";
+    const product: Product = {
+      id: "synthetic-invoice-cost-product",
+      key: "synthetic-cost-motor",
+      name: "Motor sintético 20/17",
+      family: "Motores",
+      unit: "ud",
+      cost: 65,
+      pvp: 100,
+      supplierId: "synthetic-cost-supplier",
+      supplierName: "Proveedor sintético",
+      sales: { unit: "ud", unitPrice: 150, ivaPercent: 21 },
+      purchase: {
+        unit: "ud",
+        listPrice: 100,
+        discountPercent: 35,
+        netUnitCost: 65,
+        supplierId: "synthetic-cost-supplier",
+        supplierName: "Proveedor sintético",
+        supplierReference: "SYN-20",
+      },
+      source: "manual",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const seed = await admin.rpc("mutate_central_business_entity_v1", {
+      ...mutationArgs({
+        idempotencyKey: "invoice-cost-seed",
+        requestHash: "invoice-cost-seed-request",
+        expectedVersion: 0,
+        payload: product as unknown as Record<string, unknown>,
+        contentHash: testHash(
+          stableCentralBusinessJson(product as unknown as CentralBusinessJson),
+        ),
+      }),
+      p_entity_type: "product",
+      p_entity_id: product.id,
+    });
+    expect(seed.error).toBeNull();
+    const prepared = prepareCentralScannedExpenseBundle({
+      data: { ...EMPTY_DATA, products: [product] },
+      operationId: "synthetic-invoice-cost-save",
+      now,
+      expense: {
+        date: "2026-09-01",
+        supplierId: "synthetic-cost-supplier",
+        supplierName: "Proveedor sintético",
+        description: "Compra sintética con coste",
+        amount: 67.6,
+        ivaPercent: 21,
+        category: "Material",
+        paymentMethod: "Transferencia",
+        origin: "scan",
+        businessKind: "purchase_invoice",
+        purchaseDocument: {
+          invoiceNumber: "SYN/COST/001",
+          issueDate: "2026-09-01",
+        },
+        purchaseLines: [
+          {
+            id: "synthetic-cost-line",
+            description: product.name,
+            supplierReference: "SYN-20",
+            unit: "ud",
+            quantity: 1,
+            unitPrice: 104,
+            discountPercent: 35,
+            total: 67.6,
+            catalogProduct: false,
+          },
+        ],
+      },
+    });
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) throw Error(prepared.error);
+    const operations = prepared.mutations.map((mutation, operationIndex) => ({
+      operationIndex,
+      operationKind: "upsert",
+      entityType: mutation.entityType,
+      entityId: mutation.entityId,
+      expectedVersion: mutation.expectation === "create" ? 0 : 1,
+      payload: mutation.payload,
+      idempotencyKeyHash: `synthetic-invoice-cost-${operationIndex}`,
+      requestHash: testHash(stableCentralBusinessJson(mutation.payload)),
+      contentHash: testHash(stableCentralBusinessJson(mutation.payload)),
+    }));
+    const args = {
+      p_user_id: userId,
+      p_device_id: "synthetic-cost-device",
+      p_session_hash: "synthetic-cost-session",
+      p_operations: operations,
+    };
+    const committed = await admin.rpc("mutate_central_business_batch_v1", args);
+    expect(committed.error).toBeNull();
+    expect(committed.data).toEqual([
+      expect.objectContaining({
+        operation_index: 0,
+        entity_version: 1,
+        result_status: "committed",
+      }),
+      expect.objectContaining({
+        operation_index: 1,
+        entity_version: 2,
+        result_status: "committed",
+      }),
+    ]);
+    const replayed = await admin.rpc("mutate_central_business_batch_v1", args);
+    expect(replayed.error).toBeNull();
+    expect(
+      replayed.data.every(
+        (row: { result_status: string }) => row.result_status === "replayed",
+      ),
+    ).toBe(true);
+    const stale = await admin.rpc("mutate_central_business_batch_v1", {
+      ...args,
+      p_operations: operations.map((op) => ({
+        ...op,
+        idempotencyKeyHash: `${op.idempotencyKeyHash}-stale`,
+        requestHash: `${op.requestHash}-stale`,
+        ...(op.entityType === "expense"
+          ? {
+              entityId: "synthetic-cost-rollback-expense",
+              payload: {
+                ...prepared.transition.value.expense,
+                id: "synthetic-cost-rollback-expense",
+              },
+            }
+          : {}),
+      })),
+    });
+    expect(stale.error?.code).toBe("P4103");
+    const stored = await admin
+      .from("central_business_entities")
+      .select("entity_type,entity_id,current_version,current_payload")
+      .eq("user_id", userId)
+      .in("entity_id", [
+        product.id,
+        prepared.transition.value.expense.id,
+        "synthetic-cost-rollback-expense",
+      ]);
+    expect(stored.error).toBeNull();
+    expect(stored.data).toHaveLength(2);
+    expect(
+      stored.data?.find((row) => row.entity_type === "product"),
+    ).toMatchObject({
+      current_version: 2,
+      current_payload: {
+        cost: 67.6,
+        sales: { unitPrice: 150 },
+        purchase: { netUnitCost: 67.6 },
+        priceSources: [
+          {
+            expenseId: prepared.transition.value.expense.id,
+            documentNumber: "SYN/COST/001",
+          },
+        ],
+      },
+    });
+    expect(
+      stored.data?.find((row) => row.entity_type === "expense"),
+    ).toMatchObject({
+      current_version: 1,
+      current_payload: prepared.transition.value.expense,
+    });
   });
 
   it("commits exactly 100 operations and rejects 101", async () => {

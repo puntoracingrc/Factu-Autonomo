@@ -130,7 +130,10 @@ describe("central business payload parsers", () => {
   it("acepta gastos completos y rechaza números o líneas inválidas", () => {
     expect(parseCentralExpensePayload(expense, expense.id)).toEqual(expense);
     expect(
-      parseCentralExpensePayload({ ...expense, amount: Number.NaN }, expense.id),
+      parseCentralExpensePayload(
+        { ...expense, amount: Number.NaN },
+        expense.id,
+      ),
     ).toBeNull();
     expect(
       parseCentralExpensePayload(
@@ -184,6 +187,31 @@ describe("central business payload parsers", () => {
     expect(
       parseCentralExpensePayload(detailedExpense, detailedExpense.id),
     ).toEqual(detailedExpense);
+  });
+
+  it("preserva la decisión explícita de coste y rechaza decisiones no booleanas", () => {
+    for (const updateCatalogCost of [true, false]) {
+      const value = {
+        ...expense,
+        purchaseLines: expense.purchaseLines!.map((line) => ({
+          ...line,
+          updateCatalogCost,
+        })),
+      };
+      expect(parseCentralExpensePayload(value, value.id)).toEqual(value);
+    }
+    expect(
+      parseCentralExpensePayload(
+        {
+          ...expense,
+          purchaseLines: expense.purchaseLines!.map((line) => ({
+            ...line,
+            updateCatalogCost: "sí",
+          })),
+        },
+        expense.id,
+      ),
+    ).toBeNull();
   });
 
   it("normaliza tombstones de gastos fijos y rechaza calendarios imposibles", () => {

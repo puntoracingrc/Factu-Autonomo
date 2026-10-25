@@ -142,6 +142,7 @@ function validPurchaseLine(value: unknown): value is ExpensePurchaseLine {
     finite(value.unitPrice) &&
     optionalString(value.supplierReference) &&
     optionalBoolean(value.catalogProduct) &&
+    optionalBoolean(value.updateCatalogCost) &&
     optionalFinite(value.sourceQuantity) &&
     optionalFinite(value.chargeQuantity) &&
     (value.calculationBasis === undefined ||

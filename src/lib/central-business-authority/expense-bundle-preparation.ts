@@ -207,6 +207,22 @@ export function prepareCentralScannedExpenseBundle(input: {
 }): CentralExpenseBundlePreparation<ScannedExpenseDurableValue> {
   try {
     const transition = buildScannedExpenseDurableTransition(input);
+    const beforeProducts = new Map(
+      input.data.products.map((product) => [product.id, product]),
+    );
+    const changedProducts = transition.data.products.filter(
+      (product) => product !== beforeProducts.get(product.id),
+    );
+    if (
+      changedProducts.length + 1 + (input.supplier ? 1 : 0) >
+      CENTRAL_BUSINESS_ATOMIC_BATCH_MAX_OPERATIONS
+    ) {
+      return {
+        ok: false,
+        error:
+          "Esta factura supera el límite de actualizaciones de coste en un solo guardado. Conserva los costes o reduce las líneas seleccionadas.",
+      };
+    }
     return {
       ok: true,
       transition,
@@ -227,12 +243,21 @@ export function prepareCentralScannedExpenseBundle(input: {
           expectation: "id" in input.expense ? "known" : "create",
           payload: jsonValue(transition.value.expense),
         },
+        ...changedProducts.map((product) => ({
+          entityType: "product" as const,
+          entityId: product.id,
+          expectation: "known" as const,
+          payload: jsonValue(product),
+        })),
       ],
     };
-  } catch {
+  } catch (error) {
     return {
       ok: false,
-      error: "No se pudo preparar de forma inequívoca el gasto escaneado.",
+      error:
+        error instanceof Error && !error.message.startsWith("SCANNED_EXPENSE_")
+          ? error.message
+          : "No se pudo preparar de forma inequívoca el gasto escaneado.",
     };
   }
 }

@@ -10,6 +10,7 @@ import type { CentralBusinessBrowserBatchMutationResult } from "./batch-mutation
 import type { CentralBusinessBrowserBatchMutationInput } from "./batch-mutation-client";
 import {
   loadCentralBusinessDurableQueue,
+  recordCentralBusinessEntityVersionCheckpoint,
   type CentralBusinessQueueStorage,
 } from "./durable-queue";
 import {
@@ -18,6 +19,9 @@ import {
   type CentralExpenseBundlePreparation,
 } from "./expense-bundle-canary";
 import type { CentralBusinessAuthorityStatusResult } from "./status-client";
+import { prepareCentralScannedExpenseBundle } from "./expense-bundle-preparation";
+import type { ScannedExpenseDurableValue } from "@/lib/scanned-expense-durability";
+import type { Product } from "@/lib/types";
 
 class MemoryStorage implements CentralBusinessQueueStorage {
   private readonly values = new Map<string, string>();
@@ -96,12 +100,14 @@ function dependencies(
   const baseline: AppData = { ...EMPTY_DATA, expenses: [], suppliers: [] };
   return {
     getCurrentData: () => baseline,
-    fallback: vi.fn((): AppDataDurabilityResult<Expense> => ({
-      status: "applied",
-      data: transition(baseline).data,
-      value: createdExpense,
-      replayed: false,
-    })),
+    fallback: vi.fn(
+      (): AppDataDurabilityResult<Expense> => ({
+        status: "applied",
+        data: transition(baseline).data,
+        value: createdExpense,
+        replayed: false,
+      }),
+    ),
     prepareLocal: vi.fn(
       ({ data }): CentralExpenseBundlePreparation<Expense> => ({
         ok: true,
@@ -415,10 +421,12 @@ describe("central expense bundle canary", () => {
     const storage = new MemoryStorage();
     const deps = dependencies({
       storage,
-      commitLocal: vi.fn((): AppDataDurabilityResult<Expense> => ({
-        status: "blocked",
-        reason: "stale_precondition",
-      })),
+      commitLocal: vi.fn(
+        (): AppDataDurabilityResult<Expense> => ({
+          status: "blocked",
+          reason: "stale_precondition",
+        }),
+      ),
     });
 
     const result = await saveCentralExpenseBundleWithCanary({
@@ -468,5 +476,153 @@ describe("central expense bundle canary", () => {
     });
     expect(deps.commitLocal).not.toHaveBeenCalled();
     expect(deps.mutateBatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("atomic expense and catalogue cost delivery", () => {
+  it("replays the same expense/product batch after a timeout and a clock change", async () => {
+    const storage = new MemoryStorage();
+    const product: Product = {
+      id: "synthetic-cost-retry-product",
+      key: "motor",
+      name: "Motor",
+      family: "Motores",
+      unit: "ud",
+      sales: { unitPrice: 150 },
+      purchase: {
+        unit: "ud",
+        listPrice: 100,
+        discountPercent: 35,
+        netUnitCost: 65,
+        supplierName: "Proveedor sintético",
+      },
+      source: "manual",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const baseline = { ...EMPTY_DATA, expenses: [], products: [product] };
+    recordCentralBusinessEntityVersionCheckpoint({
+      ownerScope: userId,
+      storage,
+      entities: [
+        {
+          entityType: "product",
+          entityId: product.id,
+          version: 1,
+          contentHash: "a".repeat(64),
+        },
+      ],
+    });
+    let clock = now;
+    const expense = {
+      ...createdExpense,
+      id: undefined,
+      createdAt: undefined,
+      supplierId: undefined,
+      amount: 67.6,
+      purchaseLines: [
+        {
+          id: "synthetic-retry-line",
+          description: "Motor",
+          quantity: 1,
+          unitPrice: 104,
+          discountPercent: 35,
+          unit: "ud",
+          catalogProduct: false,
+        },
+      ],
+    };
+    const { id, createdAt, ...draft } = expense;
+    void id;
+    void createdAt;
+    const bodies: CentralBusinessBrowserBatchMutationInput[][] = [];
+    const commitLocal = vi.fn(
+      (
+        expected: AppData,
+        prepared: AppDataTransition<ScannedExpenseDurableValue>,
+      ): AppDataDurabilityResult<ScannedExpenseDurableValue> => ({
+        status: "applied",
+        ...prepared,
+        replayed: false,
+      }),
+    );
+    const deps: CentralExpenseBundleCanaryDependencies<ScannedExpenseDurableValue> =
+      {
+        getCurrentData: () => baseline,
+        storage,
+        environment,
+        now: () => clock,
+        fetchStatus: async () => readyStatus(),
+        fallback: () => {
+          throw Error("Unexpected local fallback");
+        },
+        prepareLocal: ({ data, now: preparedAt }) =>
+          prepareCentralScannedExpenseBundle({
+            data,
+            expense: draft,
+            operationId: "synthetic-retry-cost",
+            now: preparedAt,
+          }),
+        commitLocal,
+        mutateBatch: async (mutations) => {
+          bodies.push(structuredClone(mutations));
+          if (bodies.length === 1)
+            return {
+              ok: false,
+              status: 0,
+              code: "CENTRAL_BUSINESS_BATCH_NETWORK_ERROR",
+              message: "offline",
+              retryable: true,
+              conflict: false,
+            };
+          return {
+            ok: true,
+            schema: "CENTRAL_BUSINESS_BATCH_MUTATION_CLIENT_V1",
+            operations: mutations.map((m, operationIndex) => ({
+              operationIndex,
+              status: "replayed",
+              eventId: `event-${operationIndex}`,
+              eventSequence: operationIndex + 1,
+              entityVersion: m.expectedVersion + 1,
+              deleted: false,
+              contentHash: `hash-${operationIndex}`,
+            })),
+          };
+        },
+      };
+    expect(
+      await saveCentralExpenseBundleWithCanary({
+        userId,
+        operationId: "synthetic-retry-cost",
+        dependencies: deps,
+      }),
+    ).toMatchObject({ ok: false });
+    expect(commitLocal).not.toHaveBeenCalled();
+    expect(baseline.products[0].purchase?.netUnitCost).toBe(65);
+    expect(baseline.expenses).toEqual([]);
+    clock = "2026-07-30T10:05:00.000Z";
+    const recovered = await saveCentralExpenseBundleWithCanary({
+      userId,
+      operationId: "synthetic-retry-cost",
+      dependencies: deps,
+    });
+    expect(recovered).toMatchObject({
+      ok: true,
+      delivery: "central_confirmed",
+    });
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(bodies[0].map((m) => [m.entityType, m.expectedVersion])).toEqual([
+      ["expense", 0],
+      ["product", 1],
+    ]);
+    expect(commitLocal).toHaveBeenCalledTimes(1);
+    if (!recovered.ok) return;
+    expect(recovered.local.data.expenses).toHaveLength(1);
+    expect(recovered.local.data.products[0].purchase?.netUnitCost).toBe(67.6);
+    expect(recovered.local.data.products[0].sales).toEqual(product.sales);
+    expect(loadCentralBusinessDurableQueue(userId, storage).operations).toEqual(
+      [],
+    );
   });
 });

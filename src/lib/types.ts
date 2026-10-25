@@ -485,6 +485,8 @@ export interface ExpensePurchaseLine {
   description: string;
   /** Si esta línea alimenta el catálogo de productos y sus históricos de coste. */
   catalogProduct?: boolean;
+  /** Decisión explícita al guardar: adoptar o conservar el coste de una ficha existente. */
+  updateCatalogCost?: boolean;
   /** Cantidad original de la columna Cant./Uds.; puede ser distinta de la cantidad cobrada. */
   sourceQuantity?: number;
   quantity: number;

@@ -3,10 +3,18 @@ import { normalizeDocumentUnitId } from "./document-units";
 import { isFixedExpense } from "./expense-classification";
 import { explicitExpenseWorkAllocations } from "./expense-work-allocations";
 import { supplierCompareKey } from "./supplier-normalization";
+import {
+  matchingPurchaseProducts,
+  samePurchaseSupplier,
+  samePurchaseLine,
+  purchaseLinePrice,
+} from "./purchase-price-matching";
+import { currentPriceSource } from "./product-price-sources";
 import type {
   Expense,
   ExpensePurchaseDocument,
   ExpensePurchaseLine,
+  Product,
 } from "./types";
 
 export interface ExpenseTotals {
@@ -84,6 +92,14 @@ export interface ExpensePurchaseLinePriceAlert {
   discountChangePoints: number;
   previousExpenseDescription: string;
   previousExpenseDate: string;
+  currentNetUnitCost: number;
+  previousNetUnitCost: number;
+  netCostChangePercent: number;
+  previousQuantity?: number;
+  baselineOrigin: "expense" | "catalog";
+  previousListPriceKnown: boolean;
+  previousDiscountKnown: boolean;
+  missingDiscount: boolean;
 }
 
 export interface WorkDocumentExpenseSummary {
@@ -196,7 +212,10 @@ export function expenseTotals(
 }
 
 export type ExpenseEquivalenceSurchargeSource =
-  "none" | "provider_summary" | "legacy_summary_total" | "blocked";
+  | "none"
+  | "provider_summary"
+  | "legacy_summary_total"
+  | "blocked";
 
 export interface ExpenseEquivalenceSurchargeResolution {
   source: ExpenseEquivalenceSurchargeSource;
@@ -957,6 +976,10 @@ export function sanitizeExpensePurchaseLines(
           : line.catalogProduct === false
             ? false
             : undefined,
+      updateCatalogCost:
+        typeof line.updateCatalogCost === "boolean"
+          ? line.updateCatalogCost
+          : undefined,
       quantity: normalizeExpenseAmount(line.quantity),
       unit:
         normalizeDocumentUnitId(line.unit) ?? line.unit?.trim() ?? undefined,
@@ -1062,38 +1085,13 @@ export function findDuplicatePurchaseExpense(
   );
 }
 
-function purchaseLineSearchKey(description: string): string {
-  return description
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter((part) => part.length > 2)
-    .join(" ");
-}
-
-function purchaseLineKeysMatch(current: string, previous: string): boolean {
-  if (!current || !previous) return false;
-  if (current === previous) return true;
-  return current.includes(previous) || previous.includes(current);
-}
-
-function expenseSupplierMatches(
-  expense: Expense,
-  options: { supplierId?: string; supplierName?: string },
-): boolean {
-  if (options.supplierId) return expense.supplierId === options.supplierId;
-  const supplierName = options.supplierName?.trim().toLowerCase();
-  if (!supplierName) return false;
-  return expense.supplierName.trim().toLowerCase() === supplierName;
-}
-
+/** Compares the same supplier, reference/model and purchase unit. No fuzzy search. */
 export function findExpensePurchaseLinePriceAlerts(input: {
   currentLines: ExpensePurchaseLine[];
   currentExpenseAmount: number;
+  currentExpenseDate?: string;
   expenses: Expense[];
+  products?: Product[];
   supplierId?: string;
   supplierName?: string;
   excludeExpenseId?: string;
@@ -1103,71 +1101,132 @@ export function findExpensePurchaseLinePriceAlerts(input: {
   const priceThreshold = input.priceChangeThresholdPercent ?? 15;
   const discountThreshold = input.discountChangeThresholdPoints ?? 5;
   const currentExpense = { amount: input.currentExpenseAmount };
-  const currentLines = sanitizeExpensePurchaseLines(input.currentLines).filter(
-    (line) => expensePurchaseLineCanFeedProductCatalog(currentExpense, line),
-  );
-
   const previousExpenses = input.expenses
-    .filter((expense) => expense.id !== input.excludeExpenseId)
-    .filter((expense) => expense.purchaseLines?.length)
-    .filter((expense) =>
-      expenseSupplierMatches(expense, {
-        supplierId: input.supplierId,
-        supplierName: input.supplierName,
-      }),
+    .filter(
+      (expense) =>
+        expense.id !== input.excludeExpenseId &&
+        (!input.currentExpenseDate || expense.date <= input.currentExpenseDate),
     )
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  return currentLines.flatMap((line) => {
-    const currentKey = purchaseLineSearchKey(line.description);
+    .filter((expense) => samePurchaseSupplier(expense, input))
+    .sort(
+      (a, b) =>
+        b.date.localeCompare(a.date) ||
+        b.createdAt.localeCompare(a.createdAt) ||
+        a.id.localeCompare(b.id),
+    );
+  return sanitizeExpensePurchaseLines(input.currentLines).flatMap((line) => {
+    if (!expensePurchaseLineIsEligibleForProductCatalog(currentExpense, line))
+      return [];
+    const products = matchingPurchaseProducts(
+      line,
+      input,
+      input.products ?? [],
+    );
+    const product = products.length === 1 ? products[0] : undefined;
+    // The scan's admission checkbox only controls new articles. Known articles
+    // still need invoice checks even when they are not being admitted again.
+    if (line.catalogProduct === false && !product) return [];
+    const current = purchaseLinePrice(line);
+    if (!current) return [];
     const previousMatch = previousExpenses
       .flatMap((expense) =>
         sanitizeExpensePurchaseLines(expense.purchaseLines)
-          .filter((previous) =>
-            expensePurchaseLineCanFeedProductCatalog(expense, previous),
+          .filter(
+            (previous) =>
+              expensePurchaseLineIsEligibleForProductCatalog(
+                expense,
+                previous,
+              ) &&
+              (previous.catalogProduct !== false || !!product),
           )
-          .map((previous) => ({
-            expense,
-            previous,
-          })),
+          .filter(
+            (previous) =>
+              samePurchaseLine(line, previous) ||
+              (!!product &&
+                matchingPurchaseProducts(previous, expense, [product])
+                  .length === 1),
+          )
+          .map((previous) => ({ expense, previous })),
       )
-      .find(({ previous }) =>
-        purchaseLineKeysMatch(
-          currentKey,
-          purchaseLineSearchKey(previous.description),
-        ),
-      );
-
-    if (!previousMatch || previousMatch.previous.unitPrice <= 0) return [];
-
-    const previousDiscount = previousMatch.previous.discountPercent ?? 0;
-    const currentDiscount = line.discountPercent ?? 0;
+      .find((entry) => purchaseLinePrice(entry.previous)?.consistent);
+    const history = previousMatch
+      ? purchaseLinePrice(previousMatch.previous)
+      : null;
+    const source = product ? currentPriceSource(product) : undefined;
+    const sourceDate = source?.documentDate ?? source?.recordedAt.slice(0, 10);
+    const useCatalog =
+      !!product &&
+      (!history || (!!sourceDate && sourceDate >= previousMatch!.expense.date));
+    const storedCost = product?.purchase?.netUnitCost ?? product?.cost;
+    const catalogList = product?.purchase?.listPrice ?? product?.pvp;
+    const catalogDiscount = product?.purchase?.discountPercent;
+    const previousNet = useCatalog ? storedCost : history?.net;
+    if (
+      previousNet === undefined ||
+      !Number.isFinite(previousNet) ||
+      previousNet <= 0
+    )
+      return [];
+    const listKnown = useCatalog ? catalogList !== undefined : true;
+    const discountKnown = useCatalog ? catalogDiscount !== undefined : true;
+    const previousList = useCatalog
+      ? (catalogList ?? current.list)
+      : history!.list;
+    const previousDiscount = useCatalog
+      ? (catalogDiscount ?? current.discount)
+      : history!.discount;
     const priceChangePercent =
-      ((line.unitPrice - previousMatch.previous.unitPrice) /
-        previousMatch.previous.unitPrice) *
-      100;
-    const discountChangePoints = currentDiscount - previousDiscount;
-
+      previousList > 0 && listKnown
+        ? ((current.list - previousList) / previousList) * 100
+        : 0;
+    const netCostChangePercent =
+      ((current.net - previousNet) / previousNet) * 100;
+    const discountChangePoints = discountKnown
+      ? current.discount - previousDiscount
+      : 0;
+    const missingDiscount =
+      discountKnown &&
+      previousDiscount > 0 &&
+      (line.discountPercent === undefined || line.discountPercent === 0);
     if (
       Math.abs(priceChangePercent) < priceThreshold &&
-      Math.abs(discountChangePoints) < discountThreshold
-    ) {
+      Math.abs(netCostChangePercent) < priceThreshold &&
+      Math.abs(discountChangePoints) < discountThreshold &&
+      !missingDiscount
+    )
       return [];
-    }
-
     return [
       {
         lineId: line.id,
         description: line.description,
-        previousDescription: previousMatch.previous.description,
-        currentUnitPrice: line.unitPrice,
-        previousUnitPrice: previousMatch.previous.unitPrice,
+        previousDescription: useCatalog
+          ? product!.name
+          : previousMatch!.previous.description,
+        currentUnitPrice: current.list,
+        previousUnitPrice: previousList,
         priceChangePercent: roundMoney(priceChangePercent),
-        currentDiscountPercent: currentDiscount,
+        currentDiscountPercent: current.discount,
         previousDiscountPercent: previousDiscount,
         discountChangePoints: roundMoney(discountChangePoints),
-        previousExpenseDescription: previousMatch.expense.description,
-        previousExpenseDate: previousMatch.expense.date,
+        currentNetUnitCost: current.net,
+        previousNetUnitCost: previousNet,
+        netCostChangePercent: roundMoney(netCostChangePercent),
+        previousQuantity: useCatalog
+          ? undefined
+          : (previousMatch!.previous.sourceQuantity ??
+            previousMatch!.previous.quantity),
+        previousExpenseDescription: useCatalog
+          ? `Ficha de producto${source?.documentNumber ? ` · ${source.documentNumber}` : ""}`
+          : previousMatch!.expense.description,
+        previousExpenseDate: useCatalog
+          ? (sourceDate ?? "sin fecha documentada")
+          : previousMatch!.expense.date,
+        baselineOrigin: useCatalog
+          ? ("catalog" as const)
+          : ("expense" as const),
+        previousListPriceKnown: listKnown,
+        previousDiscountKnown: discountKnown,
+        missingDiscount,
       },
     ];
   });

@@ -156,6 +156,9 @@ jobs:
       - name: Run global synthetic central regression
         run: npm run test:central-global-synthetic
 
+      - name: Run central business atomic acceptance
+        run: npm run test:central-business-authority-local
+
       - name: Stop local services
         if: always()
         run: |
