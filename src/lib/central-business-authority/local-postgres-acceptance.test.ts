@@ -1148,21 +1148,45 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
         (row: { result_status: string }) => row.result_status === "replayed",
       ),
     ).toBe(true);
+    const {
+      id: _id,
+      createdAt: _createdAt,
+      ...secondDraft
+    } = prepared.transition.value.expense;
+    void _id;
+    void _createdAt;
+    const stalePrepared = prepareCentralScannedExpenseBundle({
+      data: { ...EMPTY_DATA, products: [product] },
+      operationId: "synthetic-cost-stale-save",
+      now,
+      expense: {
+        ...secondDraft,
+        amount: 68.9,
+        purchaseDocument: {
+          invoiceNumber: "SYN/COST/002",
+          issueDate: secondDraft.date,
+        },
+        purchaseLines: secondDraft.purchaseLines!.map((line) => ({
+          ...line,
+          unitPrice: 106,
+          total: 68.9,
+        })),
+      },
+    });
+    expect(stalePrepared.ok).toBe(true);
+    if (!stalePrepared.ok) throw Error(stalePrepared.error);
     const stale = await admin.rpc("mutate_central_business_batch_v1", {
       ...args,
-      p_operations: operations.map((op) => ({
-        ...op,
-        idempotencyKeyHash: `${op.idempotencyKeyHash}-stale`,
-        requestHash: `${op.requestHash}-stale`,
-        ...(op.entityType === "expense"
-          ? {
-              entityId: "synthetic-cost-rollback-expense",
-              payload: {
-                ...prepared.transition.value.expense,
-                id: "synthetic-cost-rollback-expense",
-              },
-            }
-          : {}),
+      p_operations: stalePrepared.mutations.map((mutation, operationIndex) => ({
+        operationIndex,
+        operationKind: "upsert",
+        entityType: mutation.entityType,
+        entityId: mutation.entityId,
+        expectedVersion: mutation.expectation === "create" ? 0 : 1,
+        payload: mutation.payload,
+        idempotencyKeyHash: `synthetic-invoice-cost-stale-${operationIndex}`,
+        requestHash: testHash(stableCentralBusinessJson(mutation.payload)),
+        contentHash: testHash(stableCentralBusinessJson(mutation.payload)),
       })),
     });
     expect(stale.error?.code).toBe("P4103");
@@ -1173,7 +1197,7 @@ describeLocal("central business authority local PostgreSQL acceptance", () => {
       .in("entity_id", [
         product.id,
         prepared.transition.value.expense.id,
-        "synthetic-cost-rollback-expense",
+        stalePrepared.transition.value.expense.id,
       ]);
     expect(stored.error).toBeNull();
     expect(stored.data).toHaveLength(2);

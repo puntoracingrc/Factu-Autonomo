@@ -2095,11 +2095,7 @@ export default function NuevoGastoPage() {
         return;
       }
       try {
-        await uploadExpenseOriginal(
-          originalExpenseId,
-          originalFile,
-          originalOwnerScope,
-        );
+        await uploadExpenseOriginal(originalExpenseId,originalFile,originalOwnerScope);
         setOriginalFile(null);
       } catch (error) {
         // Financial commit already succeeded. Retry uploads only the attachment
@@ -2155,18 +2151,10 @@ export default function NuevoGastoPage() {
             saveSubmitBusyRef.current = true;
             setSaveSubmitBusy(true);
             try {
-              await uploadExpenseOriginal(
-                pendingOriginal.expenseId,
-                originalFile,
-                pendingOriginal.ownerScope,
-              );
+              await uploadExpenseOriginal(pendingOriginal.expenseId,originalFile,pendingOriginal.ownerScope);
               router.push("/gastos");
             } catch (error) {
-              setSaveSubmitError(
-                error instanceof Error
-                  ? error.message
-                  : "No se pudo adjuntar el original. Reintenta con el mismo archivo.",
-              );
+              setSaveSubmitError(error instanceof Error ? error.message : "No se pudo adjuntar el original. Reintenta con el mismo archivo.");
             } finally {
               saveSubmitBusyRef.current = false;
               setSaveSubmitBusy(false);
