@@ -9,12 +9,22 @@ export interface CatalogSearchRule {
   excludedNamePrefixes: string;
 }
 
+const lamaAccessories = "tirantes?|topes?|conteras?|tap[oó]n(es)?|flejes?|embudos?|clips?|soportes?|gu[ií]as?";
+
 export const CATALOG_SEARCH_RULES: readonly CatalogSearchRule[] = [
   {
     terms: ["guia", "guias"],
     pattern: "gu[ií]as?",
     excludedCategories: "basculador(es)?",
     excludedNamePrefixes: "basculador(es)?",
+  },
+  {
+    terms: ["lama", "lamas"],
+    pattern: "lamas?",
+    // Lamas currently live under "Accesorios de persiana". Only the exact
+    // complete-shutter family is excluded, alongside specific accessory kinds.
+    excludedCategories: `^persianas?$|${lamaAccessories}`,
+    excludedNamePrefixes: `persianas?|accesorios?|${lamaAccessories}`,
   },
   {
     terms: ["mando", "mandos", "emisor", "emisores"],

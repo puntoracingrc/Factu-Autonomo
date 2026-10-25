@@ -18,6 +18,21 @@ describe("catalog search vocabulary and exclusions", () => {
     expect(filter).not.toContain("purchase->>description");
     expect(filter).toContain("current_payload->>subfamily.is.null");
   });
+  it("limits lama and lamas to slats while retaining their broad accessory family", () => {
+    const filter = catalogSearchFilter("lama");
+    for (const term of ["lamas", "LAMAS", "lama lamas"]) expect(catalogSearchFilter(term)).toBe(filter);
+    expect(filter).toContain("lamas?");
+    expect(filter).toContain("^persianas?$");
+    expect(filter).toContain("tirantes?");
+    expect(filter).toContain("topes?");
+    expect(filter).not.toContain("sales->>description");
+    expect(filter).not.toContain("purchase->>description");
+    expect(filter).not.toContain("notes.imatch");
+    expect(filter).toContain("current_payload->>family.is.null");
+    expect(filter).toContain("current_payload->>subfamily.not.imatch");
+    expect(catalogSearchFilter("lama blanca")).toContain("bl[aáàäâ][nñ]c[aáàäâ]");
+    expect(catalogSearchFilter("motor -lama")).toBe(catalogSearchFilter("motor -lamas"));
+  });
   it("keeps attributes, references and descriptions available for other terms", () => {
     const filter = catalogSearchFilter("mando blanco");
     expect(filter).toContain('current_payload->sales->>description.imatch."bl[aáàäâ][nñ]c[oóòöô]"');
