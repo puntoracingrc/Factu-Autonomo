@@ -20,6 +20,15 @@ precios consulta compras solo cuando el usuario lo solicita.
 - La lista obtiene 30 proyecciones por página sin imágenes. La búsqueda cubre
   nombre, referencias, descripciones, familias, notas y características; combina
   todos los términos, tolera mayúsculas y tildes y acota la expresión generada.
+  Las reglas de `product-catalog-lite/search-rules.ts` distinguen tipos de
+  producto: guía/guías descarta basculadores; mando/mandos/emisor/emisores son
+  equivalentes y no incluyen motores ni sus pilas solo por mencionarlos.
+  Los tipos se reconocen en nombre y clasificación, no por menciones en notas
+  o descripciones. Los demás términos siguen buscando en todos los campos.
+  Un término precedido de `-` excluye sus menciones (`motor -somfy`); los guiones
+  internos de las referencias se conservan como separadores normales:
+  `am45 15 17` encuentra `AM45-15/17` sin exigir puntuación o mayúsculas exactas. Todas
+  estas condiciones se aplican antes del recuento y de las páginas de 30 filas.
   Solo una ficha seleccionada descarga su payload completo y versión central.
 - Familias abre una navegación de dos niveles: familia y subfamilia, con una
   opción para ver todos los productos de la familia y volver al nivel anterior.

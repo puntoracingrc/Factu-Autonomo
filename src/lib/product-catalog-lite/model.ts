@@ -58,14 +58,5 @@ export function updatedCatalogProduct(base: Product, edit: CatalogEdit, now: str
     priceSources:edit.priceSources,purchasePriceSourceId:edit.purchasePriceSourceId,salePriceSourceId:edit.salePriceSourceId,
     notes: edit.notes.trim() || undefined, updatedAt: now },now);
 }
-// Only letters/numbers enter PostgREST's logical expression. Accent variants
-// are generated here, never accepted as executable regex/filter syntax.
-export function catalogSearchFilter(query: string): string | null {
-  const words = query.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().split(/\s+/).filter(Boolean).slice(0,8);
-  if (!words.length) return null;
-  const fields = ["name","sku","externalId","family","subfamily","sales->>description","purchase->>description","purchase->>supplierReference","purchase->>supplierName","attributes","notes","priceSourceSummary->>purchase"];
-  const accents: Record<string,string> = {a:"[aáàäâ]",e:"[eéèëê]",i:"[iíìïî]",o:"[oóòöô]",u:"[uúùüû]",n:"[nñ]"};
-  const groups = words.map(word => { const regex = [...word].map(c => accents[c] ?? c).join("");
-    return `or(${fields.map(field => `current_payload${field.includes("->>") ? "->" : "->>"}${field}.imatch.${regex}`).join(",")})`; });
-  return `and(${groups.join(",")})`;
-}
+// Kept as a re-export for the reader and existing consumers.
+export { catalogSearchFilter } from "./search";
