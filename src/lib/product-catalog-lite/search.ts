@@ -22,7 +22,9 @@ function terms(query: string): SearchTerm[] {
     // A minus starts an exclusion only at a word boundary. AM45-15/17 stays
     // a positive reference search, while -somfy excludes mentions of Somfy.
     const excluded = chunk.startsWith("-");
-    for (const word of chunk.replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean)) {
+    const words = chunk.replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+    // -a-ok excludes the compound brand, rather than every occurrence of "a".
+    for (const word of excluded && words.length ? [words.join(" ")] : words) {
       const rule = CATALOG_SEARCH_RULES.find(rule => rule.terms.includes(word));
       if (!result.some(t => t.excluded === excluded && (rule ? t.rule === rule : t.word === word))) result.push({ word, excluded, rule });
       if (result.length === 8) return result;
@@ -37,7 +39,7 @@ export function catalogSearchFilter(query: string): string | null {
   const groups: string[] = [];
   const exclusions: string[] = [];
   for (const { word, excluded, rule } of terms(query)) {
-    const pattern = rule ? wordPattern(rule.pattern) : literal(word);
+    const pattern = rule ? wordPattern(rule.pattern) : word.split(" ").map(literal).join("[^[:alnum:]]*");
     if (excluded) {
       exclusions.push(pattern);
     } else if (rule) {

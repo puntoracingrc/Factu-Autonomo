@@ -29,6 +29,7 @@ describe("catalog search vocabulary and exclusions", () => {
     expect(filter).toContain('or(current_payload->>notes.is.null,current_payload->>notes.not.imatch."s[oóòöô]mfy")');
     expect(filter).toContain("current_payload->sales->>description.not.imatch.");
     expect(catalogSearchFilter("motor -mando")).toBe(catalogSearchFilter("motor -emisor"));
+    expect(catalogSearchFilter("mando -a-ok")).toContain("[aáàäâ][^[:alnum:]]*[oóòöô]k");
   });
   it("does not interpret internal reference hyphens or a standalone dash as exclusions", () => {
     expect(catalogSearchFilter("AM45-15/17")).not.toContain("not.imatch");
