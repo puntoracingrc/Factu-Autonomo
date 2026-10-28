@@ -285,17 +285,24 @@ export function buildExpenseInboxAddress(
   aliasToken: string,
   domain = DEFAULT_EXPENSE_INBOX_DOMAIN,
 ): string {
-  return `${EXPENSE_INBOX_LOCAL_PART}-${aliasToken}@${domain}`;
+  return `${aliasToken}@${domain}`;
 }
 
 export function extractExpenseInboxAliasToken(
   recipient: string,
+  expectedDomain?: string,
 ): string | null {
   const email = cleanEmailValue(recipient).toLowerCase();
-  const [localPart] = email.split("@");
-  if (!localPart) return null;
-  const match = localPart.match(/^gastos[-+]([a-z0-9_-]{8,64})$/);
-  return match?.[1] ?? null;
+  const parts = email.split("@");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  const [localPart, domain] = parts;
+  if (expectedDomain && domain !== expectedDomain.trim().toLowerCase()) return null;
+  // Replaced addresses must not remain alternate ways into an active inbox.
+  if (
+    localPart.startsWith(`${EXPENSE_INBOX_LOCAL_PART}-`) ||
+    localPart.startsWith(`${EXPENSE_INBOX_LOCAL_PART}+`)
+  ) return null;
+  return /^[a-z0-9_-]{8,64}$/.test(localPart) ? localPart : null;
 }
 
 function normalizeExpenseInboxAliasSlug(value: string | undefined): string {

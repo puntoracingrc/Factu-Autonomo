@@ -143,6 +143,21 @@ describe("expense inbox reliability contract", () => {
     expect(server).toContain('.eq("active", true)');
   });
 
+  it("acorta la dirección sin regenerar el alias ni elegir entre empresas ambiguas", () => {
+    const helpers = source("src/lib/expense-inbox.ts");
+    const server = source("src/lib/expense-inbox-server.ts");
+
+    expect(helpers).toContain("return `${aliasToken}@${domain}`");
+    expect(helpers).toContain("localPart.startsWith(`${EXPENSE_INBOX_LOCAL_PART}-`)");
+    expect(helpers).toContain("localPart.startsWith(`${EXPENSE_INBOX_LOCAL_PART}+`)");
+    expect(helpers).toContain("expectedDomain.trim().toLowerCase()");
+    expect(server).toContain("extractExpenseInboxAliasToken(recipient, getExpenseInboxDomain())");
+    expect(server).toContain('.in("alias_token", tokens)');
+    expect(server).toContain(".limit(2)");
+    expect(server).toContain("data.length !== 1");
+    expect(server).toContain("originalAddresses.has(bareEmailAddress(recipient))");
+  });
+
   it("mantiene la norma raíz y la decisión versionada", () => {
     const agents = source("AGENTS.md");
     const codeowners = source(".github/CODEOWNERS");

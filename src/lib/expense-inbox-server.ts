@@ -34,6 +34,7 @@ import {
   buildPrivateExpenseInboxAliasToken,
   classifyExpenseInboxDelivery,
   extractExpenseInboxAliasToken,
+  EXPENSE_INBOX_LOCAL_PART,
   mapExpenseInboxScanPayload,
   normalizeExpenseInboxAliasBase,
   normalizeExpenseInboxInboundPayload,
@@ -619,9 +620,9 @@ async function resolveUserFromRecipients(
   email: ExpenseInboxInboundEmail,
 ): Promise<ExpenseInboxAliasRow | null> {
   const admin = ensureAdmin();
-  const tokens = email.to
-    .map(extractExpenseInboxAliasToken)
-    .filter((token): token is string => Boolean(token));
+  const tokens = [...new Set(email.to
+    .map((recipient) => extractExpenseInboxAliasToken(recipient, getExpenseInboxDomain()))
+    .filter((token): token is string => token !== null))];
 
   if (tokens.length === 0) return null;
 
@@ -630,11 +631,12 @@ async function resolveUserFromRecipients(
     .select("user_id, alias_token, active")
     .in("alias_token", tokens)
     .eq("active", true)
-    .limit(1)
-    .maybeSingle();
+    .limit(2);
 
   if (error) throw error;
-  return (data as ExpenseInboxAliasRow | null) ?? null;
+  // Never select a company by row order when several active inboxes match.
+  if (!data || data.length !== 1) return null;
+  return data[0] as ExpenseInboxAliasRow;
 }
 
 function attachmentBase64(
@@ -972,10 +974,17 @@ async function recoverRetryAttachment(
     };
   }
 
+  // Read-only recovery of existing originals is not an inbound alias. Old
+  // addresses remain rejected for reception, without losing stored documents.
   const expectedAddress = buildExpenseInboxAddress(
     row.alias_token,
     getExpenseInboxDomain(),
   ).toLowerCase();
+  const originalAddresses = new Set([
+    expectedAddress,
+    `${EXPENSE_INBOX_LOCAL_PART}-${expectedAddress}`,
+    `${EXPENSE_INBOX_LOCAL_PART}+${expectedAddress}`,
+  ]);
   const expectedFrom = bareEmailAddress(row.from_email ?? "");
   const candidates = (
     await listRecentResendReceivedEmails({
@@ -984,9 +993,7 @@ async function recoverRetryAttachment(
     })
   )
     .filter((email) =>
-      email.to.some(
-        (recipient) => bareEmailAddress(recipient) === expectedAddress,
-      ),
+      email.to.some((recipient) => originalAddresses.has(bareEmailAddress(recipient))),
     )
     .filter((email) =>
       expectedFrom ? bareEmailAddress(email.from) === expectedFrom : true,
