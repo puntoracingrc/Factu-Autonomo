@@ -1,8 +1,8 @@
 # ADR-0004 - Fiabilidad del buzón de gastos por email
 
 - Estado: aceptada
-- Versión: 7
-- Fecha: 2026-10-20
+- Versión: 8
+- Fecha: 2026-10-28
 - Ámbito: recepción de facturas de proveedores por email mediante Resend
 
 ## Contexto
@@ -27,6 +27,29 @@ entregado, y la configuración general podía escoger un remitente distinto del
 subdominio autenticado para Resend.
 
 ## Decisión
+
+### V8: dirección corta sin cambiar el buzón
+
+A petición del propietario se elimina únicamente `gastos-` de la dirección
+mostrada y copiada. El código privado, dominio, propietario, historial, entradas
+y adjuntos se conservan: no se regenera ni se migra el alias. No requiere otro
+dominio, reenvío externo, esquema, permisos ni configuración de Resend.
+
+La recepción admite únicamente la dirección corta del alias activo, en el
+dominio de recepción configurado. Por confirmación expresa del propietario,
+las direcciones sustituidas con `gastos-` o `gastos+` dejan de recibir: no se
+mantienen como alias alternativos. Un alias retirado sigue sin recibir y jamás
+se reactiva. Se exige un solo alias activo inequívoco; nunca se elige una
+empresa por el orden de resultados ni por una coincidencia parcial.
+Solo la lectura de originales ya recibidos reconoce sus direcciones antiguas,
+conservando las comprobaciones de metadatos y SHA-256 exacto: no activa recepción
+ni borra documentos existentes. La firma del webhook, límites, deduplicación,
+copia, estados y aislamiento por empresa no cambian.
+
+Regresiones: construcción/extracción de direcciones, ingreso corto y rechazo
+de las grafías sustituidas, replay sin duplicados ni doble consumo, dominio
+ajeno, alias retirado, ambigüedad entre empresas y recuperación del original
+en ambos formatos.
 
 La recepción se trata como una frontera independiente y fail-closed. El
 webhook permanece accesible sin sesión de usuario porque Resend no dispone de

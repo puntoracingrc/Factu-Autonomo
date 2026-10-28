@@ -99,6 +99,9 @@ Contrato: [ADR-0004](ADR-0004-expense-inbox-email-reliability.md).
   redirecciones ni exposición de secretos o datos personales en logs.
 - Los replays son idempotentes. Regenerar el correo activa un alias nuevo y
   retira para siempre el anterior.
+- ADR-0004 V8 acorta la dirección eliminando `gastos-`: solo recibe la dirección
+  corta activa. Las grafías sustituidas y los alias retirados no reciben; sus
+  originales ya guardados se conservan y siguen consultables con hash exacto.
 - Un error se reanaliza sobre el mismo registro con la cuota vigente y hash
   exacto; no duplica la factura. La compra de saldo no aparece a cuentas
   ilimitadas.

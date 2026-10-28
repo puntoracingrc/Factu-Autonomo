@@ -64,13 +64,28 @@ describe("expense inbox", () => {
       "facturacion-autonomos.app",
     );
 
-    expect(address).toBe("gastos-abc123def456@facturacion-autonomos.app");
+    expect(address).toBe("abc123def456@facturacion-autonomos.app");
     expect(extractExpenseInboxAliasToken(address)).toBe("abc123def456");
     expect(
       extractExpenseInboxAliasToken(
         "Factu <gastos+abc123def456@facturacion-autonomos.app>",
       ),
-    ).toBe("abc123def456");
+    ).toBeNull();
+  });
+
+  it("acorta la dirección conservando el código y rechaza las variantes sustituidas", () => {
+    const token = "zz-a1b2c3d4";
+    const domain = "mail.facturacion-autonomos.app";
+    const address = buildExpenseInboxAddress(token, domain);
+    expect(address).toBe(`${token}@${domain}`);
+    expect(address.length).toBe(42);
+    expect(`gastos-${address}`.length - address.length).toBe(7);
+    for (const recipient of [address, `Empresa <${address.toUpperCase()}>`]) {
+      expect(extractExpenseInboxAliasToken(recipient, domain)).toBe(token);
+    }
+    for (const recipient of [`gastos-${address}`, `gastos+${address}`, `${token}@otro.example`, `${token}@${domain}.otro.example`, `${token}@@${domain}`, `corto@${domain}`, `zz.a1b2c3d4@${domain}`]) {
+      expect(extractExpenseInboxAliasToken(recipient, domain)).toBeNull();
+    }
   });
 
   it("crea alias legibles para el buzón de gastos", () => {

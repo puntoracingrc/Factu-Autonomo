@@ -1,9 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExpenseScanPayload } from "./expense-scan/schema";
 import { consumeExpenseScan } from "@/lib/billing/scan-usage-server";
 import { hasUnlimitedAiAccessForCompany } from "@/lib/billing/unlimited-ai-access";
 import { resolveCompanyBillingFromDataOwner } from "@/lib/companies/server";
 import { archiveInboxOriginalIfCloud } from "@/lib/expense-originals/server";
+import { extractExpenseFromImage } from "@/lib/expense-scan/openai";
+import {
+  downloadResendAttachment,
+  listRecentResendReceivedEmails,
+} from "@/lib/expense-inbox-download";
 
 const COMPANY_ID = "ebf7802a-d38c-4fb0-9dd1-fb387f7fa092";
 const DATA_OWNER_ID = "ebf7802a-d38c-4fb0-9dd1-fb387f7fa092";
@@ -21,6 +27,15 @@ const inboxRows: Array<Record<string, unknown>> = [];
 vi.mock("@/lib/expense-originals/server", () => ({
   archiveInboxOriginalIfCloud: vi.fn(async () => undefined),
 }));
+
+vi.mock("@/lib/expense-inbox-download", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/expense-inbox-download")>();
+  return {
+    ...actual,
+    downloadResendAttachment: vi.fn(),
+    listRecentResendReceivedEmails: vi.fn(),
+  };
+});
 
 vi.mock("@/lib/billing/config", () => ({
   isBillingEnforced: () => false,
@@ -210,14 +225,152 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 describe("expense inbox server", () => {
   beforeEach(() => {
+    aliasRows.splice(0, aliasRows.length, {
+      user_id: DATA_OWNER_ID,
+      alias_token: "pa-inbox01",
+      active: true,
+    });
     inboxRows.splice(0, inboxRows.length);
     vi.clearAllMocks();
+    vi.stubEnv("EXPENSE_INBOX_DOMAIN", "mail.facturacion-autonomos.app");
     vi.mocked(hasUnlimitedAiAccessForCompany).mockResolvedValue(false);
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function syntheticEmail(to: string | string[]) {
+    return {
+      To: to,
+      From: "synthetic@example.test",
+      Subject: "Prueba sintética de dirección",
+      Attachments: [{
+        Name: "synthetic.pdf",
+        ContentType: "application/pdf",
+        Content: Buffer.from("%PDF-1.7\nshort address fixture").toString("base64"),
+      }],
+    };
+  }
+
+  it.each(["gastos-pa-inbox01", "gastos+pa-inbox01"])("rechaza %s y solo recibe por la dirección final corta", async (oldLocalPart) => {
+    const { ingestExpenseInboxEmail } = await import("./expense-inbox-server");
+    const aliasBefore = structuredClone(aliasRows);
+    expect(await ingestExpenseInboxEmail(syntheticEmail(`${oldLocalPart}@mail.facturacion-autonomos.app`)))
+      .toMatchObject({ accepted: 0, ignored: 1, errors: 0 });
+    expect(inboxRows).toHaveLength(0);
+    expect(extractExpenseFromImage).not.toHaveBeenCalled();
+    expect(await ingestExpenseInboxEmail(syntheticEmail("pa-inbox01@mail.facturacion-autonomos.app")))
+      .toMatchObject({ accepted: 1, pending: 1, errors: 0 });
+    expect(await ingestExpenseInboxEmail(syntheticEmail("pa-inbox01@mail.facturacion-autonomos.app")))
+      .toMatchObject({ accepted: 0, duplicates: 1, errors: 0 });
+    expect(aliasRows).toEqual(aliasBefore);
+    expect(inboxRows).toHaveLength(1);
+    expect(inboxRows[0]).toMatchObject({ user_id: DATA_OWNER_ID, alias_token: "pa-inbox01" });
+    expect(extractExpenseFromImage).toHaveBeenCalledTimes(1);
+    expect(consumeExpenseScan).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplica destinatarios cortos y antiguos del mismo alias", async () => {
+    const { ingestExpenseInboxEmail } = await import("./expense-inbox-server");
+    expect(await ingestExpenseInboxEmail(syntheticEmail([
+      "pa-inbox01@mail.facturacion-autonomos.app",
+      "gastos-pa-inbox01@mail.facturacion-autonomos.app",
+    ]))).toMatchObject({ accepted: 1, pending: 1, errors: 0 });
+    expect(inboxRows).toHaveLength(1);
+    expect(extractExpenseFromImage).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    "pa-inbox01@otro.example",
+    "gastos-pa-inbox01@otro.example",
+    "pa-inbox01@mail.facturacion-autonomos.app.otro.example",
+    "pa-inbox01@@mail.facturacion-autonomos.app",
+    "pa-desconocido@mail.facturacion-autonomos.app",
+  ])("ignora el destinatario ajeno, inválido o desconocido %s", async (to) => {
+    const { ingestExpenseInboxEmail } = await import("./expense-inbox-server");
+    expect(await ingestExpenseInboxEmail(syntheticEmail(to)))
+      .toMatchObject({ accepted: 0, ignored: 1, errors: 0 });
+    expect(inboxRows).toHaveLength(0);
+    expect(resolveCompanyBillingFromDataOwner).not.toHaveBeenCalled();
+    expect(archiveInboxOriginalIfCloud).not.toHaveBeenCalled();
+    expect(extractExpenseFromImage).not.toHaveBeenCalled();
+  });
+
+  it.each(["pa-inbox01", "gastos-pa-inbox01", "gastos+pa-inbox01"])(
+    "no reactiva un alias retirado con la grafía %s", async (localPart) => {
+      aliasRows[0]!.active = false;
+      const { ingestExpenseInboxEmail } = await import("./expense-inbox-server");
+      expect(await ingestExpenseInboxEmail(syntheticEmail(`${localPart}@mail.facturacion-autonomos.app`)))
+        .toMatchObject({ accepted: 0, ignored: 1, errors: 0 });
+      expect(inboxRows).toHaveLength(0);
+      expect(archiveInboxOriginalIfCloud).not.toHaveBeenCalled();
+      expect(extractExpenseFromImage).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([false, true])("rechaza la ambigüedad entre empresas sin elegir por orden (%s)", async (reverse) => {
+    aliasRows.push({
+      user_id: "00000000-0000-4000-8000-000000000002",
+      alias_token: "zz-other01",
+      active: true,
+    });
+    if (reverse) aliasRows.reverse();
+    const { ingestExpenseInboxEmail } = await import("./expense-inbox-server");
+    expect(await ingestExpenseInboxEmail(syntheticEmail([
+      "pa-inbox01@mail.facturacion-autonomos.app",
+      "zz-other01@mail.facturacion-autonomos.app",
+    ])))
+      .toMatchObject({ accepted: 0, ignored: 1, errors: 0 });
+    expect(inboxRows).toHaveLength(0);
+    expect(resolveCompanyBillingFromDataOwner).not.toHaveBeenCalled();
+    expect(archiveInboxOriginalIfCloud).not.toHaveBeenCalled();
+    expect(extractExpenseFromImage).not.toHaveBeenCalled();
+  });
+
+  it.each(["pa-inbox01", "gastos-pa-inbox01", "gastos+pa-inbox01"])(
+    "recupera el original exacto de un correo antiguo dirigido a %s", async (localPart) => {
+      vi.stubEnv("RESEND_API_KEY", "synthetic-test-key");
+      const bytes = Buffer.from("%PDF-1.7\noriginal address fixture");
+      const hash = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+      inboxRows.push({
+        id: "inbox-original",
+        user_id: DATA_OWNER_ID,
+        alias_token: "pa-inbox01",
+        from_email: "synthetic@example.test",
+        subject: "Original sintético",
+        attachment_filename: "synthetic.pdf",
+        attachment_content_type: "application/pdf",
+        attachment_size: bytes.length,
+        attachment_hash: hash,
+        status: "pending",
+      });
+      vi.mocked(listRecentResendReceivedEmails).mockResolvedValue([{
+        id: "synthetic-email",
+        to: [`${localPart}@mail.facturacion-autonomos.app`],
+        from: "synthetic@example.test",
+        subject: "Original sintético",
+        createdAt: "2026-10-28T00:00:00Z",
+        attachments: [{ id: "synthetic-attachment", filename: "synthetic.pdf", size: bytes.length }],
+      }]);
+      vi.mocked(downloadResendAttachment).mockResolvedValue({
+        buffer: bytes,
+        filename: "synthetic.pdf",
+        contentType: "application/pdf",
+      });
+      const { getExpenseInboxOriginalAttachment } = await import("./expense-inbox-server");
+      expect(await getExpenseInboxOriginalAttachment({ userId: DATA_OWNER_ID, itemId: "inbox-original" }))
+        .toEqual({ buffer: bytes, contentType: "application/pdf", sourceSha256: hash });
+      vi.mocked(downloadResendAttachment).mockResolvedValue({ buffer: Buffer.from("otro adjunto") });
+      await expect(getExpenseInboxOriginalAttachment({ userId: DATA_OWNER_ID, itemId: "inbox-original" }))
+        .rejects.toThrow("No he podido recuperar ese adjunto");
+      expect(extractExpenseFromImage).not.toHaveBeenCalled();
+    },
+  );
+
   it("keeps a failed original archive retryable and never analyzes a replay twice",async()=>{
     const {ingestExpenseInboxEmail}=await import("./expense-inbox-server");
-    const email={To:"gastos-pa-inbox01@mail.facturacion-autonomos.app",From:"sintetico@example.test",Subject:"Original sintético",Attachments:[{Name:"synthetic.pdf",ContentType:"application/pdf",Content:Buffer.from("%PDF-1.7\noriginal retry fixture").toString("base64")}]};
+    const email={To:"pa-inbox01@mail.facturacion-autonomos.app",From:"sintetico@example.test",Subject:"Original sintético",Attachments:[{Name:"synthetic.pdf",ContentType:"application/pdf",Content:Buffer.from("%PDF-1.7\noriginal retry fixture").toString("base64")}]};
     vi.mocked(archiveInboxOriginalIfCloud).mockRejectedValueOnce(new Error("Storage temporarily unavailable"));
     await expect(ingestExpenseInboxEmail(email)).rejects.toThrow("Storage temporarily unavailable");
     expect(inboxRows).toHaveLength(0);
@@ -236,7 +389,7 @@ describe("expense inbox server", () => {
     } = await import("./expense-inbox-server");
 
     const first = await ingestExpenseInboxEmail({
-      To: "gastos-pa-inbox01@mail.facturacion-autonomos.app",
+      To: "pa-inbox01@mail.facturacion-autonomos.app",
       From: "Proveedor uno <uno@example.test>",
       Subject: "Factura 1",
       Attachments: [
@@ -248,7 +401,7 @@ describe("expense inbox server", () => {
       ],
     });
     const second = await ingestExpenseInboxEmail({
-      To: "gastos-pa-inbox01@mail.facturacion-autonomos.app",
+      To: "pa-inbox01@mail.facturacion-autonomos.app",
       From: "Proveedor dos <dos@example.test>",
       Subject: "Factura 2",
       Attachments: [
@@ -300,7 +453,7 @@ describe("expense inbox server", () => {
     );
 
     const result = await ingestExpenseInboxEmail({
-      To: "gastos-pa-inbox01@mail.facturacion-autonomos.app",
+      To: "pa-inbox01@mail.facturacion-autonomos.app",
       From: "Proveedor tres <tres@example.test>",
       Subject: "Factura ilimitada",
       Attachments: [
