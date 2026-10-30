@@ -146,6 +146,12 @@ export function documentStatusHint(
     case "borrador":
       return "Editable hasta emitirla.";
     case "enviado":
+      if (
+        doc.deliveryStatus !== "sent" &&
+        centralAuthorityState.kind === "server_issued"
+      ) {
+        return null;
+      }
       return doc.deliveryStatus === "sent"
         ? "Enviada al cliente. Pendiente de cobro local hasta marcarla como cobrada."
         : (centralAuthorityState.statusHint ??

@@ -17,6 +17,7 @@ import { buildShareMessage } from "./share";
 import { DEFAULT_PROFILE, type Document } from "./types";
 import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "./issuer-snapshot";
+import { getCentralInvoiceAuthorityOperationState } from "./central-invoice-authority/operation-state";
 
 const ISSUED_AT = "2026-06-24T10:00:00.000Z";
 
@@ -117,10 +118,33 @@ describe("invoice status action copy", () => {
     );
   });
 
-  it("distingue facturas emitidas por autoridad central y enlaces que requieren revision", () => {
-    expect(documentStatusHint(withCentralAuthority(issuedInvoice()))).toContain(
-      "servidor central",
+  it.each([
+    "invoice_issued",
+    "invoice_collection_updated",
+    "invoice_relationship_updated",
+  ] as const)("omite la frase redundante de %s y conserva la etiqueta central", (eventType) => {
+    const invoice = withCentralAuthority(issuedInvoice(), { eventType });
+
+    expect(documentStatusHint(invoice)).toBeNull();
+    expect(getCentralInvoiceAuthorityOperationState(invoice).badgeLabel).toBe(
+      "Servidor central",
     );
+    expect(documentStatusLabel(invoice)).toBe("Emitida");
+  });
+
+  it("conserva las pistas de envio, conciliacion y revision central", () => {
+    expect(
+      documentStatusHint(
+        withCentralAuthority(
+          markDocumentSent(issuedInvoice(), "2026-06-24T10:05:00.000Z"),
+        ),
+      ),
+    ).toContain("Enviada al cliente");
+    expect(
+      documentStatusHint(
+        withCentralAuthority(issuedInvoice(), { eventType: "document_repaired" }),
+      ),
+    ).toContain("Documento conciliado");
     expect(
       documentStatusHint(
         withCentralAuthority(issuedInvoice(), {
