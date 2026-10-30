@@ -14,9 +14,16 @@ snapshots, sellos ni numeración.
    conservan número, versión y secuencia coherentes con el enlace central;
 3. muestra `Revisar servidor` cuando el enlace central no coincide con el
    documento visible o aparece en un borrador;
-4. reutiliza la pista de estado del listado de facturas para explicar que la
-   identidad fiscal fue confirmada por servidor central;
+4. en facturas ordinarias emitidas, la etiqueta central basta: el listado no
+   repite debajo la explicación de número, versión e identidad confirmados;
+   conserva las pistas de envío, conciliación y revisión que sí aportan
+   información, y sigue sin mostrar pistas debajo de las facturas cobradas;
 5. conserva la presentación anterior para documentos locales sin metadatos.
+
+El listado tampoco ofrece el botón de crear una rectificativa. Conserva las
+rectificativas existentes, sus relaciones y presentación, así como las acciones
+de edición, cobro y borrado bajo sus permisos actuales. No se cambian rutas ni
+comandos centrales de rectificación.
 
 ## Seguridad
 

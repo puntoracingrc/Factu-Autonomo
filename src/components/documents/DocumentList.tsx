@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Download,
-  FileWarning,
   LoaderCircle,
   Pencil,
   Search,
@@ -90,7 +89,7 @@ import {
 import { isAcceptedQuote } from "@/lib/quotes";
 import { isQuoteExpired } from "@/lib/quote-validity";
 import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
-import { canRectifyInvoice, isRectificativa } from "@/lib/rectificativas";
+import { isRectificativa } from "@/lib/rectificativas";
 import {
   PRODUCT_MONTH_NAMES,
   PRODUCT_QUARTERS,
@@ -102,7 +101,6 @@ import {
   type ProductPeriodSelection,
 } from "@/lib/product-period-summary";
 import {
-  RECTIFICATION_ACTION_COPY,
   documentStatusColor,
   documentStatusHint,
   documentStatusLabel,
@@ -1051,7 +1049,6 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                   })
                 : null;
             const rect = isRectificativa(doc);
-            const rectifiable = type === "factura" && canRectifyInvoice(doc);
             const editable = isDocumentEditable(doc) || canManageCentralIssuedInvoice(doc);
             const legacyImportAttested = isUsableLegacyImportedDocument(doc);
             const legacyImportedAccepted =
@@ -1398,16 +1395,6 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                           doc={contactDoc}
                           profile={data.profile}
                         />
-                      )}
-                      {rectifiable && (
-                        <IconActionLink
-                          href={`${basePath}/${doc.id}/rectificar`}
-                          label={RECTIFICATION_ACTION_COPY.label}
-                          tooltip={RECTIFICATION_ACTION_COPY.tooltip}
-                          className="bg-orange-50 text-orange-700 hover:bg-orange-100"
-                        >
-                          <FileWarning className="h-5 w-5" />
-                        </IconActionLink>
                       )}
                       {editable && (
                         <IconActionLink

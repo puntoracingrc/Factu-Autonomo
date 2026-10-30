@@ -30,7 +30,6 @@ describe("orden de acciones en los listados de documentos", () => {
       "DocumentLinkManagerButton",
       "DocumentPdfShareActions",
       "PaymentReminderButton",
-      "{rectifiable &&",
       "{editable &&",
       "DeleteDocumentButton",
     ];
@@ -40,6 +39,18 @@ describe("orden de acciones en los listados de documentos", () => {
     expect(positions).toEqual(
       [...positions].sort((left, right) => left - right),
     );
+  });
+
+  it("oculta crear rectificativas sin quitar edicion, cobro ni borrado", () => {
+    const actions = actionBarSource();
+
+    expect(source).not.toContain("/rectificar");
+    expect(source).not.toContain("RECTIFICATION_ACTION_COPY");
+    expect(actions).toContain("<MarkAsPaidButton");
+    expect(actions).toContain("{editable &&");
+    expect(actions).toContain('label="Editar"');
+    expect(actions).toContain("<DeleteDocumentButton");
+    expect(source).toContain("isRectificativa(doc)");
   });
 
   it("mantiene la vista PDF en el mismo bloque para borradores y emitidos", () => {
