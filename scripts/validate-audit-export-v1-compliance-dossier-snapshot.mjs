@@ -124,6 +124,9 @@ const allowedPatterns = [
   /^scripts\/validate-phase2c57-66-.*\.mjs$/,
   /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78|89|90|101|102)-/,
   /^scripts\/validate-phase2d/,
+  /^scripts\/phase2e10-storage-resilience-acceptance\.test\.ts$/,
+  /^scripts\/validate-phase2e/,
+  /^src\/lib\/local-storage-resilience\//,
   /^scripts\/phase2c40-sync-route-abuse-payload-hardening\.test\.ts$/,
   /^scripts\/phase2c45-private-local-sync-route-fake-acceptance\.test\.ts$/,
   /^scripts\/phase2c46-sync-route-operational-hardening-acceptance\.test\.ts$/,
@@ -161,6 +164,7 @@ const allowedPatterns = [
   /^docs\/phase2c64-.*\.md$/,
   /^docs\/phase2c66-.*\.md$/,
   /^docs\/phase2d/,
+  /^docs\/phase2e/,
   /^package\.json$/,
 ];
 
@@ -176,12 +180,16 @@ function isPhase2C37To48Path(changedPath) {
     /^scripts\/validate-phase2c(?:57|58|59|60|61|62|63|64|57-66)-/,
     /^scripts\/phase2d(?:9|19|29|30|39|40|41|42|52|53|54|66|77|78|89|90|101|102)-/,
     /^scripts\/validate-phase2d/,
+    /^scripts\/phase2e10-storage-resilience-acceptance\.test\.ts$/,
+    /^scripts\/validate-phase2e/,
     /^src\/lib\/local-data-safety\//,
+    /^src\/lib\/local-storage-resilience\//,
     /^src\/components\/local-data-safety\//,
     /^docs\/phase2c(?:37|38|39|40|41|42|43|44|45|46|48)-/,
     /^docs\/phase2c(?:49|50|51|52|53|54|56)-/,
     /^docs\/phase2c(?:57|58|59|60|61|62|63|64|66)-/,
     /^docs\/phase2d/,
+    /^docs\/phase2e/,
   ].some((pattern) => pattern.test(changedPath));
 }
 
