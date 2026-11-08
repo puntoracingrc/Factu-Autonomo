@@ -123,6 +123,17 @@ function projectField(
       sourcePageNumbers: item.evidence.pageNumbers,
     });
   }
+  if (item.kind === "TEXT" && item.fieldCode === "SEIZURE_DEBT_PERIOD") {
+    return field({
+      fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
+      semantic: "REFERENCE",
+      canonicalType: "TAX_PERIOD",
+      label: item.label,
+      displayValue: item.value,
+      normalizedValue: item.value,
+      sourcePageNumbers: item.evidence.pageNumbers,
+    });
+  }
   if (item.kind === "TEXT" && item.fieldCode === "ASSET_KIND") {
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
