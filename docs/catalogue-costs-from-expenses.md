@@ -11,6 +11,22 @@ El guardado explícito de una compra con líneas puede actualizar las fichas exi
 - Los cambios con aviso conservan el coste por defecto. La casilla «Actualizar coste» permite aceptar expresamente una variación válida o conservar el coste incluso ante una variación pequeña. Distintos precios del mismo producto en una factura requieren elegir una sola línea.
 - La revisión del lote vuelve a comprobar los datos más recientes antes de guardar: una factura anterior del mismo lote puede haber cambiado la referencia de comparación.
 
+## Mosquiteras con medidas
+
+La unidad de la factura y la unidad del catálogo son independientes. Una
+mosquitera cobrada por pieza conserva sus unidades, precio, descuento, base e
+IVA en el gasto. Para Productos, se divide la base de línea por
+`unidades × ancho en metros × alto en metros`. La tarifa anterior al descuento
+se convierte por separado. Las líneas ya facturadas por m² no se convierten otra
+vez y no se comparan costes por pieza con costes por superficie.
+
+El lector recoge ancho y alto de la línea, incluidas cabeceras como «ALT cm.»
+y «AMPLE cm.». En PDF digital, la recuperación por texto exige coincidencia
+única de artículo y cifras facturadas. Se pueden corregir las medidas antes de
+guardar. Si faltan o la línea no cuadra, se puede guardar el gasto, pero no
+llevar su coste al catálogo. No se cambian las fichas existentes de unidad
+incompatible ni se reescriben gastos guardados.
+
 ## Persistencia y procedencia
 
 En empresas centrales, gasto, proveedor nuevo (si procede) y fichas modificadas viajan en una sola transacción con versiones esperadas. Un conflicto revierte el conjunto. La caché solo cambia tras confirmación del servidor. Los reintentos conservan identidad, fechas y petición exacta; un fallo de red no se presenta como guardado.

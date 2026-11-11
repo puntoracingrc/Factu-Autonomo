@@ -107,8 +107,11 @@ import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 import { expenseAlreadySavedFromInbox } from "@/lib/expense-inbox-lifecycle";
 
 import { reviewExpenseCatalogCosts } from "@/lib/expense-catalog-costs";
+import { resolveExpenseCatalogSurface } from "@/lib/expense-catalog-surface";
 import { ExpensePriceAlerts } from "@/components/expenses/ExpensePriceAlerts";
 import { ExpenseCatalogCostReview } from "@/components/expenses/ExpenseCatalogCostReview";
+
+const areaDisplay = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 4 });
 
 function emptyPurchaseLine(
   partial: Partial<ExpensePurchaseLine> = {},
@@ -608,6 +611,9 @@ export default function NuevoGastoPage() {
           "description",
           "supplierReference",
           "unit",
+          "width",
+          "height",
+          "dimensionUnit",
         ].some((key) => Object.hasOwn(patch, key));
         return {
           ...line,
@@ -971,9 +977,15 @@ export default function NuevoGastoPage() {
         const inCatalog = purchaseLineHasCatalogProduct(line, productKeys);
         const selected = selectedForCatalogInScan(line);
         const batchOwner = selectedBatchCatalogOwnerForLine(review, index);
-        let state: "catalog" | "batch" | "new" | "off" | "credit";
+        const surface = resolveExpenseCatalogSurface(line);
+        let state: "catalog" | "batch" | "new" | "off" | "credit" | "measurements";
         if (!canFeedCatalog) {
-          state = "credit";
+          state =
+            review.payload.expense.amount > 0 &&
+            expensePurchaseLineBaseTotal(line) > 0 &&
+            surface && surface.status !== "ready"
+              ? "measurements"
+              : "credit";
         } else if (inCatalog) {
           state = "catalog";
         } else if (batchOwner) {
@@ -996,7 +1008,7 @@ export default function NuevoGastoPage() {
         ): item is {
           key: string;
           description: string;
-          state: "catalog" | "batch" | "new" | "off" | "credit";
+          state: "catalog" | "batch" | "new" | "off" | "credit" | "measurements";
         } => Boolean(item),
       );
   }
@@ -2341,6 +2353,10 @@ export default function NuevoGastoPage() {
                                       stateLabel = "Abono: no actualiza";
                                       stateClass =
                                         "bg-slate-50 text-slate-700 ring-slate-100";
+                                    } else if (item.state === "measurements") {
+                                      stateLabel = "Revisar medidas o precio";
+                                      stateClass =
+                                        "bg-amber-50 text-amber-800 ring-amber-100";
                                     } else if (item.state === "catalog") {
                                       stateLabel = "En Productos";
                                       stateClass =
@@ -3173,6 +3189,7 @@ export default function NuevoGastoPage() {
                         (line.netUnitPrice ?? 0) < 0;
                       const lineWillGoToCatalog =
                         lineCanFeedCatalog && line.catalogProduct !== false;
+                      const surface = resolveExpenseCatalogSurface(line);
                       let cardTone = "border-slate-100 bg-slate-50";
                       let checkboxTone =
                         "border-slate-200 bg-white text-slate-700";
@@ -3304,6 +3321,56 @@ export default function NuevoGastoPage() {
                               />
                             </Field>
                           </div>
+                          {surface && !lineIsCreditOrReturn && (
+                            <div className="mt-3 rounded-xl border border-blue-100 bg-white p-3">
+                              <p className="mb-2 text-sm font-bold text-slate-800">
+                                Medidas para el coste en Productos
+                              </p>
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                <Field label="Ancho">
+                                  <NumericFieldInput
+                                    value={line.width ?? 0}
+                                    onChange={(width) =>
+                                      updatePurchaseLine(line.id, { width: width || undefined })
+                                    }
+                                  />
+                                </Field>
+                                <Field label="Alto">
+                                  <NumericFieldInput
+                                    value={line.height ?? 0}
+                                    onChange={(height) =>
+                                      updatePurchaseLine(line.id, { height: height || undefined })
+                                    }
+                                  />
+                                </Field>
+                                <Field label="Unidad de medida">
+                                  <Select
+                                    value={line.dimensionUnit === "unknown" ? "" : (line.dimensionUnit ?? "")}
+                                    onChange={(event) => {
+                                      const unit = event.target.value;
+                                      updatePurchaseLine(line.id, {
+                                        dimensionUnit: unit === "mm" || unit === "cm" || unit === "m"
+                                          ? unit
+                                          : undefined,
+                                      });
+                                    }}
+                                  >
+                                    <option value="">Elige unidad</option>
+                                    <option value="mm">mm</option>
+                                    <option value="cm">cm</option>
+                                    <option value="m">m</option>
+                                  </Select>
+                                </Field>
+                              </div>
+                              <p aria-live="polite" className="mt-2 text-sm font-semibold text-slate-700">
+                                {surface.status === "ready"
+                                  ? `${areaDisplay.format(surface.areaM2)} m² · ${formatMoney(surface.net)}/m² sin IVA. El importe de la factura no cambia.`
+                                  : surface.status === "needs_dimensions"
+                                    ? "Indica ancho, alto y unidad para llevar el coste a Productos. Puedes guardar el gasto sin hacerlo."
+                                    : "Revisa la unidad y el precio de la factura antes de actualizar Productos."}
+                              </p>
+                            </div>
+                          )}
                           <p className="mt-3 text-right text-sm font-bold text-slate-700">
                             Base {formatMoney(lineAmounts.base)} · IVA{" "}
                             {lineIvaPercent}% {formatMoney(lineAmounts.iva)} ·

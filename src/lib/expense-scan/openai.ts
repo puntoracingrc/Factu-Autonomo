@@ -1,5 +1,6 @@
 import { extractPdfScanHintsFromPdfBase64 } from "./pdf-table-lines";
 import { buildExpenseScanPrompt } from "./prompt";
+import { recoverMosquitoScreenDimensionsFromPdf } from "./mosquito-screen-dimensions";
 import {
   normalizeExpenseScanAiOutputV1,
   type ExpenseScanPayload,
@@ -274,6 +275,13 @@ export async function extractExpenseFromImage(
         );
       }
     }
+  }
+
+  if (pdfHints?.textRows && data.expense.purchaseLines?.length) {
+    data.expense.purchaseLines = recoverMosquitoScreenDimensionsFromPdf(
+      data.expense.purchaseLines,
+      pdfHints.textRows,
+    );
   }
 
   return { data, learningHints: output.learningHints };

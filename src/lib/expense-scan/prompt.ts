@@ -105,9 +105,9 @@ Reglas:
 - En purchaseLines: unitPrice y total siempre son SIN IVA; discountPercent es el descuento de línea si aparece. Si hay columna "Precio Neto", ponla en netUnitPrice.
 - Si aparecen varios tipos de IVA, conserva el ivaPercent real de cada línea. No los sustituyas por el tipo de cabecera ni por un porcentaje medio.
 - Distingue cantidad original y cantidad cobrada: sourceQuantity es Cant./Uds./Piezas; quantity y chargeQuantity son lo que multiplica el precio neto.
-- Si una línea tiene ancho y alto, se calcula por m2: unit "M2", calculationBasis "m2", quantity/chargeQuantity = M2 y sourceQuantity = Cant.
-- Si una línea tiene solo una medida de largo/alto/ancho útil, se calcula por metro lineal: unit "ML", calculationBasis "ml", quantity/chargeQuantity = ML y sourceQuantity = Cant.
-- Si no hay ancho/alto/largo, se calcula por unidad: unit "UD", calculationBasis "unit", quantity/chargeQuantity = unidades.
+- Copia las medidas explícitas de cada artículo aunque se facture por pieza. "Alt", "Alto" y "Altura" son height; "Ample", "Amplada" y "Ancho" son width. Usa dimensionUnit de la cabecera o del texto (mm, cm, m), aunque las cifras de la fila no repitan la unidad. Busca medidas en la continuación de la misma línea; no las inventes ni las tomes de otra fila.
+- No deduzcas la unidad facturada solo porque haya ancho, alto o largo. Usa M2/ML y su cantidad cuando sea lo que multiplica el precio del proveedor. Si TOTAL muestra "UD" y el importe coincide con unidades por precio neto, conserva unit "UD", calculationBasis "unit", quantity/chargeQuantity = unidades y copia las medidas por separado.
+- Ejemplo: mosquitera con UNIT. 2, ALT cm. 120, AMPLE cm. 80, TOTAL UD, PREU 72,50, DTE. 20% e IMPORT 116,00: height 120, width 80, dimensionUnit "cm", unit "UD", sourceQuantity 2, quantity 2, unitPrice 72.50, discountPercent 20 y total 116.00. No calcules una tarifa por m2 dentro de la línea de la factura.
 - En facturas tipo Crystal Reports/Stil Condal con columnas "Artículo", "Cant.", "Ancho", "Alto", "M2/ML/UN", "Precio", "%Dto.", "Precio Neto" e "Importe", conserva el orden de la tabla y trata filas como AUTC45, 005099004, 007002009, 022003027 o 004001012 como líneas separadas.
 - Si la descripción de una línea continúa en la fila siguiente sin nuevo precio ni importe, une ese texto a la descripción de la misma línea.
 - Si el documento solo tiene resumen total y no muestra líneas claras, deja purchaseLines vacío u omitido.

@@ -13,6 +13,7 @@ import {
   type ExpenseLearningHintsV1,
 } from "../expense-engine/contracts";
 import { EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION } from "./schema";
+import * as pdfTableLines from "./pdf-table-lines";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -82,6 +83,45 @@ function mockProviderJson(value: unknown) {
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
+
+describe("extractExpenseFromImage mosquiteras", () => {
+  it("recupera medidas del PDF en una sola llamada y conserva el precio por pieza", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.spyOn(pdfTableLines, "extractPdfScanHintsFromPdfBase64").mockResolvedValue({
+      textRows:
+        "REF. DESCRIPCIO UNIT. ALT cm. AMPLE cm. TOTAL PREU € DTE. IMPORT €\n" +
+        "SYN-SCREEN-1 Mosquitera enrollable azul de prueba 2 120,00 x 80,00 UD 72,50 20% 116,00",
+      stilCondal: { lines: [], warnings: [] },
+      debug: { itemCount: 20, rowCount: 2 },
+    });
+    const initial = providerExpense();
+    const line = {
+      description: "Mosquitera enrollable azul de prueba",
+      supplierReference: "SYN-SCREEN-1",
+      quantity: 2,
+      unit: "UD",
+      unitPrice: 72.5,
+      discountPercent: 20,
+      total: 116,
+      ivaPercent: 21,
+    };
+    const fetchMock = mockProviderJson({
+      schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+      expense: {
+        ...initial,
+        expense: { ...initial.expense, amount: 116, purchaseLines: [line] },
+      },
+      learningHints: null,
+    });
+    const result = await extractExpenseFromImage("synthetic", "application/pdf");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.data?.expense.amount).toBe(116);
+    expect(result.data?.expense.purchaseLines?.[0]).toMatchObject({
+      ...line, width: 80, height: 120, dimensionUnit: "cm",
+    });
+  });
+});
 
 describe("validateScanFile", () => {
   it("acepta PDF por tipo o extensión", () => {
