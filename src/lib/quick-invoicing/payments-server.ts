@@ -3,10 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { quickStripeConfig, type QuickStripeConfig } from "./payments-config";
 import { QUICK_COLLECTION_FLOW, quickCardAmount, stripeCheckoutUrl, type QuickCardPayment } from "./payments-model";
 import { QuickError, readQuickDocument, type QuickContext } from "./server";
+import { QUICK_TERMINAL_FLOW } from "./terminal-model";
 
 if (typeof window !== "undefined") throw new Error("Cobros: módulo exclusivo de servidor.");
 export { QUICK_COLLECTION_FLOW } from "./payments-model";
 export interface StoredQuickPayment {
+  channel?: "checkout" | "terminal";
   id: string; operation_id: string | null; collection_id?: string | null; company_id: string; user_id: string; invoice_id: string | null;
   invoice_hash: string | null; invoice_number: string | null; amount: number; currency: string;
   stripe_account_id: string; livemode: boolean; status: QuickCardPayment["status"];
@@ -26,7 +28,7 @@ export function configuredQuickPayments(companyId: string, allowDisabled = false
   return config;
 }
 export function paymentView(row: StoredQuickPayment): QuickCardPayment {
-  return { status: row.status, amount: row.amount, testMode: !row.livemode,
+  return { status: row.status, amount: row.amount, testMode: !row.livemode, ...(row.channel === "terminal" ? {channel: "terminal" as const} : {}),
     ...(row.status === "open" && stripeCheckoutUrl(row.checkout_url) ? { url: stripeCheckoutUrl(row.checkout_url) } : {}),
     expiresAt: row.expires_at, ...(row.paid_at ? { paidAt: row.paid_at } : {}) };
 }
@@ -52,7 +54,7 @@ export async function reconcileQuickStripeSession(
   const { data, error } = await admin.from("quick_stripe_payments").select("*").eq("id", session.metadata.payment_id ?? "").maybeSingle();
   if (error || !data) unavailable();
   const row = data as StoredQuickPayment;
-  if (row.company_id !== config.companyId || row.stripe_account_id !== config.accountId || row.livemode !== config.livemode
+  if (row.channel === "terminal" || row.company_id !== config.companyId || row.stripe_account_id !== config.accountId || row.livemode !== config.livemode
     || (row.operation_id ?? "") !== (session.metadata.operation_id ?? "")
     || (row.collection_id ?? "") !== (session.metadata.collection_id ?? "") || row.id !== session.client_reference_id
     || row.amount !== session.amount_total || row.currency !== session.currency
@@ -83,6 +85,10 @@ export async function reconcileQuickStripeSession(
 }
 const expand = ["payment_intent.latest_charge"];
 export async function refreshQuickPayment(admin: SupabaseClient, stripe: Stripe, config: QuickStripeConfig, row: StoredQuickPayment) {
+  if (row.channel === "terminal" && row.payment_intent_id) {
+    const {reconcileQuickTerminal} = await import("./terminal-server");
+    return reconcileQuickTerminal(admin,stripe,config,await stripe.paymentIntents.retrieve(row.payment_intent_id),`check:${row.payment_intent_id}`);
+  }
   if (!row.checkout_session_id || row.status === "review" || row.status === "expired") return row;
   const session = await stripe.checkout.sessions.retrieve(row.checkout_session_id, { expand });
   return reconcileQuickStripeSession(admin, stripe, config, session, `check:${session.id}`);
@@ -93,7 +99,7 @@ export async function readQuickCardPayment(context: QuickContext, operationId: s
   if (!receipt) throw new QuickError(404, "DOCUMENT_MISSING", "No se encontró la factura.");
   const row = await findPayment(context.admin, receipt.document.centralInvoiceAuthority!.serverDocumentId, context.scope.company_id, config.livemode);
   if (!row) return null;
-  if (!row.checkout_session_id || row.status === "review" || row.status === "expired") return paymentView(row);
+  if ((!row.checkout_session_id && row.channel !== "terminal") || row.status === "review" || row.status === "expired") return paymentView(row);
   const stripe = quickStripeClient(config);
   await assertQuickStripeAccount(stripe, config);
   return paymentView(await refreshQuickPayment(context.admin, stripe, config, row));
@@ -137,6 +143,7 @@ export async function createQuickCardPayment(context: QuickContext, operationId:
 }
 
 export async function prepareReservedQuickPayment(context: QuickContext, stripe: Stripe, config: QuickStripeConfig, row: StoredQuickPayment, description: string): Promise<QuickCardPayment> {
+  if (row.channel === "terminal") throw new QuickError(409,"NFC_ALREADY_OPEN","Este cobro está preparado por NFC. Cambia a enlace desde su panel para cerrar primero el pago NFC.");
   if (row.status !== "creating") return paymentView(row);
   // Stripe can prune idempotency keys after 24 h. An ambiguous old creation
   // must be reconciled by an operator, never silently recreated and charged twice.
@@ -165,6 +172,14 @@ export async function prepareReservedQuickPayment(context: QuickContext, stripe:
 
 export async function handleQuickStripeEvent(admin: SupabaseClient, stripe: Stripe, config: QuickStripeConfig, event: Stripe.Event) {
   if (event.account || event.livemode !== config.livemode) unavailable();
+  if (event.type === "payment_intent.succeeded" || event.type === "payment_intent.canceled") {
+    const object = event.data.object as Stripe.PaymentIntent;
+    if (object.metadata.flow !== QUICK_TERMINAL_FLOW) return;
+    await assertQuickStripeAccount(stripe,config);
+    const {reconcileQuickTerminal} = await import("./terminal-server");
+    await reconcileQuickTerminal(admin,stripe,config,await stripe.paymentIntents.retrieve(object.id),event.id);
+    return;
+  }
   if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded" || event.type === "checkout.session.expired") {
     const object = event.data.object as Stripe.Checkout.Session;
     if (object.metadata?.flow !== QUICK_COLLECTION_FLOW) return;
@@ -177,7 +192,7 @@ export async function handleQuickStripeEvent(admin: SupabaseClient, stripe: Stri
     if (typeof chargeId !== "string") unavailable();
     await assertQuickStripeAccount(stripe, config);
     const charge = await stripe.charges.retrieve(chargeId);
-    if (charge.metadata.flow !== QUICK_COLLECTION_FLOW) return;
+    if (charge.metadata.flow !== QUICK_COLLECTION_FLOW && charge.metadata.flow !== QUICK_TERMINAL_FLOW) return;
     const { error } = await admin.from("quick_stripe_payments").update({ status: "review", review_reason: "REFUND_OR_DISPUTE", last_event_id: event.id })
       .eq("payment_intent_id", typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id ?? "")
       .eq("company_id", config.companyId).eq("stripe_account_id", config.accountId).eq("livemode", config.livemode);

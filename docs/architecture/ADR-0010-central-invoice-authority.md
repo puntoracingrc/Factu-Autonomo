@@ -1,8 +1,37 @@
 # ADR-0010: Autoridad central para la emision de facturas
 
 - Estado: aceptado
-- Version: 15
-- Fecha: 2026-10-22
+- Version: 16
+- Fecha: 2026-10-23
+
+## Decisión de producto V16: NFC en Android con Stripe Terminal
+
+El propietario solicita cobrar desde su teléfono por NFC. La aplicación Android
+complementaria usa el SDK oficial Stripe Terminal; la PWA conserva la sesión de
+Google y la emisión. Android solo recibe un acceso aleatorio de diez minutos a
+un único pago, conservado como hash en una tabla privada y revalidado contra
+sesión activa, dispositivo, plan, admisión y empresa. No recibe claves API ni
+tokens de sesión de Google. Los datos de tarjeta y el PIN los gestiona Stripe.
+
+El mismo ledger distingue Checkout y Terminal. Las reservas comparten la
+exclusión y unicidad vigentes. Cambiar de método exige cerrar antes el objeto
+en Stripe: un fallo o resultado ambiguo conserva el bloqueo. Un rechazo de
+tarjeta o timeout reutiliza el mismo PaymentIntent con idempotencia durable.
+
+Solo la API autenticada de Stripe acredita `card_present` capturado por el
+importe y divisa exactos, cuenta, modo e identidades vinculadas. Un webhook
+firmado o consulta explícita aplica la confirmación central y su outbox; el
+callback Android nunca acredita dinero. V14/V15 mantienen factura diferida,
+aislamiento de pruebas y revisión de reembolsos sin reescritura fiscal.
+
+La activación exige ubicación Terminal propia, permisos mínimos de API,
+webhook extendido, regresiones de PostgreSQL, APK release firmado y prueba
+del SDK en un teléfono compatible. Compilar o simular no acredita que el NFC
+físico funcione. Un cobro real de prueba requiere que lo ejecute el propietario.
+
+Regresiones V16: `terminal.test.ts`, aceptación PostgreSQL de Terminal y de los
+dos órdenes factura/cobro, rutas privadas, replay, revocación de acceso y cambio
+de método. Se conservan las regresiones V14/V15 y ADR-0007.
 
 ## Decisión de producto V15: cobro independiente y factura diferida
 

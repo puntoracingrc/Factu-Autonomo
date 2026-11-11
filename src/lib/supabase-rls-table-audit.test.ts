@@ -327,6 +327,7 @@ const classifiedTables = new Set([
   ...quickPilotServiceTables,
   "quick_stripe_payments",
   "quick_payment_requests",
+  "quick_terminal_grants",
   ...serverDocumentTables,
   ...rateLimitTables,
 ]);
