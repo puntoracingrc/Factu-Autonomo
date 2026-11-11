@@ -1,6 +1,7 @@
 import { roundMoney } from "./calculations";
 import { productImageSnapshot } from "./product-image";
 import { normalizeDocumentUnitId } from "./document-units";
+import { resolveExpenseCatalogSurface } from "./expense-catalog-surface";
 import {
   expensePurchaseLineCanFeedProductCatalog,
   expensePurchaseLineBaseTotal,
@@ -518,13 +519,24 @@ export function buildPurchaseProductSummaries(
       const detectedKey = purchaseProductKey(line.description);
       if (hiddenKeys.has(detectedKey)) continue;
       const catalogProduct = lookup.get(detectedKey);
+      const surface = resolveExpenseCatalogSurface(line);
+      const measured = surface?.status === "ready" ? surface : undefined;
+      const purchaseUnit = measured ? "m2" : line.unit;
+      // An existing per-piece catalogue card is not a per-m² price history.
+      if (
+        measured && catalogProduct &&
+        normalizeDocumentUnitId(
+          catalogProduct.purchase?.unit ?? catalogProduct.unit ?? catalogProduct.sales?.unit,
+        ) !== "m2"
+      ) continue;
       const key = catalogProduct?.key ?? detectedKey;
       if (!key) continue;
 
       const base = expensePurchaseLineBaseTotal(line);
       const discount = normalizedDiscountPercent(line);
-      const netUnitCost = purchaseLineNetUnitCost(line);
-      const summaryQuantity = purchaseLineSummaryQuantity(
+      const netUnitCost = measured?.net ?? purchaseLineNetUnitCost(line);
+      const listPrice = measured?.list ?? line.unitPrice;
+      const summaryQuantity = measured?.areaM2 ?? purchaseLineSummaryQuantity(
         line,
         base,
         netUnitCost,
@@ -543,12 +555,12 @@ export function buildPurchaseProductSummaries(
         sku: catalogProduct?.sku,
         ...productImageSnapshot(catalogProduct?.imageDataUrl),
         externalId: catalogProduct?.externalId,
-        unit: catalogProduct?.sales?.unit ?? catalogProduct?.unit ?? line.unit,
+        unit: catalogProduct?.sales?.unit ?? catalogProduct?.unit ?? purchaseUnit,
         saleUnit: catalogProduct?.sales?.unit,
         saleDescription: catalogProduct?.sales?.description,
         saleUnitPrice: catalogProduct?.sales?.unitPrice,
         saleIvaPercent: catalogProduct?.sales?.ivaPercent,
-        purchaseUnit: catalogProduct?.purchase?.unit ?? line.unit,
+        purchaseUnit: catalogProduct?.purchase?.unit ?? purchaseUnit,
         purchaseDescription: catalogProduct?.purchase?.description,
         purchaseListPrice: catalogProduct?.purchase?.listPrice,
         purchaseDiscountPercent: catalogProduct?.purchase?.discountPercent,
@@ -568,7 +580,7 @@ export function buildPurchaseProductSummaries(
         lastUnitPrice: netUnitCost,
         minUnitPrice: netUnitCost,
         maxUnitPrice: netUnitCost,
-        lastPvp: line.unitPrice,
+        lastPvp: listPrice,
         lastDiscountPercent: discount,
         ivaPercent: line.ivaPercent,
         lastPurchaseDate: expense.date,
@@ -579,7 +591,7 @@ export function buildPurchaseProductSummaries(
       accumulator.totalQuantity += summaryQuantity;
       accumulator.totalBase += base;
       accumulator.unitPriceSum += netUnitCost;
-      accumulator.pvpSum += line.unitPrice;
+      accumulator.pvpSum += listPrice;
       accumulator.discountSum += discount;
       accumulator.minUnitPrice = Math.min(
         accumulator.minUnitPrice,
@@ -596,11 +608,11 @@ export function buildPurchaseProductSummaries(
         accumulator.unit =
           catalogProduct?.sales?.unit ??
           catalogProduct?.unit ??
-          line.unit ??
+          purchaseUnit ??
           accumulator.unit;
         accumulator.purchaseUnit =
           catalogProduct?.purchase?.unit ??
-          line.unit ??
+          purchaseUnit ??
           accumulator.purchaseUnit;
         accumulator.purchaseSupplierReference =
           catalogProduct?.purchase?.supplierReference ??
@@ -608,7 +620,7 @@ export function buildPurchaseProductSummaries(
           accumulator.purchaseSupplierReference;
         accumulator.lastPurchaseDate = expense.date;
         accumulator.lastUnitPrice = netUnitCost;
-        accumulator.lastPvp = line.unitPrice;
+        accumulator.lastPvp = listPrice;
         accumulator.lastDiscountPercent = discount;
       }
 

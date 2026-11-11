@@ -1,6 +1,10 @@
 import { normalizeDocumentUnitId } from "./document-units";
 import { supplierCompareKey } from "./supplier-normalization";
 import { discountedProductCost } from "./product-catalog-lite/decimal-prices";
+import {
+  resolveExpenseCatalogSurface,
+  type ExpenseCatalogPriceLine,
+} from "./expense-catalog-surface";
 import type { ExpensePurchaseLine, Product } from "./types";
 
 export type PurchaseSupplier = { supplierId?: string; supplierName?: string };
@@ -28,13 +32,10 @@ export function purchasePriceUnit(value?: string): string {
   return normalizeDocumentUnitId(unit) ?? purchasePriceKey(unit);
 }
 export function samePurchaseLine(
-  left: Pick<ExpensePurchaseLine, "description" | "supplierReference" | "unit">,
-  right: Pick<
-    ExpensePurchaseLine,
-    "description" | "supplierReference" | "unit"
-  >,
+  left: ExpensePurchaseLine,
+  right: ExpensePurchaseLine,
 ): boolean {
-  if (purchasePriceUnit(left.unit) !== purchasePriceUnit(right.unit))
+  if (catalogPurchaseUnit(left) !== catalogPurchaseUnit(right))
     return false;
   const a = purchasePriceKey(left.supplierReference ?? ""),
     b = purchasePriceKey(right.supplierReference ?? "");
@@ -42,15 +43,23 @@ export function samePurchaseLine(
   const name = purchasePriceKey(left.description);
   return !!name && name === purchasePriceKey(right.description);
 }
+
+function catalogPurchaseUnit(line: ExpensePurchaseLine): string {
+  return resolveExpenseCatalogSurface(line)?.status === "ready"
+    ? "m2"
+    : purchasePriceUnit(line.unit);
+}
+
 /** A price write never uses the fuzzy product search or drops model numbers. */
 export function matchingPurchaseProducts(
-  line: Pick<ExpensePurchaseLine, "description" | "supplierReference" | "unit">,
+  line: ExpensePurchaseLine,
   supplier: PurchaseSupplier,
   products: Product[],
   options: { ignoreUnit?: boolean } = {},
 ): Product[] {
   const name = purchasePriceKey(line.description),
     ref = purchasePriceKey(line.supplierReference ?? "");
+  const unit = catalogPurchaseUnit(line);
   const matches = products.filter((product) => {
     if (
       product.hidden ||
@@ -62,7 +71,7 @@ export function matchingPurchaseProducts(
       return false;
     if (
       !options.ignoreUnit &&
-      purchasePriceUnit(line.unit) !==
+      unit !==
         purchasePriceUnit(
           product.purchase?.unit ?? product.unit ?? product.sales?.unit,
         )
@@ -91,13 +100,16 @@ export function matchingPurchaseProducts(
   return byRef.length ? byRef : matches;
 }
 export function purchaseLinePrice(
-  line: Pick<
-    ExpensePurchaseLine,
-    "unitPrice" | "discountPercent" | "netUnitPrice"
-  >,
+  line: ExpenseCatalogPriceLine,
 ): { list: number; discount: number; net: number; consistent: boolean } | null {
   const list = line.unitPrice,
     discount = line.discountPercent ?? 0;
+  const surface = resolveExpenseCatalogSurface(line);
+  if (surface) {
+    return surface.status === "ready"
+      ? { list: surface.list, discount, net: surface.net, consistent: true }
+      : null;
+  }
   if (
     !Number.isFinite(list) ||
     list < 0 ||

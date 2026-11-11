@@ -31,6 +31,14 @@ describe("buildExpenseScanPrompt", () => {
     expect(prompt).toContain("nunca interpretes una ausencia como cero");
   });
 
+  it("conserva las medidas y la unidad realmente facturada por separado", () => {
+    const prompt = buildExpenseScanPrompt();
+    expect(prompt).toContain('"Ample", "Amplada" y "Ancho" son width');
+    expect(prompt).toContain('TOTAL muestra "UD"');
+    expect(prompt).toContain("copia las medidas por separado");
+    expect(prompt).toContain("No calcules una tarifa por m2 dentro de la línea");
+  });
+
   it("prohíbe contenido identificativo y valores de negocio en los hints", () => {
     const prompt = buildExpenseScanPrompt();
 

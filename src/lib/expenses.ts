@@ -10,6 +10,10 @@ import {
   purchaseLinePrice,
 } from "./purchase-price-matching";
 import { currentPriceSource } from "./product-price-sources";
+import {
+  resolveExpenseCatalogSurface,
+  type ExpenseCatalogPriceLine,
+} from "./expense-catalog-surface";
 import type {
   Expense,
   ExpensePurchaseDocument,
@@ -841,14 +845,12 @@ export function expensePurchaseLineTracksProduct(
   return line.catalogProduct !== false;
 }
 
-type ExpenseProductCatalogPriceLine = Pick<
-  ExpensePurchaseLine,
-  "quantity" | "unitPrice" | "discountPercent" | "netUnitPrice" | "total"
->;
-
 function expensePurchaseLineCatalogNetUnitCost(
-  line: ExpenseProductCatalogPriceLine,
+  line: ExpenseCatalogPriceLine,
 ): number {
+  const surface = resolveExpenseCatalogSurface(line);
+  if (surface) return surface.status === "ready" ? surface.net : 0;
+
   const discount = Number.isFinite(line.discountPercent)
     ? Math.min(Math.max(line.discountPercent ?? 0, 0), 100)
     : 0;
@@ -878,7 +880,7 @@ export function expenseCanFeedProductCatalog(
 
 export function expensePurchaseLineIsEligibleForProductCatalog(
   expense: Pick<Expense, "amount">,
-  line: ExpenseProductCatalogPriceLine,
+  line: ExpenseCatalogPriceLine,
 ): boolean {
   return (
     expenseCanFeedProductCatalog(expense) &&
@@ -891,7 +893,7 @@ export function expensePurchaseLineIsEligibleForProductCatalog(
 /** Única frontera para decidir si una línea seleccionada alimenta Productos. */
 export function expensePurchaseLineCanFeedProductCatalog(
   expense: Pick<Expense, "amount">,
-  line: ExpenseProductCatalogPriceLine &
+  line: ExpenseCatalogPriceLine &
     Pick<ExpensePurchaseLine, "catalogProduct">,
 ): boolean {
   return (

@@ -12,6 +12,7 @@ import {
   isProductPriceSource,
   withPriceSourceSummary,
 } from "./product-price-sources";
+import { resolveExpenseCatalogSurface } from "./expense-catalog-surface";
 import type {
   Expense,
   ExpensePurchaseLine,
@@ -214,6 +215,7 @@ function invoiceSource(
   now: string,
 ): ProductPriceSource {
   const price = purchaseLinePrice(line)!;
+  const measured = resolveExpenseCatalogSurface(line)?.status === "ready";
   const values = {
     kind:
       expense.purchaseDocument?.invoiceNumber ||
@@ -223,7 +225,8 @@ function invoiceSource(
     supplierName: expense.supplierName,
     supplierReference:
       line.supplierReference ?? product.purchase?.supplierReference,
-    unit: product.purchase?.unit ?? product.unit ?? line.unit ?? "ud",
+    unit:
+      product.purchase?.unit ?? product.unit ?? (measured ? "m2" : line.unit ?? "ud"),
     listPrice: price.list,
     discountPercent: line.discountPercent,
     netUnitCost: price.net,
@@ -236,7 +239,9 @@ function invoiceSource(
     documentNumber: expense.purchaseDocument?.invoiceNumber,
     documentDate: expense.purchaseDocument?.issueDate ?? expense.date,
     sourceSha256: expense.originalArchive?.sourceSha256,
-    note: "Coste adoptado al guardar esta compra. El precio de venta y los datos comerciales de la ficha se conservan.",
+    note: measured
+      ? "Coste equivalente por m² calculado con las medidas de la compra. La unidad facturada y el precio de venta se conservan."
+      : "Coste adoptado al guardar esta compra. El precio de venta y los datos comerciales de la ficha se conservan.",
   };
   const id = `purchase-invoice:${sourceHash(JSON.stringify(values))}`;
   const source = { ...values, id, recordedAt: now };
