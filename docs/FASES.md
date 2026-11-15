@@ -125,6 +125,14 @@ Si algo falla, dímelo y lo corregimos en código.
 
 ---
 
+## Backlog estratégico futuro
+
+Documentación de investigación que no implica implementación inmediata:
+
+- [ ] `docs/research/regulatory-change-monitor-v1.md` — vigilancia normativa y técnica interna, backoffice administrativo, evidencias, fuentes oficiales y revisión humana obligatoria antes de cualquier cambio legal/técnico.
+
+---
+
 ## Cuando termines una fase
 
 Escríbeme: **“Fase X hecha”** y seguimos con la siguiente.
