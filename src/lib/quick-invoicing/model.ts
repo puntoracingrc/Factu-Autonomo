@@ -23,6 +23,7 @@ export interface QuickBootstrap {
   vatExempt: boolean;
   iban: string;
   cardPaymentsEnabled?: boolean;
+  nfcPaymentsEnabled?: boolean;
   cardPaymentsTestMode?: boolean;
 }
 export interface QuickReceipt {

@@ -12,6 +12,7 @@ import { quickCardPaymentPanel } from "./payments";
 import { createQuickCollections } from "./collections";
 import type { QuickCollection } from "@/lib/quick-invoicing/collections-model";
 import { stripeCheckoutUrl, type QuickCardPayment } from "@/lib/quick-invoicing/payments-model";
+import { quickTerminalIntent } from "@/lib/quick-invoicing/terminal-model";
 import { applyQuickAiSuggestion, quickAiReplacesData } from "@/lib/quick-invoicing/ai-fill";
 import "./app.css";
 
@@ -48,6 +49,8 @@ let sessionActive = false;
 let cardPayment: QuickCardPayment | undefined;
 let cardQr: string | undefined;
 let cardBusy = false;
+let nfcIntent: string | undefined;
+const nfcAvailable = () => bootstrap?.nfcPaymentsEnabled === true && /Android/i.test(navigator.userAgent);
 let cardSerial = 0;
 const loadPdfModule = () => pdfModulePromise ??= import("./pdf").catch(error => { pdfModulePromise = undefined; throw error; });
 
@@ -185,7 +188,7 @@ function renderForm() {
 function renderResult() {
   const receipt = state.receipt!;
   return `<section class="result-head"><div class="success-mark">✓</div><p class="eyebrow">Documento guardado</p><h1>${escape(receipt.document.number)}</h1><p>${escape(receipt.document.client.name)}</p><strong>${money(quickTotals(receipt.document.items,receipt.profile.vatExempt).total)}</strong></section>
-    ${receipt.document.type === "factura" && bootstrap.cardPaymentsEnabled && (cardPayment || receipt.document.paymentStatus !== "paid") ? quickCardPaymentPanel(cardPayment,cardBusy,cardQr) : ""}
+    ${receipt.document.type === "factura" && bootstrap.cardPaymentsEnabled && (cardPayment || receipt.document.paymentStatus !== "paid") ? quickCardPaymentPanel(cardPayment,cardBusy,cardQr,false,nfcAvailable(),nfcIntent) : ""}
     <div class="pdf-actions"><button data-action="share" class="primary" ${pdf ? "" : "disabled"}>Compartir PDF ↗</button><button data-action="open-pdf" class="secondary" ${pdf ? "" : "disabled"}>Abrir PDF</button></div>
     <div id="pdf-view" class="pdf-view">${pdf ? `<iframe title="PDF del documento confirmado" src="${escape(pdf.url)}"></iframe>` : `<p>${pdfLoading ? "Preparando tu PDF…" : "El documento ya está guardado. Puedes volver a generar el PDF sin emitirlo otra vez."}</p><button class="secondary" data-action="retry-pdf">Preparar PDF</button>`}</div>
     <button class="resume" data-action="home">Volver al inicio<span>→</span></button>`;
@@ -277,7 +280,7 @@ async function preparePdf() {
   finally { pdfLoading = false; render(); }
 }
 async function acceptReceipt(receipt: QuickReceipt) {
-  if (state.receipt?.operationId !== receipt.operationId) { cardSerial++; cardPayment = undefined; cardQr = undefined; cardBusy = false; }
+  if (state.receipt?.operationId !== receipt.operationId) { cardSerial++; cardPayment = undefined; cardQr = undefined; nfcIntent=undefined; cardBusy = false; }
   state.receipt = receipt; delete state.intent; delete state.pending; delete state.step;
   delete state.collectionInvoice;
   view = "result"; notice = "";
@@ -391,6 +394,20 @@ root.addEventListener("click",event => {
       if (!bootstrap || busy) return;
       if (view === "collections" && button.closest("#quick-collections")) return;
       if (action === "collections" && collections) { view = "collections"; notice = ""; render(); await collections.open(); return; }
+      if (action === "payment-nfc" || action === "payment-link") {
+        if (cardBusy || !state.receipt) return;
+        const operationId=state.receipt.operationId, serial=++cardSerial;
+        cardBusy=true; notice=""; render();
+        try {
+          const result=await api<{grant?:string;payment?:QuickCardPayment}>("terminal",{action:action === "payment-nfc" ? "prepare" : "cancel",operationId});
+          if (state.receipt?.operationId!==operationId || serial!==cardSerial) return;
+          nfcIntent=result.grant ? quickTerminalIntent(result.grant) : undefined;
+          cardPayment=result.payment; cardQr=undefined;
+        } catch(error) { if (serial===cardSerial) notice=error instanceof Error ? error.message : "No se pudo confirmar el cobro NFC."; }
+        finally {if(serial===cardSerial) {cardBusy=false;render();}}
+        if(action === "payment-link" && !notice) await requestCardPayment(true);
+        return;
+      }
       if (action === "payment-create" || action === "payment-check") { await requestCardPayment(action === "payment-create"); return; }
       if (action === "payment-copy" || action === "payment-share") {
         const url = stripeCheckoutUrl(cardPayment?.url);
@@ -478,7 +495,7 @@ async function login() {
 function loginScreen(message = "Inicia sesión para continuar.") {
   collectionGeneration++;
   collections = undefined;
-  cardSerial++; cardPayment = undefined; cardQr = undefined; cardBusy = false;
+  cardSerial++; cardPayment = undefined; cardQr = undefined; nfcIntent=undefined; cardBusy = false;
   sessionActive = false; unmountAi?.(); unmountAi = undefined;
   root.innerHTML = quickAccessScreen(message,"login");
 }
@@ -524,7 +541,7 @@ async function initialize() {
   localKey = `${bootstrap.actorId}:${bootstrap.companyId}`;
   state = await readLocal(localKey) ?? {};
   const collectionScope = localKey, generation = ++collectionGeneration;
-  collections = createQuickCollections({ api, local: () => state, persist,
+  collections = createQuickCollections({ api, local: () => state, persist, nfcEnabled:nfcAvailable(),
     active: () => sessionActive && localKey === collectionScope && generation === collectionGeneration && view === "collections",
     render, invoice: invoiceFromCollection, home: () => { view = "home"; notice = ""; render(); window.scrollTo(0, 0); } });
   if (state.pending) { view = "form"; state.intent = state.pending; state.step = 3; notice = "Hay una emisión pendiente de confirmar. Recuperaremos la misma operación."; }
