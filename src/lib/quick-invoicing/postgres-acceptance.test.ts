@@ -29,6 +29,7 @@ const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 let admin: SupabaseClient, anon: SupabaseClient;
 let dbUrl = "", appUrl = "";
 const users: Array<{id:string;email:string;token:string;client:SupabaseClient}> = [];
+const independentCompanyIds: string[] = [];
 const now = "2026-10-21T10:00:00.000Z";
 function local(value: string) {
   if (!["localhost","127.0.0.1","[::1]"].includes(new URL(value).hostname)) throw new Error("Quick acceptance is localhost-only.");
@@ -105,7 +106,7 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
   },120_000);
   afterAll(async () => {
     if (!admin || !dbUrl || !users.length) return;
-    const ids = users.map(user => `'${user.id}'::uuid`).join(",");
+    const ids = [...users.map(user => user.id), ...independentCompanyIds].map(id => `'${id}'::uuid`).join(",");
     sql(`begin; set local session_replication_role=replica;
       delete from public.quick_stripe_payments where user_id in (${ids});
       delete from public.quick_payment_requests where user_id in (${ids});
@@ -537,4 +538,75 @@ acceptance("Factu Rápido: real isolated PostgreSQL authority and durable custom
     expect((await admin.from("central_invoice_documents").select("current_version").eq("id", invoiceId).single()).data?.current_version).toBe(2);
   });
 
+  it("issues invoices and quotes and admits their customer in a company without an Auth user for its workspace", async () => {
+    const actor = users[0];
+    const created = await admin.rpc("create_app_company_v1", {
+      p_actor_user_id: actor.id, p_actor_email: actor.email, p_name: "SL sintética independiente",
+    }).single<{ company_id: string; data_owner_id: string }>();
+    expect(created.error).toBeNull();
+    const { company_id: companyId, data_owner_id: workspaceId } = created.data!;
+    independentCompanyIds.push(companyId);
+    if (workspaceId !== companyId) independentCompanyIds.push(workspaceId);
+    expect(sql(`select count(*) from auth.users where id = '${workspaceId}'::uuid`)).toBe("0");
+
+    expect((await admin.from("central_business_entities").insert({
+      user_id: workspaceId, entity_type: "profile", entity_id: "profile", current_version: 1, deleted: false,
+      current_payload: syntheticProfile, content_hash: "synthetic-only", actor_device_id: "fixture", actor_session_hash: "fixture",
+    })).error).toBeNull();
+    const key = sha(workspaceId);
+    const series = {
+      p_user_id: workspaceId, p_device_id: "fixture", p_session_hash: "fixture",
+      p_idempotency_key_hash: key, p_request_hash: key, p_fiscal_year: 2026,
+      p_observed_max_sequence: 0, p_source_document_count: 0, p_source_digest: `sha256:${key}`,
+    };
+    expect((await admin.rpc("reconcile_central_invoice_series_v1", {
+      ...series, p_environment: "test", p_issuer_nif: syntheticProfile.nif, p_series_code: "F-2026",
+    })).error).toBeNull();
+    expect((await admin.rpc("reconcile_central_business_document_series_v1", {
+      ...series, p_entity_type: "quote", p_number_template: "P-{year}-{num}",
+    })).error).toBeNull();
+
+    const headers = {
+      Authorization: `Bearer ${actor.token}`,
+      "X-Factu-Device-Token": "synthetic-independent-quick-012345678901234567890",
+      "X-Factu-Company-Id": companyId,
+      "Content-Type": "application/json",
+    };
+    const customerName = "Cliente de la SL sintética independiente";
+    try {
+      expect((await admin.from("quick_invoicing_access").update({ company_id: companyId }).eq("actor_user_id", actor.id)).error).toBeNull();
+      for (const [kind, number] of [["factura", "F-2026-0001"], ["presupuesto", "P-2026-0001"]] as const) {
+        const base = syntheticIntent();
+        const intent = { ...base, kind, operationId: randomUUID(), client: { ...base.client, name: customerName } };
+        const request = { method: "POST", headers, body: JSON.stringify(intent) };
+        const expected = { status: 200, body: { ok: true, receipt: { operationId: intent.operationId, document: { number } } } };
+
+        const issued = await fetch(`${appUrl}/api/factu-rapido/issue`, request);
+        expect({ status: issued.status, body: await issued.json() }).toMatchObject(expected);
+        const replay = await fetch(`${appUrl}/api/factu-rapido/issue`, request);
+        expect({ status: replay.status, body: await replay.json() }).toMatchObject(expected);
+
+        const operation = await admin.from("quick_document_operations").select("actor_user_id,company_id,user_id,kind")
+          .eq("operation_id", intent.operationId).single();
+        expect(operation.data).toEqual({ actor_user_id: actor.id, company_id: companyId, user_id: workspaceId, kind });
+        const job = await admin.from("quick_customer_jobs").select("user_id").eq("operation_id", intent.operationId).single();
+        expect(job.data).toEqual({ user_id: workspaceId });
+        const crossCompanyJob = await admin.from("quick_customer_jobs").update({ user_id: actor.id }).eq("operation_id", intent.operationId);
+        expect(crossCompanyJob.error?.code).toBe("23503");
+      }
+      expect((await admin.rpc("process_quick_customer_jobs_v1", { p_limit: 100 })).error).toBeNull();
+      await expect.poll(async () => {
+        const jobs = await admin.from("quick_customer_jobs").select("status").eq("user_id", workspaceId);
+        return jobs.data;
+      }, { timeout: 5_000 }).toEqual([{ status: "done" }, { status: "done" }]);
+      const customers = await admin.from("central_business_entities").select("current_payload").eq("user_id", workspaceId).eq("entity_type", "customer").eq("deleted", false);
+      expect(customers.data).toEqual([expect.objectContaining({ current_payload: expect.objectContaining({ name: customerName }) })]);
+      const invoices = await admin.from("central_invoice_documents").select("id").eq("user_id", workspaceId);
+      const quotes = await admin.from("central_business_entities").select("entity_id").eq("user_id", workspaceId).eq("entity_type", "quote");
+      expect(invoices.data).toHaveLength(1);
+      expect(quotes.data).toHaveLength(1);
+    } finally {
+      await admin.from("quick_invoicing_access").update({ company_id: actor.id }).eq("actor_user_id", actor.id);
+    }
+  });
 });
