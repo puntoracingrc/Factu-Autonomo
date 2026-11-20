@@ -23,8 +23,9 @@ const errors = [];
 function sql(query) { return execFileSync("psql",[config.DB_URL,"-X","-v","ON_ERROR_STOP=1","-At","-c",query],{encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim(); }
 async function okay(result) { assert.equal(result.error,null,result.error?.message); return result.data; }
 async function savePdf(page,name) {
-  await page.locator("#pdf-view iframe").waitFor({state:"visible",timeout:30_000});
-  const bytes = await page.locator("#pdf-view iframe").evaluate(async frame => Array.from(new Uint8Array(await (await fetch(frame.src)).arrayBuffer())));
+  const download = page.getByRole("link", { name: "Descargar PDF", exact: true });
+  await download.waitFor({ state: "visible", timeout: 30_000 });
+  const bytes = await download.evaluate(async link => Array.from(new Uint8Array(await (await fetch(link.href)).arrayBuffer())));
   assert(Buffer.from(bytes).subarray(0,5).equals(Buffer.from("%PDF-")));
   await writeFile(path.join(output,name),Buffer.from(bytes));
 }

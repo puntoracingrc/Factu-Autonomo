@@ -15,10 +15,54 @@ await build({stdin:{contents:`import {syntheticIntent,syntheticProfile} from './
 import {parseQuickIntent} from './src/lib/quick-invoicing/model';
 import {buildQuickDocumentPayload} from './src/lib/quick-invoicing/payload';
 import {quickIssuedDocument} from './src/lib/quick-invoicing/render';
-const intent=parseQuickIntent({...syntheticIntent(),paymentMethod:'stripe'});
+const base=syntheticIntent();
+const intent=parseQuickIntent({...base,client:{...base.client,phone:'600000000'},paymentMethod:'stripe'});
 export default {operationId:intent.operationId,profile:syntheticProfile,customerPending:false,
  document:quickIssuedDocument({...buildQuickDocumentPayload(intent,syntheticProfile,'2026-10-22T09:00:00Z'),number:'F-2026-0001'},syntheticProfile)};`,resolveDir:root,loader:"ts"},bundle:true,platform:"node",format:"esm",outfile:fixtureFile,tsconfig:path.join(root,"tsconfig.json")});
 const receipt=(await import(pathToFileURL(fixtureFile).href)).default;
+async function verifyPdfShare(page, nativeSupported) {
+  const downloadLink = page.getByRole("link", { name: "Descargar PDF", exact: true });
+  await downloadLink.waitFor();
+  assert.equal(await page.locator("#pdf-view iframe").count(), 0, "Mobile preview is opened explicitly");
+  assert.equal(await page.getByRole("link", { name: "Abrir PDF", exact: true }).getAttribute("href"), await downloadLink.getAttribute("href"));
+  const share = page.getByRole("button", { name: "Compartir por WhatsApp", exact: true });
+  const downloads = [];
+  const trackDownload = download => downloads.push(download);
+  page.on("download", trackDownload);
+  try {
+    if (nativeSupported) {
+      const filename = await downloadLink.getAttribute("download");
+      await share.click();
+      await page.waitForFunction(() => window.receivedPdf);
+      assert.deepEqual(await page.evaluate(() => window.receivedPdf), {
+        activeGesture: true, filename, type: "application/pdf", signature: "%PDF-", fields: ["files"],
+      });
+      await page.evaluate(() => { window.shareMode = "cancel"; });
+      await share.click();
+      await page.waitForFunction(() => window.shareAttempts === 2 && !document.querySelector('[data-action="share"]').disabled);
+      assert.match(await page.locator("#pdf-share-help").innerText(), /Elige WhatsApp/);
+      await page.evaluate(() => { window.shareMode = "reject"; });
+      await share.click();
+      await page.getByText(/No se pudo abrir el menú de compartir/).waitFor();
+    } else {
+      assert.equal(await share.count(), 0);
+    }
+    assert.equal(downloads.length, 0, "Cancellation and a rejected share do not start a download");
+    const chatLink = page.getByRole("link", { name: "Abrir WhatsApp", exact: true });
+    const chat = new URL(await chatLink.getAttribute("href"));
+    assert.equal(chat.origin, "https://wa.me");
+    assert.equal(chat.pathname, "/34600000000");
+    assert.equal(chat.searchParams.get("text"), "Hola, te envío la factura F-2026-0001.");
+    const pending = page.waitForEvent("download");
+    await downloadLink.click();
+    const downloaded = await pending;
+    assert.equal(downloaded.suggestedFilename(), await downloadLink.getAttribute("download"));
+    assert.equal((await readFile(await downloaded.path())).subarray(0, 5).toString(), "%PDF-");
+    await page.screenshot({ path: path.join(output, nativeSupported ? "pdf-compartir-y-reintentar.png" : "pdf-descarga-y-chat.png"), fullPage: true });
+  } finally {
+    page.off("download", trackDownload);
+  }
+}
 let server,browser;
 try {
   server=createServer(async(req,res)=>{
@@ -33,10 +77,25 @@ try {
   browser=await chromium.launch({channel:"chrome",headless:true});
   await mkdir(output,{recursive:true});
   for(const testMode of [false,true]) {
-    const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:"block"});
+    const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:"block",acceptDownloads:true});
     const now=Math.floor(Date.now()/1000),user={id:receipt.operationId,email:"synthetic@example.test",aud:"authenticated",app_metadata:{},user_metadata:{}};
     const jwt=`${Buffer.from(JSON.stringify({alg:"HS256",typ:"JWT"})).toString("base64url")}.${Buffer.from(JSON.stringify({sub:user.id,exp:now+3600,iat:now,aud:"authenticated"})).toString("base64url")}.synthetic`;
     await context.addInitScript(({session,origin})=>{if(window.top===window.self && location.origin===origin)localStorage.setItem("sb-synthetic-auth-token",JSON.stringify(session));},{origin,session:{access_token:jwt,token_type:"bearer",refresh_token:"synthetic",expires_at:now+3600,expires_in:3600,user}});
+    await context.addInitScript(({ nativeSupported }) => {
+      window.shareMode = "success";
+      window.shareAttempts = 0;
+      Object.defineProperty(navigator, "canShare", { value: payload => nativeSupported && payload.files?.[0]?.type === "application/pdf" });
+      Object.defineProperty(navigator, "share", { value: async payload => {
+        window.shareAttempts++;
+        const activeGesture = navigator.userActivation.isActive;
+        if (window.shareMode === "cancel") throw new DOMException("Cancelled", "AbortError");
+        if (window.shareMode === "reject") throw new DOMException("PDF sharing unavailable", "NotAllowedError");
+        const file = payload.files[0];
+        window.receivedPdf = {
+          activeGesture, filename: file.name, type: file.type, signature: await file.slice(0, 5).text(), fields: Object.keys(payload),
+        };
+      } });
+    }, { nativeSupported: !testMode });
     let issueCalls=0,createCalls=0,paid=false,failFirst=true,delayStatus=false,releaseStatus;
     let standalone,standalonePaid=false,loseStandaloneResponse=true;
     const standaloneCreates=[],mainInvoiceId="c1234567-1234-4123-8123-123456789012";
@@ -93,6 +152,7 @@ try {
     await page.screenshot({path:path.join(output,testMode?"form-test.png":"form-live-synthetic.png"),fullPage:true});
     await page.getByRole("button",{name:"Emitir y preparar cobro ↗"}).click();
     await page.getByText("No se pudo confirmar el enlace. Reintenta esta misma factura.").waitFor();
+    await verifyPdfShare(page, !testMode);
     await page.getByRole("button",{name:"Preparar enlace y QR"}).click();
     await page.getByRole("img",{name:"QR para pagar este cobro"}).waitFor();
     assert.equal(issueCalls,1);assert.equal(createCalls,2);
