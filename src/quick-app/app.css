@@ -81,3 +81,10 @@ label,.company,.suggestions strong{font-size:16px}
 .payment-test { padding: 10px; background: #fff2cf; border-radius: 8px; font-weight: 700; }
 .collection-form{border:0;padding:0;margin:20px 0;display:grid;gap:18px;min-width:0}.collection-list{display:grid;gap:12px;margin:20px 0}.collection-item{text-align:left;background:white;border:1px solid #cbded6;border-radius:16px;padding:18px;display:grid;gap:6px;width:100%;overflow-wrap:anywhere}.collection-item span,.collection-item small{color:#42564f}.collection-summary{background:white;border-radius:20px;padding:20px;margin-bottom:20px;overflow-wrap:anywhere}.collection-summary>strong{font-size:32px}#quick-collections>.primary,#quick-collections>.secondary{width:100%;margin:8px 0}
 .collection-link{margin:24px 0;padding:20px;border:1px solid #cbded6;border-radius:20px;background:white}.collection-link button{width:100%;margin-top:12px}.collection-candidate{padding:16px 0;border-top:1px solid #cbded6}.collection-invoice-link{display:block;text-align:center;margin:16px 0}
+
+.pdf-actions{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
+.pdf-actions>a{display:grid;place-items:center;text-align:center;text-decoration:none}
+.pdf-share-help{margin:12px 0 4px;overflow-wrap:anywhere}
+.pdf-links{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 12px}
+.pdf-links>a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;color:var(--green)}
+@media (max-width:600px),(any-pointer:coarse){.pdf-actions{grid-template-columns:1fr}}

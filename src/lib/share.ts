@@ -13,7 +13,10 @@ import { isValidCustomerEmail } from "./customers";
 import { isCollectedDocument } from "./income";
 import { issuerDisplayName } from "./issuer-snapshot";
 import { isRectificativa } from "./rectificativas";
+import { normalizePhoneForWhatsApp } from "./whatsapp-phone";
 import type { DocumentPdfOptions } from "./pdf";
+
+export { normalizePhoneForWhatsApp };
 
 function documentTypeLabel(doc: Document): string {
   if (isRectificativa(doc)) return "factura rectificativa";
@@ -97,21 +100,6 @@ export function buildShareMessage(
 
   lines.push("", "Un saludo,", ...issuerSignatureLines(issuer));
   return lines.join("\n");
-}
-
-export function normalizePhoneForWhatsApp(
-  phone: string,
-  defaultCountryCode = "34",
-): string | null {
-  const trimmed = phone.trim();
-  const digits = trimmed.replace(/\D/g, "");
-  if (digits.length < 9) return null;
-
-  if (trimmed.startsWith("+")) return digits;
-  if (digits.startsWith("00")) return digits.slice(2);
-  if (digits.length === 9) return `${defaultCountryCode}${digits}`;
-  if (digits.length >= 11 && digits.startsWith(defaultCountryCode)) return digits;
-  return digits;
 }
 
 export function buildWhatsAppUrl(phone: string, message: string): string | null {

@@ -13,6 +13,7 @@ import { createQuickCollections } from "./collections";
 import type { QuickCollection } from "@/lib/quick-invoicing/collections-model";
 import { stripeCheckoutUrl, type QuickCardPayment } from "@/lib/quick-invoicing/payments-model";
 import { applyQuickAiSuggestion, quickAiReplacesData } from "@/lib/quick-invoicing/ai-fill";
+import { normalizePhoneForWhatsApp } from "@/lib/whatsapp-phone";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -33,7 +34,8 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let searchSerial = 0;
 let suggestions: Array<Record<string, unknown>> = [];
 let pdf: Awaited<ReturnType<(typeof import("./pdf"))["quickPdf"]>> | undefined;
-let pdfLoading = false;
+let pdfPreparingFor: QuickReceipt | undefined;
+let pdfShareFailed = false;
 let pdfModulePromise: Promise<typeof import("./pdf")> | undefined;
 let accessBusy = false;
 let customerRows: Array<Record<string,unknown>> = [];
@@ -182,12 +184,39 @@ function renderForm() {
     <div class="footer-buttons"><button class="secondary" data-action="back" ${busy ? "disabled" : ""}>${step === 1 ? "Inicio" : "Atrás"}</button><button class="primary" data-action="next" ${busy ? "disabled" : ""}>${busy ? "Confirmando…" : state.pending ? "Comprobar y reintentar" : step < 3 ? "Siguiente →" : intent.kind === "factura" ? intent.paymentMethod === "stripe" ? "Emitir y preparar cobro ↗" : "Emitir factura ↗" : "Crear presupuesto ↗"}</button></div>
     ${state.pending ? '<button class="text-button" data-action="check-edit">Volver a editar (comprobar primero)</button>' : ""}</footer>`;
 }
+function renderPdfActions(receipt: QuickReceipt) {
+  if (!pdf) return `<div id="pdf-view" class="pdf-view">${pdfPreparingFor
+    ? '<p role="status">Preparando el PDF para compartir…</p>'
+    : '<p>El documento ya está guardado.</p><button class="secondary" data-action="retry-pdf">Preparar PDF</button>'}</div>`;
+
+  const { file, url } = pdf;
+  let native = false;
+  try { native = typeof navigator.share === "function" && Boolean(navigator.canShare?.({ files: [file] })); }
+  catch { /* A browser that rejects the file can still download it. */ }
+  const doc = receipt.document;
+  const phone = normalizePhoneForWhatsApp(doc.client.phone ?? "") ?? "";
+  const message = `Hola, te envío ${doc.type === "presupuesto" ? "el presupuesto" : "la factura"} ${doc.number}.`;
+  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const fallback = !native || pdfShareFailed;
+  const chat = `href="${escape(whatsappUrl)}" target="_blank" rel="noopener noreferrer"`;
+  const help = fallback
+    ? `${pdfShareFailed ? "No se pudo abrir el menú de compartir. " : ""}Descarga el PDF y adjunta «${file.name}» en WhatsApp desde Descargas.`
+    : "Elige WhatsApp y luego el chat del cliente.";
+  return `<div class="pdf-actions">
+    ${native ? '<button data-action="share" class="primary" aria-describedby="pdf-share-help">Compartir por WhatsApp</button>' : ""}
+    <a id="pdf-download" class="${native ? "secondary" : "primary"}" href="${escape(url)}" download="${escape(file.name)}">Descargar PDF</a>
+    ${fallback ? `<a class="secondary" ${chat}>Abrir WhatsApp</a>` : ""}
+    </div>
+    <p id="pdf-share-help" class="hint pdf-share-help" role="status">${escape(help)}</p>
+    <div class="pdf-links"><a href="${escape(url)}" target="_blank" rel="noopener noreferrer">Abrir PDF</a>
+    ${fallback ? "" : `<a ${chat}>Abrir chat en WhatsApp</a>`}</div>`;
+}
 function renderResult() {
   const receipt = state.receipt!;
   return `<section class="result-head"><div class="success-mark">✓</div><p class="eyebrow">Documento guardado</p><h1>${escape(receipt.document.number)}</h1><p>${escape(receipt.document.client.name)}</p><strong>${money(quickTotals(receipt.document.items,receipt.profile.vatExempt).total)}</strong></section>
+    ${renderPdfActions(receipt)}
     ${receipt.document.type === "factura" && bootstrap.cardPaymentsEnabled && (cardPayment || receipt.document.paymentStatus !== "paid") ? quickCardPaymentPanel(cardPayment,cardBusy,cardQr) : ""}
-    <div class="pdf-actions"><button data-action="share" class="primary" ${pdf ? "" : "disabled"}>Compartir PDF ↗</button><button data-action="open-pdf" class="secondary" ${pdf ? "" : "disabled"}>Abrir PDF</button></div>
-    <div id="pdf-view" class="pdf-view">${pdf ? `<iframe title="PDF del documento confirmado" src="${escape(pdf.url)}"></iframe>` : `<p>${pdfLoading ? "Preparando tu PDF…" : "El documento ya está guardado. Puedes volver a generar el PDF sin emitirlo otra vez."}</p><button class="secondary" data-action="retry-pdf">Preparar PDF</button>`}</div>
+    ${pdf && navigator.maxTouchPoints === 0 ? `<div id="pdf-view" class="pdf-view"><iframe title="PDF del documento confirmado" src="${escape(pdf.url)}"></iframe></div>` : ""}
     <button class="resume" data-action="home">Volver al inicio<span>→</span></button>`;
 }
 function render() {
@@ -265,26 +294,49 @@ function validateStep() {
   }
   if (state.step === 2 && (!intent.items.length || intent.items.some(item => !item.description.trim() || !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(item.unitPrice) || item.unitPrice < 0))) throw new Error("Revisa la descripción, cantidad y precio de cada concepto.");
 }
+function resetPdf() {
+  if (pdf) URL.revokeObjectURL(pdf.url);
+  pdf = undefined;
+  pdfPreparingFor = undefined;
+  pdfShareFailed = false;
+}
 async function preparePdf() {
-  if (pdfLoading || !state.receipt) return;
-  pdfLoading = true; render();
+  const receipt = state.receipt;
+  if (!receipt || pdfPreparingFor === receipt) return;
+  const scope = localKey;
+  const current = () => sessionActive && localKey === scope && state.receipt === receipt && pdfPreparingFor === receipt;
+  pdfPreparingFor = receipt;
+  render();
   try {
     const pdfModule = await loadPdfModule();
-    const created = await pdfModule.quickPdf(state.receipt);
-    if (pdf) URL.revokeObjectURL(pdf.url);
-    pdf = created;
-  } catch { notice = "El documento está emitido. No se pudo preparar el PDF; puedes intentarlo de nuevo aquí sin emitir otra factura."; }
-  finally { pdfLoading = false; render(); }
+    const created = await pdfModule.quickPdf(receipt);
+    if (current()) pdf = created;
+    else URL.revokeObjectURL(created.url);
+  } catch {
+    if (current()) notice = "No se pudo preparar el PDF del documento guardado. Puedes volver a intentarlo.";
+  } finally {
+    if (current()) {
+      pdfPreparingFor = undefined;
+      if (view === "result") render();
+    }
+  }
 }
 async function acceptReceipt(receipt: QuickReceipt) {
   if (state.receipt?.operationId !== receipt.operationId) { cardSerial++; cardPayment = undefined; cardQr = undefined; cardBusy = false; }
+  resetPdf();
   state.receipt = receipt; delete state.intent; delete state.pending; delete state.step;
   delete state.collectionInvoice;
   view = "result"; notice = "";
   if (receipt.collectionLinkPending) notice = "La factura está emitida. Revisa la vinculación con su cobro desde Cobrar; no hace falta emitir otra.";
-  try { await persist(); } catch { notice = "Documento confirmado en el servidor. No se pudo guardar su acceso reciente en este móvil; conserva el PDF."; }
-  if (pdf) URL.revokeObjectURL(pdf.url);
-  pdf = undefined; render(); await preparePdf();
+  const preparation = preparePdf();
+  try { await persist(); }
+  catch {
+    if (sessionActive && state.receipt === receipt && view === "result") {
+      notice = "Documento confirmado en el servidor. No se pudo guardar su acceso reciente en este móvil; conserva el PDF.";
+      render();
+    }
+  }
+  await preparation;
 }
 async function emit() {
   if (busy) return;
@@ -454,13 +506,22 @@ root.addEventListener("click",event => {
         saveDraft(); render(); return;
       }
       if (action === "retry-pdf") { await preparePdf(); return; }
-      if (action === "open-pdf" && pdf) { window.open(pdf.url,"_blank","noopener"); return; }
       if (action === "share" && pdf) {
-        const file = new File([pdf.blob],pdf.name,{type:"application/pdf"});
-        if (navigator.canShare?.({files:[file]})) {
-          try { await navigator.share({ files:[file],title:state.receipt!.document.number }); } catch (error) { if (!(error instanceof DOMException && error.name === "AbortError")) throw error; }
-        } else {
-          const link = document.createElement("a"); link.href = pdf.url; link.download = pdf.name; link.click();
+        const sharing = pdf;
+        button.disabled = true;
+        try {
+          // Send the ready File directly from the tap so Android receives a
+          // document attachment while this gesture still permits sharing.
+          await navigator.share({ files: [sharing.file] });
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          if (pdf === sharing && view === "result") {
+            pdfShareFailed = true;
+            render();
+            root.querySelector<HTMLAnchorElement>("#pdf-download")?.focus();
+          }
+        } finally {
+          button.disabled = false;
         }
         return;
       }
@@ -478,6 +539,7 @@ async function login() {
 function loginScreen(message = "Inicia sesión para continuar.") {
   collectionGeneration++;
   collections = undefined;
+  resetPdf();
   cardSerial++; cardPayment = undefined; cardQr = undefined; cardBusy = false;
   sessionActive = false; unmountAi?.(); unmountAi = undefined;
   root.innerHTML = quickAccessScreen(message,"login");
