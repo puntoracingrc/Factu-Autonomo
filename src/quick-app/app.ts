@@ -13,7 +13,7 @@ import { createQuickCollections } from "./collections";
 import type { QuickCollection } from "@/lib/quick-invoicing/collections-model";
 import { stripeCheckoutUrl, type QuickCardPayment } from "@/lib/quick-invoicing/payments-model";
 import { applyQuickAiSuggestion, quickAiReplacesData } from "@/lib/quick-invoicing/ai-fill";
-import { normalizePhoneForWhatsApp } from "@/lib/whatsapp-phone";
+import { buildWhatsAppChatUrl, canShareWhatsAppPdf, shareWhatsAppPdf } from "@/lib/whatsapp-share";
 import "./app.css";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -190,13 +190,10 @@ function renderPdfActions(receipt: QuickReceipt) {
     : '<p>El documento ya está guardado.</p><button class="secondary" data-action="retry-pdf">Preparar PDF</button>'}</div>`;
 
   const { file, url } = pdf;
-  let native = false;
-  try { native = typeof navigator.share === "function" && Boolean(navigator.canShare?.({ files: [file] })); }
-  catch { /* A browser that rejects the file can still download it. */ }
+  const native = canShareWhatsAppPdf(file);
   const doc = receipt.document;
-  const phone = normalizePhoneForWhatsApp(doc.client.phone ?? "") ?? "";
   const message = `Hola, te envío ${doc.type === "presupuesto" ? "el presupuesto" : "la factura"} ${doc.number}.`;
-  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const whatsappUrl = buildWhatsAppChatUrl(doc.client.phone ?? "", message);
   const fallback = !native || pdfShareFailed;
   const chat = `href="${escape(whatsappUrl)}" target="_blank" rel="noopener noreferrer"`;
   const help = fallback
@@ -509,19 +506,12 @@ root.addEventListener("click",event => {
       if (action === "share" && pdf) {
         const sharing = pdf;
         button.disabled = true;
-        try {
-          // Send the ready File directly from the tap so Android receives a
-          // document attachment while this gesture still permits sharing.
-          await navigator.share({ files: [sharing.file] });
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          if (pdf === sharing && view === "result") {
-            pdfShareFailed = true;
-            render();
-            root.querySelector<HTMLAnchorElement>("#pdf-download")?.focus();
-          }
-        } finally {
-          button.disabled = false;
+        const outcome = await shareWhatsAppPdf(sharing.file);
+        button.disabled = false;
+        if (outcome === "unavailable" && pdf === sharing && view === "result") {
+          pdfShareFailed = true;
+          render();
+          root.querySelector<HTMLAnchorElement>("#pdf-download")?.focus();
         }
         return;
       }

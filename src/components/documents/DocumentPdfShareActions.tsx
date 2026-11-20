@@ -181,20 +181,25 @@ export function DocumentPdfShareActions({
   useEffect(() => {
     if (!shareMenuPosition) return;
 
+    function hasOpenDialog() {
+      return Boolean(shareMenuRef.current?.querySelector('[role="dialog"][aria-modal="true"]'));
+    }
+
     function handlePointerDown(event: PointerEvent) {
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (shareTriggerRef.current?.contains(target)) return;
       if (shareMenuRef.current?.contains(target)) return;
+      if (hasOpenDialog()) return;
       closeShareMenu();
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") closeShareMenu();
+      if (event.key === "Escape" && !hasOpenDialog()) closeShareMenu();
     }
 
     function handleViewportChange() {
-      closeShareMenu();
+      if (!hasOpenDialog()) closeShareMenu();
     }
 
     window.addEventListener("pointerdown", handlePointerDown);

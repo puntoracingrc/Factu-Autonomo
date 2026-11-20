@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { LoaderCircle, Mail, MessageCircle } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
+import { DocumentWhatsAppMobileModal } from "@/components/documents/DocumentWhatsAppMobileModal";
 import { useAppStore } from "@/context/AppStore";
 import { useCentralSharedBusinessMutations } from "@/hooks/useCentralSharedBusinessMutations";
 import { useCloudSync } from "@/context/CloudSyncContext";
@@ -17,9 +18,10 @@ import {
   normalizeAppPreferences,
 } from "@/lib/app-preferences";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
-import { shareDocumentWithIntegrity } from "@/lib/document-integrity/share-flow";
+import { needsIssueBeforeShare, prepareDocumentForShare, shareDocumentWithIntegrity } from "@/lib/document-integrity/share-flow";
 import { showFactuToast } from "@/lib/factu/occasional";
 import {
+  buildShareMessage,
   canShareDocumentPdfNatively,
   hasClientEmail,
   hasClientPhone,
@@ -30,6 +32,7 @@ import {
   shareDocumentByEmail,
   shareDocumentByWhatsApp,
 } from "@/lib/share";
+import { buildWhatsAppChatUrl } from "@/lib/whatsapp-share";
 import type { DocumentPdfOptions } from "@/lib/pdf";
 import type {
   BusinessProfile,
@@ -99,6 +102,7 @@ export function DocumentShareActions({
   const [busy, setBusy] = useState<ShareChannel | null>(null);
   const [chooser, setChooser] = useState<ShareChannel | null>(null);
   const [rememberMethod, setRememberMethod] = useState(true);
+  const [mobileWhatsApp, setMobileWhatsApp] = useState(false);
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const contactDoc = useMemo(
     () => documentWithCurrentCustomerContact(doc, data.customers),
@@ -274,6 +278,28 @@ export function DocumentShareActions({
     }
   }
 
+  async function prepareMobileWhatsApp() {
+    const { document: current, mayMarkSent } = await prepareDocumentForShare({ doc, issueDocument });
+    const { buildDocumentPdfBlob, documentPdfFilename } = await import("@/lib/pdf");
+    const blob = await buildDocumentPdfBlob(current, profile, pdfOptions);
+    const contact = documentWithCurrentCustomerContact(current, data.customers);
+    return {
+      file: new File([blob], documentPdfFilename(current), { type: "application/pdf" }),
+      chatUrl: buildWhatsAppChatUrl(contact.client.phone ?? "", buildShareMessage(contact, profile)),
+      markSent: markSentOnShare && mayMarkSent ? async () => { await markDocumentSent(current.id); } : undefined,
+    };
+  }
+
+  const mobileWhatsAppDialog = mobileWhatsApp && accountCanShare && !demoMode && (
+    <DocumentWhatsAppMobileModal
+      key={doc.id}
+      description={`${contactDoc.number} · ${contactDoc.client.name}`}
+      requiresIssue={needsIssueBeforeShare(doc)}
+      prepare={prepareMobileWhatsApp}
+      onClose={() => { setMobileWhatsApp(false); onActionInvoked?.(); }}
+    />
+  );
+
   function handleEmail() {
     if (!canEmail || busy) return;
     if (showBlockedMessage("email")) {
@@ -293,6 +319,13 @@ export function DocumentShareActions({
     if (!canWhatsApp || busy) return;
     if (showBlockedMessage("whatsapp")) {
       onActionInvoked?.();
+      return;
+    }
+    if (
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints > 0 && window.innerWidth <= 1024)
+    ) {
+      setMobileWhatsApp(true);
       return;
     }
     if (appPreferences.documentWhatsAppMethod === "ask") {
@@ -429,6 +462,7 @@ export function DocumentShareActions({
           onClick={handleWhatsApp}
           tone="green"
         />
+        {mobileWhatsAppDialog}
         <SendMethodChooserModal
           open={chooser !== null}
           title={
@@ -487,6 +521,7 @@ export function DocumentShareActions({
           className={`h-5 w-5 ${busy === "whatsapp" ? "animate-pulse" : ""}`}
         />
       </IconActionButton>
+      {mobileWhatsAppDialog}
       <SendMethodChooserModal
         open={chooser !== null}
         title={
