@@ -23,7 +23,7 @@ export interface ShareDocumentFlowResult {
   finalDocument: Document;
 }
 
-function needsIssueBeforeShare(doc: Document): boolean {
+export function needsIssueBeforeShare(doc: Document): boolean {
   if (doc.type === "presupuesto") return false;
 
   return (
@@ -45,13 +45,10 @@ export function canShareDocumentFromList(doc: Document): boolean {
   return !(doc.rectification && doc.status === "borrador");
 }
 
-export async function shareDocumentWithIntegrity({
+export async function prepareDocumentForShare({
   doc,
   issueDocument,
-  markDocumentSent,
-  share,
-  markSentOnShare = true,
-}: ShareDocumentFlowInput): Promise<ShareDocumentFlowResult> {
+}: Pick<ShareDocumentFlowInput, "doc" | "issueDocument">) {
   if (hasAppIssuedRecoveryProtectionClaim(doc)) {
     throw new DocumentIntegrityError(
       "DOCUMENT_LOCKED",
@@ -71,17 +68,26 @@ export async function shareDocumentWithIntegrity({
         "La integridad del histórico importado no permite compartirlo.",
       );
     }
-    await share(doc);
-    return { sharedDocument: doc, finalDocument: doc };
+    return { document: doc, mayMarkSent: false };
   }
 
-  const sharedDocument = needsIssueBeforeShare(doc)
+  const document = needsIssueBeforeShare(doc)
     ? await issueDocument(doc.id)
     : doc;
+  return { document, mayMarkSent: true };
+}
 
+export async function shareDocumentWithIntegrity({
+  doc,
+  issueDocument,
+  markDocumentSent,
+  share,
+  markSentOnShare = true,
+}: ShareDocumentFlowInput): Promise<ShareDocumentFlowResult> {
+  const { document: sharedDocument, mayMarkSent } = await prepareDocumentForShare({ doc, issueDocument });
   await share(sharedDocument);
 
-  const finalDocument = markSentOnShare
+  const finalDocument = markSentOnShare && mayMarkSent
     ? ((await markDocumentSent(sharedDocument.id)) ?? sharedDocument)
     : sharedDocument;
 
