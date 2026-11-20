@@ -130,6 +130,9 @@ jobs:
           CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED: "true"
           CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED: "true"
           CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED: "true"
+          CENTRAL_BUSINESS_AUTHORITY_MODE: required
+          CENTRAL_BUSINESS_AUTHORITY_SCHEMA_VERSION: central-business-authority-v1
+          CENTRAL_BUSINESS_AUTHORITY_MUTATIONS_READY: "true"
         run: |
           npm run dev > /tmp/factura-autonomo-next.log 2>&1 &
           echo "$!" > /tmp/factura-autonomo-next.pid
