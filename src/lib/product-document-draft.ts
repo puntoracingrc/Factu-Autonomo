@@ -205,12 +205,12 @@ export function saveDocumentProductReturnDraft(
 
 export function consumeDocumentProductReturnDraft(
   documentType: DocumentType,
+  returnPath?: string,
 ): DocumentProductReturnDraft | null {
   if (typeof window === "undefined") return null;
   try {
     const key = sessionKey(DOCUMENT_PRODUCT_RETURN_KEY);
     const raw = window.sessionStorage.getItem(key);
-    window.sessionStorage.removeItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DocumentProductReturnDraft;
     if (
@@ -222,6 +222,8 @@ export function consumeDocumentProductReturnDraft(
     ) {
       return null;
     }
+    if (returnPath && parsed.returnPath !== returnPath) return null;
+    window.sessionStorage.removeItem(key);
     return parsed;
   } catch {
     return null;
@@ -290,12 +292,12 @@ export function saveDocumentProductPickedLine(
 
 export function consumeDocumentProductPickedLine(
   documentType: DocumentType,
+  targetLineId?: string,
 ): DocumentProductPickedLine | null {
   if (typeof window === "undefined") return null;
   try {
     const key = sessionKey(DOCUMENT_PRODUCT_PICKED_LINE_KEY);
     const raw = window.sessionStorage.getItem(key);
-    window.sessionStorage.removeItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DocumentProductPickedLine;
     if (
@@ -306,6 +308,8 @@ export function consumeDocumentProductPickedLine(
     ) {
       return null;
     }
+    if (targetLineId && parsed.targetLineId !== targetLineId) return null;
+    window.sessionStorage.removeItem(key);
     return parsed;
   } catch {
     return null;

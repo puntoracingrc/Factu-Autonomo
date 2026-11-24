@@ -101,6 +101,14 @@ describe("workspace auxiliary storage", () => {
     expect(loadDriveBackupSettings()).toEqual(DEFAULT_DRIVE_BACKUP_SETTINGS);
   });
 
+  it("respeta los borradores ya atribuidos al abrir otra empresa", () => {
+    const key = "factu:document-session-draft:v1:factura:new:workspace:owner-account-a";
+    storage.setItem(key, "draft-A");
+    const result = claimLegacyWorkspaceAuxiliarySessionStorage("owner-account-b", storage);
+    expect(result.migratedKeys).toEqual([]);
+    expect(storage.getItem(key)).toBe("draft-A");
+  });
+
   it("atribuye borradores de sesión solo después de confirmar la cuenta", () => {
     const owner = "owner-account-a";
     const postIt = JSON.stringify({ open: true, text: "Llamar al cliente" });

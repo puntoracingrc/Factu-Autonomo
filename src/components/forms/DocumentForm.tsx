@@ -20,6 +20,7 @@ import {
   Trash2,
   UserRoundPlus,
 } from "lucide-react";
+import { newDocumentUrl } from "@/lib/customer-document-links";
 import {
   ClientPicker,
   clientToFormValues,
@@ -195,7 +196,9 @@ const TYPE_ROUTES: Record<DocumentType, string> = {
 function documentFormReturnPath(
   type: DocumentType,
   existing?: Document,
+  initialCustomerId?: string | null,
 ): string {
+  if (!existing && initialCustomerId) return newDocumentUrl(type, initialCustomerId);
   const route = TYPE_ROUTES[type];
   return existing ? `/${route}/${existing.id}` : `/${route}/nuevo`;
 }
@@ -484,6 +487,10 @@ export function DocumentForm({
   initialPrefill,
 }: DocumentFormProps) {
   const router = useRouter();
+  const sessionEditor = useMemo(
+    () => ({ existingDocumentId: existing?.id, initialCustomerId }),
+    [existing?.id, initialCustomerId],
+  );
   const localDocumentIdRef = useRef(existing?.id ?? crypto.randomUUID());
   // The fields belong to the version opened, not a newer background pull.
   const centralEditBaseRef = useRef(existing?.centralInvoiceAuthority);
@@ -812,15 +819,18 @@ export function DocumentForm({
   );
 
   useEffect(() => {
-    const returnDraft = consumeDocumentProductReturnDraft(type);
-    const pickedLine = consumeDocumentProductPickedLine(type);
-    if (!returnDraft && !pickedLine) return;
+    if (!ready) return;
+    const returnDraft = consumeDocumentProductReturnDraft(
+      type,
+      documentFormReturnPath(type, existing, initialCustomerId),
+    );
+    if (!returnDraft) return;
+    const pickedLine = consumeDocumentProductPickedLine(type, returnDraft.targetLineId);
 
     productDocumentDraftApplied.current = true;
     setSessionDraftChecked(true);
     setPendingSessionDraft(null);
 
-    if (!returnDraft) return;
     const draftItems = returnDraft.form.items.length
       ? returnDraft.form.items
       : [emptyLine(effectiveDocumentIva, defaultUnit)];
@@ -918,13 +928,16 @@ export function DocumentForm({
     defaultMarkupForProductLine,
     effectiveDocumentIva,
     findProductSummaryForDraftLine,
+    existing,
+    initialCustomerId,
+    ready,
     type,
     unitsSettings,
     vatExempt,
   ]);
 
   useEffect(() => {
-    if (productDocumentDraftApplied.current) return;
+    if (!ready || productDocumentDraftApplied.current) return;
     if (initialPrefill) {
       productDocumentDraftApplied.current = true;
       setPendingSessionDraft(null);
@@ -932,7 +945,7 @@ export function DocumentForm({
       return;
     }
 
-    const sessionDraft = getDocumentSessionDraft(type);
+    const sessionDraft = getDocumentSessionDraft(type, sessionEditor, data.documents);
     if (existing) {
       productDocumentDraftApplied.current = true;
       if (
@@ -943,7 +956,11 @@ export function DocumentForm({
           existingDocumentUpdatedAt: existing.updatedAt,
         })
       ) {
-        applySessionDraft(sessionDraft);
+        if (sessionDraft.needsCustomerReview) {
+          setPendingSessionDraft(sessionDraft);
+        } else {
+          applySessionDraft(sessionDraft);
+        }
       }
       setSessionDraftChecked(true);
       return;
@@ -956,6 +973,7 @@ export function DocumentForm({
         sessionDraft &&
         shouldRestoreDocumentSessionDraft(sessionDraft, {
           documentType: type,
+          documents: data.documents,
         })
       ) {
         applySessionDraft(sessionDraft);
@@ -1032,6 +1050,9 @@ export function DocumentForm({
     );
   }, [
     applySessionDraft,
+    data.documents,
+    sessionEditor,
+    ready,
     defaultMarkupForProductLine,
     effectiveDocumentIva,
     existing,
@@ -1092,7 +1113,7 @@ export function DocumentForm({
   }
 
   function handleDiscardSessionDraft() {
-    clearDocumentSessionDraft(type);
+    clearDocumentSessionDraft(type, sessionEditor);
     setPendingSessionDraft(null);
     setSessionDraftChecked(true);
   }
@@ -1128,6 +1149,7 @@ export function DocumentForm({
     ],
   );
 
+  const initialSessionForm = useRef(currentSessionDraft);
   useEffect(() => {
     if (
       !sessionDraftChecked ||
@@ -1138,8 +1160,12 @@ export function DocumentForm({
     }
     const persistDraft = () => {
       if (sessionDraftCompleted.current) return;
+      if (sessionEditor.existingDocumentId && currentSessionDraft === initialSessionForm.current) {
+        return;
+      }
       saveDocumentSessionDraft(type, currentSessionDraft, {
         localDocumentId: localDocumentIdRef.current,
+        ...sessionEditor,
       });
     };
     const persistWhenHidden = () => {
@@ -1153,7 +1179,7 @@ export function DocumentForm({
       document.removeEventListener("visibilitychange", persistWhenHidden);
       window.removeEventListener("pagehide", persistDraft);
     };
-  }, [sessionDraftChecked, pendingSessionDraft, type, currentSessionDraft]);
+  }, [sessionDraftChecked, pendingSessionDraft, type, currentSessionDraft, sessionEditor]);
 
   useEffect(() => {
     if (!vatExempt) return;
@@ -1476,7 +1502,7 @@ export function DocumentForm({
       currentItems.find((entry) => entry.id === item.id) ?? item;
     const currentPricing =
       lineProductPricing[currentItem.id] ?? lineProductPricing[item.id];
-    const returnPath = documentFormReturnPath(type, existing);
+    const returnPath = documentFormReturnPath(type, existing, initialCustomerId);
     const createdAt = new Date().toISOString();
     const description = currentItem.description.trim();
     const currentMeasurement = normalizedMeasureDraft(
@@ -1801,7 +1827,7 @@ export function DocumentForm({
           paymentTerms: paymentTerms.trim() || undefined,
         });
         sessionDraftCompleted.current = true;
-        clearDocumentSessionDraft(type);
+        clearDocumentSessionDraft(type, sessionEditor);
         setFormError(null);
         await finishDocumentSave({
           type,
@@ -2178,7 +2204,7 @@ export function DocumentForm({
 
     maybeCelebrateFirstInvoice(data.documents, saved);
     sessionDraftCompleted.current = true;
-    clearDocumentSessionDraft(type);
+    clearDocumentSessionDraft(type, sessionEditor);
     setFormError(null);
     setSaveAction("idle");
     await finishDocumentSave({
@@ -2207,7 +2233,9 @@ export function DocumentForm({
                   {label[0].toUpperCase() + label.slice(1)} sin terminar
                 </h2>
                 <p className="mt-1 text-sm font-medium text-slate-600">
-                  Recupera lo que estabas escribiendo en esta sesión.
+                  {pendingSessionDraft.needsCustomerReview
+                    ? `El formulario recuperado tiene otro cliente. Confirma si quieres cargar esos datos al editar ${existing?.number}.`
+                    : "Recupera lo que estabas escribiendo en esta sesión."}
                 </p>
               </div>
             </div>
