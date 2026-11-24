@@ -14,19 +14,13 @@ import type { ManualSection } from "@/lib/manual/types";
 
 interface ManualSectionViewProps {
   section: ManualSection;
-  previous?: ManualSection;
-  next?: ManualSection;
-  publicPrevious?: ManualSection;
-  publicNext?: ManualSection;
+  links: Pick<ManualSection, "slug" | "title">[];
   returnTo?: string | null;
 }
 
 export function ManualSectionView({
   section,
-  previous,
-  next,
-  publicPrevious,
-  publicNext,
+  links,
   returnTo,
 }: ManualSectionViewProps) {
   return (
@@ -109,10 +103,8 @@ export function ManualSectionView({
       </div>
 
       <ManualSectionNavigation
-        previous={previous}
-        next={next}
-        publicPrevious={publicPrevious}
-        publicNext={publicNext}
+        currentSlug={section.slug}
+        links={links}
         returnTo={returnTo}
       />
     </div>

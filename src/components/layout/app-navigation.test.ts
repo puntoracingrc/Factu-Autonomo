@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   APP_NAV_ITEMS,
-  appNavItemsForEmail,
+  appNavItemsForAccess,
   findActiveAppNavItem,
   isAppNavItemActive,
   MOBILE_MORE_NAV_ITEMS,
@@ -97,7 +97,7 @@ describe("app navigation", () => {
   });
 
   it("hides private previews from normal accounts and keeps them for owner accounts", () => {
-    const publicHrefs = appNavItemsForEmail("usuario@example.com").map(
+    const publicHrefs = appNavItemsForAccess("none").map(
       (item) => item.href,
     );
     expect(publicHrefs).not.toContain("/impuestos");
@@ -106,8 +106,10 @@ describe("app navigation", () => {
       publicHrefs.some((href) => href.startsWith("/consultor-fiscal")),
     ).toBe(false);
 
-    expect(appNavItemsForEmail("persianasalmar@gmail.com")).toBe(APP_NAV_ITEMS);
-    expect(appNavItemsForEmail("puntoracingrc@gmail.com")).toBe(APP_NAV_ITEMS);
+    expect(appNavItemsForAccess("full")).toBe(APP_NAV_ITEMS);
+    const taxHrefs = appNavItemsForAccess("tax-summary").map((item) => item.href);
+    expect(taxHrefs.filter((href) => !publicHrefs.includes(href))).toEqual(["/impuestos"]);
+    expect(taxHrefs).toEqual(expect.arrayContaining(publicHrefs));
   });
 
   it("abre Asesoría fiscal en el configurador cuando está habilitado", () => {

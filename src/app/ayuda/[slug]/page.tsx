@@ -43,36 +43,16 @@ export default async function ManualSectionPage({
 
   const returnTo = sanitizeReturnPath((await searchParams).from);
 
-  const index = manualSections.findIndex((item) => item.slug === slug);
-  const previous = index > 0 ? manualSections[index - 1] : undefined;
-  const next =
-    index >= 0 && index < manualSections.length - 1
-      ? manualSections[index + 1]
-      : undefined;
-  const publicSections = manualSections.filter(
-    (item) => !isPrivatePreviewManualSlug(item.slug),
-  );
-  const publicIndex = publicSections.findIndex((item) => item.slug === slug);
-  const publicPrevious =
-    publicIndex > 0 ? publicSections[publicIndex - 1] : undefined;
-  const publicNext =
-    publicIndex >= 0 && publicIndex < publicSections.length - 1
-      ? publicSections[publicIndex + 1]
-      : undefined;
-
   const content = (
     <ManualSectionView
       section={section}
-      previous={previous}
-      next={next}
-      publicPrevious={publicPrevious}
-      publicNext={publicNext}
+      links={manualSections.map(({ slug, title }) => ({ slug, title }))}
       returnTo={returnTo}
     />
   );
 
   return isPrivatePreviewManualSlug(slug) ? (
-    <PrivatePreviewAccessGate>{content}</PrivatePreviewAccessGate>
+    <PrivatePreviewAccessGate taxSummary={slug === "impuestos"}>{content}</PrivatePreviewAccessGate>
   ) : (
     content
   );

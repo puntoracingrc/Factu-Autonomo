@@ -108,7 +108,19 @@ export async function listCompaniesForIdentity(
     p_verified_email: verifiedEmail(identity),
   });
   if (error) throw new Error(error.message);
-  return ((data ?? []) as CompanyRpcRow[]).map(companyFromRpcRow);
+  const grants: unknown =
+    identity.user.app_metadata?.factu_tax_summary_company_ids;
+  return ((data ?? []) as CompanyRpcRow[]).map((row) => {
+    const company = companyFromRpcRow(row);
+    if (
+      row.member_role === "admin" &&
+      Array.isArray(grants) &&
+      grants.includes(company.id)
+    ) {
+      company.taxSummaryGrantedTo = identity.user.id;
+    }
+    return company;
+  });
 }
 
 export async function createCompanyForIdentity(

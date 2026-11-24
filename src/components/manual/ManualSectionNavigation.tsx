@@ -2,30 +2,27 @@
 
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import { usePrivatePreviewAccess } from "@/hooks/usePrivatePreviewAccess";
 import { buildManualHref } from "@/lib/manual/return-url";
-import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
+import { canReadManualSection } from "@/lib/private-preview-access";
 import type { ManualSection } from "@/lib/manual/types";
 
 interface ManualSectionNavigationProps {
-  previous?: ManualSection;
-  next?: ManualSection;
-  publicPrevious?: ManualSection;
-  publicNext?: ManualSection;
+  currentSlug: string;
+  links: Pick<ManualSection, "slug" | "title">[];
   returnTo?: string | null;
 }
 
 export function ManualSectionNavigation({
-  previous,
-  next,
-  publicPrevious,
-  publicNext,
+  currentSlug,
+  links,
   returnTo,
 }: ManualSectionNavigationProps) {
-  const { user } = useCloudSync();
-  const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
-  const visiblePrevious = privatePreviewAccess ? previous : publicPrevious;
-  const visibleNext = privatePreviewAccess ? next : publicNext;
+  const { access } = usePrivatePreviewAccess();
+  const visible = links.filter((item) => canReadManualSection(item.slug, access));
+  const index = visible.findIndex((item) => item.slug === currentSlug);
+  const visiblePrevious = visible[index - 1];
+  const visibleNext = index >= 0 ? visible[index + 1] : undefined;
 
   return (
     <nav className="mt-8 grid gap-3 sm:grid-cols-2">
