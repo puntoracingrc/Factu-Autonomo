@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { isTaxModelDiagnosticEnabled } from "@/lib/tax-model-diagnostic/config";
 import {
-  hasPrivatePreviewAccess,
+  type PreviewAccess,
   isPrivatePreviewPath,
 } from "@/lib/private-preview-access";
 export type AppNavItem = {
@@ -120,11 +120,15 @@ export const MOBILE_MORE_NAV_ITEMS = APP_NAV_ITEMS.filter(
   (item) => !mobilePrimaryHrefSet.has(item.href),
 );
 
-export function appNavItemsForEmail(
-  email: string | null | undefined,
+export function appNavItemsForAccess(
+  access: PreviewAccess,
 ): readonly AppNavItem[] {
-  if (hasPrivatePreviewAccess(email)) return APP_NAV_ITEMS;
-  return APP_NAV_ITEMS.filter((item) => !isPrivatePreviewPath(item.href));
+  if (access === "full") return APP_NAV_ITEMS;
+  return APP_NAV_ITEMS.filter(
+    (item) =>
+      !isPrivatePreviewPath(item.href) ||
+      (access === "tax-summary" && item.href === "/impuestos"),
+  );
 }
 
 export function isAppNavItemActive(

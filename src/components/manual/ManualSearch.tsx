@@ -5,12 +5,9 @@ import { useMemo, useState } from "react";
 import { ChevronRight, Search } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Field";
-import { useCloudSync } from "@/context/CloudSyncContext";
+import { usePrivatePreviewAccess } from "@/hooks/usePrivatePreviewAccess";
 import { buildManualHref } from "@/lib/manual/return-url";
-import {
-  hasPrivatePreviewAccess,
-  isPrivatePreviewManualSlug,
-} from "@/lib/private-preview-access";
+import { canReadManualSection } from "@/lib/private-preview-access";
 import type { ManualSection } from "@/lib/manual/types";
 
 interface ManualSearchProps {
@@ -41,17 +38,11 @@ function sectionSearchText(section: ManualSection): string {
 
 export function ManualSearch({ sections, returnTo }: ManualSearchProps) {
   const [query, setQuery] = useState("");
-  const { user } = useCloudSync();
-  const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
+  const { access } = usePrivatePreviewAccess();
   const normalizedQuery = normalizeSearch(query);
   const visibleSections = useMemo(
-    () =>
-      privatePreviewAccess
-        ? sections
-        : sections.filter(
-            (section) => !isPrivatePreviewManualSlug(section.slug),
-          ),
-    [privatePreviewAccess, sections],
+    () => sections.filter((section) => canReadManualSection(section.slug, access)),
+    [access, sections],
   );
 
   const results = useMemo(() => {

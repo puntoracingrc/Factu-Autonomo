@@ -8,6 +8,7 @@ export interface AppCompany {
   billingOwnerUserId: string;
   name: string;
   role: CompanyMemberRole;
+  taxSummaryGrantedTo?: string;
   createdAt: string;
 }
 

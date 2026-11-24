@@ -3,21 +3,22 @@
 import { useEffect } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCloudSync } from "@/context/CloudSyncContext";
-import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
+import { usePrivatePreviewAccess } from "@/hooks/usePrivatePreviewAccess";
 
 export function PrivatePreviewAccessGate({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  taxSummary = false,
+}: Readonly<{ children: React.ReactNode; taxSummary?: boolean }>) {
   const router = useRouter();
-  const { authReady, user } = useCloudSync();
-  const allowed = authReady && hasPrivatePreviewAccess(user?.email);
+  const { access, authReady, taxAccessReady } = usePrivatePreviewAccess();
+  const ready = taxSummary ? taxAccessReady : authReady;
+  const allowed = access === "full" || (taxSummary && access === "tax-summary");
 
   useEffect(() => {
-    if (authReady && !allowed) router.replace("/");
-  }, [allowed, authReady, router]);
+    if (ready && !allowed) router.replace("/");
+  }, [allowed, ready, router]);
 
-  if (!allowed) {
+  if (!ready || !allowed) {
     return (
       <div
         role="status"
@@ -28,7 +29,7 @@ export function PrivatePreviewAccessGate({
           className="h-4 w-4 motion-safe:animate-spin"
           aria-hidden="true"
         />
-        {authReady ? "Volviendo al panel..." : "Comprobando acceso..."}
+        {ready ? "Volviendo al panel..." : "Comprobando acceso..."}
       </div>
     );
   }

@@ -47,7 +47,7 @@ import {
 } from "@/lib/app-preferences";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
-  appNavItemsForEmail,
+  appNavItemsForAccess,
   isAppNavItemActive,
   type AppNavItem,
 } from "@/components/layout/app-navigation";
@@ -65,7 +65,7 @@ import {
   applyResolvedAppTheme,
   cacheAppThemePreference,
 } from "@/lib/app-theme-bootstrap";
-import { hasPrivatePreviewAccess } from "@/lib/private-preview-access";
+import { previewAccessForAccount } from "@/lib/private-preview-access";
 import {
   readDashboardVisualCache,
   type DashboardVisualCacheItem,
@@ -158,8 +158,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const prefetchedNavigationHrefsRef = useRef(new Set<string>());
   const navigationPrefetchTimersRef = useRef(new Map<string, number>());
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
-  const privatePreviewAccess = hasPrivatePreviewAccess(user?.email);
-  const appNavItems = appNavItemsForEmail(user?.email);
+  const previewAccess = previewAccessForAccount(user, activeCompany);
+  const appNavItems = appNavItemsForAccess(previewAccess);
   visualCacheDataRef.current = data;
   const selectedPathname = pendingNavigation?.href ?? pathname;
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
@@ -175,7 +175,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hasAppSessionContext = Boolean(user) || workspaceLoading;
   const configuredBrandHref = appStartPageHref(appPreferences.startPage);
   const brandHref = hasAppSessionContext
-    ? configuredBrandHref === "/impuestos" && !privatePreviewAccess
+    ? configuredBrandHref === "/impuestos" && previewAccess === "none"
       ? "/"
       : configuredBrandHref
     : "/inicio";
