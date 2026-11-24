@@ -32,7 +32,10 @@ function rotateRight(value: number, amount: number): number {
   return (value >>> amount) | (value << (32 - amount));
 }
 
+const utf8Encoder = typeof TextEncoder === "undefined" ? null : new TextEncoder();
+
 function utf8Bytes(value: string): Uint8Array {
+  if (utf8Encoder) return utf8Encoder.encode(value);
   const bytes: number[] = [];
 
   for (let index = 0; index < value.length; index += 1) {

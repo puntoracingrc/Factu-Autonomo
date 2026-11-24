@@ -69,10 +69,27 @@ export function stableStringifySnapshot(value: unknown): string {
   return JSON.stringify(stableNormalize(value));
 }
 
-function sha256StableValue(value: unknown): string {
-  const input = stableStringifySnapshot(value);
-  return `sha256:${sha256Hex(input)}`;
+// Reuse a digest only for the exact canonical input. The stored seal and every
+// semantic check are still evaluated on each inspection, including after in-place edits.
+function createSnapshotDigest() {
+  const previous = new WeakMap<object, { input: string; digest: string }>();
+  return (snapshot: object, payload: unknown): string => {
+    const input = stableStringifySnapshot(payload);
+    const cached = previous.get(snapshot);
+    if (cached && cached.input === input) return cached.digest;
+    const digest = `sha256:${sha256Hex(input)}`;
+    // Avoid retaining large images alongside the live snapshot.
+    if (input.length <= 8_192) previous.set(snapshot, { input, digest });
+    else previous.delete(snapshot);
+    return digest;
+  };
 }
+
+const digestDocumentPayload = createSnapshotDigest();
+const digestPdfPayload = createSnapshotDigest();
+const digestDocumentContext = createSnapshotDigest();
+const digestStrongDocument = createSnapshotDigest();
+const digestStrongPdf = createSnapshotDigest();
 
 function legacyHashStableValue(value: unknown): string {
   return `fnv1a32:${legacyFnv1a32(stableStringifySnapshot(value))}`;
@@ -82,7 +99,7 @@ function hashDocumentSnapshotContext(
   documentId: string,
   snapshot: DocumentSnapshot,
 ): string {
-  return sha256StableValue({
+  return digestDocumentContext(snapshot, {
     documentId,
     capturedAt: snapshot.capturedAt,
     source: snapshot.source,
@@ -95,7 +112,7 @@ export function hashStrongDocumentSnapshotContent(
 ): string {
   const content = { ...snapshot } as JsonRecord;
   delete content.snapshotHash;
-  return sha256StableValue(content);
+  return digestStrongDocument(snapshot, content);
 }
 
 export function hashStrongDocumentPdfSnapshotContent(
@@ -107,7 +124,7 @@ export function hashStrongDocumentPdfSnapshotContent(
     documentContentHash,
   } as JsonRecord;
   delete content.contentHash;
-  return sha256StableValue(content);
+  return digestStrongPdf(snapshot, content);
 }
 
 export function documentKindForSnapshot(
@@ -319,7 +336,7 @@ export function hashDocumentSnapshot(
     snapshotHash?: string;
   },
 ): string {
-  return sha256StableValue(documentSnapshotHashPayload(snapshot));
+  return digestDocumentPayload(snapshot, documentSnapshotHashPayload(snapshot));
 }
 
 export function hashDocumentPdfSnapshot(
@@ -331,7 +348,7 @@ export function hashDocumentPdfSnapshot(
   const content = { ...snapshot } as JsonRecord;
   delete content.renderedAt;
   delete content.contentHash;
-  return sha256StableValue(content);
+  return digestPdfPayload(snapshot, content);
 }
 
 export type SnapshotHashAlgorithm = "sha256" | "fnv1a32";
@@ -350,7 +367,7 @@ export function hashDocumentSnapshotWithAlgorithm(
   const payload = documentSnapshotHashPayload(snapshot);
   return algorithm === "fnv1a32"
     ? legacyHashStableValue(payload)
-    : sha256StableValue(payload);
+    : digestDocumentPayload(snapshot, payload);
 }
 
 export type SnapshotHashVerification =
@@ -387,6 +404,7 @@ type DocumentSnapshotIntegrityInput = Pick<
 function verifyStoredHash(
   value: unknown,
   storedHash: unknown,
+  sha256Digest: (payload: unknown) => string,
 ): SnapshotHashVerification {
   let algorithm: SnapshotHashAlgorithm | null = null;
   if (
@@ -406,7 +424,7 @@ function verifyStoredHash(
   try {
     const expected =
       algorithm === "sha256"
-        ? sha256StableValue(value)
+        ? sha256Digest(value)
         : legacyHashStableValue(value);
     return expected === storedHash
       ? { status: "verified", algorithm }
@@ -425,6 +443,7 @@ export function verifyDocumentSnapshotHash(
     return verifyStoredHash(
       documentSnapshotHashPayload(snapshot),
       snapshot.snapshotHash,
+      (payload) => digestDocumentPayload(snapshot, payload),
     );
   } catch {
     const algorithm =
@@ -447,7 +466,9 @@ export function verifyDocumentPdfSnapshotHash(
     const content = { ...snapshot, documentSnapshotHash } as JsonRecord;
     delete content.renderedAt;
     delete content.contentHash;
-    return verifyStoredHash(content, snapshot.contentHash);
+    return verifyStoredHash(content, snapshot.contentHash, (payload) =>
+      digestPdfPayload(snapshot, payload),
+    );
   } catch {
     const algorithm =
       typeof snapshot.contentHash === "string" &&
@@ -879,17 +900,16 @@ export function inspectDocumentSnapshotsIntegrity(
         ) {
           issues.push("snapshot_context_mismatch");
         }
+        const strongDocumentHash = doc.documentSnapshot
+          ? hashStrongDocumentSnapshotContent(doc.documentSnapshot)
+          : undefined;
         if (
-          doc.documentSnapshot &&
-          seal.documentContentHash !==
-            hashStrongDocumentSnapshotContent(doc.documentSnapshot)
+          strongDocumentHash &&
+          seal.documentContentHash !== strongDocumentHash
         ) {
           issues.push("document_strong_hash_mismatch");
         }
-        if (doc.documentSnapshot && doc.pdfSnapshot) {
-          const strongDocumentHash = hashStrongDocumentSnapshotContent(
-            doc.documentSnapshot,
-          );
+        if (strongDocumentHash && doc.pdfSnapshot) {
           const strongPdfHash = hashStrongDocumentPdfSnapshotContent(
             doc.pdfSnapshot,
             strongDocumentHash,

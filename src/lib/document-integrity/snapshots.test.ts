@@ -313,6 +313,25 @@ describe("document snapshots", () => {
     });
   });
 
+  it("detecta cambios sobre los mismos objetos después de una inspección correcta", () => {
+    const issued = issueDocument(invoice(), profile, NOW);
+    const snapshot = issued.documentSnapshot!;
+    const pdf = issued.pdfSnapshot!;
+    expect(inspectDocumentSnapshotsIntegrity(issued).ok).toBe(true);
+
+    const notes = snapshot.notes;
+    snapshot.notes = "Texto corregido";
+    expect(inspectDocumentSnapshotsIntegrity(issued).issues).toContain("document_hash_mismatch");
+    snapshot.notes = notes;
+    expect(inspectDocumentSnapshotsIntegrity(issued).ok).toBe(true);
+
+    // renderedAt is covered by the strong PDF seal, and the document ID by the context seal.
+    pdf.renderedAt = "2026-06-25T10:00:00.000Z";
+    expect(inspectDocumentSnapshotsIntegrity(issued).issues).toContain("pdf_strong_hash_mismatch");
+    issued.id = "otra-identidad";
+    expect(inspectDocumentSnapshotsIntegrity(issued).issues).toContain("snapshot_context_mismatch");
+  });
+
   it("rechaza un snapshot recovery como bundle top-level y solo permite validarlo anidado", () => {
     const documentSnapshot = buildDocumentSnapshot(invoice(), profile, {
       capturedAt: NOW,

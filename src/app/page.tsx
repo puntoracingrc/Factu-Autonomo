@@ -87,7 +87,7 @@ export default function HomePage() {
   const { data, ready } = useAppStore();
   const { authReady, user } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
-  const { badgeCount: alertCount } = useAppRecommendations();
+  const { badgeCount: alertCount, factuTips } = useAppRecommendations();
 
   if (!ready || !authReady) {
     return <p className="text-center text-slate-500">Cargando...</p>;
@@ -125,7 +125,7 @@ export default function HomePage() {
 
       <HomeBusinessSummary data={data} />
 
-      <HomeFactuTip />
+      <HomeFactuTip tip={factuTips[0]} />
 
       <InstallAppCard />
     </div>

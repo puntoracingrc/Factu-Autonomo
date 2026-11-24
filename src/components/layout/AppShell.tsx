@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -423,26 +423,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     renameCompany,
   ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const nav = mobileNavRef.current;
-    const activeLink = nav?.querySelector<HTMLElement>(
-      '[data-navigation-selected="true"]',
-    );
-    if (!nav || !activeLink) return;
+    if (!nav || !nav.clientWidth) return;
+    const activeLink = nav.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!activeLink) return;
 
-    const frame = window.requestAnimationFrame(() => {
-      const targetLeft =
-        activeLink.offsetLeft - (nav.clientWidth - activeLink.offsetWidth) / 2;
-      nav.scrollTo({
-        left: Math.max(0, targetLeft),
-        behavior: appPreferences.reduceMotion ? "auto" : "smooth",
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [appPreferences.reduceMotion, selectedPathname]);
+    // A visible button must stay under the finger, including on a second tap.
+    // Only reveal an off-screen destination entered by a link or browser history.
+    const bar = nav.getBoundingClientRect();
+    const link = activeLink.getBoundingClientRect();
+    if (link.right > bar.left && link.left < bar.right) return;
+    const delta =
+      link.right <= bar.left ? link.left - bar.left : link.right - bar.right;
+    nav.scrollTo({ left: nav.scrollLeft + delta, behavior: "instant" });
+  }, [pathname]);
 
   return (
     <div
