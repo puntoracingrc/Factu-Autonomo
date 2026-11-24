@@ -119,6 +119,7 @@ describe("product document draft", () => {
     });
 
     expect(saved).toBe(true);
+    expect(consumeDocumentProductReturnDraft("presupuesto", "/presupuestos/otro")).toBeNull();
     const consumed = consumeDocumentProductReturnDraft("presupuesto");
     expect(consumed?.targetLineId).toBe("line-2");
     expect(consumed?.form.salesTerms).toBe("Validez de 30 días");
@@ -166,6 +167,7 @@ describe("product document draft", () => {
       request,
     );
     expect(saveDocumentProductPickedLine(picked)).toBe(true);
+    expect(consumeDocumentProductPickedLine("factura", "otra-linea")).toBeNull();
     expect(consumeDocumentProductPickedLine("factura")).toMatchObject({
       targetLineId: "line-1",
       draftLine: {

@@ -29,7 +29,7 @@ describe("document session draft reliability contract", () => {
     expect(form).toContain('document.addEventListener("visibilitychange"');
     expect(form).toContain('window.addEventListener("pagehide"');
     expect(form).toContain("sessionDraftCompleted.current = true");
-    expect(form).toContain("clearDocumentSessionDraft(type)");
+    expect(form).toContain("clearDocumentSessionDraft(type, sessionEditor)");
     expect(form).not.toContain(
       "if (existing || !sessionDraftChecked || pendingSessionDraft)",
     );

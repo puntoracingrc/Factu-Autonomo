@@ -86,6 +86,7 @@ export function claimLegacyWorkspaceAuxiliarySessionStorage(
       const key = storage.key(index);
       if (
         key &&
+        !key.includes(":workspace:") &&
         SESSION_ACCOUNT_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
       ) {
         candidates.add(key);
