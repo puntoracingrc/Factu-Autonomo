@@ -1221,7 +1221,14 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                       )}
                     </div>
                     <p className="text-sm text-slate-500">
-                      {formatShortDate(doc.date)} · {formatMoney(total)}
+                      {formatShortDate(doc.date)} ·{" "}
+                      {type === "factura" ? (
+                        <strong className="whitespace-nowrap text-base font-bold text-slate-900">
+                          {formatMoney(total)}
+                        </strong>
+                      ) : (
+                        formatMoney(total)
+                      )}
                     </p>
                     {type !== "factura" &&
                       workExpenseSummary &&
