@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { useAppRecommendations } from "@/hooks/useAppRecommendations";
+import type { AppRecommendation } from "@/lib/recommendations";
 
 /** Un consejo de Factu en Inicio para descubrir funciones de la app. */
-export function HomeFactuTip() {
-  const { factuTips } = useAppRecommendations();
-  const tip = factuTips[0];
+export function HomeFactuTip({ tip }: { tip?: AppRecommendation }) {
 
   if (!tip) return null;
 
