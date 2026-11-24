@@ -245,6 +245,50 @@ describe("filterCustomers", () => {
     ]);
   });
 
+  it("ordena por el nombre visible antes que por el contacto, la dirección o el correo", () => {
+    function customer(name: string, details: Partial<Customer> = {}): Customer {
+      return {
+        id: name,
+        name,
+        firstName: "",
+        lastName: "",
+        createdAt: "",
+        updatedAt: "",
+        ...details,
+      };
+    }
+    const customers = [
+      customer("Arquitectura Norte", {
+        customerType: "company",
+        contactName: "Pau",
+      }),
+      customer("Paula Torres"),
+      customer("Alba Demo", { address: "Calle de Pau Claris" }),
+      customer("Pau Vidal"),
+      customer("Taller Demo", { email: "ventas@sepauto.example" }),
+      customer("Pau Serra SL", { customerType: "company" }),
+      customer("Anna Pau"),
+      customer("Pau"),
+    ];
+
+    expect(filterCustomers(customers, "PÀU").map((c) => c.name)).toEqual([
+      "Pau",
+      "Pau Serra SL",
+      "Pau Vidal",
+      "Anna Pau",
+      "Paula Torres",
+      "Alba Demo",
+      "Arquitectura Norte",
+      "Taller Demo",
+    ]);
+    expect(filterCustomers(customers, "vid pau").map((c) => c.name)).toEqual([
+      "Pau Vidal",
+    ]);
+    expect(filterCustomers(customers, "").map((c) => c.name)).toEqual(
+      sortCustomersByName(customers).map((c) => c.name),
+    );
+  });
+
   it("filtra por NIF", () => {
     expect(filterCustomers(sample, "1111").map((c) => c.name)).toEqual([
       "Zara Servicios",

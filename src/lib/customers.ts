@@ -534,13 +534,16 @@ export function pickCanonicalCustomer(
   })[0];
 }
 
+const customerNameCollator = new Intl.Collator("es", { sensitivity: "base" });
+
 export function sortCustomersByName(customers: Customer[]): Customer[] {
-  return [...customers]
+  return customers
     .map(migrateCustomer)
     .sort((a, b) =>
-      getCustomerDisplayName(a).localeCompare(getCustomerDisplayName(b), "es", {
-        sensitivity: "base",
-      }),
+      customerNameCollator.compare(
+        getCustomerDisplayName(a),
+        getCustomerDisplayName(b),
+      ),
     );
 }
 
@@ -659,42 +662,73 @@ export function customerToClient(customer: Customer): Client {
   };
 }
 
+function customerSearchRank(
+  customer: Customer,
+  displayName: string,
+  query: string,
+  tokens: string[],
+  compactQuery: string,
+): number | null {
+  const name = normalizeComparableCustomerText(displayName);
+  if (name === query) return 0;
+  if (name.startsWith(query + " ")) return 1;
+  const words = name.split(" ");
+  if (tokens.every((token) => words.includes(token))) return 2;
+  if (tokens.every((token) => words.some((word) => word.startsWith(token)))) return 3;
+  if (
+    tokens.every((token) => name.includes(token)) ||
+    name.replace(/ /g, "").includes(compactQuery)
+  ) {
+    return 4;
+  }
+
+  const searchableText = normalizeComparableCustomerText(
+    [
+      CUSTOMER_TYPE_LABELS[normalizeCustomerType(customer.customerType)],
+      customer.firstName,
+      customer.lastName,
+      customer.contactName,
+      displayName,
+      customer.nif,
+      customer.email,
+      customer.phone,
+      customer.phoneContactName,
+      customer.phone2,
+      customer.phone2ContactName,
+      getStreetType(customer.streetType)?.label,
+      formatStreetLine(customer.streetType, customer.address),
+      customer.address,
+      customer.addressExtra,
+      customer.city,
+      customer.postalCode,
+    ].join(" "),
+  );
+  if (
+    tokens.every((token) => searchableText.includes(token)) ||
+    searchableText.replace(/ /g, "").includes(compactQuery)
+  ) {
+    return 5;
+  }
+  return null;
+}
+
 export function filterCustomers(customers: Customer[], query: string): Customer[] {
   const q = normalizeComparableCustomerText(query);
   if (!q) return sortCustomersByName(customers);
-  const queryTokens = q.split(" ").filter(Boolean);
-  const compactQuery = q.replace(/\s/g, "");
-
-  return sortCustomersByName(customers).filter((c) => {
-    const migrated = migrateCustomer(c);
-    const haystack = [
-      CUSTOMER_TYPE_LABELS[normalizeCustomerType(migrated.customerType)],
-      migrated.firstName,
-      migrated.lastName,
-      migrated.contactName,
-      getCustomerDisplayName(migrated),
-      migrated.nif,
-      migrated.email,
-      migrated.phone,
-      migrated.phoneContactName,
-      migrated.phone2,
-      migrated.phone2ContactName,
-      getStreetType(migrated.streetType)?.label,
-      formatStreetLine(migrated.streetType, migrated.address),
-      migrated.address,
-      migrated.addressExtra,
-      migrated.city,
-      migrated.postalCode,
-    ]
-      .filter(Boolean)
-      .map((value) => normalizeComparableCustomerText(String(value)))
-      .join(" ");
-    const compactHaystack = haystack.replace(/\s/g, "");
-    return (
-      queryTokens.every((token) => haystack.includes(token)) ||
-      Boolean(compactQuery && compactHaystack.includes(compactQuery))
-    );
-  });
+  const tokens = q.split(" ");
+  const compactQuery = tokens.join("");
+  const matches: { customer: Customer; name: string; rank: number }[] = [];
+  for (const raw of customers) {
+    const customer = migrateCustomer(raw);
+    const name = getCustomerDisplayName(customer);
+    const rank = customerSearchRank(customer, name, q, tokens, compactQuery);
+    if (rank !== null) matches.push({ customer, name, rank });
+  }
+  return matches
+    .sort(
+      (a, b) => a.rank - b.rank || customerNameCollator.compare(a.name, b.name),
+    )
+    .map(({ customer }) => customer);
 }
 
 export function findCustomerByIdentity(
